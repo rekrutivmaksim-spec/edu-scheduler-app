@@ -3,8 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import { universities, courses } from '@/lib/universities';
 
 const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 
@@ -12,17 +14,34 @@ export default function Register() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [universitySearch, setUniversitySearch] = useState('');
+  const [showUniversities, setShowUniversities] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
     full_name: '',
     university: '',
     faculty: '',
     course: ''
   });
 
+  const filteredUniversities = universities.filter(uni =>
+    uni.toLowerCase().includes(universitySearch.toLowerCase())
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        variant: 'destructive',
+        title: 'Ошибка',
+        description: 'Пароли не совпадают'
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -33,7 +52,12 @@ export default function Register() {
         },
         body: JSON.stringify({
           action: 'register',
-          ...formData
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.full_name,
+          university: formData.university,
+          faculty: formData.faculty,
+          course: formData.course
         })
       });
 
@@ -118,20 +142,38 @@ export default function Register() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <Icon name="Lock" size={16} className="text-purple-600" />
-              Пароль *
-            </label>
-            <Input
-              type="password"
-              placeholder="Минимум 6 символов"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required
-              minLength={6}
-              className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Icon name="Lock" size={16} className="text-purple-600" />
+                Пароль *
+              </label>
+              <Input
+                type="password"
+                placeholder="Минимум 6 символов"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+                minLength={6}
+                className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Icon name="Lock" size={16} className="text-purple-600" />
+                Повторите пароль *
+              </label>
+              <Input
+                type="password"
+                placeholder="Повторите пароль"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                required
+                minLength={6}
+                className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -139,13 +181,37 @@ export default function Register() {
               <Icon name="GraduationCap" size={16} className="text-purple-600" />
               Университет
             </label>
-            <Input
-              type="text"
-              placeholder="МГУ им. М.В. Ломоносова"
-              value={formData.university}
-              onChange={(e) => setFormData({ ...formData, university: e.target.value })}
-              className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl"
-            />
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Начните вводить название..."
+                value={universitySearch || formData.university}
+                onChange={(e) => {
+                  setUniversitySearch(e.target.value);
+                  setFormData({ ...formData, university: e.target.value });
+                  setShowUniversities(true);
+                }}
+                onFocus={() => setShowUniversities(true)}
+                className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl"
+              />
+              {showUniversities && filteredUniversities.length > 0 && universitySearch && (
+                <div className="absolute z-50 w-full mt-2 bg-white border-2 border-purple-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                  {filteredUniversities.slice(0, 10).map((uni) => (
+                    <div
+                      key={uni}
+                      onClick={() => {
+                        setFormData({ ...formData, university: uni });
+                        setUniversitySearch(uni);
+                        setShowUniversities(false);
+                      }}
+                      className="px-4 py-3 hover:bg-purple-50 cursor-pointer transition-colors border-b border-purple-100 last:border-0"
+                    >
+                      <p className="text-sm font-medium text-gray-900">{uni}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -156,7 +222,7 @@ export default function Register() {
               </label>
               <Input
                 type="text"
-                placeholder="ВМК"
+                placeholder="Например: ВМК"
                 value={formData.faculty}
                 onChange={(e) => setFormData({ ...formData, faculty: e.target.value })}
                 className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl"
@@ -166,15 +232,20 @@ export default function Register() {
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                 <Icon name="Users" size={16} className="text-purple-600" />
-                Курс и группа
+                Курс
               </label>
-              <Input
-                type="text"
-                placeholder="2 курс, гр. 201"
-                value={formData.course}
-                onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl"
-              />
+              <Select value={formData.course} onValueChange={(value) => setFormData({ ...formData, course: value })}>
+                <SelectTrigger className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl">
+                  <SelectValue placeholder="Выберите курс" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map((course) => (
+                    <SelectItem key={course} value={course}>
+                      {course}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
