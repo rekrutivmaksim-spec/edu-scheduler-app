@@ -1,0 +1,25 @@
+{
+  "tests": [
+    {
+      "name": "Search universities by query",
+      "method": "GET",
+      "path": "/?q=МГУ",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "universities": "array",
+        "count": "number"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Search with short query",
+      "method": "GET",
+      "path": "/?q=Мо",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "universities": "array"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,10 @@ import { Card } from '@/components/ui/card';
 
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
-import { universities, courses } from '@/lib/universities';
+import { courses } from '@/lib/universities';
 
-const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
+const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
+const UNIVERSITIES_API_URL = 'https://functions.poehali.dev/f5286e45-f3b6-4a53-a2ff-d1bc8c0af0fa';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [universitySearch, setUniversitySearch] = useState('');
   const [showUniversities, setShowUniversities] = useState(false);
+  const [universities, setUniversities] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -26,9 +29,37 @@ export default function Register() {
     course: ''
   });
 
-  const filteredUniversities = universities.filter(uni =>
-    uni.toLowerCase().includes(universitySearch.toLowerCase())
-  );
+  const searchUniversities = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setUniversities([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response = await fetch(`${UNIVERSITIES_API_URL}?q=${encodeURIComponent(query)}&limit=15`);
+      const data = await response.json();
+      if (response.ok) {
+        setUniversities(data.universities || []);
+      }
+    } catch (error) {
+      console.error('Ошибка поиска университетов:', error);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (universitySearch.length >= 2) {
+        searchUniversities(universitySearch);
+      } else {
+        setUniversities([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [universitySearch, searchUniversities]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +76,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch(AUTH_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -194,21 +225,34 @@ export default function Register() {
                 onFocus={() => setShowUniversities(true)}
                 className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl"
               />
-              {showUniversities && filteredUniversities.length > 0 && universitySearch && (
+              {showUniversities && universitySearch.length >= 2 && (
                 <div className="absolute z-50 w-full mt-2 bg-white border-2 border-purple-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
-                  {filteredUniversities.slice(0, 10).map((uni) => (
-                    <div
-                      key={uni}
-                      onClick={() => {
-                        setFormData({ ...formData, university: uni });
-                        setUniversitySearch(uni);
-                        setShowUniversities(false);
-                      }}
-                      className="px-4 py-3 hover:bg-purple-50 cursor-pointer transition-colors border-b border-purple-100 last:border-0"
-                    >
-                      <p className="text-sm font-medium text-gray-900">{uni}</p>
+                  {searchLoading ? (
+                    <div className="px-4 py-3 text-center text-purple-600">
+                      <Icon name="Loader2" size={20} className="animate-spin inline" />
                     </div>
-                  ))}
+                  ) : universities.length > 0 ? (
+                    universities.map((uni) => (
+                      <div
+                        key={uni.id}
+                        onClick={() => {
+                          setFormData({ ...formData, university: uni.name });
+                          setUniversitySearch(uni.name);
+                          setShowUniversities(false);
+                        }}
+                        className="px-4 py-3 hover:bg-purple-50 cursor-pointer transition-colors border-b border-purple-100 last:border-0"
+                      >
+                        <p className="text-sm font-medium text-gray-900">{uni.name}</p>
+                        {uni.short_name && (
+                          <p className="text-xs text-gray-500 mt-0.5">{uni.short_name} · {uni.city}</p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-center text-gray-500 text-sm">
+                      Ничего не найдено
+                    </div>
+                  )}
                 </div>
               )}
             </div>
