@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { universities, courses } from '@/lib/universities';
@@ -234,18 +234,18 @@ export default function Register() {
                 <Icon name="Users" size={16} className="text-purple-600" />
                 Курс
               </label>
-              <Select value={formData.course} onValueChange={(value) => setFormData({ ...formData, course: value })}>
-                <SelectTrigger className="h-12 border-2 border-purple-200 focus:border-purple-500 rounded-xl">
-                  <SelectValue placeholder="Выберите курс" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.map((course) => (
-                    <SelectItem key={course} value={course}>
-                      {course}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={formData.course}
+                onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                className="h-12 w-full border-2 border-purple-200 focus:border-purple-500 rounded-xl px-4 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">Выберите курс</option>
+                {courses.map((course) => (
+                  <option key={course} value={course}>
+                    {course}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
