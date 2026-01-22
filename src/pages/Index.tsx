@@ -155,7 +155,7 @@ const Index = () => {
               <Icon name="CheckSquare" size={20} className="mr-2" />
               <span className="hidden sm:inline font-semibold">Задачи</span>
             </TabsTrigger>
-            <TabsTrigger value="scanner" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-pink-600 data-[state=active]:to-rose-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-pink-500/30 transition-all">
+            <TabsTrigger value="scanner" onClick={() => navigate('/materials')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-pink-600 data-[state=active]:to-rose-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-pink-500/30 transition-all">
               <Icon name="Camera" size={20} className="mr-2" />
               <span className="hidden sm:inline font-semibold">Сканер</span>
             </TabsTrigger>

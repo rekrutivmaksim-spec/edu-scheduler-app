@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "name": "Get user materials",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "materials": "array"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
