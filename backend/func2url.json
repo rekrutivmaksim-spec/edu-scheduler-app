@@ -1,4 +1,5 @@
 {
+  "subscription": "https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4",
   "schedule": "https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d",
   "exam-predictor": "https://functions.poehali.dev/fdcff74e-fb1a-49cc-bd7d-a462ade65859",
   "materials": "https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09",

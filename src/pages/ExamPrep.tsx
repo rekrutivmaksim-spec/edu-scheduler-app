@@ -10,9 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import UpgradeModal from '@/components/UpgradeModal';
 
 const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
 const EXAM_URL = 'https://functions.poehali.dev/fdcff74e-fb1a-49cc-bd7d-a462ade65859';
+const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
 interface Material {
   id: number;
@@ -54,6 +56,8 @@ const ExamPrep = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [activeTab, setActiveTab] = useState('setup');
+  const [isPremium, setIsPremium] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -61,10 +65,26 @@ const ExamPrep = () => {
         navigate('/login');
         return;
       }
+      await loadSubscriptionStatus();
       await loadMaterials();
     };
     checkAuth();
   }, [navigate]);
+
+  const loadSubscriptionStatus = async () => {
+    try {
+      const token = authService.getToken();
+      const response = await fetch(`${SUBSCRIPTION_URL}?action=status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setIsPremium(data.is_premium || false);
+      }
+    } catch (error) {
+      console.error('Failed to check subscription:', error);
+    }
+  };
 
   const loadMaterials = async () => {
     try {
@@ -92,6 +112,11 @@ const ExamPrep = () => {
   };
 
   const handleAnalyze = async () => {
+    if (!isPremium) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     if (!subject.trim() || selectedMaterials.length === 0) {
       toast({
         title: "Ошибка",
@@ -162,6 +187,12 @@ const ExamPrep = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        feature="AI-прогноз экзамена"
+        description="Эта функция доступна только в Premium подписке. Получите доступ к AI-анализу материалов и прогнозу вопросов."
+      />
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex items-center justify-between">

@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
+const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [stats, setStats] = useState({ materials: 0, tasks: 0, schedule: 0 });
+  const [subscriptionType, setSubscriptionType] = useState('free');
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
     university: user?.university || '',
@@ -44,10 +46,26 @@ const Profile = () => {
           course: verifiedUser.course || ''
         });
         loadStats();
+        loadSubscriptionStatus();
       }
     };
     checkAuth();
   }, [navigate]);
+
+  const loadSubscriptionStatus = async () => {
+    try {
+      const token = authService.getToken();
+      const response = await fetch(`${SUBSCRIPTION_URL}?action=status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSubscriptionType(data.subscription_type || 'free');
+      }
+    } catch (error) {
+      console.error('Failed to load subscription:', error);
+    }
+  };
 
   const loadStats = async () => {
     try {
@@ -220,6 +238,35 @@ const Profile = () => {
               </div>
             </Card>
           </div>
+
+          <Card className={`p-6 ${subscriptionType === 'premium' ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-300' : 'bg-gray-50 border-2 border-gray-200'}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${subscriptionType === 'premium' ? 'bg-gradient-to-br from-indigo-600 to-purple-600' : 'bg-gray-300'}`}>
+                  <Icon name="Crown" size={28} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800">
+                    {subscriptionType === 'premium' ? 'Premium активен' : 'Бесплатный тариф'}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {subscriptionType === 'premium' 
+                      ? 'Полный доступ ко всем функциям' 
+                      : 'Базовые возможности приложения'}
+                  </p>
+                </div>
+              </div>
+              {subscriptionType !== 'premium' && (
+                <Button
+                  onClick={() => navigate('/pricing')}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
+                >
+                  <Icon name="Sparkles" size={18} className="mr-2" />
+                  Получить Premium
+                </Button>
+              )}
+            </div>
+          </Card>
 
           <div className="space-y-6">
             <div>
