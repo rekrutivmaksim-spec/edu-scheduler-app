@@ -1,0 +1,56 @@
+{
+  "tests": [
+    {
+      "name": "Subscribe to notifications",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "Authorization": "Bearer mock-token"
+      },
+      "body": {
+        "action": "subscribe",
+        "subscription": {
+          "endpoint": "https://fcm.googleapis.com/fcm/send/test123",
+          "keys": {
+            "p256dh": "test-p256dh-key",
+            "auth": "test-auth-key"
+          }
+        }
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get subscription status",
+      "method": "GET",
+      "path": "/?action=status",
+      "headers": {
+        "Authorization": "Bearer mock-token"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "subscribed": "boolean"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Unsubscribe from notifications",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "Authorization": "Bearer mock-token"
+      },
+      "body": {
+        "action": "unsubscribe"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
