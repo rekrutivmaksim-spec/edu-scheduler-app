@@ -267,6 +267,40 @@ const Index = () => {
   const completedTasks = tasks.filter(t => t.completed);
   const completionRate = tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0;
 
+  const now = new Date();
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + 1);
+  const weekTasks = tasks.filter(t => {
+    if (!t.deadline) return false;
+    const deadline = new Date(t.deadline);
+    return deadline >= weekStart;
+  });
+  const weekCompleted = weekTasks.filter(t => t.completed).length;
+  const weekCompletionRate = weekTasks.length > 0 ? Math.round((weekCompleted / weekTasks.length) * 100) : 0;
+
+  const highPriorityTasks = activeTasks.filter(t => t.priority === 'high');
+  const overdueTasks = activeTasks.filter(t => {
+    if (!t.deadline) return false;
+    return new Date(t.deadline) < now;
+  });
+
+  const subjectStats = tasks.reduce((acc, task) => {
+    if (task.subject) {
+      if (!acc[task.subject]) {
+        acc[task.subject] = { total: 0, completed: 0 };
+      }
+      acc[task.subject].total++;
+      if (task.completed) acc[task.subject].completed++;
+    }
+    return acc;
+  }, {} as Record<string, { total: number; completed: number }>);
+
+  const uniqueSubjects = [...new Set(schedule.map(l => l.subject))];
+  const totalScheduleHours = schedule.reduce((acc, l) => {
+    const start = new Date(`2000-01-01 ${l.start_time}`);
+    const end = new Date(`2000-01-01 ${l.end_time}`);
+    return acc + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  }, 0);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
@@ -660,10 +694,138 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-5">
-            <Card className="p-12 text-center bg-white">
-              <Icon name="BarChart3" size={48} className="mx-auto mb-4 text-purple-300" />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Аналитика в разработке</h3>
-              <p className="text-gray-600">Скоро здесь появится статистика по учёбе</p>
+            <div className="mb-6">
+              <h2 className="text-3xl font-heading font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">Аналитика</h2>
+              <p className="text-blue-600/70 text-sm mt-1">Статистика вашей учёбы</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="p-5 bg-white">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-600 font-medium">Всего задач</p>
+                  <Icon name="ListTodo" size={20} className="text-indigo-500" />
+                </div>
+                <p className="text-3xl font-bold text-indigo-600">{tasks.length}</p>
+                <p className="text-xs text-gray-500 mt-1">{activeTasks.length} активных</p>
+              </Card>
+
+              <Card className="p-5 bg-white">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-600 font-medium">Выполнено за неделю</p>
+                  <Icon name="CheckCircle2" size={20} className="text-green-500" />
+                </div>
+                <p className="text-3xl font-bold text-green-600">{weekCompletionRate}%</p>
+                <p className="text-xs text-gray-500 mt-1">{weekCompleted} из {weekTasks.length} задач</p>
+              </Card>
+
+              <Card className="p-5 bg-white">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-600 font-medium">Просрочено</p>
+                  <Icon name="AlertCircle" size={20} className="text-red-500" />
+                </div>
+                <p className="text-3xl font-bold text-red-600">{overdueTasks.length}</p>
+                <p className="text-xs text-gray-500 mt-1">Требуют внимания</p>
+              </Card>
+
+              <Card className="p-5 bg-white">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-600 font-medium">Высокий приоритет</p>
+                  <Icon name="Flag" size={20} className="text-orange-500" />
+                </div>
+                <p className="text-3xl font-bold text-orange-600">{highPriorityTasks.length}</p>
+                <p className="text-xs text-gray-500 mt-1">Важных задач</p>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="p-6 bg-white">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Icon name="Calendar" size={20} className="text-purple-600" />
+                  Расписание
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700">Всего занятий в неделю</span>
+                    <span className="text-xl font-bold text-purple-600">{schedule.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700">Предметов</span>
+                    <span className="text-xl font-bold text-indigo-600">{uniqueSubjects.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700">Часов в неделю</span>
+                    <span className="text-xl font-bold text-blue-600">{totalScheduleHours.toFixed(1)}</span>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-white">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Icon name="TrendingUp" size={20} className="text-green-600" />
+                  Прогресс по предметам
+                </h3>
+                <div className="space-y-3">
+                  {Object.keys(subjectStats).length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">Нет данных по предметам</p>
+                  ) : (
+                    Object.entries(subjectStats).slice(0, 5).map(([subject, stats]) => {
+                      const rate = Math.round((stats.completed / stats.total) * 100);
+                      return (
+                        <div key={subject}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-700">{subject}</span>
+                            <span className="text-sm font-bold text-gray-600">{rate}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
+                              style={{ width: `${rate}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{stats.completed} из {stats.total} задач</p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            <Card className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Icon name="Target" size={20} className="text-indigo-600" />
+                Общий прогресс
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Выполнение всех задач</span>
+                    <span className="text-lg font-bold text-indigo-600">{completionRate}%</span>
+                  </div>
+                  <div className="w-full bg-white rounded-full h-4">
+                    <div 
+                      className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 h-4 rounded-full transition-all"
+                      style={{ width: `${completionRate}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs text-gray-600">
+                    <span>Выполнено: {completedTasks.length}</span>
+                    <span>Активных: {activeTasks.length}</span>
+                  </div>
+                </div>
+                {completionRate >= 80 && (
+                  <div className="flex items-center gap-2 p-3 bg-green-100 border border-green-300 rounded-lg">
+                    <Icon name="Trophy" size={20} className="text-green-600" />
+                    <p className="text-sm text-green-800 font-medium">Отличная работа! Так держать! 🎉</p>
+                  </div>
+                )}
+                {overdueTasks.length > 0 && (
+                  <div className="flex items-center gap-2 p-3 bg-red-100 border border-red-300 rounded-lg">
+                    <Icon name="AlertTriangle" size={20} className="text-red-600" />
+                    <p className="text-sm text-red-800 font-medium">У вас {overdueTasks.length} просроченных задач. Обратите внимание!</p>
+                  </div>
+                )}
+              </div>
             </Card>
           </TabsContent>
 
