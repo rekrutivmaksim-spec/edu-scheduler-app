@@ -9,6 +9,8 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 
 const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
+const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
+const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ const Profile = () => {
   const [user, setUser] = useState(authService.getUser());
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [stats, setStats] = useState({ materials: 0, tasks: 0, schedule: 0 });
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
     university: user?.university || '',
@@ -40,10 +43,35 @@ const Profile = () => {
           faculty: verifiedUser.faculty || '',
           course: verifiedUser.course || ''
         });
+        loadStats();
       }
     };
     checkAuth();
   }, [navigate]);
+
+  const loadStats = async () => {
+    try {
+      const token = authService.getToken();
+      
+      const [materialsRes, tasksRes, scheduleRes] = await Promise.all([
+        fetch(MATERIALS_URL, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${SCHEDULE_URL}?path=tasks`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${SCHEDULE_URL}?path=schedule`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+
+      const materials = materialsRes.ok ? await materialsRes.json() : { materials: [] };
+      const tasks = tasksRes.ok ? await tasksRes.json() : { tasks: [] };
+      const schedule = scheduleRes.ok ? await scheduleRes.json() : { schedule: [] };
+
+      setStats({
+        materials: materials.materials?.length || 0,
+        tasks: tasks.tasks?.length || 0,
+        schedule: schedule.schedule?.length || 0
+      });
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
+  };
 
   const handleSave = async () => {
     if (!formData.full_name.trim()) {
@@ -155,6 +183,44 @@ const Profile = () => {
             )}
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <Card className="p-5 bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 font-medium">Материалов</p>
+                  <p className="text-3xl font-bold text-indigo-600 mt-1">{stats.materials}</p>
+                </div>
+                <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                  <Icon name="FileText" size={24} className="text-indigo-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-5 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 font-medium">Задач</p>
+                  <p className="text-3xl font-bold text-purple-600 mt-1">{stats.tasks}</p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <Icon name="CheckSquare" size={24} className="text-purple-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-5 bg-gradient-to-br from-pink-50 to-rose-50 border-2 border-pink-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 font-medium">Занятий</p>
+                  <p className="text-3xl font-bold text-pink-600 mt-1">{stats.schedule}</p>
+                </div>
+                <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center">
+                  <Icon name="Calendar" size={24} className="text-pink-600" />
+                </div>
+              </div>
+            </Card>
+          </div>
+
           <div className="space-y-6">
             <div>
               <Label htmlFor="full_name" className="text-gray-700 font-semibold">
@@ -242,6 +308,70 @@ const Profile = () => {
               </Button>
             </div>
           )}
+        </Card>
+
+        <Card className="p-6 bg-white border-0 shadow-xl mt-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Быстрые действия</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button
+              onClick={() => navigate('/materials')}
+              variant="outline"
+              className="h-auto p-4 flex items-center gap-3 justify-start hover:bg-indigo-50 border-2 hover:border-indigo-300 transition-all"
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Icon name="Camera" size={20} className="text-white" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-800">Сканер материалов</p>
+                <p className="text-xs text-gray-500">Загрузить фото конспектов</p>
+              </div>
+            </Button>
+
+            <Button
+              onClick={() => navigate('/exam-prep')}
+              variant="outline"
+              className="h-auto p-4 flex items-center gap-3 justify-start hover:bg-orange-50 border-2 hover:border-orange-300 transition-all"
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+                <span className="text-xl">🎯</span>
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-800">Прогноз экзамена</p>
+                <p className="text-xs text-gray-500">AI предскажет вопросы</p>
+              </div>
+            </Button>
+
+            <Button
+              onClick={() => navigate('/')}
+              variant="outline"
+              className="h-auto p-4 flex items-center gap-3 justify-start hover:bg-purple-50 border-2 hover:border-purple-300 transition-all"
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                <Icon name="Calendar" size={20} className="text-white" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-800">Расписание и задачи</p>
+                <p className="text-xs text-gray-500">Управление планами</p>
+              </div>
+            </Button>
+
+            <Button
+              onClick={() => {
+                authService.logout();
+                navigate('/login');
+              }}
+              variant="outline"
+              className="h-auto p-4 flex items-center gap-3 justify-start hover:bg-red-50 border-2 hover:border-red-300 transition-all"
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg flex items-center justify-center">
+                <Icon name="LogOut" size={20} className="text-white" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-800">Выйти</p>
+                <p className="text-xs text-gray-500">Завершить сеанс</p>
+              </div>
+            </Button>
+          </div>
         </Card>
 
         <Card className="mt-6 p-6 bg-red-50 border-2 border-red-200">
