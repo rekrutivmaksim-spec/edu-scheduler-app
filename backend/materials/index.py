@@ -50,24 +50,16 @@ def upload_to_s3(image_data: bytes, filename: str) -> str:
 
 
 def recognize_text_from_image(image_url: str) -> dict:
-    """Использует DeepSeek или OpenAI для распознавания текста и создания резюме"""
-    deepseek_key = os.environ.get('DEEPSEEK_API_KEY')
+    """Использует OpenAI GPT-4 Vision для распознавания, затем DeepSeek для анализа"""
     openai_key = os.environ.get('OPENAI_API_KEY')
     
-    if deepseek_key:
-        client = OpenAI(
-            api_key=deepseek_key,
-            base_url="https://api.deepseek.com"
-        )
-        model = "deepseek-chat"
-    elif openai_key:
-        client = OpenAI(api_key=openai_key)
-        model = "gpt-4o"
-    else:
-        raise ValueError("Требуется DEEPSEEK_API_KEY или OPENAI_API_KEY")
+    if not openai_key:
+        raise ValueError("Требуется OPENAI_API_KEY для распознавания изображений")
+    
+    client = OpenAI(api_key=openai_key)
     
     response = client.chat.completions.create(
-        model=model,
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "user",
