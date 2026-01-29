@@ -24,6 +24,7 @@ def get_user_id_from_token(token: str) -> int:
 def handler(event: dict, context) -> dict:
     """API для ИИ-ассистента: отвечает на вопросы по материалам пользователя"""
     method = event.get('httpMethod', 'GET')
+    print(f"[AI-ASSISTANT] Method: {method}, Headers: {event.get('headers', {})}")
     
     if method == 'OPTIONS':
         return {
@@ -50,6 +51,7 @@ def handler(event: dict, context) -> dict:
         body = json.loads(event.get('body', '{}'))
         question = body.get('question', '').strip()
         material_ids = body.get('material_ids', [])
+        print(f"[AI-ASSISTANT] User: {user_id}, Question: {question[:50]}, Materials: {material_ids}")
         
         if not question:
             return {
