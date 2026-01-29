@@ -37,6 +37,11 @@ export const authService = {
     const token = authService.getToken();
     if (!token) return null;
 
+    // Для гостевого режима не проверяем токен на бэкенде
+    if (token === 'guest_token') {
+      return authService.getUser();
+    }
+
     try {
       const response = await fetch(API_URL, {
         method: 'GET',
