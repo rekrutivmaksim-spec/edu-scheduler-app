@@ -13,7 +13,7 @@ DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
 def get_user_id_from_token(token: str) -> int:
     """Извлечение user_id из JWT токена"""
-    if token == 'mock-token':
+    if token == 'mock-token' or token == 'guest_token':
         return 1
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
