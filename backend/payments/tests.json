@@ -1,0 +1,29 @@
+{
+  "tests": [
+    {
+      "name": "Get available subscription plans",
+      "method": "GET",
+      "path": "/?action=plans",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "plans": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create payment for 1 month plan",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "create_payment",
+        "plan_type": "1month"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "payment": "object",
+        "plan": "object"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

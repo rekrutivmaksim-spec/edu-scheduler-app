@@ -239,32 +239,27 @@ const Profile = () => {
             </Card>
           </div>
 
-          <Card className={`p-6 ${subscriptionType === 'premium' ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-300' : 'bg-gray-50 border-2 border-gray-200'}`}>
+          <Card 
+            onClick={() => navigate('/subscription')}
+            className={`p-6 cursor-pointer hover:shadow-xl transition-all ${subscriptionType === 'premium' ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-300' : 'bg-gradient-to-r from-purple-50 via-pink-50 to-rose-50 border-2 border-purple-300 hover:shadow-purple-500/30 hover:scale-[1.02]'}`}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${subscriptionType === 'premium' ? 'bg-gradient-to-br from-indigo-600 to-purple-600' : 'bg-gray-300'}`}>
-                  <Icon name="Crown" size={28} className="text-white" />
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${subscriptionType === 'premium' ? 'bg-gradient-to-br from-indigo-600 to-purple-600' : 'bg-gradient-to-br from-purple-500 to-pink-600'}`}>
+                  <Icon name={subscriptionType === 'premium' ? 'Crown' : 'Sparkles'} size={28} className="text-white" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-800">
-                    {subscriptionType === 'premium' ? 'Premium активен' : 'Бесплатный тариф'}
+                    {subscriptionType === 'premium' ? 'Premium активен' : 'Подключить Premium'}
                   </h3>
                   <p className="text-sm text-gray-600">
                     {subscriptionType === 'premium' 
-                      ? 'Полный доступ ко всем функциям' 
-                      : 'Базовые возможности приложения'}
+                      ? 'Доступ к ИИ-ассистенту активен' 
+                      : 'Получи доступ к ИИ-ассистенту от 199₽/месяц'}
                   </p>
                 </div>
               </div>
-              {subscriptionType !== 'premium' && (
-                <Button
-                  onClick={() => navigate('/pricing')}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
-                >
-                  <Icon name="Sparkles" size={18} className="mr-2" />
-                  Получить Premium
-                </Button>
-              )}
+              <Icon name="ArrowRight" size={24} className={subscriptionType === 'premium' ? 'text-indigo-600' : 'text-purple-600'} />
             </div>
           </Card>
 

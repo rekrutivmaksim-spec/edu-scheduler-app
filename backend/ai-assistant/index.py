@@ -21,6 +21,60 @@ def get_user_id_from_token(token: str) -> int:
     except:
         return None
 
+def check_subscription_access(conn, user_id: int) -> dict:
+    """Проверяет доступ пользователя к ИИ-ассистенту"""
+    cursor = conn.cursor()
+    cursor.execute(f'''
+        SELECT subscription_type, subscription_expires_at, 
+               ai_requests_used, ai_requests_reset_at
+        FROM {SCHEMA_NAME}.users
+        WHERE id = %s
+    ''', (user_id,))
+    
+    row = cursor.fetchone()
+    cursor.close()
+    
+    if not row:
+        return {'has_access': False, 'reason': 'user_not_found'}
+    
+    sub_type, expires_at, requests_used, reset_at = row
+    now = datetime.now()
+    
+    # Проверяем, нужно ли сбросить счетчик запросов
+    if reset_at and reset_at < now:
+        cursor = conn.cursor()
+        cursor.execute(f'''
+            UPDATE {SCHEMA_NAME}.users
+            SET ai_requests_used = 0,
+                ai_requests_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 month'
+            WHERE id = %s
+        ''', (user_id,))
+        conn.commit()
+        cursor.close()
+        requests_used = 0
+    
+    # Проверяем премиум подписку
+    if sub_type == 'premium':
+        if expires_at and expires_at > now:
+            return {'has_access': True, 'is_premium': True}
+        else:
+            # Подписка истекла
+            return {'has_access': False, 'reason': 'subscription_expired', 'is_premium': False}
+    
+    # Бесплатная версия - нет доступа
+    return {'has_access': False, 'reason': 'no_subscription', 'is_premium': False}
+
+def increment_ai_requests(conn, user_id: int):
+    """Увеличивает счетчик использованных AI запросов"""
+    cursor = conn.cursor()
+    cursor.execute(f'''
+        UPDATE {SCHEMA_NAME}.users
+        SET ai_requests_used = ai_requests_used + 1
+        WHERE id = %s
+    ''', (user_id,))
+    conn.commit()
+    cursor.close()
+
 def handler(event: dict, context) -> dict:
     """API для ИИ-ассистента: отвечает на вопросы по материалам пользователя"""
     method = event.get('httpMethod', 'GET')
@@ -64,6 +118,28 @@ def handler(event: dict, context) -> dict:
         conn.autocommit = True
         
         try:
+            # Проверяем доступ к ИИ-ассистенту
+            access = check_subscription_access(conn, user_id)
+            if not access['has_access']:
+                reason = access.get('reason', 'no_access')
+                if reason == 'subscription_expired':
+                    message = '⏰ Ваша подписка истекла. Продлите подписку для доступа к ИИ-ассистенту.'
+                else:
+                    message = '🔒 Доступ к ИИ-ассистенту доступен только по подписке. Оформите подписку в профиле!'
+                
+                return {
+                    'statusCode': 403,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({
+                        'error': 'subscription_required',
+                        'message': message,
+                        'reason': reason
+                    })
+                }
+            
+            # Увеличиваем счетчик запросов
+            increment_ai_requests(conn, user_id)
+            
             context_text = get_materials_context(conn, user_id, material_ids)
             answer = ask_deepseek(question, context_text)
             

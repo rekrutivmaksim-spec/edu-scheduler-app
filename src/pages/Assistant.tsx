@@ -107,6 +107,24 @@ const Assistant = () => {
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
+      } else if (response.status === 403) {
+        const data = await response.json();
+        const errorMessage: Message = {
+          role: 'assistant',
+          content: data.message || 'Доступ к ИИ-ассистенту доступен только по подписке',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        
+        toast({
+          title: 'Требуется подписка',
+          description: 'Оформите подписку для доступа к ИИ',
+          variant: 'destructive',
+          action: {
+            label: 'Подробнее',
+            onClick: () => navigate('/subscription')
+          }
+        });
       } else {
         toast({
           title: 'Ошибка',
