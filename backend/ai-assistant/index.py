@@ -2,14 +2,19 @@ import json
 import os
 import jwt
 import psycopg2
-import requests
-import time
 from datetime import datetime
+from openai import OpenAI
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+ARTEMOX_API_KEY = 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ'
+
+# Клиент OpenAI для Artemox
+client = OpenAI(
+    api_key=ARTEMOX_API_KEY,
+    base_url='https://api.artemox.com/v1'
+)
 
 def get_user_id_from_token(token: str) -> int:
     """Извлечение user_id из JWT токена"""
@@ -142,8 +147,8 @@ def handler(event: dict, context) -> dict:
             
             context_text = get_materials_context(conn, user_id, material_ids)
             
-            # Быстрый ответ от DeepSeek
-            answer = ask_deepseek_fast(question, context_text)
+            # Быстрый ответ через Artemox
+            answer = ask_artemox_openai(question, context_text)
             answer_data = json.dumps({'answer': answer})
             
             return {
@@ -204,11 +209,8 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
     
     return "\n".join(context_parts)
 
-def ask_artemox_stream(question: str, context: str) -> str:
-    """Потоковая отправка запроса к Artemox API"""
-    if not ARTEMOX_API_KEY:
-        return json.dumps({'error': 'API ключ Artemox не настроен'})
-    
+def ask_artemox_openai(question: str, context: str) -> str:
+    """Быстрый запрос к Artemox через официальную библиотеку OpenAI"""
     system_prompt = f"""Ты — умный ассистент для студентов Studyfay. 
 Помогаешь разобраться в учебных материалах, отвечаешь на вопросы простым языком.
 
@@ -219,146 +221,22 @@ def ask_artemox_stream(question: str, context: str) -> str:
 Если информации нет в материалах — скажи об этом честно."""
 
     try:
-        print(f"[AI-ASSISTANT] Streaming запрос к Artemox API")
-        response = requests.post(
-            'https://api.artemox.com/v1/chat/completions',
-            headers={
-                'Authorization': f'Bearer {ARTEMOX_API_KEY}',
-                'Content-Type': 'application/json'
-            },
-            json={
-                'model': 'deepseek-chat',
-                'messages': [
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': question}
-                ],
-                'temperature': 0.7,
-                'max_tokens': 1000,
-                'stream': True
-            },
-            stream=True,
-            timeout=60
+        print(f"[AI-ASSISTANT] Запрос к Artemox через OpenAI client")
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.7,
+            max_tokens=1000
         )
         
-        if response.status_code != 200:
-            error_text = response.text[:500]
-            print(f"[AI-ASSISTANT] Ошибка: {response.status_code}, {error_text}")
-            return json.dumps({'error': f'API error: {response.status_code}'})
-        
-        # Собираем весь текст из stream
-        full_text = ""
-        for line in response.iter_lines():
-            if line:
-                line_str = line.decode('utf-8')
-                if line_str.startswith('data: '):
-                    data_str = line_str[6:]
-                    if data_str == '[DONE]':
-                        break
-                    try:
-                        chunk_data = json.loads(data_str)
-                        if 'choices' in chunk_data and len(chunk_data['choices']) > 0:
-                            delta = chunk_data['choices'][0].get('delta', {})
-                            content = delta.get('content', '')
-                            if content:
-                                full_text += content
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        continue
-        
-        if full_text:
-            return json.dumps({'answer': full_text})
-        return json.dumps({'error': 'Не удалось получить ответ'})
+        answer = response.choices[0].message.content
+        print(f"[AI-ASSISTANT] Получен ответ от Artemox, длина: {len(answer)}")
+        return answer
         
     except Exception as e:
-        print(f"[AI-ASSISTANT] Ошибка streaming: {type(e).__name__}: {str(e)}")
-        return json.dumps({'error': f'Ошибка: {str(e)}'})
+        print(f"[AI-ASSISTANT] Ошибка Artemox: {type(e).__name__}: {str(e)}")
+        return f"Ошибка получения ответа: {str(e)}"
 
-def ask_artemox(question: str, context: str) -> str:
-    """Отправка запроса к Artemox API с retry логикой"""
-    if not ARTEMOX_API_KEY:
-        return "Ошибка: API ключ Artemox не настроен"
-    
-    system_prompt = f"""Ты — умный ассистент для студентов Studyfay. 
-Помогаешь разобраться в учебных материалах, отвечаешь на вопросы простым языком.
-
-Доступные материалы пользователя:
-{context}
-
-Отвечай кратко, по делу, используя информацию из материалов. 
-Если информации нет в материалах — скажи об этом честно."""
-
-    max_retries = 3
-    retry_delay = 1
-    
-    for attempt in range(max_retries):
-        try:
-            print(f"[AI-ASSISTANT] Отправка запроса к Artemox API (попытка {attempt + 1}/{max_retries})")
-            response = requests.post(
-                'https://api.artemox.com/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {ARTEMOX_API_KEY}',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'deepseek-chat',
-                    'messages': [
-                        {'role': 'system', 'content': system_prompt},
-                        {'role': 'user', 'content': question}
-                    ],
-                    'temperature': 0.7,
-                    'max_tokens': 1000
-                },
-                timeout=60
-            )
-            
-            print(f"[AI-ASSISTANT] Ответ от Artemox API: status={response.status_code}, body_length={len(response.text)}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if 'choices' in data and len(data['choices']) > 0:
-                    message = data['choices'][0].get('message', {})
-                    content = message.get('content', '').strip()
-                    if content:
-                        return content
-                    return "Не удалось получить ответ от ИИ"
-                return "Неверный формат ответа от API"
-            
-            elif response.status_code == 429:
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay * (2 ** attempt))
-                    continue
-                return "Превышен лимит запросов. Попробуйте через минуту"
-            
-            elif response.status_code == 402:
-                return "⚠️ Закончились средства на DeepSeek API. Пополните баланс на https://platform.deepseek.com/"
-            
-            elif response.status_code >= 500:
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                    continue
-                return "Сервис временно недоступен. Попробуйте позже"
-            
-            else:
-                error_data = response.json() if response.content else {}
-                error_msg = error_data.get('error', {}).get('message', 'Неизвестная ошибка')
-                print(f"[AI-ASSISTANT] Ошибка API: status={response.status_code}, error={error_msg}, response={response.text[:500]}")
-                return f"Ошибка API ({response.status_code}): {error_msg}"
-        
-        except requests.exceptions.Timeout:
-            print(f"[AI-ASSISTANT] Timeout на попытке {attempt + 1}")
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-                continue
-            return "Превышено время ожидания ответа от ИИ"
-        
-        except requests.exceptions.ConnectionError as e:
-            print(f"[AI-ASSISTANT] ConnectionError на попытке {attempt + 1}: {str(e)}")
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-                continue
-            return "Ошибка подключения к сервису ИИ"
-        
-        except Exception as e:
-            print(f"[AI-ASSISTANT] Неожиданная ошибка: {type(e).__name__}: {str(e)}")
-            return f"Неожиданная ошибка: {str(e)}"
-    
-    return "Не удалось получить ответ после нескольких попыток"
