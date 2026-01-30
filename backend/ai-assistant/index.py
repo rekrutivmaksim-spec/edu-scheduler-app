@@ -9,7 +9,7 @@ from datetime import datetime
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = 'dfa9bcfdaecab4ed775df38bab68a2884089d15cb41b03398013f5b9784fc42'
+ARTEMOX_API_KEY = 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ'
 
 def get_user_id_from_token(token: str) -> int:
     """Извлечение user_id из JWT токена"""
