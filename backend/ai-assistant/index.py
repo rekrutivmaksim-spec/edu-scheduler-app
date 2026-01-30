@@ -18,7 +18,7 @@ def get_user_id_from_token(token: str) -> int:
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
         return payload['user_id']
-    except:
+    except Exception:
         return None
 
 def check_subscription_access(conn, user_id: int) -> dict:
@@ -141,15 +141,17 @@ def handler(event: dict, context) -> dict:
             increment_ai_requests(conn, user_id)
             
             context_text = get_materials_context(conn, user_id, material_ids)
-            answer = ask_artemox(question, context_text)
+            
+            # Streaming ответ
+            answer_data = ask_artemox_stream(question, context_text)
             
             return {
                 'statusCode': 200,
-                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({
-                    'answer': answer,
-                    'materials_used': len(material_ids) if material_ids else 'all'
-                })
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': answer_data
             }
         finally:
             conn.close()
@@ -200,6 +202,74 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
         context_parts.append("---")
     
     return "\n".join(context_parts)
+
+def ask_artemox_stream(question: str, context: str) -> str:
+    """Потоковая отправка запроса к Artemox API"""
+    if not ARTEMOX_API_KEY:
+        return json.dumps({'error': 'API ключ Artemox не настроен'})
+    
+    system_prompt = f"""Ты — умный ассистент для студентов Studyfay. 
+Помогаешь разобраться в учебных материалах, отвечаешь на вопросы простым языком.
+
+Доступные материалы пользователя:
+{context}
+
+Отвечай кратко, по делу, используя информацию из материалов. 
+Если информации нет в материалах — скажи об этом честно."""
+
+    try:
+        print(f"[AI-ASSISTANT] Streaming запрос к Artemox API")
+        response = requests.post(
+            'https://api.artemox.com/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {ARTEMOX_API_KEY}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'deepseek-chat',
+                'messages': [
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': question}
+                ],
+                'temperature': 0.7,
+                'max_tokens': 1000,
+                'stream': True
+            },
+            stream=True,
+            timeout=60
+        )
+        
+        if response.status_code != 200:
+            error_text = response.text[:500]
+            print(f"[AI-ASSISTANT] Ошибка: {response.status_code}, {error_text}")
+            return json.dumps({'error': f'API error: {response.status_code}'})
+        
+        # Собираем весь текст из stream
+        full_text = ""
+        for line in response.iter_lines():
+            if line:
+                line_str = line.decode('utf-8')
+                if line_str.startswith('data: '):
+                    data_str = line_str[6:]
+                    if data_str == '[DONE]':
+                        break
+                    try:
+                        chunk_data = json.loads(data_str)
+                        if 'choices' in chunk_data and len(chunk_data['choices']) > 0:
+                            delta = chunk_data['choices'][0].get('delta', {})
+                            content = delta.get('content', '')
+                            if content:
+                                full_text += content
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue
+        
+        if full_text:
+            return json.dumps({'answer': full_text})
+        return json.dumps({'error': 'Не удалось получить ответ'})
+        
+    except Exception as e:
+        print(f"[AI-ASSISTANT] Ошибка streaming: {type(e).__name__}: {str(e)}")
+        return json.dumps({'error': f'Ошибка: {str(e)}'})
 
 def ask_artemox(question: str, context: str) -> str:
     """Отправка запроса к Artemox API с retry логикой"""

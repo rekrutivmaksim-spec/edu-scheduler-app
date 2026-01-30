@@ -101,6 +101,16 @@ const Assistant = () => {
 
       if (response.ok) {
         const data = await response.json();
+        
+        if (data.error) {
+          toast({
+            title: 'Ошибка',
+            description: data.error,
+            variant: 'destructive'
+          });
+          return;
+        }
+        
         const assistantMessage: Message = {
           role: 'assistant',
           content: data.answer,
