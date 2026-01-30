@@ -9,7 +9,7 @@ from datetime import datetime
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+ARTEMOX_API_KEY = 'sk-Z7PQzAcoVmPrV3O7x4ZkvQ'
 
 def get_user_id_from_token(token: str) -> int:
     """Извлечение user_id из JWT токена"""
@@ -141,7 +141,7 @@ def handler(event: dict, context) -> dict:
             increment_ai_requests(conn, user_id)
             
             context_text = get_materials_context(conn, user_id, material_ids)
-            answer = ask_deepseek(question, context_text)
+            answer = ask_artemox(question, context_text)
             
             return {
                 'statusCode': 200,
@@ -201,10 +201,10 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
     
     return "\n".join(context_parts)
 
-def ask_deepseek(question: str, context: str) -> str:
-    """Отправка запроса к DeepSeek API с retry логикой"""
-    if not DEEPSEEK_API_KEY:
-        return "Ошибка: API ключ DeepSeek не настроен"
+def ask_artemox(question: str, context: str) -> str:
+    """Отправка запроса к Artemox API с retry логикой"""
+    if not ARTEMOX_API_KEY:
+        return "Ошибка: API ключ Artemox не настроен"
     
     system_prompt = f"""Ты — умный ассистент для студентов Studyfay. 
 Помогаешь разобраться в учебных материалах, отвечаешь на вопросы простым языком.
@@ -221,9 +221,9 @@ def ask_deepseek(question: str, context: str) -> str:
     for attempt in range(max_retries):
         try:
             response = requests.post(
-                'https://api.deepseek.com/v1/chat/completions',
+                'https://api.artemox.com/v1/chat/completions',
                 headers={
-                    'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
+                    'Authorization': f'Bearer {ARTEMOX_API_KEY}',
                     'Content-Type': 'application/json'
                 },
                 json={
