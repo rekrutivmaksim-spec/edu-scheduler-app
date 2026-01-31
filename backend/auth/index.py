@@ -1,4 +1,4 @@
-"""API для аутентификации пользователей: регистрация, вход, проверка токена"""
+"""API для аутентификации пользователей: вход с автоматической регистрацией, сброс пароля"""
 
 import json
 import os
@@ -60,81 +60,12 @@ def handler(event: dict, context) -> dict:
         'Access-Control-Allow-Origin': '*'
     }
     
-    # POST /register - Регистрация
     if method == 'POST':
         body = json.loads(event.get('body', '{}'))
         action = body.get('action')
         
-        if action == 'register':
-            email = body.get('email', '').strip().lower()
-            password = body.get('password', '')
-            full_name = body.get('full_name', '').strip()
-            university = body.get('university', '').strip()
-            faculty = body.get('faculty', '').strip()
-            course = body.get('course', '').strip()
-            
-            if not email or not password or not full_name:
-                return {
-                    'statusCode': 400,
-                    'headers': headers,
-                    'body': json.dumps({'error': 'Email, пароль и имя обязательны'})
-                }
-            
-            if len(password) < 6:
-                return {
-                    'statusCode': 400,
-                    'headers': headers,
-                    'body': json.dumps({'error': 'Пароль должен быть минимум 6 символов'})
-                }
-            
-            # Хэшируем пароль
-            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            
-            conn = get_db_connection()
-            try:
-                with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    # Проверяем, существует ли пользователь
-                    cur.execute("SELECT id FROM users WHERE email = %s", (email,))
-                    if cur.fetchone():
-                        return {
-                            'statusCode': 409,
-                            'headers': headers,
-                            'body': json.dumps({'error': 'Пользователь с таким email уже существует'})
-                        }
-                    
-                    # Создаём пользователя
-                    cur.execute("""
-                        INSERT INTO users (email, password_hash, full_name, university, faculty, course)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                        RETURNING id, email, full_name, university, faculty, course, created_at
-                    """, (email, password_hash, full_name, university, faculty, course))
-                    
-                    user = cur.fetchone()
-                    conn.commit()
-                    
-                    # Генерируем токен
-                    token = generate_token(user['id'], user['email'])
-                    
-                    return {
-                        'statusCode': 201,
-                        'headers': headers,
-                        'body': json.dumps({
-                            'token': token,
-                            'user': {
-                                'id': user['id'],
-                                'email': user['email'],
-                                'full_name': user['full_name'],
-                                'university': user['university'],
-                                'faculty': user['faculty'],
-                                'course': user['course']
-                            }
-                        })
-                    }
-            finally:
-                conn.close()
-        
-        # POST /login - Вход
-        elif action == 'login':
+        # POST /login - Вход с автоматической регистрацией
+        if action == 'login':
             email = body.get('email', '').strip().lower()
             password = body.get('password', '')
             
@@ -145,9 +76,17 @@ def handler(event: dict, context) -> dict:
                     'body': json.dumps({'error': 'Email и пароль обязательны'})
                 }
             
+            if len(password) < 6:
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Пароль должен быть минимум 6 символов'})
+                }
+            
             conn = get_db_connection()
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    # Ищем пользователя
                     cur.execute("""
                         SELECT id, email, password_hash, full_name, university, faculty, course
                         FROM users WHERE email = %s
@@ -155,39 +94,162 @@ def handler(event: dict, context) -> dict:
                     
                     user = cur.fetchone()
                     
-                    if not user:
-                        return {
-                            'statusCode': 401,
-                            'headers': headers,
-                            'body': json.dumps({'error': 'Неверный email или пароль'})
-                        }
-                    
-                    # Проверяем пароль
-                    if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
-                        return {
-                            'statusCode': 401,
-                            'headers': headers,
-                            'body': json.dumps({'error': 'Неверный email или пароль'})
-                        }
-                    
-                    # Генерируем токен
-                    token = generate_token(user['id'], user['email'])
-                    
-                    return {
-                        'statusCode': 200,
-                        'headers': headers,
-                        'body': json.dumps({
-                            'token': token,
-                            'user': {
-                                'id': user['id'],
-                                'email': user['email'],
-                                'full_name': user['full_name'],
-                                'university': user['university'],
-                                'faculty': user['faculty'],
-                                'course': user['course']
+                    # Если пользователь существует - проверяем пароль
+                    if user:
+                        if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+                            return {
+                                'statusCode': 401,
+                                'headers': headers,
+                                'body': json.dumps({'error': 'Неверный пароль'})
                             }
-                        })
-                    }
+                        
+                        # Обновляем last_login_at
+                        cur.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = %s", (user['id'],))
+                        conn.commit()
+                        
+                        token = generate_token(user['id'], user['email'])
+                        
+                        return {
+                            'statusCode': 200,
+                            'headers': headers,
+                            'body': json.dumps({
+                                'token': token,
+                                'user': {
+                                    'id': user['id'],
+                                    'email': user['email'],
+                                    'full_name': user['full_name'],
+                                    'university': user['university'],
+                                    'faculty': user['faculty'],
+                                    'course': user['course']
+                                }
+                            })
+                        }
+                    
+                    # Если пользователя нет - создаем автоматически
+                    else:
+                        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                        full_name = email.split('@')[0]  # Используем часть email как имя
+                        
+                        cur.execute("""
+                            INSERT INTO users (email, password_hash, full_name, last_login_at)
+                            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                            RETURNING id, email, full_name, university, faculty, course
+                        """, (email, password_hash, full_name))
+                        
+                        new_user = cur.fetchone()
+                        conn.commit()
+                        
+                        token = generate_token(new_user['id'], new_user['email'])
+                        
+                        return {
+                            'statusCode': 201,
+                            'headers': headers,
+                            'body': json.dumps({
+                                'token': token,
+                                'user': {
+                                    'id': new_user['id'],
+                                    'email': new_user['email'],
+                                    'full_name': new_user['full_name'],
+                                    'university': new_user['university'],
+                                    'faculty': new_user['faculty'],
+                                    'course': new_user['course']
+                                },
+                                'is_new_user': True
+                            })
+                        }
+            finally:
+                conn.close()
+        
+        # POST /reset_password - Сброс пароля (создание нового если пользователя нет)
+        elif action == 'reset_password':
+            email = body.get('email', '').strip().lower()
+            new_password = body.get('new_password', '')
+            
+            if not email or not new_password:
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Email и новый пароль обязательны'})
+                }
+            
+            if len(new_password) < 6:
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Пароль должен быть минимум 6 символов'})
+                }
+            
+            password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            
+            conn = get_db_connection()
+            try:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    # Проверяем существует ли пользователь
+                    cur.execute("SELECT id, email, full_name FROM users WHERE email = %s", (email,))
+                    user = cur.fetchone()
+                    
+                    if user:
+                        # Обновляем пароль существующего пользователя
+                        cur.execute("""
+                            UPDATE users 
+                            SET password_hash = %s, last_login_at = CURRENT_TIMESTAMP
+                            WHERE email = %s
+                            RETURNING id, email, full_name, university, faculty, course
+                        """, (password_hash, email))
+                        
+                        updated_user = cur.fetchone()
+                        conn.commit()
+                        
+                        token = generate_token(updated_user['id'], updated_user['email'])
+                        
+                        return {
+                            'statusCode': 200,
+                            'headers': headers,
+                            'body': json.dumps({
+                                'token': token,
+                                'user': {
+                                    'id': updated_user['id'],
+                                    'email': updated_user['email'],
+                                    'full_name': updated_user['full_name'],
+                                    'university': updated_user['university'],
+                                    'faculty': updated_user['faculty'],
+                                    'course': updated_user['course']
+                                },
+                                'message': 'Пароль успешно обновлен'
+                            })
+                        }
+                    else:
+                        # Создаем нового пользователя если не существует
+                        full_name = email.split('@')[0]
+                        
+                        cur.execute("""
+                            INSERT INTO users (email, password_hash, full_name, last_login_at)
+                            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                            RETURNING id, email, full_name, university, faculty, course
+                        """, (email, password_hash, full_name))
+                        
+                        new_user = cur.fetchone()
+                        conn.commit()
+                        
+                        token = generate_token(new_user['id'], new_user['email'])
+                        
+                        return {
+                            'statusCode': 201,
+                            'headers': headers,
+                            'body': json.dumps({
+                                'token': token,
+                                'user': {
+                                    'id': new_user['id'],
+                                    'email': new_user['email'],
+                                    'full_name': new_user['full_name'],
+                                    'university': new_user['university'],
+                                    'faculty': new_user['faculty'],
+                                    'course': new_user['course']
+                                },
+                                'is_new_user': True,
+                                'message': 'Аккаунт создан с новым паролем'
+                            })
+                        }
             finally:
                 conn.close()
         
@@ -221,8 +283,8 @@ def handler(event: dict, context) -> dict:
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute("""
-                        UPDATE users
-                        SET full_name = %s, university = %s, faculty = %s, course = %s, onboarding_completed = true
+                        UPDATE users 
+                        SET full_name = %s, university = %s, faculty = %s, course = %s, updated_at = CURRENT_TIMESTAMP
                         WHERE id = %s
                         RETURNING id, email, full_name, university, faculty, course
                     """, (full_name, university, faculty, course, payload['user_id']))
@@ -230,18 +292,10 @@ def handler(event: dict, context) -> dict:
                     user = cur.fetchone()
                     conn.commit()
                     
-                    if not user:
-                        return {
-                            'statusCode': 404,
-                            'headers': headers,
-                            'body': json.dumps({'error': 'Пользователь не найден'})
-                        }
-                    
                     return {
                         'statusCode': 200,
                         'headers': headers,
                         'body': json.dumps({
-                            'success': True,
                             'user': {
                                 'id': user['id'],
                                 'email': user['email'],
@@ -257,7 +311,7 @@ def handler(event: dict, context) -> dict:
     
     # GET /verify - Проверка токена
     elif method == 'GET':
-        auth_header = event.get('headers', {}).get('X-Authorization', '')
+        auth_header = event.get('headers', {}).get('X-Authorization', '') or event.get('headers', {}).get('Authorization', '')
         token = auth_header.replace('Bearer ', '')
         
         if not token:
@@ -276,12 +330,12 @@ def handler(event: dict, context) -> dict:
                 'body': json.dumps({'error': 'Недействительный токен'})
             }
         
-        # Получаем данные пользователя из БД
         conn = get_db_connection()
         try:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("""
-                    SELECT id, email, full_name, university, faculty, course
+                    SELECT id, email, full_name, university, faculty, course, 
+                           subscription_type, subscription_expires_at
                     FROM users WHERE id = %s
                 """, (payload['user_id'],))
                 
@@ -304,78 +358,9 @@ def handler(event: dict, context) -> dict:
                             'full_name': user['full_name'],
                             'university': user['university'],
                             'faculty': user['faculty'],
-                            'course': user['course']
-                        }
-                    })
-                }
-        finally:
-            conn.close()
-    
-    # PUT /update - Обновление профиля
-    elif method == 'PUT':
-        auth_header = event.get('headers', {}).get('X-Authorization', '')
-        token = auth_header.replace('Bearer ', '')
-        
-        if not token:
-            return {
-                'statusCode': 401,
-                'headers': headers,
-                'body': json.dumps({'error': 'Токен не предоставлен'})
-            }
-        
-        payload = verify_token(token)
-        
-        if not payload:
-            return {
-                'statusCode': 401,
-                'headers': headers,
-                'body': json.dumps({'error': 'Недействительный токен'})
-            }
-        
-        body = json.loads(event.get('body', '{}'))
-        full_name = body.get('full_name', '').strip()
-        university = body.get('university', '').strip()
-        faculty = body.get('faculty', '').strip()
-        course = body.get('course', '').strip()
-        
-        if not full_name:
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': 'Имя не может быть пустым'})
-            }
-        
-        conn = get_db_connection()
-        try:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("""
-                    UPDATE users 
-                    SET full_name = %s, university = %s, faculty = %s, course = %s
-                    WHERE id = %s
-                    RETURNING id, email, full_name, university, faculty, course
-                """, (full_name, university, faculty, course, payload['user_id']))
-                
-                user = cur.fetchone()
-                conn.commit()
-                
-                if not user:
-                    return {
-                        'statusCode': 404,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'Пользователь не найден'})
-                    }
-                
-                return {
-                    'statusCode': 200,
-                    'headers': headers,
-                    'body': json.dumps({
-                        'user': {
-                            'id': user['id'],
-                            'email': user['email'],
-                            'full_name': user['full_name'],
-                            'university': user['university'],
-                            'faculty': user['faculty'],
-                            'course': user['course']
+                            'course': user['course'],
+                            'subscription_type': user['subscription_type'],
+                            'subscription_expires_at': user['subscription_expires_at'].isoformat() if user['subscription_expires_at'] else None
                         }
                     })
                 }

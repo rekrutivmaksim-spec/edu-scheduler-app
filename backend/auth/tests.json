@@ -1,17 +1,13 @@
 {
   "tests": [
     {
-      "name": "Register new user",
+      "name": "Login with auto-registration",
       "method": "POST",
       "path": "/",
       "body": {
-        "action": "register",
-        "email": "test@example.com",
-        "password": "password123",
-        "full_name": "Test User",
-        "university": "Test University",
-        "faculty": "Test Faculty",
-        "course": "1 курс"
+        "action": "login",
+        "email": "newuser@example.com",
+        "password": "password123"
       },
       "expectedStatus": 201,
       "expectedBody": {
@@ -20,25 +16,27 @@
           "id": "number",
           "email": "string",
           "full_name": "string"
-        }
+        },
+        "is_new_user": true
       },
       "bodyMatcher": "partial"
     },
     {
-      "name": "Login with credentials",
+      "name": "Reset password for existing user",
       "method": "POST",
       "path": "/",
       "body": {
-        "action": "login",
-        "email": "test@example.com",
-        "password": "password123"
+        "action": "reset_password",
+        "email": "newuser@example.com",
+        "new_password": "newpassword456"
       },
       "expectedStatus": 200,
       "expectedBody": {
         "token": "string",
         "user": {
           "email": "string"
-        }
+        },
+        "message": "string"
       },
       "bodyMatcher": "partial"
     }
