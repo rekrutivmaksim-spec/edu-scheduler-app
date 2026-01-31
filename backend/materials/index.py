@@ -28,6 +28,38 @@ def verify_token(token: str) -> dict:
         return None
 
 
+def check_subscription_access(conn, user_id: int) -> dict:
+    """Проверяет наличие активной подписки для доступа к сканеру"""
+    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    cursor.execute(f'''
+        SELECT subscription_type, subscription_expires_at
+        FROM {schema}.users
+        WHERE id = %s
+    ''', (user_id,))
+    
+    user = cursor.fetchone()
+    cursor.close()
+    
+    if not user:
+        return {'has_access': False, 'reason': 'user_not_found'}
+    
+    sub_type = user.get('subscription_type')
+    expires_at = user.get('subscription_expires_at')
+    now = datetime.now()
+    
+    # Проверяем премиум подписку
+    if sub_type == 'premium':
+        if expires_at and expires_at.replace(tzinfo=None) > now:
+            return {'has_access': True, 'is_premium': True}
+        else:
+            return {'has_access': False, 'reason': 'subscription_expired'}
+    
+    # Бесплатная версия - нет доступа к сканеру
+    return {'has_access': False, 'reason': 'no_subscription'}
+
+
 def upload_to_s3(image_data: bytes, filename: str) -> str:
     """Загружает изображение в S3 и возвращает CDN URL"""
     s3 = boto3.client(
@@ -178,6 +210,31 @@ def handler(event: dict, context) -> dict:
     # POST /upload - Загрузка и распознавание фото
     if method == 'POST':
         try:
+            # Проверяем подписку перед обработкой изображения
+            conn = get_db_connection()
+            access = check_subscription_access(conn, user_id)
+            
+            if not access['has_access']:
+                conn.close()
+                reason = access.get('reason', 'no_access')
+                
+                if reason == 'subscription_expired':
+                    message = '⏰ Ваша подписка истекла. Продлите подписку для использования сканера.'
+                else:
+                    message = '🔒 Сканер доступен только по подписке. Оформите подписку!'
+                
+                return {
+                    'statusCode': 403,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'error': 'subscription_required',
+                        'message': message,
+                        'reason': reason
+                    })
+                }
+            
+            conn.close()
+            
             body = json.loads(event.get('body', '{}'))
             image_base64 = body.get('image')
             

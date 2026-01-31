@@ -148,6 +148,18 @@ const Materials = () => {
         }
 
         await loadMaterials();
+      } else if (response.status === 403) {
+        const errorData = await response.json();
+        
+        toast({
+          title: 'Требуется подписка',
+          description: errorData.message || 'Сканер доступен только по подписке. Переходим к оформлению...',
+          variant: 'destructive'
+        });
+        
+        setTimeout(() => {
+          navigate('/subscription');
+        }, 2000);
       } else {
         const errorData = await response.json();
         toast({
