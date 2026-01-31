@@ -31,7 +31,7 @@ def check_subscription_access(conn, user_id: int) -> dict:
     cursor = conn.cursor()
     cursor.execute(f'''
         SELECT subscription_type, subscription_expires_at, 
-               ai_requests_used, ai_requests_reset_at
+               ai_tokens_used, ai_tokens_reset_at
         FROM {SCHEMA_NAME}.users
         WHERE id = %s
     ''', (user_id,))
@@ -40,43 +40,58 @@ def check_subscription_access(conn, user_id: int) -> dict:
     cursor.close()
     
     if not row:
-        return {'has_access': False, 'reason': 'user_not_found'}
+        return {'has_access': False, 'reason': 'user_not_found', 'tokens_used': 0, 'tokens_limit': 0}
     
-    sub_type, expires_at, requests_used, reset_at = row
+    sub_type, expires_at, tokens_used, reset_at = row
     now = datetime.now()
     
-    # Проверяем, нужно ли сбросить счетчик запросов
+    # Проверяем, нужно ли сбросить счетчик токенов
     if reset_at and reset_at < now:
         cursor = conn.cursor()
         cursor.execute(f'''
             UPDATE {SCHEMA_NAME}.users
-            SET ai_requests_used = 0,
-                ai_requests_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 month'
+            SET ai_tokens_used = 0,
+                ai_tokens_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 month'
             WHERE id = %s
         ''', (user_id,))
         conn.commit()
         cursor.close()
-        requests_used = 0
+        tokens_used = 0
     
     # Проверяем премиум подписку
     if sub_type == 'premium':
         if expires_at and expires_at > now:
-            return {'has_access': True, 'is_premium': True}
+            # Premium: 100,000 токенов в месяц
+            tokens_limit = 100000
+            if tokens_used >= tokens_limit:
+                return {
+                    'has_access': False, 
+                    'reason': 'tokens_limit_reached', 
+                    'is_premium': True,
+                    'tokens_used': tokens_used,
+                    'tokens_limit': tokens_limit
+                }
+            return {
+                'has_access': True, 
+                'is_premium': True,
+                'tokens_used': tokens_used,
+                'tokens_limit': tokens_limit
+            }
         else:
             # Подписка истекла
-            return {'has_access': False, 'reason': 'subscription_expired', 'is_premium': False}
+            return {'has_access': False, 'reason': 'subscription_expired', 'is_premium': False, 'tokens_used': tokens_used, 'tokens_limit': 0}
     
     # Бесплатная версия - нет доступа
-    return {'has_access': False, 'reason': 'no_subscription', 'is_premium': False}
+    return {'has_access': False, 'reason': 'no_subscription', 'is_premium': False, 'tokens_used': 0, 'tokens_limit': 0}
 
-def increment_ai_requests(conn, user_id: int):
-    """Увеличивает счетчик использованных AI запросов"""
+def increment_ai_tokens(conn, user_id: int, tokens_used: int):
+    """Увеличивает счетчик использованных AI токенов"""
     cursor = conn.cursor()
     cursor.execute(f'''
         UPDATE {SCHEMA_NAME}.users
-        SET ai_requests_used = ai_requests_used + 1
+        SET ai_tokens_used = ai_tokens_used + %s
         WHERE id = %s
-    ''', (user_id,))
+    ''', (tokens_used, user_id))
     conn.commit()
     cursor.close()
 
@@ -127,8 +142,13 @@ def handler(event: dict, context) -> dict:
             access = check_subscription_access(conn, user_id)
             if not access['has_access']:
                 reason = access.get('reason', 'no_access')
+                tokens_used = access.get('tokens_used', 0)
+                tokens_limit = access.get('tokens_limit', 0)
+                
                 if reason == 'subscription_expired':
                     message = '⏰ Ваша подписка истекла. Продлите подписку для доступа к ИИ-ассистенту.'
+                elif reason == 'tokens_limit_reached':
+                    message = f'🚨 Вы использовали все токены этого месяца ({tokens_used}/{tokens_limit}). Оформите новую подписку для продолжения работы.'
                 else:
                     message = '🔒 Доступ к ИИ-ассистенту доступен только по подписке. Оформите подписку в профиле!'
                 
@@ -138,18 +158,29 @@ def handler(event: dict, context) -> dict:
                     'body': json.dumps({
                         'error': 'subscription_required',
                         'message': message,
-                        'reason': reason
+                        'reason': reason,
+                        'tokens_used': tokens_used,
+                        'tokens_limit': tokens_limit
                     })
                 }
-            
-            # Увеличиваем счетчик запросов
-            increment_ai_requests(conn, user_id)
             
             context_text = get_materials_context(conn, user_id, material_ids)
             
             # Быстрый ответ через Artemox
-            answer = ask_artemox_openai(question, context_text)
-            answer_data = json.dumps({'answer': answer})
+            answer, tokens_used = ask_artemox_openai(question, context_text)
+            
+            # Увеличиваем счетчик токенов
+            increment_ai_tokens(conn, user_id, tokens_used)
+            
+            # Получаем обновленные данные о токенах
+            access_updated = check_subscription_access(conn, user_id)
+            
+            answer_data = json.dumps({
+                'answer': answer,
+                'tokens_used': tokens_used,
+                'total_tokens_used': access_updated.get('tokens_used', 0),
+                'tokens_limit': access_updated.get('tokens_limit', 0)
+            })
             
             return {
                 'statusCode': 200,
@@ -209,8 +240,10 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
     
     return "\n".join(context_parts)
 
-def ask_artemox_openai(question: str, context: str) -> str:
-    """Быстрый запрос к Artemox через официальную библиотеку OpenAI"""
+def ask_artemox_openai(question: str, context: str) -> tuple:
+    """Быстрый запрос к Artemox через официальную библиотеку OpenAI
+    Возвращает: (answer, tokens_used)
+    """
     system_prompt = f"""Ты — умный ассистент для студентов Studyfay. 
 Помогаешь разобраться в учебных материалах, отвечаешь на вопросы простым языком.
 
@@ -233,10 +266,11 @@ def ask_artemox_openai(question: str, context: str) -> str:
         )
         
         answer = response.choices[0].message.content
-        print(f"[AI-ASSISTANT] Получен ответ от Artemox, длина: {len(answer)}")
-        return answer
+        tokens_used = response.usage.total_tokens
+        
+        print(f"[AI-ASSISTANT] Получен ответ от Artemox, токенов: {tokens_used}")
+        return answer, tokens_used
         
     except Exception as e:
         print(f"[AI-ASSISTANT] Ошибка Artemox: {type(e).__name__}: {str(e)}")
-        return f"Ошибка получения ответа: {str(e)}"
-
+        return f"Ошибка получения ответа: {str(e)}", 0
