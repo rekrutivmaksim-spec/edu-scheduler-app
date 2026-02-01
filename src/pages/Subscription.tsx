@@ -131,12 +131,19 @@ const Subscription = () => {
       }
 
       const createData = await createResponse.json();
+      
+      // Проверяем наличие ошибок от backend
+      if (createData.payment?.error) {
+        throw new Error(createData.payment.error);
+      }
+      
       const paymentId = createData.payment.id;
       const paymentUrl = createData.payment_url;
       const tinkoffPaymentId = createData.tinkoff_payment_id;
 
       if (!paymentUrl || !tinkoffPaymentId) {
-        throw new Error('Ошибка при создании платежа в Т-кассе');
+        const errorMsg = createData.payment?.error || 'Ошибка при создании платежа в Т-кассе';
+        throw new Error(errorMsg);
       }
 
       toast({

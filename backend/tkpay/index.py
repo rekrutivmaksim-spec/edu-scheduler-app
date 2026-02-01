@@ -238,189 +238,198 @@ def handler(event: dict, context) -> dict:
         'Access-Control-Allow-Origin': '*'
     }
     
-    auth_header = event.get('headers', {}).get('X-Authorization', '')
-    token = auth_header.replace('Bearer ', '')
-    
-    if not token:
-        return {
-            'statusCode': 401,
-            'headers': headers,
-            'body': json.dumps({'error': 'Требуется авторизация'})
-        }
-    
-    payload = verify_token(token)
-    if not payload:
-        return {
-            'statusCode': 401,
-            'headers': headers,
-            'body': json.dumps({'error': 'Недействительный токен'})
-        }
-    
-    user_id = payload['user_id']
-    conn = psycopg2.connect(DATABASE_URL)
-    
     try:
-        if method == 'GET':
-            action = event.get('queryStringParameters', {}).get('action', 'plans')
-            
-            if action == 'plans':
-                # Возвращаем доступные тарифы
-                plans_list = [
-                    {
-                        'id': key,
-                        'name': plan['name'],
-                        'price': plan['price'],
-                        'duration_days': plan['duration_days']
-                    }
-                    for key, plan in PLANS.items()
-                ]
-                
-                return {
-                    'statusCode': 200,
-                    'headers': headers,
-                    'body': json.dumps({'plans': plans_list})
-                }
-            
-            elif action == 'history':
-                # Возвращаем историю платежей
-                payments = get_user_payments(conn, user_id)
-                
-                return {
-                    'statusCode': 200,
-                    'headers': headers,
-                    'body': json.dumps({'payments': payments}, default=str)
-                }
+        # Получаем токен из заголовков
+        auth_header = event.get('headers', {}).get('Authorization') or event.get('headers', {}).get('X-Authorization')
         
-        elif method == 'POST':
-            body = json.loads(event.get('body', '{}'))
-            action = body.get('action')
-            
-            if action == 'create_payment':
-                plan_type = body.get('plan_type')
+        if not auth_header:
+            return {
+                'statusCode': 401,
+                'headers': headers,
+                'body': json.dumps({'error': 'Необходима авторизация'})
+            }
+        
+        token = auth_header.replace('Bearer ', '')
+        user_data = verify_token(token)
+        
+        if not user_data:
+            return {
+                'statusCode': 401,
+                'headers': headers,
+                'body': json.dumps({'error': 'Недействительный токен'})
+            }
+        
+        user_id = user_data.get('user_id')
+        
+        # Подключаемся к БД
+        conn = psycopg2.connect(DATABASE_URL)
+        
+        try:
+            if method == 'GET':
+                # Получение списка планов или истории платежей
+                query_params = event.get('queryStringParameters', {}) or {}
+                action = query_params.get('action', 'payments')
                 
-                print(f"[PAYMENT] Создание платежа: user_id={user_id}, plan_type={plan_type}")
-                
-                if plan_type not in PLANS:
-                    print(f"[PAYMENT] Ошибка: неверный plan_type={plan_type}")
-                    return {
-                        'statusCode': 400,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'Неверный тип подписки'})
-                    }
-                
-                payment = create_payment(conn, user_id, plan_type)
-                
-                if not payment:
-                    print(f"[PAYMENT] Ошибка: не удалось создать запись о платеже")
-                    return {
-                        'statusCode': 500,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'Не удалось создать платеж'})
-                    }
-                
-                print(f"[PAYMENT] Платеж создан: payment_id={payment.get('id')}, payment_url={payment.get('payment_url')}")
-                
-                # Возвращаем ссылку на оплату
-                return {
-                    'statusCode': 200,
-                    'headers': headers,
-                    'body': json.dumps({
-                        'payment': payment,
-                        'plan': PLANS[plan_type],
-                        'payment_url': payment.get('payment_url'),
-                        'tinkoff_payment_id': payment.get('tinkoff_payment_id')
-                    }, default=str)
-                }
-            
-            elif action == 'check_payment':
-                # Проверка статуса платежа в Т-кассе
-                payment_id = body.get('payment_id')
-                tinkoff_payment_id = body.get('tinkoff_payment_id')
-                
-                if not payment_id or not tinkoff_payment_id:
-                    return {
-                        'statusCode': 400,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'payment_id и tinkoff_payment_id обязательны'})
-                    }
-                
-                # Проверяем статус в Т-кассе
-                tinkoff_status = check_tinkoff_payment(tinkoff_payment_id)
-                
-                if tinkoff_status and tinkoff_status.get('Success'):
-                    status = tinkoff_status.get('Status')
-                    
-                    # Если платеж подтвержден - активируем подписку
-                    if status == 'CONFIRMED':
-                        complete_payment(conn, payment_id, 'tinkoff', tinkoff_payment_id)
-                        
-                        return {
-                            'statusCode': 200,
-                            'headers': headers,
-                            'body': json.dumps({
-                                'status': 'completed',
-                                'message': 'Подписка активирована'
-                            })
-                        }
-                    elif status in ['NEW', 'AUTHORIZED']:
-                        return {
-                            'statusCode': 200,
-                            'headers': headers,
-                            'body': json.dumps({
-                                'status': 'pending',
-                                'message': 'Платеж в обработке'
-                            })
-                        }
-                    else:
-                        return {
-                            'statusCode': 200,
-                            'headers': headers,
-                            'body': json.dumps({
-                                'status': 'failed',
-                                'message': f'Платеж не прошел: {status}'
-                            })
-                        }
-                
-                return {
-                    'statusCode': 500,
-                    'headers': headers,
-                    'body': json.dumps({'error': 'Не удалось проверить статус платежа'})
-                }
-            
-            elif action == 'complete_payment':
-                # Это для тестового режима - автоматически завершаем платеж
-                payment_id = body.get('payment_id')
-                
-                if not payment_id:
-                    return {
-                        'statusCode': 400,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'payment_id обязателен'})
-                    }
-                
-                success = complete_payment(conn, payment_id, 'test', f'test_{payment_id}')
-                
-                if success:
+                if action == 'plans':
                     return {
                         'statusCode': 200,
                         'headers': headers,
                         'body': json.dumps({
-                            'success': True,
-                            'message': 'Подписка активирована'
+                            'plans': [
+                                {
+                                    'type': key,
+                                    'name': value['name'],
+                                    'price': value['price'],
+                                    'duration_days': value['duration_days']
+                                }
+                                for key, value in PLANS.items()
+                            ]
                         })
                     }
+                else:
+                    # История платежей
+                    payments = get_user_payments(conn, user_id)
+                    return {
+                        'statusCode': 200,
+                        'headers': headers,
+                        'body': json.dumps({
+                            'payments': payments
+                        }, default=str)
+                    }
+                    
+            elif method == 'POST':
+                body = json.loads(event.get('body', '{}'))
+                action = body.get('action')
+                
+                if action == 'create_payment':
+                    plan_type = body.get('plan_type')
+                    
+                    if not plan_type or plan_type not in PLANS:
+                        return {
+                            'statusCode': 400,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'Недопустимый тип плана'})
+                        }
+                    
+                    payment = create_payment(conn, user_id, plan_type)
+                    
+                    if not payment:
+                        return {
+                            'statusCode': 400,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'Не удалось создать платеж'})
+                        }
+                    
+                    return {
+                        'statusCode': 200,
+                        'headers': headers,
+                        'body': json.dumps({
+                            'payment': payment,
+                            'plan': PLANS[plan_type]
+                        }, default=str)
+                    }
+                
+                elif action == 'complete_payment':
+                    payment_id = body.get('payment_id')
+                    payment_method = body.get('payment_method', 'tinkoff')
+                    external_payment_id = body.get('external_payment_id')
+                    
+                    if not payment_id:
+                        return {
+                            'statusCode': 400,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'ID платежа не указан'})
+                        }
+                    
+                    success = complete_payment(conn, payment_id, payment_method, external_payment_id)
+                    
+                    if success:
+                        return {
+                            'statusCode': 200,
+                            'headers': headers,
+                            'body': json.dumps({'success': True})
+                        }
+                    else:
+                        return {
+                            'statusCode': 400,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'Не удалось завершить платеж'})
+                        }
+                
+                elif action == 'check_payment':
+                    tinkoff_payment_id = body.get('tinkoff_payment_id')
+                    
+                    if not tinkoff_payment_id:
+                        return {
+                            'statusCode': 400,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'ID платежа Тинькофф не указан'})
+                        }
+                    
+                    payment_status = check_tinkoff_payment(tinkoff_payment_id)
+                    
+                    if payment_status:
+                        return {
+                            'statusCode': 200,
+                            'headers': headers,
+                            'body': json.dumps({
+                                'status': payment_status.get('Status'),
+                                'success': payment_status.get('Success'),
+                                'payment_id': payment_status.get('PaymentId')
+                            })
+                        }
+                    else:
+                        return {
+                            'statusCode': 400,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'Не удалось проверить статус платежа'})
+                        }
+                
+                elif action == 'webhook':
+                    # Обработка вебхука от Тинькофф
+                    payment_id = body.get('OrderId', '').replace('studyfay_', '')
+                    status = body.get('Status')
+                    tinkoff_payment_id = body.get('PaymentId')
+                    
+                    print(f"[WEBHOOK] Получен вебхук: OrderId={body.get('OrderId')}, Status={status}, PaymentId={tinkoff_payment_id}")
+                    
+                    if status == 'CONFIRMED':
+                        try:
+                            payment_id_int = int(payment_id)
+                            success = complete_payment(conn, payment_id_int, 'tinkoff', tinkoff_payment_id)
+                            
+                            if success:
+                                print(f"[WEBHOOK] Платеж {payment_id} успешно подтвержден")
+                                return {
+                                    'statusCode': 200,
+                                    'headers': headers,
+                                    'body': json.dumps({'OK': True})
+                                }
+                            else:
+                                print(f"[WEBHOOK] Не удалось завершить платеж {payment_id}")
+                        except ValueError:
+                            print(f"[WEBHOOK] Некорректный ID платежа: {payment_id}")
+                    
+                    return {
+                        'statusCode': 200,
+                        'headers': headers,
+                        'body': json.dumps({'OK': True})
+                    }
+                
                 else:
                     return {
                         'statusCode': 400,
                         'headers': headers,
-                        'body': json.dumps({'error': 'Платеж не найден или уже обработан'})
+                        'body': json.dumps({'error': 'Неизвестное действие'})
                     }
-        
+                    
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        print(f"[ERROR] {str(e)}")
         return {
-            'statusCode': 404,
+            'statusCode': 500,
             'headers': headers,
-            'body': json.dumps({'error': 'Маршрут не найден'})
+            'body': json.dumps({'error': f'Внутренняя ошибка сервера: {str(e)}'})
         }
-        
-    finally:
-        conn.close()
