@@ -67,8 +67,10 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
     token_params = {
         'Amount': params['Amount'],
         'Description': params['Description'],
+        'FailURL': params['FailURL'],
         'OrderId': params['OrderId'],
         'Password': TINKOFF_PASSWORD,
+        'SuccessURL': params['SuccessURL'],
         'TerminalKey': params['TerminalKey']
     }
     sorted_values = [token_params[k] for k in sorted(token_params.keys())]
