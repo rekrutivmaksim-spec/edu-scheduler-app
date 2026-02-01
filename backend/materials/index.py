@@ -1,4 +1,4 @@
-"""API для работы с учебными материалами: загрузка фото, распознавание текста через GPT-4 Vision, создание заметок"""
+"""API для работы с учебными материалами: загрузка файлов Word/Excel/PDF, извлечение текста, анализ через Deepseek"""
 
 import json
 import os
@@ -9,9 +9,10 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import jwt
 from openai import OpenAI
-from PIL import Image
-import pytesseract
 import io
+from docx import Document
+from openpyxl import load_workbook
+from PyPDF2 import PdfReader
 
 
 def get_db_connection():
@@ -32,7 +33,7 @@ def verify_token(token: str) -> dict:
 
 
 def check_subscription_access(conn, user_id: int) -> dict:
-    """Проверяет наличие активной подписки для доступа к сканеру"""
+    """Проверяет наличие активной подписки для доступа к загрузке материалов"""
     schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     
@@ -59,12 +60,12 @@ def check_subscription_access(conn, user_id: int) -> dict:
         else:
             return {'has_access': False, 'reason': 'subscription_expired'}
     
-    # Бесплатная версия - нет доступа к сканеру
+    # Бесплатная версия - нет доступа к загрузке файлов
     return {'has_access': False, 'reason': 'no_subscription'}
 
 
-def upload_to_s3(image_data: bytes, filename: str) -> str:
-    """Загружает изображение в S3 и возвращает CDN URL"""
+def upload_to_s3(file_data: bytes, filename: str, content_type: str) -> str:
+    """Загружает файл в S3 и возвращает CDN URL"""
     s3 = boto3.client(
         's3',
         endpoint_url='https://bucket.poehali.dev',
@@ -76,48 +77,92 @@ def upload_to_s3(image_data: bytes, filename: str) -> str:
     s3.put_object(
         Bucket='files',
         Key=key,
-        Body=image_data,
-        ContentType='image/jpeg'
+        Body=file_data,
+        ContentType=content_type
     )
     
     cdn_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
     return cdn_url
 
 
-def ocr_extract_text(image_data: bytes) -> str:
-    """Извлекает текст из изображения с помощью Tesseract OCR"""
+def extract_text_from_docx(file_data: bytes) -> str:
+    """Извлекает текст из Word документа"""
     try:
-        print("[MATERIALS] Запуск OCR распознавания")
-        image = Image.open(io.BytesIO(image_data))
-        
-        # Tesseract OCR с поддержкой русского и английского
-        text = pytesseract.image_to_string(image, lang='rus+eng')
-        print(f"[MATERIALS] OCR распознал {len(text)} символов")
-        return text.strip()
+        print("[MATERIALS] Извлечение текста из DOCX")
+        doc = Document(io.BytesIO(file_data))
+        text = '\n'.join([paragraph.text for paragraph in doc.paragraphs if paragraph.text.strip()])
+        print(f"[MATERIALS] Извлечено {len(text)} символов из DOCX")
+        return text
     except Exception as e:
-        print(f"[MATERIALS] Ошибка OCR: {str(e)}")
+        print(f"[MATERIALS] Ошибка извлечения из DOCX: {str(e)}")
         return ""
 
-def analyze_text_with_deepseek(ocr_text: str) -> dict:
-    """Анализирует распознанный текст через Deepseek для извлечения структуры"""
+
+def extract_text_from_xlsx(file_data: bytes) -> str:
+    """Извлекает текст из Excel файла"""
+    try:
+        print("[MATERIALS] Извлечение текста из XLSX")
+        wb = load_workbook(io.BytesIO(file_data), data_only=True)
+        text_parts = []
+        
+        for sheet_name in wb.sheetnames:
+            sheet = wb[sheet_name]
+            text_parts.append(f"=== {sheet_name} ===")
+            
+            for row in sheet.iter_rows(values_only=True):
+                row_text = '\t'.join([str(cell) if cell is not None else '' for cell in row])
+                if row_text.strip():
+                    text_parts.append(row_text)
+        
+        text = '\n'.join(text_parts)
+        print(f"[MATERIALS] Извлечено {len(text)} символов из XLSX")
+        return text
+    except Exception as e:
+        print(f"[MATERIALS] Ошибка извлечения из XLSX: {str(e)}")
+        return ""
+
+
+def extract_text_from_pdf(file_data: bytes) -> str:
+    """Извлекает текст из PDF файла"""
+    try:
+        print("[MATERIALS] Извлечение текста из PDF")
+        pdf_reader = PdfReader(io.BytesIO(file_data))
+        text_parts = []
+        
+        for page_num, page in enumerate(pdf_reader.pages, 1):
+            page_text = page.extract_text()
+            if page_text.strip():
+                text_parts.append(f"=== Страница {page_num} ===")
+                text_parts.append(page_text)
+        
+        text = '\n'.join(text_parts)
+        print(f"[MATERIALS] Извлечено {len(text)} символов из PDF")
+        return text
+    except Exception as e:
+        print(f"[MATERIALS] Ошибка извлечения из PDF: {str(e)}")
+        return ""
+
+
+def analyze_text_with_deepseek(text: str, filename: str) -> dict:
+    """Анализирует извлеченный текст через Deepseek для извлечения структуры"""
     deepseek_key = os.environ.get('DEEPSEEK_API_KEY')
     
     if not deepseek_key:
         print("[MATERIALS] DEEPSEEK_API_KEY не найден")
         return {
-            'text': ocr_text,
-            'summary': 'Текст распознан, но анализ недоступен',
+            'text': text,
+            'summary': 'Файл загружен, но анализ недоступен',
             'subject': 'Общее',
-            'title': 'Материал без анализа',
+            'title': filename[:50],
             'tasks': []
         }
     
-    if not ocr_text:
+    if not text or len(text) < 10:
         return {
-            'text': 'Текст не распознан',
-            'summary': 'На изображении не найдено читаемого текста',
+            'text': 'Текст не извлечен или файл пуст',
+            'summary': 'Не удалось извлечь содержимое файла',
             'subject': 'Общее',
-            'title': 'Пустой материал',
+            'title': filename[:50],
             'tasks': []
         }
     
@@ -129,16 +174,19 @@ def analyze_text_with_deepseek(ocr_text: str) -> dict:
             timeout=30.0
         )
         
-        prompt = f"""Ты помощник студента. Проанализируй этот текст с учебного материала (доска/конспект).
+        # Ограничиваем текст для анализа (первые 3000 символов)
+        text_preview = text[:3000] if len(text) > 3000 else text
+        
+        prompt = f"""Ты помощник студента. Проанализируй этот учебный материал из файла "{filename}".
 
-Распознанный текст:
-{ocr_text[:3000]}
+Содержимое файла:
+{text_preview}
 
 Верни JSON в таком формате:
 {{
   "text": "Исходный текст (можешь улучшить форматирование, но сохрани содержание)",
   "summary": "Краткое резюме (2-3 предложения): о чём материал, ключевые темы",
-  "subject": "Предмет (например: Математика, Физика, Программирование, История)",
+  "subject": "Предмет (например: Математика, Физика, Программирование, История, Экономика)",
   "title": "Краткое название материала (макс 50 символов)",
   "tasks": [
     {{"title": "Название задачи", "deadline": "YYYY-MM-DD или null"}}
@@ -150,6 +198,7 @@ def analyze_text_with_deepseek(ocr_text: str) -> dict:
 - Если дата не указана - deadline: null
 - Если нет заданий - tasks: []
 - Определи предмет по содержанию текста
+- Создай понятное название для материала
 """
         
         response = client.chat.completions.create(
@@ -171,16 +220,20 @@ def analyze_text_with_deepseek(ocr_text: str) -> dict:
             content = content.split('```')[1].split('```')[0].strip()
         
         result = json.loads(content)
+        
+        # Сохраняем полный текст, если он был сокращен
+        result['text'] = text
+        
         print(f"[MATERIALS] Анализ завершен: {result.get('title')}")
         return result
         
     except Exception as e:
         print(f"[MATERIALS] Ошибка анализа Deepseek: {str(e)}")
         return {
-            'text': ocr_text,
-            'summary': 'Текст распознан, но не удалось проанализировать',
+            'text': text,
+            'summary': 'Файл загружен, но автоматический анализ не удался',
             'subject': 'Общее',
-            'title': 'Материал (ошибка анализа)',
+            'title': filename[:50],
             'tasks': []
         }
 
@@ -225,10 +278,10 @@ def handler(event: dict, context) -> dict:
     
     user_id = payload['user_id']
     
-    # POST /upload - Загрузка и распознавание фото
+    # POST /upload - Загрузка и анализ файла
     if method == 'POST':
         try:
-            # Проверяем подписку перед обработкой изображения
+            # Проверяем подписку перед обработкой файла
             conn = get_db_connection()
             access = check_subscription_access(conn, user_id)
             
@@ -237,9 +290,9 @@ def handler(event: dict, context) -> dict:
                 reason = access.get('reason', 'no_access')
                 
                 if reason == 'subscription_expired':
-                    message = '⏰ Ваша подписка истекла. Продлите подписку для использования сканера.'
+                    message = '⏰ Ваша подписка истекла. Продлите подписку для загрузки материалов.'
                 else:
-                    message = '🔒 Сканер доступен только по подписке. Оформите подписку!'
+                    message = '🔒 Загрузка материалов доступна только по подписке. Оформите подписку!'
                 
                 return {
                     'statusCode': 403,
@@ -254,41 +307,62 @@ def handler(event: dict, context) -> dict:
             conn.close()
             
             body = json.loads(event.get('body', '{}'))
-            image_base64 = body.get('image')
+            file_base64 = body.get('file')
+            filename = body.get('filename', 'document')
+            file_type = body.get('file_type', 'application/octet-stream')
             
-            if not image_base64:
+            if not file_base64:
                 return {
                     'statusCode': 400,
                     'headers': headers,
-                    'body': json.dumps({'error': 'Изображение не предоставлено'})
+                    'body': json.dumps({'error': 'Файл не предоставлен'})
                 }
             
-            print(f"[MATERIALS] Начинаю обработку изображения для пользователя {user_id}")
+            print(f"[MATERIALS] Начинаю обработку файла {filename} для пользователя {user_id}")
             
             try:
-                image_data = base64.b64decode(image_base64.split(',')[1] if ',' in image_base64 else image_base64)
-                print(f"[MATERIALS] Изображение декодировано, размер: {len(image_data)} байт")
+                # Декодируем base64
+                if ',' in file_base64:
+                    file_data = base64.b64decode(file_base64.split(',')[1])
+                else:
+                    file_data = base64.b64decode(file_base64)
+                print(f"[MATERIALS] Файл декодирован, размер: {len(file_data)} байт")
             except Exception as e:
                 print(f"[MATERIALS] Ошибка декодирования: {str(e)}")
                 return {
                     'statusCode': 400,
                     'headers': headers,
-                    'body': json.dumps({'error': 'Неверный формат изображения'})
+                    'body': json.dumps({'error': 'Неверный формат файла'})
                 }
             
+            # Извлекаем текст в зависимости от типа файла
+            file_ext = filename.lower().split('.')[-1]
+            
+            if file_ext == 'docx' or 'word' in file_type.lower():
+                extracted_text = extract_text_from_docx(file_data)
+            elif file_ext == 'xlsx' or file_ext == 'xls' or 'excel' in file_type.lower() or 'spreadsheet' in file_type.lower():
+                extracted_text = extract_text_from_xlsx(file_data)
+            elif file_ext == 'pdf' or 'pdf' in file_type.lower():
+                extracted_text = extract_text_from_pdf(file_data)
+            else:
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Неподдерживаемый формат файла. Поддерживаются: Word (.docx), Excel (.xlsx), PDF'})
+                }
+            
+            # Загружаем файл в S3
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"{user_id}_{timestamp}.jpg"
+            s3_filename = f"{user_id}_{timestamp}_{filename}"
+            print(f"[MATERIALS] Загружаю в S3: {s3_filename}")
+            file_url = upload_to_s3(file_data, s3_filename, file_type)
+            print(f"[MATERIALS] Загружено в S3: {file_url}")
             
-            print(f"[MATERIALS] Загружаю в S3: {filename}")
-            image_url = upload_to_s3(image_data, filename)
-            print(f"[MATERIALS] Загружено в S3: {image_url}")
-            
-            print(f"[MATERIALS] Запускаю OCR распознавание")
-            ocr_text = ocr_extract_text(image_data)
-            
+            # Анализируем текст через Deepseek
             print(f"[MATERIALS] Анализирую текст через Deepseek")
-            recognition_result = analyze_text_with_deepseek(ocr_text)
+            analysis_result = analyze_text_with_deepseek(extracted_text, filename)
             
+            # Сохраняем в БД
             conn = get_db_connection()
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -299,11 +373,11 @@ def handler(event: dict, context) -> dict:
                         RETURNING id, title, subject, image_url, recognized_text, summary, created_at
                     """, (
                         user_id,
-                        recognition_result.get('title', 'Без названия'),
-                        recognition_result.get('subject'),
-                        image_url,
-                        recognition_result.get('text'),
-                        recognition_result.get('summary')
+                        analysis_result.get('title', filename[:50]),
+                        analysis_result.get('subject'),
+                        file_url,
+                        analysis_result.get('text'),
+                        analysis_result.get('summary')
                     ))
                     
                     material = cur.fetchone()
@@ -316,7 +390,7 @@ def handler(event: dict, context) -> dict:
                         'headers': headers,
                         'body': json.dumps({
                             'material': dict(material),
-                            'tasks': recognition_result.get('tasks', [])
+                            'tasks': analysis_result.get('tasks', [])
                         }, default=str)
                     }
             finally:
