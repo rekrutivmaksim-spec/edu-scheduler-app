@@ -1,6 +1,5 @@
 """API для обработки платежей и управления подписками"""
 
-
 import json
 import os
 from datetime import datetime, timedelta
@@ -61,6 +60,8 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
     }
     
     print(f"[TINKOFF] Создание платежа для user_id={user_id}, amount={amount}, order_id={order_id}")
+    print(f"[TINKOFF] Terminal Key: {TINKOFF_TERMINAL_KEY}")
+    print(f"[TINKOFF] Password length: {len(TINKOFF_PASSWORD)}")
     
     # Генерируем токен
     token_params = {
@@ -74,6 +75,7 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
     params['Token'] = generate_token(*sorted_values)
     
     print(f"[TINKOFF] Отправка запроса в {TINKOFF_API_URL}Init")
+    print(f"[TINKOFF] Параметры запроса (без Token): {json.dumps({k: v for k, v in params.items() if k != 'Token'}, ensure_ascii=False)}")
     
     try:
         response = requests.post(f'{TINKOFF_API_URL}Init', json=params, timeout=10)
