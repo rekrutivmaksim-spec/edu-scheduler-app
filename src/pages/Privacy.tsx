@@ -51,9 +51,7 @@ export default function Privacy() {
                 <li>
                   <strong>Данные для авторизации:</strong>
                   <ul className="list-circle pl-6 mt-2">
-                    <li>Номер телефона (для SMS-авторизации)</li>
-                    <li>Email (опционально, при регистрации через email)</li>
-                    <li>Данные из VK (ID, имя, аватар — при входе через ВКонтакте)</li>
+                    <li>Email и пароль (при регистрации)</li>
                   </ul>
                 </li>
                 <li>
@@ -87,7 +85,7 @@ export default function Privacy() {
               <h2 className="text-2xl font-bold text-gray-900 mb-4">3. Цели обработки данных</h2>
               <p>Мы используем ваши данные для:</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li><strong>Авторизации:</strong> Отправка SMS-кодов для входа в Приложение</li>
+                <li><strong>Авторизации:</strong> Вход в Приложение по email и паролю</li>
                 <li><strong>Персонализации:</strong> Настройка интерфейса под ваши нужды</li>
                 <li><strong>Уведомлений:</strong> Напоминания о занятиях и дедлайнах (по вашему согласию)</li>
                 <li><strong>Поддержки:</strong> Решение технических проблем и ответы на вопросы</li>
@@ -96,26 +94,12 @@ export default function Privacy() {
               </ul>
             </section>
 
-            <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">4. SMS-уведомления</h2>
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                <p className="font-semibold text-blue-900 mb-2">Важная информация об SMS:</p>
-                <ul className="list-disc pl-6 space-y-1 text-blue-800">
-                  <li>Мы отправляем SMS-коды для авторизации в Приложении (транзакционные сообщения)</li>
-                  <li>SMS-уведомления о занятиях отправляются ТОЛЬКО если вы включили их в настройках</li>
-                  <li>Вы можете отключить SMS-уведомления в любой момент в разделе "Профиль → Настройки уведомлений"</li>
-                  <li>SMS-коды для входа нельзя отключить (это требуется для безопасности вашего аккаунта)</li>
-                  <li>Мы НЕ рассылаем рекламу и НЕ передаём ваш номер третьим лицам</li>
-                </ul>
-              </div>
-            </section>
+
 
             <section>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">5. Передача данных третьим лицам</h2>
               <p>Мы передаём минимально необходимые данные только следующим сервисам:</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li><strong>SMS.RU</strong> — номер телефона для отправки SMS-кодов</li>
-                <li><strong>ВКонтакте</strong> — при входе через VK (только ID, имя, аватар)</li>
                 <li><strong>DeepSeek AI</strong> — текст ваших вопросов ИИ-ассистенту (анонимно)</li>
                 <li><strong>Яндекс.Облако</strong> — хостинг данных (сервера в России, защищены шифрованием)</li>
               </ul>
@@ -154,8 +138,6 @@ export default function Privacy() {
               </p>
               <ul className="list-disc pl-6 space-y-2">
                 <li>Обработку персональных данных в соответствии с данной Политикой</li>
-                <li>Отправку SMS-кодов для авторизации</li>
-                <li>Отправку SMS-уведомлений (если включены в настройках)</li>
                 <li>Использование cookie для улучшения работы Приложения</li>
               </ul>
               <p className="mt-4">
@@ -185,8 +167,7 @@ export default function Privacy() {
 
             <div className="bg-gray-100 p-6 rounded-xl mt-8">
               <p className="text-sm text-gray-600">
-                <strong>Правовая основа:</strong> Обработка данных осуществляется в соответствии с 
-                Федеральным законом №152-ФЗ "О персональных данных" и согласием пользователя.
+                <strong>Правовая основа:</strong> Обработка данных осуществляется в соответствии с законодательством Российской Федерации и согласием пользователя.
               </p>
             </div>
           </div>

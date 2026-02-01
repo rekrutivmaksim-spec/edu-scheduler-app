@@ -61,7 +61,7 @@ export default function Terms() {
             <section>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">3. Регистрация и аккаунт</h2>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Для использования Приложения необходимо создать аккаунт через SMS, VK или email</li>
+                <li>Для использования Приложения необходимо создать аккаунт через email</li>
                 <li>Вы обязаны предоставлять достоверную информацию</li>
                 <li>Вы несёте ответственность за сохранность данных для входа</li>
                 <li>Один пользователь может иметь только один аккаунт</li>
@@ -179,7 +179,6 @@ export default function Terms() {
               <p>По вопросам работы Приложения:</p>
               <ul className="list-none space-y-2 mt-4">
                 <li><strong>Email поддержки:</strong> support@studyfay.app</li>
-                <li><strong>Telegram:</strong> <a href="https://t.me/+QgiLIa1gFRY4Y2Iy" className="text-blue-600 hover:underline">@studyfay_support</a></li>
               </ul>
             </section>
 

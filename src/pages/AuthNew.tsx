@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,6 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
 
-const VK_AUTH_URL = 'https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f343ebd7d3';
 const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 
 export default function AuthNew() {
@@ -19,6 +18,17 @@ export default function AuthNew() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('savedEmail');
+    const savedPassword = localStorage.getItem('savedPassword');
+    if (savedEmail && savedPassword) {
+      setEmail(savedEmail);
+      setPassword(savedPassword);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleEmailLogin = async () => {
     if (!agreedToTerms) {
@@ -66,6 +76,14 @@ export default function AuthNew() {
       if (response.ok && data.token) {
         authService.setToken(data.token);
         authService.setUser(data.user);
+        
+        if (rememberMe) {
+          localStorage.setItem('savedEmail', email);
+          localStorage.setItem('savedPassword', password);
+        } else {
+          localStorage.removeItem('savedEmail');
+          localStorage.removeItem('savedPassword');
+        }
         
         toast({
           title: '✅ Вход выполнен!',
@@ -153,49 +171,7 @@ export default function AuthNew() {
     }
   };
 
-  const handleVKAuth = async () => {
-    if (!agreedToTerms) {
-      toast({
-        variant: 'destructive',
-        title: 'Необходимо согласие',
-        description: 'Подтвердите согласие с условиями использования'
-      });
-      return;
-    }
 
-    setLoading(true);
-
-    try {
-      const response = await fetch(VK_AUTH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'get_auth_url',
-          redirect_uri: `${window.location.origin}/auth/vk`
-        })
-      });
-
-      const data = await response.json();
-      
-      if (response.ok && data.auth_url) {
-        window.location.href = data.auth_url;
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Ошибка',
-          description: 'VK авторизация временно недоступна'
-        });
-        setLoading(false);
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка',
-        description: 'Не удалось подключиться к VK'
-      });
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4 sm:p-6">
@@ -304,6 +280,20 @@ export default function AuthNew() {
               </Button>
             )}
 
+            {/* Запомнить пароль */}
+            {mode === 'login' && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                />
+                <label htmlFor="remember" className="text-sm text-gray-700 cursor-pointer">
+                  Запомнить пароль
+                </label>
+              </div>
+            )}
+
             {/* Переключение режима */}
             <div className="text-center">
               <button
@@ -314,34 +304,6 @@ export default function AuthNew() {
               </button>
             </div>
           </div>
-
-          {/* Разделитель */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">или</span>
-            </div>
-          </div>
-
-          {/* VK вход */}
-          <Button
-            onClick={handleVKAuth}
-            disabled={loading || !agreedToTerms}
-            className="w-full h-14 bg-[#0077FF] hover:bg-[#0066DD] text-white text-base font-semibold shadow-lg rounded-xl"
-          >
-            {loading ? (
-              <Icon name="Loader2" size={20} className="animate-spin" />
-            ) : (
-              <>
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M15.07 2H8.93C3.33 2 2 3.33 2 8.93v6.14C2 20.67 3.33 22 8.93 22h6.14c5.6 0 6.93-1.33 6.93-6.93V8.93C22 3.33 20.67 2 15.07 2zm3.06 13.54h-1.39c-.56 0-.73-.45-1.73-1.45-.87-.82-1.25-.93-1.47-.93-.3 0-.38.08-.38.47v1.32c0 .36-.11.57-1.06.57-1.52 0-3.21-.92-4.4-2.64-1.78-2.42-2.27-4.25-2.27-4.63 0-.22.08-.43.47-.43h1.39c.35 0 .48.16.62.53.69 2.02 1.84 3.79 2.31 3.79.18 0 .26-.08.26-.54v-2.09c-.06-.99-.58-1.08-.58-1.43 0-.17.14-.35.37-.35h2.18c.3 0 .4.16.4.50v2.81c0 .3.13.4.22.4.18 0 .33-.1.66-.43 1.02-1.14 1.75-2.90 1.75-2.90.1-.2.25-.43.64-.43h1.39c.42 0 .51.21.42.50-.15.71-1.54 2.74-1.54 2.74-.15.24-.21.35 0 .62.15.2.64.63.97 1.01.61.67 1.08 1.23 1.21 1.62.12.42.19.50-.02.50z" />
-                </svg>
-                Войти через ВКонтакте
-              </>
-            )}
-          </Button>
 
           {/* Подсказка */}
           <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
