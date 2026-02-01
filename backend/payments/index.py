@@ -13,7 +13,7 @@ import requests
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-TINKOFF_TERMINAL_KEY = 'studyfay_terminal'
+TINKOFF_TERMINAL_KEY = os.environ.get('TINKOFF_TERMINAL_KEY', '')
 TINKOFF_PASSWORD = os.environ.get('TINKOFF_TERMINAL_PASSWORD', '')
 TINKOFF_API_URL = 'https://securepay.tinkoff.ru/v2/'
 
@@ -55,7 +55,9 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
         'TerminalKey': TINKOFF_TERMINAL_KEY,
         'Amount': amount * 100,  # Копейки
         'OrderId': order_id,
-        'Description': description
+        'Description': description,
+        'SuccessURL': 'https://eduhelper.poehali.dev/subscription?payment=success',
+        'FailURL': 'https://eduhelper.poehali.dev/subscription?payment=failed'
     }
     
     print(f"[TINKOFF] Создание платежа для user_id={user_id}, amount={amount}, order_id={order_id}")
