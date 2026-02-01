@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import NotificationPrompt from '@/components/NotificationPrompt';
+import ExamReminder from '@/components/ExamReminder';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 
@@ -47,6 +48,7 @@ const Index = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isAddingLesson, setIsAddingLesson] = useState(false);
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [isExamReminderOpen, setIsExamReminderOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
   const [taskFilter, setTaskFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [taskSearch, setTaskSearch] = useState('');
@@ -615,13 +617,23 @@ const Index = () => {
                 <h2 className="text-3xl font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Задачи</h2>
                 <p className="text-purple-600/70 text-sm mt-1">Управление делами</p>
               </div>
-              <Button 
-                onClick={() => setIsAddingTask(true)}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-pink-500/30 rounded-xl"
-              >
-                <Icon name="Plus" size={18} className="mr-2" />
-                Новая задача
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => setIsExamReminderOpen(true)}
+                  variant="outline"
+                  className="border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl"
+                >
+                  <Icon name="Bell" size={18} className="mr-2" />
+                  Напоминание об экзамене
+                </Button>
+                <Button 
+                  onClick={() => setIsAddingTask(true)}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-pink-500/30 rounded-xl"
+                >
+                  <Icon name="Plus" size={18} className="mr-2" />
+                  Новая задача
+                </Button>
+              </div>
             </div>
 
             <div className="flex gap-4 mb-6">
@@ -950,7 +962,7 @@ const Index = () => {
       <footer className="bg-white/70 backdrop-blur-xl border-t border-purple-200/50 mt-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-600">© 2024 Studyfay. Все права защищены.</p>
+            <p className="text-sm text-gray-600">© 2026 Studyfay. Все права защищены.</p>
             <div className="flex items-center gap-4 text-sm">
               <a href="/privacy" className="text-purple-600 hover:underline">Политика конфиденциальности</a>
               <span className="text-gray-400">•</span>
@@ -959,6 +971,11 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      <ExamReminder 
+        isOpen={isExamReminderOpen} 
+        onClose={() => setIsExamReminderOpen(false)} 
+      />
     </div>
   );
 };
