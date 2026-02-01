@@ -209,13 +209,13 @@ def handler(event: dict, context) -> dict:
     }
 
 def get_materials_context(conn, user_id: int, material_ids: list) -> str:
-    """Получение текста материалов для контекста ИИ"""
+    """Получение текста материалов для контекста ИИ с поддержкой чанков"""
     cursor = conn.cursor()
     
     if material_ids:
         placeholders = ','.join(['%s'] * len(material_ids))
         cursor.execute(f'''
-            SELECT title, subject, recognized_text, summary
+            SELECT id, title, subject, recognized_text, summary, total_chunks
             FROM {SCHEMA_NAME}.materials
             WHERE user_id = %s AND id IN ({placeholders})
             ORDER BY created_at DESC
@@ -223,7 +223,7 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
         ''', [user_id] + material_ids)
     else:
         cursor.execute(f'''
-            SELECT title, subject, recognized_text, summary
+            SELECT id, title, subject, recognized_text, summary, total_chunks
             FROM {SCHEMA_NAME}.materials
             WHERE user_id = %s
             ORDER BY created_at DESC
@@ -231,22 +231,36 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
         ''', (user_id,))
     
     materials = cursor.fetchall()
-    cursor.close()
     
     if not materials:
+        cursor.close()
         return "У пользователя нет загруженных материалов."
     
     context_parts = []
-    for title, subject, text, summary in materials:
+    for material_id, title, subject, text, summary, total_chunks in materials:
         context_parts.append(f"Материал: {title}")
         if subject:
             context_parts.append(f"Предмет: {subject}")
         if summary:
             context_parts.append(f"Краткое содержание: {summary}")
-        if text:
-            context_parts.append(f"Текст: {text[:2000]}")
+        
+        # Если документ разбит на чанки, загружаем первые 3 чанка
+        if total_chunks and total_chunks > 1:
+            cursor.execute(f'''
+                SELECT chunk_text FROM {SCHEMA_NAME}.document_chunks
+                WHERE material_id = %s
+                ORDER BY chunk_index
+                LIMIT 3
+            ''', (material_id,))
+            chunks = cursor.fetchall()
+            full_text = '\n\n'.join([chunk[0] for chunk in chunks])
+            context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:3000]}")
+        elif text:
+            context_parts.append(f"Текст: {text[:3000]}")
+        
         context_parts.append("---")
     
+    cursor.close()
     return "\n".join(context_parts)
 
 def ask_artemox_openai(question: str, context: str) -> tuple:

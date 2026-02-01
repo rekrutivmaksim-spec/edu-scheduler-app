@@ -15,7 +15,10 @@ interface Material {
   id: number;
   title: string;
   subject?: string;
-  image_url: string;
+  file_url: string;
+  file_type?: string;
+  file_size?: number;
+  total_chunks?: number;
   recognized_text?: string;
   summary?: string;
   created_at: string;
@@ -72,27 +75,27 @@ const Materials = () => {
   const uploadFile = async (file: File) => {
     const allowedTypes = [
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.ms-excel', // .xls
-      'application/pdf'
+      'application/msword', // .doc
+      'application/pdf', // .pdf
+      'text/plain' // .txt
     ];
 
-    const allowedExtensions = ['.docx', '.xlsx', '.xls', '.pdf'];
+    const allowedExtensions = ['.docx', '.doc', '.pdf', '.txt'];
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
 
     if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
       toast({
         title: "Неподдерживаемый формат",
-        description: "Загружайте файлы Word (.docx), Excel (.xlsx) или PDF",
+        description: "Загружайте файлы Word (.docx), PDF (.pdf) или Текст (.txt)",
         variant: "destructive"
       });
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 50 * 1024 * 1024) {
       toast({
         title: "Файл слишком большой",
-        description: "Максимальный размер файла: 10 МБ",
+        description: "Максимальный размер файла: 50 МБ",
         variant: "destructive"
       });
       return;
@@ -115,7 +118,7 @@ const Materials = () => {
           body: JSON.stringify({
             file: base64File,
             filename: file.name,
-            file_type: file.type || 'application/octet-stream'
+            fileType: file.type || 'application/octet-stream'
           })
         });
 
@@ -354,19 +357,30 @@ const Materials = () => {
                 {material.summary && (
                   <p className="text-sm text-gray-600 line-clamp-3 mb-3">{material.summary}</p>
                 )}
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>{new Date(material.created_at).toLocaleDateString('ru-RU')}</span>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(material.id);
-                    }}
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Icon name="Trash2" size={16} />
-                  </Button>
+                <div className="space-y-2">
+                  {material.file_size && (
+                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                      <Icon name="HardDrive" size={14} />
+                      {(material.file_size / 1024 / 1024).toFixed(2)} МБ
+                      {material.total_chunks && material.total_chunks > 1 && (
+                        <span className="ml-1">• {material.total_chunks} частей</span>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{new Date(material.created_at).toLocaleDateString('ru-RU')}</span>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(material.id);
+                      }}
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Icon name="Trash2" size={16} />
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
