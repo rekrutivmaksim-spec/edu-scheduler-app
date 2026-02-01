@@ -8,7 +8,10 @@ from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import jwt
-from openai import OpenAI  # Используется совместимый клиент для Deepseek
+from openai import OpenAI
+from PIL import Image
+import pytesseract
+import io
 
 
 def get_db_connection():
@@ -81,88 +84,103 @@ def upload_to_s3(image_data: bytes, filename: str) -> str:
     return cdn_url
 
 
-def recognize_text_from_image(image_url: str) -> dict:
-    """Использует Deepseek Vision для распознавания текста с изображений"""
+def ocr_extract_text(image_data: bytes) -> str:
+    """Извлекает текст из изображения с помощью Tesseract OCR"""
+    try:
+        print("[MATERIALS] Запуск OCR распознавания")
+        image = Image.open(io.BytesIO(image_data))
+        
+        # Tesseract OCR с поддержкой русского и английского
+        text = pytesseract.image_to_string(image, lang='rus+eng')
+        print(f"[MATERIALS] OCR распознал {len(text)} символов")
+        return text.strip()
+    except Exception as e:
+        print(f"[MATERIALS] Ошибка OCR: {str(e)}")
+        return ""
+
+def analyze_text_with_deepseek(ocr_text: str) -> dict:
+    """Анализирует распознанный текст через Deepseek для извлечения структуры"""
     deepseek_key = os.environ.get('DEEPSEEK_API_KEY')
     
     if not deepseek_key:
         print("[MATERIALS] DEEPSEEK_API_KEY не найден")
         return {
-            'text': 'Ключ API не настроен',
-            'summary': 'Настройте DEEPSEEK_API_KEY для распознавания',
+            'text': ocr_text,
+            'summary': 'Текст распознан, но анализ недоступен',
             'subject': 'Общее',
-            'title': 'Материал без распознавания',
+            'title': 'Материал без анализа',
+            'tasks': []
+        }
+    
+    if not ocr_text:
+        return {
+            'text': 'Текст не распознан',
+            'summary': 'На изображении не найдено читаемого текста',
+            'subject': 'Общее',
+            'title': 'Пустой материал',
             'tasks': []
         }
     
     try:
-        print(f"[MATERIALS] Начинаю распознавание изображения через Deepseek Vision: {image_url}")
+        print("[MATERIALS] Отправка текста в Deepseek для анализа")
         client = OpenAI(
             api_key=deepseek_key,
             base_url="https://api.deepseek.com",
             timeout=30.0
         )
         
+        prompt = f"""Ты помощник студента. Проанализируй этот текст с учебного материала (доска/конспект).
+
+Распознанный текст:
+{ocr_text[:3000]}
+
+Верни JSON в таком формате:
+{{
+  "text": "Исходный текст (можешь улучшить форматирование, но сохрани содержание)",
+  "summary": "Краткое резюме (2-3 предложения): о чём материал, ключевые темы",
+  "subject": "Предмет (например: Математика, Физика, Программирование, История)",
+  "title": "Краткое название материала (макс 50 символов)",
+  "tasks": [
+    {{"title": "Название задачи", "deadline": "YYYY-MM-DD или null"}}
+  ]
+}}
+
+ВАЖНО:
+- Если упомянуты задания/домашка с датами - добавь в tasks
+- Если дата не указана - deadline: null
+- Если нет заданий - tasks: []
+- Определи предмет по содержанию текста
+"""
+        
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": """Ты помощник студента. Проанализируй это изображение (доска/конспект/учебный материал).
-
-Верни JSON в таком формате:
-{
-  "text": "Весь распознанный текст с изображения",
-  "summary": "Краткое резюме (2-3 предложения): о чём материал, ключевые темы",
-  "subject": "Предмет (например: Математика, Физика, Программирование)",
-  "title": "Краткое название материала (макс 50 символов)",
-  "tasks": [
-    {"title": "Название задачи", "deadline": "YYYY-MM-DD или null"},
-    ...
-  ]
-}
-
-ВАЖНО:
-- Если на изображении упомянуты задания/домашка с датами - добавь в tasks
-- Если дата не указана - deadline: null
-- Если нет заданий - tasks: []
-- Весь текст распознавай максимально точно
-"""
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": image_url}
-                        }
-                    ]
-                }
+                {"role": "user", "content": prompt}
             ],
             max_tokens=2000,
             response_format={"type": "json_object"}
         )
         
         content = response.choices[0].message.content
-        print(f"[MATERIALS] Получен ответ от Deepseek: {content[:200]}...")
+        print(f"[MATERIALS] Получен анализ от Deepseek: {content[:200]}...")
         
-        # Deepseek может вернуть JSON в markdown блоке, очищаем
+        # Deepseek может вернуть JSON в markdown блоке
         if '```json' in content:
             content = content.split('```json')[1].split('```')[0].strip()
         elif '```' in content:
             content = content.split('```')[1].split('```')[0].strip()
         
         result = json.loads(content)
-        print(f"[MATERIALS] Распознавание завершено: {result.get('title')}")
+        print(f"[MATERIALS] Анализ завершен: {result.get('title')}")
         return result
         
     except Exception as e:
-        print(f"[MATERIALS] Ошибка распознавания: {str(e)}")
+        print(f"[MATERIALS] Ошибка анализа Deepseek: {str(e)}")
         return {
-            'text': f'Ошибка распознавания: {str(e)}',
-            'summary': 'Не удалось распознать изображение',
+            'text': ocr_text,
+            'summary': 'Текст распознан, но не удалось проанализировать',
             'subject': 'Общее',
-            'title': 'Материал (ошибка распознавания)',
+            'title': 'Материал (ошибка анализа)',
             'tasks': []
         }
 
@@ -265,8 +283,11 @@ def handler(event: dict, context) -> dict:
             image_url = upload_to_s3(image_data, filename)
             print(f"[MATERIALS] Загружено в S3: {image_url}")
             
-            print(f"[MATERIALS] Запускаю распознавание")
-            recognition_result = recognize_text_from_image(image_url)
+            print(f"[MATERIALS] Запускаю OCR распознавание")
+            ocr_text = ocr_extract_text(image_data)
+            
+            print(f"[MATERIALS] Анализирую текст через Deepseek")
+            recognition_result = analyze_text_with_deepseek(ocr_text)
             
             conn = get_db_connection()
             try:
