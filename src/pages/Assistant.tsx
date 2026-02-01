@@ -197,7 +197,7 @@ const Assistant = () => {
                 </h1>
                 {questionsRemaining !== null && (
                   <p className="text-xs text-purple-600/70 font-medium">
-                    Осталось ~{questionsRemaining} {questionsRemaining === 1 ? 'вопрос' : questionsRemaining < 5 ? 'вопроса' : 'вопросов'} в этом месяце
+                    Осталось ~{questionsRemaining} {questionsRemaining === 1 ? 'вопрос' : questionsRemaining < 5 ? 'вопроса' : 'вопросов'} по подписке
                   </p>
                 )}
               </div>
