@@ -104,78 +104,108 @@ const Materials = () => {
     setIsUploading(true);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64File = e.target?.result as string;
+      const token = authService.getToken();
+      
+      // Шаг 1: Получаем presigned URL
+      const urlResponse = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          action: 'get_upload_url',
+          filename: file.name,
+          fileType: file.type || 'application/octet-stream',
+          fileSize: file.size
+        })
+      });
 
-        const token = authService.getToken();
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            file: base64File,
-            filename: file.name,
-            fileType: file.type || 'application/octet-stream'
-          })
+      if (urlResponse.status === 403) {
+        const errorData = await urlResponse.json();
+        toast({
+          title: 'Требуется подписка',
+          description: errorData.message || 'Загрузка доступна только по подписке',
+          variant: 'destructive'
+        });
+        setTimeout(() => navigate('/subscription'), 2000);
+        setIsUploading(false);
+        return;
+      }
+
+      if (!urlResponse.ok) {
+        const errorData = await urlResponse.json();
+        throw new Error(errorData.error || 'Не удалось получить URL для загрузки');
+      }
+
+      const { upload_url, file_key, cdn_url } = await urlResponse.json();
+
+      // Шаг 2: Загружаем файл напрямую в S3
+      toast({
+        title: "📤 Загрузка файла...",
+        description: "Это может занять время для больших файлов"
+      });
+
+      const uploadResponse = await fetch(upload_url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream'
+        },
+        body: file
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Не удалось загрузить файл в S3');
+      }
+
+      // Шаг 3: Сообщаем backend обработать файл
+      toast({
+        title: "🤖 Обработка ИИ...",
+        description: "Извлекаем текст и анализируем документ"
+      });
+
+      const processResponse = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          action: 'process_file',
+          fileKey: file_key,
+          cdnUrl: cdn_url,
+          filename: file.name,
+          fileType: file.type || 'application/octet-stream',
+          fileSize: file.size
+        })
+      });
+
+      if (processResponse.ok) {
+        const data = await processResponse.json();
+        
+        toast({
+          title: "✅ Файл обработан!",
+          description: `Создан материал: ${data.material.title}`,
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          
+        if (data.tasks && data.tasks.length > 0) {
           toast({
-            title: "✅ Файл обработан!",
-            description: `Создан материал: ${data.material.title}`,
-          });
-
-          if (data.tasks && data.tasks.length > 0) {
-            toast({
-              title: "📋 Найдены задачи!",
-              description: `Обнаружено ${data.tasks.length} задач(и) в тексте`,
-            });
-          }
-
-          await loadMaterials();
-        } else if (response.status === 403) {
-          const errorData = await response.json();
-          
-          toast({
-            title: 'Требуется подписка',
-            description: errorData.message || 'Загрузка файлов доступна только по подписке. Переходим к оформлению...',
-            variant: 'destructive'
-          });
-          
-          setTimeout(() => {
-            navigate('/subscription');
-          }, 2000);
-        } else {
-          const errorData = await response.json();
-          toast({
-            title: "Ошибка",
-            description: errorData.error || "Не удалось загрузить файл",
-            variant: "destructive"
+            title: "📋 Найдены задачи!",
+            description: `Обнаружено ${data.tasks.length} задач(и)`,
           });
         }
 
-        setIsUploading(false);
-      };
+        await loadMaterials();
+      } else {
+        const errorData = await processResponse.json();
+        throw new Error(errorData.error || 'Ошибка обработки файла');
+      }
 
-      reader.onerror = () => {
-        toast({
-          title: "Ошибка",
-          description: "Не удалось прочитать файл",
-          variant: "destructive"
-        });
-        setIsUploading(false);
-      };
-
-      reader.readAsDataURL(file);
+      setIsUploading(false);
     } catch (error) {
       toast({
         title: "Ошибка",
-        description: "Проблема с загрузкой файла",
+        description: error instanceof Error ? error.message : "Не удалось загрузить файл",
         variant: "destructive"
       });
       setIsUploading(false);
