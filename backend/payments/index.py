@@ -385,13 +385,16 @@ def handler(event: dict, context) -> dict:
                 
                 print(f"[PAYMENT] Платеж создан: payment_id={payment.get('id')}, payment_url={payment.get('payment_url')}")
                 
+                # Определяем, что возвращать
+                plan_info = PLANS.get(plan_type) or TOKEN_PACKS.get(plan_type)
+                
                 # Возвращаем ссылку на оплату
                 return {
                     'statusCode': 200,
                     'headers': headers,
                     'body': json.dumps({
                         'payment': payment,
-                        'plan': PLANS[plan_type],
+                        'plan': plan_info,
                         'payment_url': payment.get('payment_url'),
                         'tinkoff_payment_id': payment.get('tinkoff_payment_id')
                     }, default=str)

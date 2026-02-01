@@ -156,6 +156,8 @@ const Subscription = () => {
 
       const createData = await createResponse.json();
       
+      console.log('[PAYMENT] Ответ от backend:', createData);
+      
       // Проверяем наличие ошибок от backend
       if (createData.payment?.error) {
         throw new Error(createData.payment.error);
@@ -165,10 +167,15 @@ const Subscription = () => {
       const paymentUrl = createData.payment_url;
       const tinkoffPaymentId = createData.tinkoff_payment_id;
 
+      console.log('[PAYMENT] Payment URL:', paymentUrl);
+      console.log('[PAYMENT] Tinkoff Payment ID:', tinkoffPaymentId);
+
       if (!paymentUrl || !tinkoffPaymentId) {
         const errorMsg = createData.payment?.error || 'Ошибка при создании платежа в Т-кассе';
         throw new Error(errorMsg);
       }
+
+      console.log('[PAYMENT] Открываем окно оплаты:', paymentUrl);
 
       toast({
         title: '💳 Переход к оплате',
@@ -177,6 +184,19 @@ const Subscription = () => {
 
       // Открываем страницу оплаты в новой вкладке
       const paymentWindow = window.open(paymentUrl, '_blank');
+      
+      console.log('[PAYMENT] Window.open result:', paymentWindow);
+
+      if (!paymentWindow) {
+        toast({
+          title: '⚠️ Всплывающее окно заблокировано',
+          description: 'Разрешите всплывающие окна для этого сайта или нажмите снова',
+          variant: 'destructive'
+        });
+        // Пробуем открыть в текущей вкладке как запасной вариант
+        window.location.href = paymentUrl;
+        return;
+      }
 
       // Проверяем статус платежа каждые 3 секунды
       const checkInterval = setInterval(async () => {
