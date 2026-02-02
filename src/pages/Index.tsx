@@ -14,6 +14,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import NotificationPrompt from '@/components/NotificationPrompt';
 import ExamReminder from '@/components/ExamReminder';
+import LimitsIndicator from '@/components/LimitsIndicator';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 
@@ -361,6 +362,8 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <NotificationPrompt />
+        
+        <LimitsIndicator compact />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 mb-6">
           <Card 

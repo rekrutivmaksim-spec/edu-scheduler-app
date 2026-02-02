@@ -31,7 +31,8 @@ def check_subscription_status(user_id: int, conn) -> dict:
         cur.execute("""
             SELECT subscription_type, subscription_expires_at,
                    materials_quota_used, materials_quota_reset_at,
-                   trial_ends_at, is_trial_used
+                   trial_ends_at, is_trial_used,
+                   ai_questions_used, ai_questions_reset_at
             FROM users
             WHERE id = %s
         """, (user_id,))
@@ -78,6 +79,17 @@ def check_subscription_status(user_id: int, conn) -> dict:
             conn.commit()
             user['materials_quota_used'] = 0
         
+        # Сброс AI вопросов раз в месяц
+        if user.get('ai_questions_reset_at') and user['ai_questions_reset_at'] < datetime.now():
+            cur.execute("""
+                UPDATE users 
+                SET ai_questions_used = 0,
+                    ai_questions_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 month'
+                WHERE id = %s
+            """, (user_id,))
+            conn.commit()
+            user['ai_questions_used'] = 0
+        
         return {
             'is_premium': is_premium,
             'is_trial': is_trial,
@@ -85,7 +97,9 @@ def check_subscription_status(user_id: int, conn) -> dict:
             'subscription_expires_at': user['subscription_expires_at'].isoformat() if user['subscription_expires_at'] else None,
             'trial_ends_at': trial_ends_at.isoformat() if trial_ends_at else None,
             'materials_quota_used': user['materials_quota_used'] or 0,
-            'materials_quota_reset_at': user['materials_quota_reset_at'].isoformat() if user['materials_quota_reset_at'] else None
+            'materials_quota_reset_at': user['materials_quota_reset_at'].isoformat() if user['materials_quota_reset_at'] else None,
+            'ai_questions_used': user.get('ai_questions_used', 0) or 0,
+            'ai_questions_reset_at': user.get('ai_questions_reset_at').isoformat() if user.get('ai_questions_reset_at') else None
         }
 
 
@@ -114,9 +128,10 @@ def get_limits(conn, user_id: int) -> dict:
         return {
             **status,
             'limits': {
-                'schedule': {'used': schedule_count, 'max': 5, 'unlimited': False},
-                'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
+                'schedule': {'used': schedule_count, 'max': 15, 'unlimited': False},
+                'tasks': {'used': tasks_count, 'max': 20, 'unlimited': False},
                 'materials': {'used': status['materials_quota_used'], 'max': 3, 'unlimited': False},
+                'ai_questions': {'used': status.get('ai_questions_used', 0), 'max': 3, 'unlimited': False},
                 'exam_predictions': {'unlimited': False, 'available': False}
             }
         }

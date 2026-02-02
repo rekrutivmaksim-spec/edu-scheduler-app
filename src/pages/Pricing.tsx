@@ -89,10 +89,10 @@ const Pricing = () => {
       price: '0₽',
       period: 'навсегда',
       features: [
-        { text: 'До 5 занятий в расписании', included: true },
-        { text: 'До 10 активных задач', included: true },
+        { text: 'До 15 занятий в расписании', included: true },
+        { text: 'До 20 активных задач', included: true },
         { text: '3 материала в месяц', included: true },
-        { text: 'AI-ассистент', included: false },
+        { text: '3 AI-вопроса в месяц', included: true },
         { text: 'Генерация шпаргалок', included: false },
         { text: 'AI-прогноз экзаменов', included: false },
         { text: 'Экспорт в PDF', included: false }

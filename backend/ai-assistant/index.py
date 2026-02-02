@@ -2,7 +2,7 @@ import json
 import os
 import jwt
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timedelta
 from openai import OpenAI
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -94,7 +94,7 @@ def check_subscription_access(conn, user_id: int) -> dict:
             # Подписка истекла - проверяем триал
             pass
     
-    # Проверяем пробный период (2 дня)
+    # Проверяем триал период (7 дней)
     if trial_ends_at and not is_trial_used and trial_ends_at > now:
         trial_limit = 3  # Триал: 3 вопроса
         if questions_used >= trial_limit:
@@ -116,17 +116,96 @@ def check_subscription_access(conn, user_id: int) -> dict:
             'questions_limit': trial_limit
         }
     
-    # Бесплатная версия - нет доступа
+    # Бесплатная версия - 3 вопроса в месяц
+    # Проверяем месячную квоту для Free пользователей
+    free_limit = 3
+    cursor = conn.cursor()
+    cursor.execute(f'''
+        SELECT ai_questions_free_used, ai_questions_free_reset_at
+        FROM {SCHEMA_NAME}.users
+        WHERE id = %s
+    ''', (user_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    
+    if result:
+        free_used, free_reset = result
+        free_used = free_used or 0
+        
+        # Сбрасываем счетчик если прошел месяц
+        if free_reset and free_reset < now:
+            cursor = conn.cursor()
+            cursor.execute(f'''
+                UPDATE {SCHEMA_NAME}.users
+                SET ai_questions_free_used = 0,
+                    ai_questions_free_reset_at = %s
+                WHERE id = %s
+            ''', (now + timedelta(days=30), user_id))
+            conn.commit()
+            cursor.close()
+            free_used = 0
+        
+        if free_used >= free_limit:
+            return {
+                'has_access': False, 
+                'reason': 'questions_limit_reached', 
+                'is_premium': False,
+                'is_trial': False,
+                'is_free': True,
+                'questions_used': free_used,
+                'questions_limit': free_limit
+            }
+        
+        return {
+            'has_access': True, 
+            'is_premium': False,
+            'is_trial': False,
+            'is_free': True,
+            'questions_used': free_used,
+            'questions_limit': free_limit
+        }
+    
+    # Нет доступа (не должно случиться)
     return {'has_access': False, 'reason': 'no_subscription', 'is_premium': False, 'is_trial': False, 'questions_used': 0, 'questions_limit': 0}
 
 def increment_ai_questions(conn, user_id: int):
     """Увеличивает счетчик использованных вопросов на 1"""
     cursor = conn.cursor()
+    # Проверяем тип подписки
     cursor.execute(f'''
-        UPDATE {SCHEMA_NAME}.users
-        SET ai_questions_used = COALESCE(ai_questions_used, 0) + 1
+        SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used
+        FROM {SCHEMA_NAME}.users
         WHERE id = %s
     ''', (user_id,))
+    user = cursor.fetchone()
+    
+    is_premium = False
+    is_trial = False
+    now = datetime.now()
+    
+    if user:
+        sub_type, expires, trial_ends, trial_used = user
+        if sub_type == 'premium' and expires and expires > now:
+            is_premium = True
+        elif trial_ends and not trial_used and trial_ends > now:
+            is_trial = True
+    
+    # Инкрементируем соответствующий счетчик
+    if is_premium or is_trial:
+        cursor.execute(f'''
+            UPDATE {SCHEMA_NAME}.users
+            SET ai_questions_used = COALESCE(ai_questions_used, 0) + 1
+            WHERE id = %s
+        ''', (user_id,))
+    else:
+        # Free пользователь - инкрементируем бесплатный счетчик
+        cursor.execute(f'''
+            UPDATE {SCHEMA_NAME}.users
+            SET ai_questions_free_used = COALESCE(ai_questions_free_used, 0) + 1,
+                ai_questions_free_reset_at = COALESCE(ai_questions_free_reset_at, %s)
+            WHERE id = %s
+        ''', (now + timedelta(days=30), user_id))
+    
     conn.commit()
     cursor.close()
 
