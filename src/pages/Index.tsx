@@ -464,8 +464,8 @@ const Index = () => {
               <span className="hidden sm:inline font-semibold">Задачи</span>
             </TabsTrigger>
             <TabsTrigger value="scanner" onClick={() => navigate('/materials')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-pink-600 data-[state=active]:to-rose-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-pink-500/30 transition-all">
-              <Icon name="Camera" size={20} className="mr-2" />
-              <span className="hidden sm:inline font-semibold">Сканер</span>
+              <Icon name="FileUp" size={20} className="mr-2" />
+              <span className="hidden sm:inline font-semibold">Загрузка файлов</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" onClick={() => navigate('/analytics')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 transition-all">
               <Icon name="BarChart3" size={20} className="mr-2" />

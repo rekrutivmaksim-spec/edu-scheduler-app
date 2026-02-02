@@ -361,10 +361,10 @@ const Profile = () => {
               className="h-auto p-4 flex items-center gap-3 justify-start hover:bg-indigo-50 border-2 hover:border-indigo-300 transition-all"
             >
               <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Icon name="Camera" size={20} className="text-white" />
+                <Icon name="FileUp" size={20} className="text-white" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-gray-800">Сканер материалов</p>
+                <p className="font-semibold text-gray-800">Загрузка файлов</p>
                 <p className="text-xs text-gray-500">Загрузить фото конспектов</p>
               </div>
             </Button>
