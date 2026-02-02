@@ -96,7 +96,7 @@ def check_subscription_access(conn, user_id: int) -> dict:
     
     # Проверяем пробный период (2 дня)
     if trial_ends_at and not is_trial_used and trial_ends_at > now:
-        trial_limit = 10  # Триал: 10 вопросов
+        trial_limit = 3  # Триал: 3 вопроса
         if questions_used >= trial_limit:
             return {
                 'has_access': False, 

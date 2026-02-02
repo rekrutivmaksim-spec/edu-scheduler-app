@@ -88,12 +88,18 @@ def generate_presigned_upload_url(filename: str, file_type: str, user_id: int) -
 
 
 def download_file_from_s3(file_key: str) -> bytes:
+    """Скачивает файл из S3 для обработки на бэкенде"""
     s3 = get_s3_client()
     try:
+        print(f"[MATERIALS] Скачиваю из S3: Bucket=files, Key={file_key}")
         response = s3.get_object(Bucket='files', Key=file_key)
-        return response['Body'].read()
+        data = response['Body'].read()
+        print(f"[MATERIALS] Скачано {len(data)} байт")
+        return data
     except Exception as e:
-        print(f"[MATERIALS] Ошибка скачивания: {e}")
+        print(f"[MATERIALS] Ошибка скачивания из S3: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
@@ -259,15 +265,19 @@ def handler(event: dict, context) -> dict:
                 if not file_key or not cdn_url:
                     return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Не указаны fileKey/cdnUrl'})}
                 
-                print(f"[MATERIALS] Обработка: {filename}")
+                print(f"[MATERIALS] Обработка файла: {filename}, key={file_key}")
                 file_data = download_file_from_s3(file_key)
                 
                 if not file_data:
-                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Не удалось скачать из S3'})}
+                    return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось скачать файл из хранилища. Попробуйте еще раз.'})}
                 
+                print(f"[MATERIALS] Извлекаю текст, тип файла: {file_type}")
                 full_text = extract_text_from_file(file_data, file_type)
-                if not full_text:
-                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Не удалось извлечь текст'})}
+                
+                if not full_text or len(full_text.strip()) < 10:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Файл пуст или не содержит распознаваемого текста'})}
+                
+                print(f"[MATERIALS] Извлечено {len(full_text)} символов текста")
                 
                 chunks = split_text_into_chunks(full_text)
                 analysis = analyze_document_with_deepseek(full_text, filename)

@@ -113,19 +113,30 @@ const Assistant = () => {
           return;
         }
         
-        // Обновляем остаток вопросов
+        // Обновляем остаток вопросов В РЕАЛЬНОМ ВРЕМЕНИ
         if (data.questions_remaining !== undefined) {
           setQuestionsRemaining(data.questions_remaining);
         }
         
+        // Показываем остаток вопросов после ответа
+        const remainingText = data.questions_remaining !== undefined 
+          ? ` (\u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c: ${data.questions_remaining})`
+          : '';
+        
         const assistantMessage: Message = {
           role: 'assistant',
-          content: data.answer,
+          content: `${data.answer}${remainingText}`,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
       } else if (response.status === 403) {
         const data = await response.json();
+        
+        // Обновляем счётчик даже при ошибке (лимит исчерпан)
+        if (data.questions_used !== undefined && data.questions_limit !== undefined) {
+          setQuestionsRemaining(data.questions_limit - data.questions_used);
+        }
+        
         const errorMessage: Message = {
           role: 'assistant',
           content: data.message || 'Доступ к ИИ-ассистенту доступен только по подписке',
