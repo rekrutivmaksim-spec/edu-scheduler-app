@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import UpgradeModal from '@/components/UpgradeModal';
+import ReactMarkdown from 'react-markdown';
 
 const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
 const EXAM_URL = 'https://functions.poehali.dev/fdcff74e-fb1a-49cc-bd7d-a462ade65859';
@@ -384,9 +385,10 @@ const ExamPrep = () => {
                                 {q.probability}%
                               </Badge>
                             </div>
-                            <p className="text-gray-700 mb-3 bg-gray-50 p-3 rounded-lg">
-                              <span className="font-semibold text-purple-600">Ответ:</span> {q.answer}
-                            </p>
+                            <div className="prose prose-sm max-w-none mb-3 bg-gray-50 p-3 rounded-lg">
+                              <span className="font-semibold text-purple-600">Ответ:</span>
+                              <ReactMarkdown>{q.answer}</ReactMarkdown>
+                            </div>
                             <div className="flex flex-wrap gap-2">
                               <span className="text-sm">{getDifficultyIcon(q.difficulty)} {q.difficulty}</span>
                               {q.topics.map((topic, tidx) => (

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import ReactMarkdown from 'react-markdown';
 
 const API_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
 const CHEAT_SHEET_URL = 'https://functions.poehali.dev/f87f21f9-9606-4c0f-8ffb-360ed66b2bb3';
@@ -487,10 +488,8 @@ const Materials = () => {
                     <Icon name="FileCheck" size={20} />
                     Шпаргалка для быстрого повторения
                   </h3>
-                  <div className="prose prose-sm max-w-none">
-                    <pre className="whitespace-pre-wrap text-sm text-green-900 bg-white p-4 rounded-lg">
-                      {cheatSheet}
-                    </pre>
+                  <div className="prose prose-sm max-w-none bg-white p-4 rounded-lg prose-headings:text-green-900 prose-p:text-green-800 prose-strong:text-green-900 prose-ul:text-green-800 prose-ol:text-green-800">
+                    <ReactMarkdown>{cheatSheet}</ReactMarkdown>
                   </div>
                 </div>
               )}
