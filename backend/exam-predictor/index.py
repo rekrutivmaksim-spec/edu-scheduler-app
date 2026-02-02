@@ -131,27 +131,32 @@ def analyze_materials_with_deepseek(materials: list, past_exams: str = None) -> 
 """
     
     try:
+        print(f"[EXAM-PREDICTOR] Отправка запроса в DeepSeek API...")
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=4000,
             temperature=0.7,
             response_format={"type": "json_object"},
-            timeout=60.0
+            timeout=90.0
         )
         
+        print(f"[EXAM-PREDICTOR] Успешно получен ответ от DeepSeek, токенов использовано: {response.usage.total_tokens}")
         result = json.loads(response.choices[0].message.content)
+        print(f"[EXAM-PREDICTOR] JSON распарсен успешно, вопросов сгенерировано: {len(result.get('questions', []))}")
         return result
     except Exception as e:
-        print(f"[EXAM-PREDICTOR] Ошибка DeepSeek: {e}")
+        print(f"[EXAM-PREDICTOR] Ошибка DeepSeek: {type(e).__name__}: {e}")
         error_str = str(e)
         
         if 'Insufficient Balance' in error_str or '402' in error_str:
-            raise Exception("⚠️ AI-прогноз временно недоступен: закончился баланс DeepSeek API. Функция будет восстановлена в ближайшее время.")
+            raise Exception("⚠️ AI-прогноз временно недоступен: закончился баланс DeepSeek API. Попробуйте через 5-10 минут после пополнения баланса.")
         elif 'timeout' in error_str.lower():
             raise Exception("⏱️ Превышено время ожидания. Попробуйте с меньшим количеством материалов.")
+        elif '401' in error_str or 'Unauthorized' in error_str:
+            raise Exception("🔑 Ошибка API ключа DeepSeek. Проверьте настройки.")
         else:
-            raise Exception(f"Не удалось сгенерировать прогноз: {error_str[:150]}")
+            raise Exception(f"Не удалось сгенерировать прогноз: {error_str[:200]}")
 
 
 def handler(event: dict, context) -> dict:
