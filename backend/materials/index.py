@@ -167,6 +167,8 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
     if not deepseek_key or not full_text or len(full_text) < 10:
         return {'summary': 'Документ загружен', 'subject': 'Общее', 'title': filename[:50], 'tasks': []}
     
+    print(f"[MATERIALS] DeepSeek анализ начат, длина текста={len(full_text)}")
+    
     try:
         client = OpenAI(api_key=deepseek_key, base_url="https://api.deepseek.com", timeout=30.0)
         text_preview = full_text[:3000]
@@ -191,10 +193,12 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
         elif '```' in content:
             content = content.split('```')[1].split('```')[0].strip()
         
-        return json.loads(content)
+        result = json.loads(content)
+        print(f"[MATERIALS] DeepSeek анализ завершен: title={result.get('title')}, subject={result.get('subject')}")
+        return result
     except Exception as e:
         print(f"[MATERIALS] Deepseek ошибка: {e}")
-        return {'summary': 'Анализ не удался', 'subject': 'Общее', 'title': filename[:50], 'tasks': []}
+        return {'summary': 'Документ загружен (анализ недоступен)', 'subject': 'Общее', 'title': filename[:50], 'tasks': []}
 
 
 def handler(event: dict, context) -> dict:
@@ -271,6 +275,10 @@ def handler(event: dict, context) -> dict:
                 chunks = split_text_into_chunks(full_text)
                 analysis = analyze_document_with_deepseek(full_text, filename)
                 
+                title = (analysis.get('title') or filename)[:200]
+                subject = (analysis.get('subject') or 'Общее')[:100]
+                summary = (analysis.get('summary') or 'Документ загружен')[:2000]
+                
                 conn = get_db_connection()
                 try:
                     with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -278,7 +286,7 @@ def handler(event: dict, context) -> dict:
                             INSERT INTO materials (user_id, title, subject, file_url, recognized_text, summary, file_type, file_size, total_chunks)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                             RETURNING id, title, subject, file_url, summary, file_type, file_size, total_chunks, created_at
-                        """, (user_id, analysis.get('title', filename[:50]), analysis.get('subject'), cdn_url, full_text[:10000], analysis.get('summary'), file_type, file_size, len(chunks)))
+                        """, (user_id, title, subject, cdn_url, full_text[:10000], summary, file_type, file_size, len(chunks)))
                         
                         material = cur.fetchone()
                         material_id = material['id']
@@ -359,6 +367,10 @@ def handler(event: dict, context) -> dict:
                 chunks = split_text_into_chunks(full_text)
                 analysis = analyze_document_with_deepseek(full_text, filename)
                 
+                title = (analysis.get('title') or filename)[:200]
+                subject = (analysis.get('subject') or 'Общее')[:100]
+                summary = (analysis.get('summary') or 'Документ загружен')[:2000]
+                
                 conn = get_db_connection()
                 try:
                     with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -366,7 +378,7 @@ def handler(event: dict, context) -> dict:
                             INSERT INTO materials (user_id, title, subject, file_url, recognized_text, summary, file_type, file_size, total_chunks)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                             RETURNING id, title, subject, file_url, summary, file_type, file_size, total_chunks, created_at
-                        """, (user_id, analysis.get('title', filename[:50]), analysis.get('subject'), cdn_url, full_text[:10000], analysis.get('summary'), file_type, file_size, len(chunks)))
+                        """, (user_id, title, subject, cdn_url, full_text[:10000], summary, file_type, file_size, len(chunks)))
                         
                         material = cur.fetchone()
                         material_id = material['id']
