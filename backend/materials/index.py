@@ -273,36 +273,51 @@ def handler(event: dict, context) -> dict:
                 print(f"[MATERIALS] Извлечено {len(full_text)} символов текста")
                 
                 chunks = split_text_into_chunks(full_text)
+                print(f"[MATERIALS] Разбито на {len(chunks)} чанков")
+                
                 analysis = analyze_document_with_deepseek(full_text, filename)
+                print(f"[MATERIALS] DeepSeek результат: {analysis}")
                 
                 title = (analysis.get('title') or filename)[:200]
                 subject = (analysis.get('subject') or 'Общее')[:100]
                 summary = (analysis.get('summary') or 'Документ загружен')[:2000]
                 file_type_short = file_type[:50]
                 
+                print(f"[MATERIALS] Данные: title={title[:50]}..., subject={subject}, len(summary)={len(summary)}, file_type={file_type_short}")
+                
                 conn = get_db_connection()
+                print(f"[MATERIALS] БД подключение OK")
                 try:
                     with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                        print(f"[MATERIALS] Начинаю INSERT materials для user_id={user_id}...")
                         cur.execute("""
                             INSERT INTO materials (user_id, title, subject, file_url, recognized_text, summary, file_type, file_size, total_chunks)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                             RETURNING id, title, subject, file_url, summary, file_type, file_size, total_chunks, created_at
                         """, (user_id, title, subject, cdn_url, full_text[:10000], summary, file_type_short, file_size, len(chunks)))
+                        print(f"[MATERIALS] INSERT materials OK")
                         
                         material = cur.fetchone()
                         material_id = material['id']
+                        print(f"[MATERIALS] Получен material_id={material_id}")
                         
                         for idx, chunk in enumerate(chunks):
                             cur.execute("INSERT INTO document_chunks (material_id, chunk_index, chunk_text) VALUES (%s, %s, %s)", (material_id, idx, chunk))
+                        print(f"[MATERIALS] Вставлено {len(chunks)} чанков")
                         
                         conn.commit()
-                        print(f"[MATERIALS] Материал создан: ID={material_id}, {len(chunks)} чанков")
+                        print(f"[MATERIALS] COMMIT OK, материал ID={material_id} создан")
                         
                         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'material': dict(material), 'chunks_created': len(chunks)})}
+                except Exception as db_error:
+                    print(f"[MATERIALS] ⚠️ Ошибка БД: {type(db_error).__name__}: {db_error}")
+                    import traceback
+                    traceback.print_exc()
+                    raise
                 finally:
                     conn.close()
             except Exception as e:
-                print(f"[MATERIALS] Ошибка upload_direct: {e}")
+                print(f"[MATERIALS] ❌ Ошибка upload_direct: {type(e).__name__}: {e}")
                 import traceback
                 traceback.print_exc()
                 return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
