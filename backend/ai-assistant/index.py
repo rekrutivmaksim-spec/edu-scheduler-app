@@ -351,19 +351,19 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
         if summary:
             context_parts.append(f"Краткое содержание: {summary}")
         
-        # Если документ разбит на чанки, загружаем первые 3 чанка
+        # Если документ разбит на чанки, загружаем первые 5 чанков (до 20000 символов)
         if total_chunks and total_chunks > 1:
             cursor.execute(f'''
                 SELECT chunk_text FROM {SCHEMA_NAME}.document_chunks
                 WHERE material_id = %s
                 ORDER BY chunk_index
-                LIMIT 3
+                LIMIT 5
             ''', (material_id,))
             chunks = cursor.fetchall()
             full_text = '\n\n'.join([chunk[0] for chunk in chunks])
-            context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:3000]}")
+            context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:15000]}")
         elif text:
-            context_parts.append(f"Текст: {text[:3000]}")
+            context_parts.append(f"Текст: {text[:15000]}")
         
         context_parts.append("---")
     

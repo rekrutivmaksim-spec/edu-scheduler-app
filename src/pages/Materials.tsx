@@ -78,18 +78,17 @@ const Materials = () => {
   const uploadFile = async (file: File) => {
     const allowedTypes = [
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-      'application/msword', // .doc
       'application/pdf', // .pdf
       'text/plain' // .txt
     ];
 
-    const allowedExtensions = ['.docx', '.doc', '.pdf', '.txt'];
+    const allowedExtensions = ['.docx', '.pdf', '.txt'];
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
 
     if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
       toast({
         title: "Неподдерживаемый формат",
-        description: "Загружайте файлы Word (.docx), PDF (.pdf) или Текст (.txt)",
+        description: "Загружайте файлы Word (.docx), PDF (.pdf) или Текст (.txt). Старый формат .doc не поддерживается.",
         variant: "destructive"
       });
       return;
@@ -308,7 +307,7 @@ const Materials = () => {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".docx,.xlsx,.xls,.pdf"
+              accept=".docx,.pdf,.txt"
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -324,7 +323,7 @@ const Materials = () => {
             <div>
               <p className="text-sm text-blue-900 font-medium mb-1">Поддерживаемые форматы</p>
               <p className="text-xs text-blue-700">
-                Word (.docx), Excel (.xlsx, .xls), PDF — до 50 МБ. ИИ автоматически извлечёт текст и создаст краткое резюме.
+                Word (.docx), PDF, Текст (.txt) — до 50 МБ. ИИ автоматически извлечёт текст с таблицами и создаст краткое резюме.
               </p>
             </div>
           </div>

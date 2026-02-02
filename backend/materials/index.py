@@ -115,7 +115,24 @@ def extract_text_from_pdf(file_data: bytes) -> str:
 def extract_text_from_docx(file_data: bytes) -> str:
     try:
         doc = Document(io.BytesIO(file_data))
-        return '\n\n'.join([p.text for p in doc.paragraphs if p.text.strip()])
+        text_parts = []
+        
+        # Извлекаем текст из параграфов
+        for p in doc.paragraphs:
+            if p.text.strip():
+                text_parts.append(p.text)
+        
+        # Извлекаем текст из таблиц
+        for table in doc.tables:
+            table_text = []
+            for row in table.rows:
+                row_text = ' | '.join([cell.text.strip() for cell in row.cells if cell.text.strip()])
+                if row_text:
+                    table_text.append(row_text)
+            if table_text:
+                text_parts.append('\n[ТАБЛИЦА]\n' + '\n'.join(table_text) + '\n[/ТАБЛИЦА]\n')
+        
+        return '\n\n'.join(text_parts)
     except Exception as e:
         print(f"[MATERIALS] DOCX ошибка: {e}")
         return ""
