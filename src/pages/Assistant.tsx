@@ -113,11 +113,9 @@ const Assistant = () => {
           return;
         }
         
-        // Обновляем остаток слов и вопросов
-        if (data.words_remaining !== undefined) {
-          setWordsRemaining(data.words_remaining);
-          // Примерно 250 слов на вопрос
-          setQuestionsRemaining(Math.floor(data.words_remaining / 250));
+        // Обновляем остаток вопросов
+        if (data.questions_remaining !== undefined) {
+          setQuestionsRemaining(data.questions_remaining);
         }
         
         const assistantMessage: Message = {

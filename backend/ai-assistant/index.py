@@ -30,8 +30,8 @@ def check_subscription_access(conn, user_id: int) -> dict:
     """Проверяет доступ пользователя к ИИ-ассистенту (учитывает триал период)"""
     cursor = conn.cursor()
     cursor.execute(f'''
-        SELECT subscription_type, subscription_expires_at, 
-               ai_tokens_used, ai_tokens_reset_at, ai_tokens_limit,
+        SELECT subscription_type, subscription_expires_at, subscription_plan,
+               ai_questions_used, ai_questions_reset_at, ai_questions_limit,
                trial_ends_at, is_trial_used
         FROM {SCHEMA_NAME}.users
         WHERE id = %s
@@ -41,85 +41,92 @@ def check_subscription_access(conn, user_id: int) -> dict:
     cursor.close()
     
     if not row:
-        return {'has_access': False, 'reason': 'user_not_found', 'tokens_used': 0, 'tokens_limit': 0}
+        return {'has_access': False, 'reason': 'user_not_found', 'questions_used': 0, 'questions_limit': 0}
     
-    sub_type, expires_at, tokens_used, reset_at, tokens_limit, trial_ends_at, is_trial_used = row
+    sub_type, expires_at, sub_plan, questions_used, reset_at, questions_limit, trial_ends_at, is_trial_used = row
     now = datetime.now()
     
-    # Если лимит не установлен, ставим по умолчанию 50000
-    if tokens_limit is None:
-        tokens_limit = 50000
+    # Определяем лимит вопросов на основе плана подписки
+    plan_limits = {
+        '1month': 40,
+        '3months': 120,
+        '6months': 260
+    }
     
-    # Проверяем, нужно ли сбросить счетчик токенов
-    if reset_at and reset_at < now:
+    # Если лимит не установлен или подписка изменилась, устанавливаем новый
+    expected_limit = plan_limits.get(sub_plan, 40)
+    if questions_limit is None or questions_limit != expected_limit:
+        questions_limit = expected_limit
         cursor = conn.cursor()
         cursor.execute(f'''
             UPDATE {SCHEMA_NAME}.users
-            SET ai_tokens_used = 0,
-                ai_tokens_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 month',
-                ai_tokens_limit = 50000
+            SET ai_questions_limit = %s
             WHERE id = %s
-        ''', (user_id,))
+        ''', (questions_limit, user_id))
         conn.commit()
         cursor.close()
-        tokens_used = 0
-        tokens_limit = 50000
+    
+    # Проверяем, нужно ли сбросить счетчик вопросов (НЕ сбрасываем автоматически по времени)
+    # Счетчик сбрасывается только при покупке НОВОЙ подписки
+    if questions_used is None:
+        questions_used = 0
     
     # Проверяем премиум подписку
     if sub_type == 'premium':
         if expires_at and expires_at > now:
-            # Premium: персональный лимит (по умолчанию 50,000 + докупленные)
-            if tokens_used >= tokens_limit:
+            # Premium: проверяем лимит вопросов
+            if questions_used >= questions_limit:
                 return {
                     'has_access': False, 
-                    'reason': 'tokens_limit_reached', 
+                    'reason': 'questions_limit_reached', 
                     'is_premium': True,
-                    'tokens_used': tokens_used,
-                    'tokens_limit': tokens_limit
+                    'questions_used': questions_used,
+                    'questions_limit': questions_limit
                 }
             return {
                 'has_access': True, 
                 'is_premium': True,
                 'is_trial': False,
-                'tokens_used': tokens_used,
-                'tokens_limit': tokens_limit
+                'questions_used': questions_used,
+                'questions_limit': questions_limit
             }
         else:
             # Подписка истекла - проверяем триал
             pass
     
-    # Проверяем пробный период (7 дней)
+    # Проверяем пробный период (2 дня)
     if trial_ends_at and not is_trial_used and trial_ends_at > now:
-        if tokens_used >= tokens_limit:
+        trial_limit = 10  # Триал: 10 вопросов
+        if questions_used >= trial_limit:
             return {
                 'has_access': False, 
-                'reason': 'tokens_limit_reached', 
+                'reason': 'questions_limit_reached', 
                 'is_premium': False,
                 'is_trial': True,
                 'trial_ends_at': trial_ends_at,
-                'tokens_used': tokens_used,
-                'tokens_limit': tokens_limit
+                'questions_used': questions_used,
+                'questions_limit': trial_limit
             }
         return {
             'has_access': True, 
             'is_premium': False,
             'is_trial': True,
             'trial_ends_at': trial_ends_at,
-            'tokens_used': tokens_used,
-            'tokens_limit': tokens_limit
+            'questions_used': questions_used,
+            'questions_limit': trial_limit
         }
     
     # Бесплатная версия - нет доступа
-    return {'has_access': False, 'reason': 'no_subscription', 'is_premium': False, 'is_trial': False, 'tokens_used': 0, 'tokens_limit': 0}
+    return {'has_access': False, 'reason': 'no_subscription', 'is_premium': False, 'is_trial': False, 'questions_used': 0, 'questions_limit': 0}
 
-def increment_ai_tokens(conn, user_id: int, tokens_used: int):
-    """Увеличивает счетчик использованных AI токенов"""
+def increment_ai_questions(conn, user_id: int):
+    """Увеличивает счетчик использованных вопросов на 1"""
     cursor = conn.cursor()
     cursor.execute(f'''
         UPDATE {SCHEMA_NAME}.users
-        SET ai_tokens_used = ai_tokens_used + %s
+        SET ai_questions_used = COALESCE(ai_questions_used, 0) + 1
         WHERE id = %s
-    ''', (tokens_used, user_id))
+    ''', (user_id,))
     conn.commit()
     cursor.close()
 
@@ -170,13 +177,13 @@ def handler(event: dict, context) -> dict:
             access = check_subscription_access(conn, user_id)
             if not access['has_access']:
                 reason = access.get('reason', 'no_access')
-                tokens_used = access.get('tokens_used', 0)
-                tokens_limit = access.get('tokens_limit', 0)
+                questions_used = access.get('questions_used', 0)
+                questions_limit = access.get('questions_limit', 0)
                 
                 if reason == 'subscription_expired':
-                    message = '⏰ Ваша подписка истекла. Продлите подписку для доступа к ИИ-ассистенту.'
-                elif reason == 'tokens_limit_reached':
-                    message = f'🚨 Вы использовали все токены этого месяца ({tokens_used}/{tokens_limit}). Оформите новую подписку для продолжения работы.'
+                    message = '⏰ Ваша подписка истекла. Оформите новую подписку для доступа к ИИ-ассистенту.'
+                elif reason == 'questions_limit_reached':
+                    message = f'🚨 Вы использовали все вопросы по вашей подписке ({questions_used}/{questions_limit}). Оформите новую подписку для продолжения работы.'
                 else:
                     message = '🔒 Доступ к ИИ-ассистенту доступен только по подписке. Оформите подписку в профиле!'
                 
@@ -187,8 +194,8 @@ def handler(event: dict, context) -> dict:
                         'error': 'subscription_required',
                         'message': message,
                         'reason': reason,
-                        'tokens_used': tokens_used,
-                        'tokens_limit': tokens_limit
+                        'questions_used': questions_used,
+                        'questions_limit': questions_limit
                     })
                 }
             
@@ -197,21 +204,19 @@ def handler(event: dict, context) -> dict:
             # Быстрый ответ через Artemox
             answer, tokens_used = ask_artemox_openai(question, context_text)
             
-            # Увеличиваем счетчик токенов
-            increment_ai_tokens(conn, user_id, tokens_used)
+            # Увеличиваем счетчик вопросов на 1
+            increment_ai_questions(conn, user_id)
             
-            # Получаем обновленные данные о токенах
+            # Получаем обновленные данные о лимитах
             access_updated = check_subscription_access(conn, user_id)
             
-            # Примерный расчет: 1 токен ≈ 1.3 русских слов
-            words_remaining = int((access_updated.get('tokens_limit', 0) - access_updated.get('tokens_used', 0)) * 1.3)
+            questions_remaining = access_updated.get('questions_limit', 0) - access_updated.get('questions_used', 0)
             
             answer_data = json.dumps({
                 'answer': answer,
-                'tokens_used': tokens_used,
-                'total_tokens_used': access_updated.get('tokens_used', 0),
-                'tokens_limit': access_updated.get('tokens_limit', 0),
-                'words_remaining': words_remaining
+                'questions_used': access_updated.get('questions_used', 0),
+                'questions_limit': access_updated.get('questions_limit', 0),
+                'questions_remaining': questions_remaining
             })
             
             return {

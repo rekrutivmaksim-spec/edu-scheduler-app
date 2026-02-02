@@ -239,14 +239,24 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                 WHERE id = %s
             """, (tokens_to_add, payment['user_id']))
         else:
-            # Активируем подписку
+            # Активируем подписку и сбрасываем счетчик вопросов
+            plan_limits = {
+                '1month': 40,
+                '3months': 120,
+                '6months': 260
+            }
+            questions_limit = plan_limits.get(plan_type, 40)
+            
             cur.execute(f"""
                 UPDATE {SCHEMA_NAME}.users
                 SET subscription_type = 'premium',
                     subscription_expires_at = %s,
+                    subscription_plan = %s,
+                    ai_questions_used = 0,
+                    ai_questions_limit = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-            """, (payment['expires_at'], payment['user_id']))
+            """, (payment['expires_at'], plan_type, questions_limit, payment['user_id']))
         
         conn.commit()
         return True
