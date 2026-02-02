@@ -91,6 +91,39 @@ def handler(event: dict, context) -> dict:
         elif method == 'POST' and path == 'schedule':
             body = json.loads(event.get('body', '{}'))
             
+            # Проверяем лимит для Free пользователей
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used
+                    FROM users WHERE id = %s
+                """, (user_id,))
+                user = cur.fetchone()
+                
+                is_premium = False
+                if user and user['subscription_type'] == 'premium':
+                    expires = user.get('subscription_expires_at')
+                    if expires and expires.replace(tzinfo=None) > datetime.now():
+                        is_premium = True
+                
+                # Проверяем триал
+                is_trial = False
+                if not is_premium and user:
+                    trial_ends = user.get('trial_ends_at')
+                    if trial_ends and not user.get('is_trial_used'):
+                        if trial_ends.replace(tzinfo=None) > datetime.now():
+                            is_trial = True
+                
+                # Для Free проверяем лимит в 5 занятий
+                if not is_premium and not is_trial:
+                    cur.execute("SELECT COUNT(*) as count FROM schedule WHERE user_id = %s", (user_id,))
+                    schedule_count = cur.fetchone()['count']
+                    if schedule_count >= 5:
+                        return {
+                            'statusCode': 403,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'quota_exceeded', 'message': '📚 Достигнут лимит занятий (5). Перейдите на Premium для безлимитного расписания'})
+                        }
+            
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("""
                     INSERT INTO schedule (user_id, subject, type, start_time, end_time, day_of_week, room, teacher, color)
@@ -156,6 +189,39 @@ def handler(event: dict, context) -> dict:
         # POST /tasks - Создать задачу
         elif method == 'POST' and path == 'tasks':
             body = json.loads(event.get('body', '{}'))
+            
+            # Проверяем лимит для Free пользователей
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used
+                    FROM users WHERE id = %s
+                """, (user_id,))
+                user = cur.fetchone()
+                
+                is_premium = False
+                if user and user['subscription_type'] == 'premium':
+                    expires = user.get('subscription_expires_at')
+                    if expires and expires.replace(tzinfo=None) > datetime.now():
+                        is_premium = True
+                
+                # Проверяем триал
+                is_trial = False
+                if not is_premium and user:
+                    trial_ends = user.get('trial_ends_at')
+                    if trial_ends and not user.get('is_trial_used'):
+                        if trial_ends.replace(tzinfo=None) > datetime.now():
+                            is_trial = True
+                
+                # Для Free проверяем лимит в 10 активных задач
+                if not is_premium and not is_trial:
+                    cur.execute("SELECT COUNT(*) as count FROM tasks WHERE user_id = %s AND completed = false", (user_id,))
+                    tasks_count = cur.fetchone()['count']
+                    if tasks_count >= 10:
+                        return {
+                            'statusCode': 403,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'quota_exceeded', 'message': '✅ Достигнут лимит задач (10). Перейдите на Premium для безлимитных задач'})
+                        }
             
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("""

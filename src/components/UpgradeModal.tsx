@@ -44,20 +44,24 @@ const UpgradeModal = ({ open, onClose, feature, description }: UpgradeModalProps
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Check" size={16} className="text-green-600" />
-                AI-прогноз вопросов на экзамене
+                Безлимитные материалы
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Check" size={16} className="text-green-600" />
-                OCR распознавание конспектов
+                AI-ассистент (40 вопросов)
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Check" size={16} className="text-green-600" />
-                Расширенная аналитика
+                Генерация шпаргалок
+              </li>
+              <li className="flex items-center gap-2 text-sm text-gray-700">
+                <Icon name="Check" size={16} className="text-green-600" />
+                AI-прогноз экзаменов
               </li>
             </ul>
             <div className="mt-4 pt-4 border-t border-indigo-200">
               <p className="text-2xl font-bold text-indigo-600">199₽/мес</p>
-              <p className="text-xs text-gray-600">или 1690₽/год (экономия 30%)</p>
+              <p className="text-xs text-gray-600">💡 7 дней бесплатного триала</p>
             </div>
           </div>
 
