@@ -114,8 +114,8 @@ def get_limits(conn, user_id: int) -> dict:
         return {
             **status,
             'limits': {
-                'schedule': {'used': schedule_count, 'max': 10, 'unlimited': False},
-                'tasks': {'used': tasks_count, 'max': 20, 'unlimited': False},
+                'schedule': {'used': schedule_count, 'max': 5, 'unlimited': False},
+                'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
                 'materials': {'used': status['materials_quota_used'], 'max': 3, 'unlimited': False},
                 'exam_predictions': {'unlimited': False, 'available': False}
             }

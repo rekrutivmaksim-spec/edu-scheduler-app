@@ -57,9 +57,16 @@ const Pricing = () => {
       if (response.ok) {
         toast({
           title: '🎉 Премиум активирован!',
-          description: 'У вас есть 2 дня бесплатного доступа ко всем функциям'
+          description: 'У вас есть 7 дней бесплатного доступа ко всем функциям'
         });
         setCurrentPlan('premium');
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: 'Ошибка',
+          description: errorData.error || 'Не удалось активировать премиум',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       toast({
@@ -72,19 +79,23 @@ const Pricing = () => {
     }
   };
 
+  const handleBuyPremium = () => {
+    navigate('/payment-setup');
+  };
+
   const plans = [
     {
       name: 'Free',
       price: '0₽',
       period: 'навсегда',
       features: [
-        { text: 'До 10 занятий в расписании', included: true },
-        { text: 'До 20 активных задач', included: true },
-        { text: '3 фото материалов в месяц', included: true },
-        { text: 'Базовая аналитика', included: true },
+        { text: 'До 5 занятий в расписании', included: true },
+        { text: 'До 10 активных задач', included: true },
+        { text: '3 материала в месяц', included: true },
+        { text: 'AI-ассистент', included: false },
+        { text: 'Генерация шпаргалок', included: false },
         { text: 'AI-прогноз экзаменов', included: false },
-        { text: 'OCR распознавание текста', included: false },
-        { text: 'Безлимитные материалы', included: false }
+        { text: 'Экспорт в PDF', included: false }
       ],
       current: currentPlan === 'free',
       buttonText: 'Текущий тариф',
@@ -99,9 +110,9 @@ const Pricing = () => {
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
         { text: 'Безлимитные материалы', included: true },
+        { text: 'AI-ассистент (40 вопросов)', included: true },
+        { text: 'Генерация шпаргалок', included: true },
         { text: 'AI-прогноз экзаменов', included: true },
-        { text: 'OCR распознавание текста', included: true },
-        { text: 'Расширенная аналитика', included: true },
         { text: 'Экспорт в PDF', included: true }
       ],
       current: currentPlan === 'premium',
@@ -190,30 +201,34 @@ const Pricing = () => {
                 ))}
               </div>
 
-              <Button
-                onClick={plan.current ? undefined : plan.color === 'gradient' ? handleActivateDemo : undefined}
-                disabled={plan.current || loading}
-                className={`w-full ${
-                  plan.color === 'gradient'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-purple-500/30'
-                    : 'bg-gray-200 text-gray-600 cursor-not-allowed'
-                }`}
-              >
-                {loading ? (
-                  <>
-                    <Icon name="Loader2" size={18} className="mr-2 animate-spin" />
-                    Активация...
-                  </>
-                ) : (
-                  plan.buttonText
-                )}
-              </Button>
-
-              {plan.color === 'gradient' && !plan.current && (
-                <p className="text-xs text-center text-gray-500 mt-3">
-                  💡 Попробуйте 2 дня бесплатно
-                </p>
+              {plan.color === 'gradient' && !plan.current ? (
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleBuyPremium}
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-purple-500/30"
+                  >
+                    💳 Купить Premium
+                  </Button>
+                  <Button
+                    onClick={handleActivateDemo}
+                    disabled={loading}
+                    variant="outline"
+                    className="w-full border-2 border-purple-300 hover:bg-purple-50"
+                  >
+                    🎁 Попробовать 7 дней бесплатно
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  disabled
+                  className="w-full bg-gray-200 text-gray-600 cursor-not-allowed"
+                >
+                  {plan.buttonText}
+                </Button>
               )}
+
+
             </Card>
           ))}
         </div>

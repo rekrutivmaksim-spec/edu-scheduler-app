@@ -230,11 +230,31 @@ def handler(event: dict, context) -> dict:
             try:
                 conn = get_db_connection()
                 access = check_subscription_access(conn, user_id)
-                conn.close()
                 
+                # Проверяем лимит для Free пользователей (3 материала/месяц)
                 if not access['has_access']:
                     message = '⏰ Подписка истекла' if access.get('reason') == 'subscription_expired' else '🔒 Требуется подписка'
+                    conn.close()
                     return {'statusCode': 403, 'headers': headers, 'body': json.dumps({'error': 'subscription_required', 'message': message})}
+                
+                # Для Free проверяем месячный лимит
+                if not access.get('is_premium') and not access.get('is_trial'):
+                    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+                    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                        cur.execute(f'''
+                            SELECT materials_quota_used, materials_quota_reset_at 
+                            FROM {schema}.users 
+                            WHERE id = %s
+                        ''', (user_id,))
+                        quota_info = cur.fetchone()
+                        
+                        # Проверяем, не истек ли месячный лимит
+                        quota_used = quota_info.get('materials_quota_used', 0)
+                        if quota_used >= 3:
+                            conn.close()
+                            return {'statusCode': 403, 'headers': headers, 'body': json.dumps({'error': 'quota_exceeded', 'message': '📊 Лимит загрузок исчерпан. Перейдите на Premium для безлимитных материалов'})}
+                
+                conn.close()
                 
                 filename = body.get('filename')
                 file_type = body.get('fileType')
@@ -307,8 +327,16 @@ def handler(event: dict, context) -> dict:
                             cur.execute("INSERT INTO document_chunks (material_id, chunk_index, chunk_text) VALUES (%s, %s, %s)", (material_id, idx, chunk))
                         print(f"[MATERIALS] Вставлено {len(chunks)} чанков")
                         
+                        # Увеличиваем счетчик использованных материалов для Free
+                        schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+                        cur.execute(f'''
+                            UPDATE {schema}.users 
+                            SET materials_quota_used = materials_quota_used + 1
+                            WHERE id = %s AND subscription_type = 'free'
+                        ''', (user_id,))
+                        
                         conn.commit()
-                        print(f"[MATERIALS] COMMIT OK, материал ID={material_id} создан")
+                        print(f"[MATERIALS] COMMIT OK, материал ID={material_id} создан, квота обновлена")
                         
                         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'material': dict(material), 'chunks_created': len(chunks)}, default=str)}
                 except Exception as db_error:

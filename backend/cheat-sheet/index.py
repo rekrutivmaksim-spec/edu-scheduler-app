@@ -20,6 +20,39 @@ def verify_token(token: str) -> dict:
         return None
 
 
+def check_premium_access(conn, user_id: int) -> dict:
+    """Проверяет доступ к премиум функциям (включая триал)"""
+    from datetime import datetime
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute(f'''
+        SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used
+        FROM {SCHEMA_NAME}.users
+        WHERE id = %s
+    ''', (user_id,))
+    
+    user = cursor.fetchone()
+    cursor.close()
+    
+    if not user:
+        return {'has_access': False, 'reason': 'user_not_found'}
+    
+    now = datetime.now()
+    
+    # Проверяем премиум
+    if user.get('subscription_type') == 'premium':
+        expires = user.get('subscription_expires_at')
+        if expires and expires.replace(tzinfo=None) > now:
+            return {'has_access': True, 'is_premium': True, 'is_trial': False}
+    
+    # Проверяем триал
+    trial_ends = user.get('trial_ends_at')
+    if trial_ends and not user.get('is_trial_used'):
+        if trial_ends.replace(tzinfo=None) > now:
+            return {'has_access': True, 'is_premium': False, 'is_trial': True}
+    
+    return {'has_access': False, 'reason': 'no_premium'}
+
+
 def get_material_content(conn, material_id: int, user_id: int) -> dict:
     """Получает содержимое материала"""
     cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -157,6 +190,15 @@ def handler(event: dict, context) -> dict:
         
         conn = psycopg2.connect(DATABASE_URL)
         try:
+            # Проверяем доступ к премиум функциям
+            access = check_premium_access(conn, user_id)
+            if not access['has_access']:
+                return {
+                    'statusCode': 403,
+                    'headers': headers,
+                    'body': json.dumps({'error': '🔒 Генерация шпаргалок доступна только в Premium подписке'})
+                }
+            
             # Получаем материал
             material = get_material_content(conn, material_id, user_id)
             
