@@ -65,6 +65,8 @@ def analyze_materials_with_deepseek(materials: list, past_exams: str = None) -> 
     if not deepseek_key:
         raise ValueError("Требуется DEEPSEEK_API_KEY для анализа материалов")
     
+    print(f"[EXAM-PREDICTOR] Анализ {len(materials)} материалов")
+    
     client = OpenAI(
         api_key=deepseek_key,
         base_url="https://api.deepseek.com"
@@ -75,6 +77,11 @@ def analyze_materials_with_deepseek(materials: list, past_exams: str = None) -> 
         f"=== {m['title']} ({m['subject']}) ===\n{m['recognized_text'] or ''}\n{m['summary'] or ''}"
         for m in materials
     ])
+    
+    if len(all_text.strip()) < 50:
+        raise ValueError("Материалы слишком короткие для анализа. Добавьте больше текста.")
+    
+    print(f"[EXAM-PREDICTOR] Всего текста: {len(all_text)} символов")
     
     past_exams_section = f"\n\n=== ПРОШЛОГОДНИЕ БИЛЕТЫ ===\n{past_exams}" if past_exams else ""
     
@@ -207,6 +214,8 @@ def handler(event: dict, context) -> dict:
             
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 # Получаем материалы студента
+                print(f"[EXAM-PREDICTOR] Запрос материалов для user_id={user_id}, material_ids={material_ids}")
+                
                 cur.execute("""
                     SELECT id, title, subject, recognized_text, summary
                     FROM materials
@@ -214,6 +223,7 @@ def handler(event: dict, context) -> dict:
                 """, (user_id, material_ids))
                 
                 materials = cur.fetchall()
+                print(f"[EXAM-PREDICTOR] Найдено материалов: {len(materials)}")
                 
                 if not materials:
                     return {
@@ -222,14 +232,23 @@ def handler(event: dict, context) -> dict:
                         'body': json.dumps({'error': 'Материалы не найдены'})
                     }
                 
+                # Проверяем, есть ли текст в материалах
+                for mat in materials:
+                    text_len = len(mat.get('recognized_text') or '') + len(mat.get('summary') or '')
+                    print(f"[EXAM-PREDICTOR] Материал {mat['id']}: {text_len} символов")
+                
                 # Анализируем материалы через DeepSeek
+                print(f"[EXAM-PREDICTOR] Начинаем анализ через DeepSeek...")
                 try:
                     prediction = analyze_materials_with_deepseek(
                         [dict(m) for m in materials],
                         past_exams if past_exams else None
                     )
+                    print(f"[EXAM-PREDICTOR] Анализ завершен, вопросов: {len(prediction.get('questions', []))}")
                 except Exception as e:
-                    print(f"[EXAM-PREDICTOR] Ошибка анализа: {e}")
+                    print(f"[EXAM-PREDICTOR] Ошибка анализа: {type(e).__name__}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     return {
                         'statusCode': 500,
                         'headers': headers,
