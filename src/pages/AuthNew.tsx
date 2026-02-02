@@ -189,7 +189,7 @@ export default function AuthNew() {
             Studyfay
           </h1>
           <p className="text-gray-600">
-            {mode === 'login' ? 'Вход в аккаунт' : 'Сброс пароля'}
+            {mode === 'login' ? 'Войдите в аккаунт' : 'Сброс пароля'}
           </p>
         </div>
 
