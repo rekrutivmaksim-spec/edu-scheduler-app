@@ -8,48 +8,50 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout репозитория
+      uses: actions/checkout@v4
     
     - name: Установка Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'
     
-    - name: Установка зависимостей
+    - name: Установка зависимостей проекта
       run: npm install
+    
+    - name: Установка Capacitor пакетов
+      run: npm install @capacitor/core @capacitor/cli @capacitor/android
     
     - name: Сборка веб-приложения
       run: npm run build
     
-    - name: Установка Capacitor CLI
-      run: npm install -g @capacitor/cli
+    - name: Создание Android проекта
+      run: npx cap add android
     
-    - name: Инициализация Android платформы
-      run: npx cap add android || echo "Android platform already exists"
+    - name: Копирование ресурсов в Android
+      run: npx cap copy android
     
-    - name: Копирование веб-ресурсов в Android
-      run: npx cap sync android
+    - name: Обновление Android проекта
+      run: npx cap update android
     
     - name: Установка JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
     
     - name: Выдача прав на gradlew
       run: chmod +x android/gradlew
     
     - name: Сборка APK
-      run: cd android && ./gradlew assembleRelease
+      run: cd android && ./gradlew assembleRelease --no-daemon
     
-    - name: Загрузка APK
+    - name: Загрузка APK артефакта
       uses: actions/upload-artifact@v4
       with:
-        name: app-release
+        name: studyfay-release-apk
         path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+        retention-days: 7
