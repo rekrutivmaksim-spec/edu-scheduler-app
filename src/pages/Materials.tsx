@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
+import { isNativeApp, takePicture, pickPhoto, requestCameraPermissions } from '@/utils/native';
 
 const API_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
 const CHEAT_SHEET_URL = 'https://functions.poehali.dev/f87f21f9-9606-4c0f-8ffb-360ed66b2bb3';
@@ -288,23 +289,45 @@ const Materials = () => {
                 <p className="text-xs text-purple-600/70 font-medium">Загружайте документы для ИИ-анализа</p>
               </div>
             </div>
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl shadow-lg"
-            >
-              {isUploading ? (
-                <>
-                  <Icon name="Loader2" size={20} className="mr-2 animate-spin" />
-                  Загрузка...
-                </>
-              ) : (
-                <>
-                  <Icon name="Upload" size={20} className="mr-2" />
-                  Загрузить файл
-                </>
+            <div className="flex gap-2">
+              {isNativeApp() && (
+                <Button
+                  onClick={async () => {
+                    const hasPermission = await requestCameraPermissions();
+                    if (hasPermission) {
+                      const photoBase64 = await takePicture();
+                      console.log('Photo captured:', photoBase64.substring(0, 50));
+                      toast({
+                        title: "📸 Фото сделано!",
+                        description: "Сканирование текста в разработке"
+                      });
+                    }
+                  }}
+                  disabled={isUploading}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl shadow-lg"
+                >
+                  <Icon name="Camera" size={20} className="mr-2" />
+                  Камера
+                </Button>
               )}
-            </Button>
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl shadow-lg"
+              >
+                {isUploading ? (
+                  <>
+                    <Icon name="Loader2" size={20} className="mr-2 animate-spin" />
+                    Загрузка...
+                  </>
+                ) : (
+                  <>
+                    <Icon name="Upload" size={20} className="mr-2" />
+                    Загрузить файл
+                  </>
+                )}
+              </Button>
+            </div>
             <input
               ref={fileInputRef}
               type="file"
