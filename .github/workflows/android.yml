@@ -13,14 +13,43 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: set up JDK 11
+    
+    - name: Установка Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Установка зависимостей
+      run: npm ci
+    
+    - name: Сборка веб-приложения
+      run: npm run build
+    
+    - name: Установка Capacitor CLI
+      run: npm install -g @capacitor/cli
+    
+    - name: Инициализация Android платформы
+      run: npx cap add android || echo "Android platform already exists"
+    
+    - name: Копирование веб-ресурсов в Android
+      run: npx cap sync android
+    
+    - name: Установка JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '11'
+        java-version: '17'
         distribution: 'temurin'
         cache: gradle
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Build with Gradle
-      run: ./gradlew build
+    
+    - name: Выдача прав на gradlew
+      run: chmod +x android/gradlew
+    
+    - name: Сборка APK
+      run: cd android && ./gradlew assembleRelease
+    
+    - name: Загрузка APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: android/app/build/outputs/apk/release/app-release-unsigned.apk
