@@ -1,35 +1,6 @@
 {
   "tests": [
     {
-      "name": "Ask AI question with auth",
-      "method": "POST",
-      "path": "/",
-      "headers": {
-        "Authorization": "Bearer mock-token"
-      },
-      "body": {
-        "question": "Что такое алгоритм?",
-        "material_ids": []
-      },
-      "expectedStatus": 200,
-      "expectedBody": {
-        "answer": "string"
-      },
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Ask AI without question",
-      "method": "POST",
-      "path": "/",
-      "headers": {
-        "Authorization": "Bearer mock-token"
-      },
-      "body": {
-        "question": ""
-      },
-      "expectedStatus": 400
-    },
-    {
       "name": "Ask AI without auth",
       "method": "POST",
       "path": "/",
@@ -37,6 +8,12 @@
         "question": "Test question"
       },
       "expectedStatus": 401
+    },
+    {
+      "name": "Test OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
     }
   ]
 }

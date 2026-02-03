@@ -13,7 +13,8 @@ from PyPDF2 import PdfReader
 from docx import Document
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
-CHUNK_SIZE = 4000
+CHUNK_SIZE = 3500
+CHUNK_OVERLAP = 500  # Overlap для сохранения контекста между чанками
 
 
 def get_db_connection():
@@ -158,6 +159,7 @@ def extract_text_from_file(file_data: bytes, file_type: str) -> str:
 
 
 def split_text_into_chunks(text: str) -> list:
+    """Разбивает текст на чанки с overlap для сохранения контекста"""
     if not text:
         return []
     paragraphs = text.split('\n\n')
@@ -170,7 +172,11 @@ def split_text_into_chunks(text: str) -> list:
         else:
             if current_chunk:
                 chunks.append(current_chunk.strip())
-            current_chunk = para + "\n\n"
+                # Добавляем overlap: берём последние CHUNK_OVERLAP символов
+                overlap_text = current_chunk[-CHUNK_OVERLAP:] if len(current_chunk) > CHUNK_OVERLAP else current_chunk
+                current_chunk = overlap_text + "\n\n" + para + "\n\n"
+            else:
+                current_chunk = para + "\n\n"
     
     if current_chunk:
         chunks.append(current_chunk.strip())
@@ -188,15 +194,19 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
     
     try:
         client = OpenAI(api_key=deepseek_key, base_url="https://api.deepseek.com", timeout=30.0)
-        text_preview = full_text[:3000]
+        # Берём больше текста для анализа (начало + середина + конец)
+        text_start = full_text[:2500]
+        text_middle = full_text[len(full_text)//2:len(full_text)//2+2500] if len(full_text) > 5000 else ""
+        text_end = full_text[-1000:] if len(full_text) > 3500 else ""
+        text_preview = f"{text_start}\n\n[...середина документа...]\n{text_middle}\n\n[...конец документа...]\n{text_end}"
         
-        prompt = f"""Ты помощник студента. Проанализируй документ "{filename}".
+        prompt = f"""Ты помощник студента. Проанализируй учебный документ "{filename}".
 
-Начало текста:
+Фрагменты текста из разных частей документа:
 {text_preview}
 
 Верни JSON:
-{{"summary": "Краткое резюме (2-3 предложения)", "subject": "Предмет", "title": "Название (макс 50 символов)", "tasks": [{{"title": "Задача", "deadline": "YYYY-MM-DD или null"}}]}}"""
+{{"summary": "Подробное резюме документа (5-7 предложений, основные темы и концепции)", "subject": "Предмет", "title": "Название (макс 50 символов)", "tasks": [{{"title": "Задача", "deadline": "YYYY-MM-DD или null"}}]}}"""
         
         response = client.chat.completions.create(
             model="deepseek-chat",

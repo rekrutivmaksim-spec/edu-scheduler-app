@@ -351,19 +351,19 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
         if summary:
             context_parts.append(f"Краткое содержание: {summary}")
         
-        # Если документ разбит на чанки, загружаем первые 5 чанков (до 20000 символов)
+        # Если документ разбит на чанки, загружаем первые 8 чанков (больше контекста)
         if total_chunks and total_chunks > 1:
             cursor.execute(f'''
                 SELECT chunk_text FROM {SCHEMA_NAME}.document_chunks
                 WHERE material_id = %s
                 ORDER BY chunk_index
-                LIMIT 5
+                LIMIT 8
             ''', (material_id,))
             chunks = cursor.fetchall()
             full_text = '\n\n'.join([chunk[0] for chunk in chunks])
-            context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:15000]}")
+            context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:20000]}")
         elif text:
-            context_parts.append(f"Текст: {text[:15000]}")
+            context_parts.append(f"Текст: {text[:20000]}")
         
         context_parts.append("---")
     
@@ -374,14 +374,26 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
     """Быстрый запрос к Artemox через официальную библиотеку OpenAI
     Возвращает: (answer, tokens_used)
     """
-    system_prompt = f"""Ты — умный ассистент для студентов Studyfay. 
-Помогаешь разобраться в учебных материалах, отвечаешь на вопросы простым языком.
+    system_prompt = f"""Ты — опытный преподаватель и ИИ-помощник для студентов университета.
 
-Доступные материалы пользователя:
+ТВОЯ РОЛЬ:
+- Объясняй концепции понятно, структурированно и академически корректно
+- Используй примеры, аналогии и пошаговые объяснения для сложных тем
+- Разбивай сложные ответы на логические части с подзаголовками
+- Ссылайся на конкретные разделы материалов студента
+- Если чего-то нет в материалах — честно скажи об этом и дай общий образовательный ответ
+
+ДОСТУПНЫЕ МАТЕРИАЛЫ СТУДЕНТА:
 {context}
 
-Отвечай кратко, по делу, используя информацию из материалов. 
-Если информации нет в материалах — скажи об этом честно."""
+ФОРМАТ ОТВЕТА:
+1. **Краткий ответ** (2-3 предложения) — суть по делу
+2. **Подробное объяснение** — раскрой тему с примерами из материалов
+3. **Практическое применение** — как использовать это знание
+4. **Источники** — укажи, из каких материалов взята информация
+5. **Вопросы для самопроверки** (если уместно) — помоги студенту закрепить понимание
+
+Пиши по-русски, избегай воды, будь конкретным. Цель — реально помочь студенту понять тему."""
 
     try:
         print(f"[AI-ASSISTANT] Запрос к Artemox через OpenAI client")
@@ -392,7 +404,7 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=2500
         )
         
         answer = response.choices[0].message.content
