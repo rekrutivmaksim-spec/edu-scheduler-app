@@ -121,7 +121,7 @@ const Assistant = () => {
         
         // Показываем остаток вопросов после ответа
         const remainingText = data.questions_remaining !== undefined 
-          ? ` (\u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c: ${data.questions_remaining})`
+          ? ` (Осталось: ${data.questions_remaining})`
           : '';
         
         const assistantMessage: Message = {
