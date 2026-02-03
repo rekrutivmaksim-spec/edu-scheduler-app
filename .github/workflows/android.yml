@@ -45,9 +45,9 @@ jobs:
     
     - name: Исправление Java версии в Gradle
       run: |
-        sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' android/app/build.gradle
-        sed -i 's/sourceCompatibility = 21/sourceCompatibility = 17/g' android/app/build.gradle
-        sed -i 's/targetCompatibility = 21/targetCompatibility = 17/g' android/app/build.gradle
+        find android -name "build.gradle*" -exec sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' {} +
+        find android -name "build.gradle*" -exec sed -i 's/sourceCompatibility = 21/sourceCompatibility = 17/g' {} +
+        find android -name "build.gradle*" -exec sed -i 's/targetCompatibility = 21/targetCompatibility = 17/g' {} +
     
     - name: Выдача прав на gradlew
       run: chmod +x android/gradlew
