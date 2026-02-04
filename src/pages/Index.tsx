@@ -494,28 +494,28 @@ const Index = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="schedule" className="space-y-5">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-3xl font-heading font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Расписание</h2>
-                <p className="text-purple-600/70 text-sm mt-1">Управление занятиями</p>
+          <TabsContent value="schedule" className="space-y-4 sm:space-y-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+              <div className="flex-1">
+                <h2 className="text-xl sm:text-3xl font-heading font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Расписание</h2>
+                <p className="text-purple-600/70 text-xs sm:text-sm mt-0.5 sm:mt-1">Управление занятиями</p>
               </div>
               <Button 
                 onClick={() => setIsAddingLesson(true)}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-purple-500/30 rounded-xl"
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-purple-500/30 rounded-xl text-xs sm:text-sm h-9 sm:h-10 w-full sm:w-auto"
               >
-                <Icon name="Plus" size={18} className="mr-2" />
+                <Icon name="Plus" size={16} className="mr-1.5 sm:mr-2 sm:w-[18px] sm:h-[18px]" />
                 Добавить занятие
               </Button>
             </div>
 
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+            <div className="flex gap-1.5 sm:gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
               {dayNames.map((day, idx) => (
                 <Button
                   key={idx}
                   variant={selectedDay === idx + 1 ? "default" : "outline"}
                   onClick={() => setSelectedDay(idx + 1)}
-                  className={selectedDay === idx + 1 ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white" : ""}
+                  className={`flex-shrink-0 text-xs sm:text-sm h-8 sm:h-10 px-2.5 sm:px-4 ${selectedDay === idx + 1 ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white" : ""}`}
                 >
                   {day}
                 </Button>
@@ -523,22 +523,22 @@ const Index = () => {
             </div>
 
             {isAddingLesson && (
-              <Card className="p-6 bg-white mb-6">
-                <h3 className="text-lg font-bold mb-4">Новое занятие</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-4 sm:p-6 bg-white mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">Новое занятие</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <Label>Предмет *</Label>
+                    <Label className="text-xs sm:text-sm">Предмет *</Label>
                     <Input
                       value={lessonForm.subject}
                       onChange={(e) => setLessonForm({...lessonForm, subject: e.target.value})}
                       placeholder="Математический анализ"
-                      className="mt-2"
+                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
                     />
                   </div>
                   <div>
-                    <Label>Тип</Label>
+                    <Label className="text-xs sm:text-sm">Тип</Label>
                     <Select value={lessonForm.type} onValueChange={(v) => setLessonForm({...lessonForm, type: v})}>
-                      <SelectTrigger className="mt-2">
+                      <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -549,27 +549,27 @@ const Index = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>Начало *</Label>
+                    <Label className="text-xs sm:text-sm">Начало *</Label>
                     <Input
                       type="time"
                       value={lessonForm.start_time}
                       onChange={(e) => setLessonForm({...lessonForm, start_time: e.target.value})}
-                      className="mt-2"
+                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
                     />
                   </div>
                   <div>
-                    <Label>Конец *</Label>
+                    <Label className="text-xs sm:text-sm">Конец *</Label>
                     <Input
                       type="time"
                       value={lessonForm.end_time}
                       onChange={(e) => setLessonForm({...lessonForm, end_time: e.target.value})}
-                      className="mt-2"
+                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
                     />
                   </div>
                   <div>
-                    <Label>День недели</Label>
+                    <Label className="text-xs sm:text-sm">День недели</Label>
                     <Select value={String(lessonForm.day_of_week)} onValueChange={(v) => setLessonForm({...lessonForm, day_of_week: Number(v)})}>
-                      <SelectTrigger className="mt-2">
+                      <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -580,47 +580,47 @@ const Index = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>Аудитория</Label>
+                    <Label className="text-xs sm:text-sm">Аудитория</Label>
                     <Input
                       value={lessonForm.room}
                       onChange={(e) => setLessonForm({...lessonForm, room: e.target.value})}
                       placeholder="ауд. 301"
-                      className="mt-2"
+                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
                     />
                   </div>
                 </div>
-                <div className="flex gap-2 mt-4">
-                  <Button onClick={handleAddLesson} className="bg-gradient-to-r from-indigo-600 to-purple-600">
+                <div className="flex gap-2 mt-3 sm:mt-4">
+                  <Button onClick={handleAddLesson} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
                     Сохранить
                   </Button>
-                  <Button variant="outline" onClick={() => setIsAddingLesson(false)}>
+                  <Button variant="outline" onClick={() => setIsAddingLesson(false)} className="text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
                     Отмена
                   </Button>
                 </div>
               </Card>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {todayLessons.length === 0 ? (
-                <Card className="p-12 text-center bg-white border-2 border-dashed border-purple-200">
-                  <Icon name="CalendarOff" size={48} className="mx-auto mb-4 text-purple-300" />
-                  <p className="text-gray-600">Нет занятий на этот день</p>
+                <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
+                  <Icon name="CalendarOff" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
+                  <p className="text-sm sm:text-base text-gray-600">Нет занятий на этот день</p>
                 </Card>
               ) : (
                 todayLessons.map((lesson) => (
-                  <Card key={lesson.id} className="p-6 bg-white hover:shadow-xl transition-all">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-16 h-16 ${lesson.color || 'bg-purple-500'} rounded-xl flex items-center justify-center text-white shadow-lg`}>
-                          <Icon name="BookOpen" size={24} />
+                  <Card key={lesson.id} className="p-4 sm:p-6 bg-white hover:shadow-xl transition-all">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                        <div className={`w-12 h-12 sm:w-16 sm:h-16 ${lesson.color || 'bg-purple-500'} rounded-xl flex items-center justify-center text-white shadow-lg flex-shrink-0`}>
+                          <Icon name="BookOpen" size={20} className="sm:w-6 sm:h-6" />
                         </div>
-                        <div>
-                          <h3 className="font-bold text-lg">{lesson.subject}</h3>
-                          <p className="text-sm text-gray-600">{lesson.start_time} - {lesson.end_time}</p>
-                          <p className="text-xs text-gray-500">{lesson.room} • {lesson.type}</p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-sm sm:text-lg truncate">{lesson.subject}</h3>
+                          <p className="text-xs sm:text-sm text-gray-600">{lesson.start_time} - {lesson.end_time}</p>
+                          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{lesson.room} • {lesson.type}</p>
                         </div>
                       </div>
-                      <Badge>{lesson.type === 'lecture' ? 'Лекция' : lesson.type === 'practice' ? 'Практика' : 'Лаб'}</Badge>
+                      <Badge className="text-[10px] sm:text-xs flex-shrink-0">{lesson.type === 'lecture' ? 'Лекция' : lesson.type === 'practice' ? 'Практика' : 'Лаб'}</Badge>
                     </div>
                   </Card>
                 ))
@@ -628,61 +628,69 @@ const Index = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="tasks" className="space-y-5">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-3xl font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Задачи</h2>
-                <p className="text-purple-600/70 text-sm mt-1">Управление делами</p>
+          <TabsContent value="tasks" className="space-y-4 sm:space-y-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+              <div className="flex-1">
+                <h2 className="text-xl sm:text-3xl font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Задачи</h2>
+                <p className="text-purple-600/70 text-xs sm:text-sm mt-0.5 sm:mt-1">Управление делами</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button 
                   onClick={() => setIsExamReminderOpen(true)}
                   variant="outline"
-                  className="border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl"
+                  className="border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl text-xs sm:text-sm h-9 sm:h-10 hidden sm:flex"
                 >
-                  <Icon name="Bell" size={18} className="mr-2" />
+                  <Icon name="Bell" size={16} className="mr-1.5 sm:w-[18px] sm:h-[18px]" />
                   Напоминание об экзамене
                 </Button>
                 <Button 
-                  onClick={() => setIsAddingTask(true)}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-pink-500/30 rounded-xl"
+                  onClick={() => setIsExamReminderOpen(true)}
+                  variant="outline"
+                  size="icon"
+                  className="border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl sm:hidden h-9 w-9"
                 >
-                  <Icon name="Plus" size={18} className="mr-2" />
+                  <Icon name="Bell" size={18} />
+                </Button>
+                <Button 
+                  onClick={() => setIsAddingTask(true)}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-pink-500/30 rounded-xl text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial"
+                >
+                  <Icon name="Plus" size={16} className="mr-1.5 sm:mr-2 sm:w-[18px] sm:h-[18px]" />
                   Новая задача
                 </Button>
               </div>
             </div>
 
-            <div className="flex gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
               <div className="relative flex-1">
-                <Icon name="Search" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Icon name="Search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-5 sm:h-5" />
                 <Input
                   type="text"
                   placeholder="Поиск задачи..."
                   value={taskSearch}
                   onChange={(e) => setTaskSearch(e.target.value)}
-                  className="pl-10 rounded-xl border-2 border-purple-200"
+                  className="pl-9 sm:pl-10 rounded-xl border-2 border-purple-200 h-9 sm:h-10 text-sm"
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
                 <Button
                   variant={taskFilter === 'all' ? 'default' : 'outline'}
                   onClick={() => setTaskFilter('all')}
-                  className="rounded-xl"
+                  className="rounded-xl text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4 flex-shrink-0"
                 >
                   Все
                 </Button>
                 <Button
                   variant={taskFilter === 'active' ? 'default' : 'outline'}
                   onClick={() => setTaskFilter('active')}
-                  className="rounded-xl"
+                  className="rounded-xl text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4 flex-shrink-0"
                 >
                   Активные
                 </Button>
                 <Button
                   variant={taskFilter === 'completed' ? 'default' : 'outline'}
                   onClick={() => setTaskFilter('completed')}
-                  className="rounded-xl"
+                  className="rounded-xl text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4 flex-shrink-0"
                 >
                   Выполненные
                 </Button>
@@ -690,50 +698,50 @@ const Index = () => {
             </div>
 
             {isAddingTask && (
-              <Card className="p-6 bg-white mb-6">
-                <h3 className="text-lg font-bold mb-4">Новая задача</h3>
-                <div className="space-y-4">
+              <Card className="p-4 sm:p-6 bg-white mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">Новая задача</h3>
+                <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <Label>Название *</Label>
+                    <Label className="text-xs sm:text-sm">Название *</Label>
                     <Input
                       value={taskForm.title}
                       onChange={(e) => setTaskForm({...taskForm, title: e.target.value})}
                       placeholder="Решить задачи по математике"
-                      className="mt-2"
+                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
                     />
                   </div>
                   <div>
-                    <Label>Описание</Label>
+                    <Label className="text-xs sm:text-sm">Описание</Label>
                     <Textarea
                       value={taskForm.description}
                       onChange={(e) => setTaskForm({...taskForm, description: e.target.value})}
                       placeholder="Дополнительная информация..."
-                      className="mt-2"
+                      className="mt-1.5 sm:mt-2 text-sm"
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                     <div>
-                      <Label>Предмет</Label>
+                      <Label className="text-xs sm:text-sm">Предмет</Label>
                       <Input
                         value={taskForm.subject}
                         onChange={(e) => setTaskForm({...taskForm, subject: e.target.value})}
                         placeholder="Математика"
-                        className="mt-2"
+                        className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Дедлайн</Label>
+                      <Label className="text-xs sm:text-sm">Дедлайн</Label>
                       <Input
                         type="datetime-local"
                         value={taskForm.deadline}
                         onChange={(e) => setTaskForm({...taskForm, deadline: e.target.value})}
-                        className="mt-2"
+                        className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Приоритет</Label>
+                      <Label className="text-xs sm:text-sm">Приоритет</Label>
                       <Select value={taskForm.priority} onValueChange={(v) => setTaskForm({...taskForm, priority: v})}>
-                        <SelectTrigger className="mt-2">
+                        <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -745,22 +753,22 @@ const Index = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2 mt-4">
-                  <Button onClick={handleAddTask} className="bg-gradient-to-r from-purple-600 to-pink-600">
+                <div className="flex gap-2 mt-3 sm:mt-4">
+                  <Button onClick={handleAddTask} className="bg-gradient-to-r from-purple-600 to-pink-600 text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
                     Создать
                   </Button>
-                  <Button variant="outline" onClick={() => setIsAddingTask(false)}>
+                  <Button variant="outline" onClick={() => setIsAddingTask(false)} className="text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
                     Отмена
                   </Button>
                 </div>
               </Card>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {tasks.length === 0 ? (
-                <Card className="p-12 text-center bg-white border-2 border-dashed border-purple-200">
-                  <Icon name="ListTodo" size={48} className="mx-auto mb-4 text-purple-300" />
-                  <p className="text-gray-600">Нет задач</p>
+                <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
+                  <Icon name="ListTodo" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
+                  <p className="text-sm sm:text-base text-gray-600">Нет задач</p>
                 </Card>
               ) : (
                 tasks
@@ -777,21 +785,21 @@ const Index = () => {
                     return matchesSearch && matchesFilter;
                   })
                   .map((task) => (
-                  <Card key={task.id} className={`p-5 bg-white hover:shadow-xl transition-all ${task.completed ? 'opacity-60' : ''}`}>
-                    <div className="flex items-start gap-4">
+                  <Card key={task.id} className={`p-4 sm:p-5 bg-white hover:shadow-xl transition-all ${task.completed ? 'opacity-60' : ''}`}>
+                    <div className="flex items-start gap-3 sm:gap-4">
                       <Checkbox
                         checked={task.completed}
                         onCheckedChange={() => handleToggleTask(task)}
                         className="mt-1"
                       />
-                      <div className="flex-1">
-                        <h3 className={`font-bold ${task.completed ? 'line-through text-gray-500' : ''}`}>{task.title}</h3>
-                        {task.description && <p className="text-sm text-gray-600 mt-1">{task.description}</p>}
-                        <div className="flex items-center gap-2 mt-2">
-                          {task.subject && <Badge variant="outline">{task.subject}</Badge>}
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`font-bold text-sm sm:text-base ${task.completed ? 'line-through text-gray-500' : ''}`}>{task.title}</h3>
+                        {task.description && <p className="text-xs sm:text-sm text-gray-600 mt-1">{task.description}</p>}
+                        <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 flex-wrap">
+                          {task.subject && <Badge variant="outline" className="text-[10px] sm:text-xs">{task.subject}</Badge>}
                           {task.deadline && (
-                            <Badge variant="outline">
-                              <Icon name="Clock" size={12} className="mr-1" />
+                            <Badge variant="outline" className="text-[10px] sm:text-xs">
+                              <Icon name="Clock" size={10} className="mr-0.5 sm:mr-1 sm:w-3 sm:h-3" />
                               {new Date(task.deadline).toLocaleString('ru-RU', {
                                 day: 'numeric',
                                 month: 'short',
@@ -800,16 +808,16 @@ const Index = () => {
                               })}
                             </Badge>
                           )}
-                          <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`}></div>
+                          <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${getPriorityColor(task.priority)}`}></div>
                         </div>
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteTask(task.id)}
-                        className="text-red-500 hover:bg-red-50"
+                        className="text-red-500 hover:bg-red-50 h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
                       >
-                        <Icon name="Trash2" size={18} />
+                        <Icon name="Trash2" size={16} className="sm:w-[18px] sm:h-[18px]" />
                       </Button>
                     </div>
                   </Card>
@@ -818,14 +826,14 @@ const Index = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-5">
-            <div className="mb-6">
-              <h2 className="text-3xl font-heading font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">Аналитика</h2>
-              <p className="text-blue-600/70 text-sm mt-1">Статистика вашей учёбы</p>
+          <TabsContent value="analytics" className="space-y-4 sm:space-y-5">
+            <div className="mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-3xl font-heading font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">Аналитика</h2>
+              <p className="text-blue-600/70 text-xs sm:text-sm mt-0.5 sm:mt-1">Статистика вашей учёбы</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="p-5 bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <Card className="p-4 sm:p-5 bg-white">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-gray-600 font-medium">Всего задач</p>
                   <Icon name="ListTodo" size={20} className="text-indigo-500" />

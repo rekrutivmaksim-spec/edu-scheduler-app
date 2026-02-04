@@ -189,46 +189,46 @@ export default function AuthNew() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
-      <Card className="relative z-10 w-full max-w-md p-6 sm:p-8 bg-white/95 backdrop-blur-xl border-0 shadow-2xl rounded-3xl">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-xl mb-4">
-            <Icon name="GraduationCap" size={40} className="text-white" />
+      <Card className="relative z-10 w-full max-w-md p-5 sm:p-8 bg-white/95 backdrop-blur-xl border-0 shadow-2xl rounded-3xl">
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-xl mb-3 sm:mb-4">
+            <Icon name="GraduationCap" size={32} className="text-white sm:w-10 sm:h-10" />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-1.5 sm:mb-2">
             Studyfay
           </h1>
-          <p className="text-gray-600 mb-3">
+          <p className="text-sm sm:text-base text-gray-600 mb-2 sm:mb-3">
             {mode === 'login' ? 'Войдите в аккаунт' : 'Сброс пароля'}
           </p>
           {totalUsers > 0 && (
-            <div className="inline-flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full">
-              <div className="flex -space-x-1.5">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 border-2 border-white"></div>
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white"></div>
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-indigo-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full">
+              <div className="flex -space-x-1 sm:-space-x-1.5">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 border-2 border-white"></div>
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white"></div>
               </div>
-              <span className="text-xs font-medium text-gray-700">
+              <span className="text-[10px] sm:text-xs font-medium text-gray-700">
                 <span className="text-purple-600 font-bold">{totalUsers}</span> {totalUsers === 1 ? 'студент' : totalUsers < 5 ? 'студента' : 'студентов'} уже с нами
               </span>
             </div>
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Согласие с условиями */}
-          <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+          <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 bg-gray-50 rounded-xl border border-gray-200">
             <Checkbox
               id="terms"
               checked={agreedToTerms}
               onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-              className="mt-1"
+              className="mt-0.5 sm:mt-1"
             />
-            <label htmlFor="terms" className="text-sm text-gray-700 cursor-pointer">
+            <label htmlFor="terms" className="text-xs sm:text-sm text-gray-700 cursor-pointer">
               Я согласен(на) с{' '}
               <Link to="/terms" className="text-purple-600 font-semibold hover:underline">
                 Пользовательским соглашением
@@ -241,9 +241,9 @@ export default function AuthNew() {
           </div>
 
           {/* Email и пароль */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                 Email
               </label>
               <Input
@@ -251,12 +251,12 @@ export default function AuthNew() {
                 placeholder="student@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-12 text-base border-2 border-gray-300 focus:border-purple-500 rounded-xl"
+                className="h-10 sm:h-12 text-sm sm:text-base border-2 border-gray-300 focus:border-purple-500 rounded-xl"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                 {mode === 'login' ? 'Пароль' : 'Новый пароль'}
               </label>
               <Input
@@ -264,7 +264,7 @@ export default function AuthNew() {
                 placeholder={mode === 'login' ? 'Введите пароль' : 'Минимум 6 символов'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-12 text-base border-2 border-gray-300 focus:border-purple-500 rounded-xl"
+                className="h-10 sm:h-12 text-sm sm:text-base border-2 border-gray-300 focus:border-purple-500 rounded-xl"
               />
               {mode === 'forgot' && (
                 <p className="text-xs text-gray-500 mt-2">
