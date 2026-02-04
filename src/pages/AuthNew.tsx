@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
 
 const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
+const STATS_URL = 'https://functions.poehali.dev/81b3aaba-9af0-426e-8f14-e7420a9f4ecc';
 
 export default function AuthNew() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function AuthNew() {
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [totalUsers, setTotalUsers] = useState<number>(0);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('savedEmail');
@@ -28,7 +30,20 @@ export default function AuthNew() {
       setPassword(savedPassword);
       setRememberMe(true);
     }
+    loadStats();
   }, []);
+
+  const loadStats = async () => {
+    try {
+      const response = await fetch(STATS_URL);
+      if (response.ok) {
+        const data = await response.json();
+        setTotalUsers(data.total_users || 0);
+      }
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
+  };
 
   const handleEmailLogin = async () => {
     if (!agreedToTerms) {
@@ -188,9 +203,20 @@ export default function AuthNew() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
             Studyfay
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-3">
             {mode === 'login' ? 'Войдите в аккаунт' : 'Сброс пароля'}
           </p>
+          {totalUsers > 0 && (
+            <div className="inline-flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full">
+              <div className="flex -space-x-1.5">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 border-2 border-white"></div>
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white"></div>
+              </div>
+              <span className="text-xs font-medium text-gray-700">
+                <span className="text-purple-600 font-bold">{totalUsers}</span> {totalUsers === 1 ? 'студент' : totalUsers < 5 ? 'студента' : 'студентов'} уже с нами
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">

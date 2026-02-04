@@ -124,13 +124,26 @@ def get_limits(conn, user_id: int) -> dict:
                 'exam_predictions': {'unlimited': True}
             }
         }
-    else:
+    elif status['is_trial']:
+        # Триал: увеличенные лимиты чтобы пользователь понял ценность
         return {
             **status,
             'limits': {
-                'schedule': {'used': schedule_count, 'max': 15, 'unlimited': False},
-                'tasks': {'used': tasks_count, 'max': 20, 'unlimited': False},
-                'materials': {'used': status['materials_quota_used'], 'max': 3, 'unlimited': False},
+                'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
+                'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
+                'materials': {'used': status['materials_quota_used'], 'max': 10, 'unlimited': False},
+                'ai_questions': {'used': status.get('ai_questions_used', 0), 'max': 20, 'unlimited': False},
+                'exam_predictions': {'unlimited': True, 'available': True}
+            }
+        }
+    else:
+        # Free: жёсткие лимиты для стимулирования покупки
+        return {
+            **status,
+            'limits': {
+                'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
+                'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
+                'materials': {'used': status['materials_quota_used'], 'max': 2, 'unlimited': False},
                 'ai_questions': {'used': status.get('ai_questions_used', 0), 'max': 3, 'unlimited': False},
                 'exam_predictions': {'unlimited': False, 'available': False}
             }

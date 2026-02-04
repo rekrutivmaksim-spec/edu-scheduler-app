@@ -113,15 +113,15 @@ def handler(event: dict, context) -> dict:
                         if trial_ends.replace(tzinfo=None) > datetime.now():
                             is_trial = True
                 
-                # Для Free проверяем лимит в 15 занятий
+                # Для Free проверяем лимит в 7 занятий
                 if not is_premium and not is_trial:
                     cur.execute("SELECT COUNT(*) as count FROM schedule WHERE user_id = %s", (user_id,))
                     schedule_count = cur.fetchone()['count']
-                    if schedule_count >= 15:
+                    if schedule_count >= 7:
                         return {
                             'statusCode': 403,
                             'headers': headers,
-                            'body': json.dumps({'error': 'quota_exceeded', 'message': '📚 Достигнут лимит занятий (15/15). Перейдите на Premium для безлимитного расписания'})
+                            'body': json.dumps({'error': 'quota_exceeded', 'message': '📚 Достигнут лимит занятий (7/7). Перейдите на Premium для безлимитного расписания'})
                         }
             
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -212,15 +212,15 @@ def handler(event: dict, context) -> dict:
                         if trial_ends.replace(tzinfo=None) > datetime.now():
                             is_trial = True
                 
-                # Для Free проверяем лимит в 20 активных задач
+                # Для Free проверяем лимит в 10 активных задач
                 if not is_premium and not is_trial:
                     cur.execute("SELECT COUNT(*) as count FROM tasks WHERE user_id = %s AND completed = false", (user_id,))
                     tasks_count = cur.fetchone()['count']
-                    if tasks_count >= 20:
+                    if tasks_count >= 10:
                         return {
                             'statusCode': 403,
                             'headers': headers,
-                            'body': json.dumps({'error': 'quota_exceeded', 'message': '✅ Достигнут лимит задач (20/20). Перейдите на Premium для безлимитных задач'})
+                            'body': json.dumps({'error': 'quota_exceeded', 'message': '✅ Достигнут лимит задач (10/10). Перейдите на Premium для безлимитных задач'})
                         }
             
             with conn.cursor(cursor_factory=RealDictCursor) as cur:

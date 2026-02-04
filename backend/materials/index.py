@@ -264,7 +264,7 @@ def handler(event: dict, context) -> dict:
                     conn.close()
                     return {'statusCode': 403, 'headers': headers, 'body': json.dumps({'error': 'subscription_required', 'message': message})}
                 
-                # Для Free проверяем месячный лимит
+                # Для Free проверяем месячный лимит (2 материала)
                 if not access.get('is_premium') and not access.get('is_trial'):
                     schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
                     with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -277,9 +277,9 @@ def handler(event: dict, context) -> dict:
                         
                         # Проверяем, не истек ли месячный лимит
                         quota_used = quota_info.get('materials_quota_used', 0)
-                        if quota_used >= 3:
+                        if quota_used >= 2:
                             conn.close()
-                            return {'statusCode': 403, 'headers': headers, 'body': json.dumps({'error': 'quota_exceeded', 'message': '📊 Лимит загрузок исчерпан. Перейдите на Premium для безлимитных материалов'})}
+                            return {'statusCode': 403, 'headers': headers, 'body': json.dumps({'error': 'quota_exceeded', 'message': '📊 Лимит загрузок исчерпан (2/2). Перейдите на Premium для безлимитных материалов'})}
                 
                 conn.close()
                 

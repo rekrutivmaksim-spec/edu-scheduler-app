@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "name": "Get user statistics",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "total_users": "number"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

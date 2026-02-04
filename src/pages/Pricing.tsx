@@ -8,12 +8,14 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+const STATS_URL = 'https://functions.poehali.dev/81b3aaba-9af0-426e-8f14-e7420a9f4ecc';
 
 const Pricing = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string>('free');
+  const [totalUsers, setTotalUsers] = useState<number>(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -22,9 +24,22 @@ const Pricing = () => {
         return;
       }
       await loadSubscriptionStatus();
+      await loadStats();
     };
     checkAuth();
   }, [navigate]);
+
+  const loadStats = async () => {
+    try {
+      const response = await fetch(STATS_URL);
+      if (response.ok) {
+        const data = await response.json();
+        setTotalUsers(data.total_users || 0);
+      }
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
+  };
 
   const loadSubscriptionStatus = async () => {
     try {
@@ -89,9 +104,9 @@ const Pricing = () => {
       price: '0₽',
       period: 'навсегда',
       features: [
-        { text: 'До 15 занятий в расписании', included: true },
-        { text: 'До 20 активных задач', included: true },
-        { text: '3 материала в месяц', included: true },
+        { text: 'До 7 занятий в расписании', included: true },
+        { text: 'До 10 активных задач', included: true },
+        { text: '2 материала в месяц', included: true },
         { text: '3 AI-вопроса в месяц', included: true },
         { text: 'Генерация шпаргалок', included: false },
         { text: 'AI-прогноз экзаменов', included: false },
@@ -103,14 +118,14 @@ const Pricing = () => {
     },
     {
       name: 'Premium',
-      price: '199₽',
+      price: '249₽',
       period: 'в месяц',
       badge: 'Популярный',
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
         { text: 'Безлимитные материалы', included: true },
-        { text: 'AI-ассистент (40 вопросов)', included: true },
+        { text: 'Безлимит AI-вопросов', included: true },
         { text: 'Генерация шпаргалок', included: true },
         { text: 'AI-прогноз экзаменов', included: true },
         { text: 'Экспорт в PDF', included: true }
@@ -148,6 +163,18 @@ const Pricing = () => {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
+          {totalUsers > 0 && (
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-3 rounded-full border border-purple-200 mb-6">
+              <div className="flex -space-x-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 border-2 border-white"></div>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white"></div>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 border-2 border-white"></div>
+              </div>
+              <span className="text-sm font-semibold text-gray-700">
+                <span className="text-purple-600">{totalUsers}</span> {totalUsers === 1 ? 'студент' : totalUsers < 5 ? 'студента' : 'студентов'} уже учатся эффективнее
+              </span>
+            </div>
+          )}
           <h2 className="text-4xl font-heading font-bold mb-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
             Инвестируйте в свою учёбу
           </h2>
