@@ -1,0 +1,15 @@
+{
+  "tests": [
+    {
+      "name": "Check trial reminders",
+      "method": "POST",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "notifications_sent": 0,
+        "users": []
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

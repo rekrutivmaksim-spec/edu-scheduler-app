@@ -121,6 +121,7 @@ const Pricing = () => {
       price: '249₽',
       period: 'в месяц',
       badge: 'Популярный',
+      planId: '1month',
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
@@ -138,8 +139,10 @@ const Pricing = () => {
       name: 'Premium Год',
       price: '1990₽',
       period: 'за год',
+      pricePerMonth: '166₽/мес',
       badge: 'Выгода 33%',
-      savings: '1998₽',
+      savings: '998₽',
+      planId: '1year',
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
@@ -228,9 +231,14 @@ const Pricing = () => {
                   </span>
                   <span className="text-sm text-gray-600">{plan.period}</span>
                 </div>
+                {'pricePerMonth' in plan && (
+                  <p className="text-sm text-amber-700 font-bold">
+                    {plan.pricePerMonth}
+                  </p>
+                )}
                 {'savings' in plan && (
-                  <p className="text-xs text-green-600 font-semibold">
-                    Экономия {plan.savings} в год
+                  <p className="text-xs text-orange-600 font-semibold mt-1">
+                    🔥 Экономия {plan.savings}
                   </p>
                 )}
               </div>
