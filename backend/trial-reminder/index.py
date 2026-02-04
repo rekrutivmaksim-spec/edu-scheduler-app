@@ -15,9 +15,19 @@ def get_db_connection():
     return conn
 
 
+def create_in_app_notification(conn, user_id: int, title: str, message: str, action_url: str = None):
+    """Создаёт уведомление в таблице notifications для показа в приложении"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO notifications (user_id, title, message, action_url, is_read, created_at)
+            VALUES (%s, %s, %s, %s, false, CURRENT_TIMESTAMP)
+        """, (user_id, title, message, action_url))
+        conn.commit()
+
+
 def handler(event: dict, context) -> dict:
     """Проверяет пользователей с истекающим Trial и отправляет уведомления"""
-    method = event.get('httpMethod', 'GET')
+    method = event.get('httpMethod', 'POST')
     
     if method == 'OPTIONS':
         return {
@@ -66,16 +76,11 @@ def handler(event: dict, context) -> dict:
                 # Формируем сообщение
                 hours_left = int((trial_ends - now).total_seconds() / 3600)
                 
-                notification = {
-                    'user_id': user_id,
-                    'email': email,
-                    'title': '⏰ Trial заканчивается!',
-                    'body': f'Осталось {hours_left} часов Premium доступа. Успейте оформить подписку со скидкой 33%!',
-                    'action_url': '/subscription'
-                }
+                title = '⏰ Trial заканчивается!'
+                message = f'Осталось {hours_left} часов Premium доступа. Успейте оформить подписку со скидкой 33%!'
                 
-                # Здесь можно добавить отправку через Firebase Cloud Messaging
-                # или другой push-сервис
+                # Создаём уведомление в БД для показа в приложении
+                create_in_app_notification(conn, user_id, title, message, '/subscription')
                 
                 # Отмечаем, что уведомление отправлено
                 cur.execute("""
@@ -84,7 +89,13 @@ def handler(event: dict, context) -> dict:
                     WHERE id = %s
                 """, (user_id,))
                 
-                notifications_sent.append(notification)
+                notifications_sent.append({
+                    'user_id': user_id,
+                    'email': email,
+                    'title': title,
+                    'body': message,
+                    'action_url': '/subscription'
+                })
             
             conn.commit()
             

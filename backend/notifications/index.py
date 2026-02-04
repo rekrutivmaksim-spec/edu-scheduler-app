@@ -67,6 +67,15 @@ def handler(event: dict, context) -> dict:
             
             if action == 'status':
                 return get_subscription_status(conn, user_id)
+            elif action == 'list':
+                limit = int(event.get('queryStringParameters', {}).get('limit', '10'))
+                return get_notifications_list(conn, user_id, limit)
+        
+        elif method == 'PUT':
+            body = json.loads(event.get('body', '{}'))
+            notification_id = body.get('notification_id')
+            is_read = body.get('is_read')
+            return mark_notification_read(conn, user_id, notification_id, is_read)
         
         return {
             'statusCode': 400,
@@ -286,6 +295,71 @@ def handle_send_deadline_reminders(conn) -> dict:
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
         'body': json.dumps({'success': True, 'sent': len(users)})
+    }
+
+def get_notifications_list(conn, user_id: int, limit: int = 10) -> dict:
+    """Получение списка уведомлений пользователя"""
+    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+    cursor = conn.cursor()
+    
+    # Получаем уведомления
+    cursor.execute(f'''
+        SELECT id, title, message, action_url, is_read, created_at, read_at
+        FROM {schema}.notifications
+        WHERE user_id = %s
+        ORDER BY created_at DESC
+        LIMIT %s
+    ''', (user_id, limit))
+    
+    notifications = []
+    for row in cursor.fetchall():
+        notifications.append({
+            'id': row[0],
+            'title': row[1],
+            'message': row[2],
+            'action_url': row[3],
+            'is_read': row[4],
+            'created_at': row[5].isoformat() if row[5] else None,
+            'read_at': row[6].isoformat() if row[6] else None
+        })
+    
+    # Подсчитываем непрочитанные
+    cursor.execute(f'''
+        SELECT COUNT(*) FROM {schema}.notifications
+        WHERE user_id = %s AND is_read = false
+    ''', (user_id,))
+    unread_count = cursor.fetchone()[0]
+    
+    cursor.close()
+    
+    return {
+        'statusCode': 200,
+        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+        'body': json.dumps({
+            'notifications': notifications,
+            'unread_count': unread_count
+        })
+    }
+
+
+def mark_notification_read(conn, user_id: int, notification_id: int, is_read: bool) -> dict:
+    """Отметка уведомления как прочитанного"""
+    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+    cursor = conn.cursor()
+    
+    cursor.execute(f'''
+        UPDATE {schema}.notifications
+        SET is_read = %s, read_at = CASE WHEN %s = true THEN CURRENT_TIMESTAMP ELSE NULL END
+        WHERE id = %s AND user_id = %s
+    ''', (is_read, is_read, notification_id, user_id))
+    
+    conn.commit()
+    cursor.close()
+    
+    return {
+        'statusCode': 200,
+        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+        'body': json.dumps({'success': True})
     }
 
 def send_push_notification(endpoint: str, p256dh: str, auth: str, data: dict):

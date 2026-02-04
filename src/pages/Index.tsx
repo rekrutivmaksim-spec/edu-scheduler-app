@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import NotificationPrompt from '@/components/NotificationPrompt';
 import ExamReminder from '@/components/ExamReminder';
 import LimitsIndicator from '@/components/LimitsIndicator';
+import NotificationBell from '@/components/NotificationBell';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 
@@ -339,6 +340,7 @@ const Index = () => {
                 <Icon name="Bell" size={20} className="text-purple-600" />
                 <span className="absolute top-2 right-2 w-2 h-2 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full animate-pulse shadow-lg shadow-pink-500/50"></span>
               </Button>
+              <NotificationBell />
               <Button 
                 variant="ghost" 
                 onClick={() => navigate('/profile')}
