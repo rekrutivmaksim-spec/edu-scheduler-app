@@ -311,50 +311,62 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="relative">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                  <Icon name="Sparkles" size={24} className="text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <Icon name="Sparkles" size={20} className="text-white sm:w-6 sm:h-6" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
+                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
               </div>
               <div>
-                <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Studyfay
                 </h1>
-                <p className="text-xs text-purple-600/70 font-medium">ИИ-помощник студента</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">ИИ-помощник студента</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button 
                 variant="ghost" 
                 size="icon"
                 onClick={() => navigate('/calendar')}
-                className="hover:bg-purple-100/50 rounded-xl"
+                className="hover:bg-purple-100/50 rounded-xl h-8 w-8 sm:h-10 sm:w-10"
               >
-                <Icon name="CalendarDays" size={20} className="text-purple-600" />
-              </Button>
-              <Button variant="ghost" size="icon" className="relative hover:bg-purple-100/50 rounded-xl">
-                <Icon name="Bell" size={20} className="text-purple-600" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full animate-pulse shadow-lg shadow-pink-500/50"></span>
+                <Icon name="CalendarDays" size={18} className="text-purple-600 sm:w-5 sm:h-5" />
               </Button>
               <NotificationBell />
               <Button 
                 variant="ghost" 
+                size="icon"
                 onClick={() => navigate('/profile')}
-                className="rounded-xl hover:bg-purple-100/50 text-gray-600"
+                className="hover:bg-purple-100/50 rounded-xl h-8 w-8 sm:h-10 sm:w-10 sm:hidden"
               >
-                <Icon name="User" size={20} className="mr-2" />
+                <Icon name="User" size={18} className="text-purple-600 sm:w-5 sm:h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/profile')}
+                className="hidden sm:flex rounded-xl hover:bg-purple-100/50 text-gray-600 text-sm h-9"
+              >
+                <Icon name="User" size={18} className="mr-1.5" />
                 Профиль
               </Button>
               <Button 
                 variant="ghost" 
+                size="icon"
                 onClick={handleLogout}
-                className="rounded-xl hover:bg-red-100/50 text-gray-600 hover:text-red-600"
+                className="hover:bg-red-100/50 text-gray-600 hover:text-red-600 rounded-xl h-8 w-8 sm:h-10 sm:w-10 sm:hidden"
               >
-                <Icon name="LogOut" size={20} className="mr-2" />
+                <Icon name="LogOut" size={18} className="sm:w-5 sm:h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={handleLogout}
+                className="hidden sm:flex rounded-xl hover:bg-red-100/50 text-gray-600 hover:text-red-600 text-sm h-9"
+              >
+                <Icon name="LogOut" size={18} className="mr-1.5" />
                 Выйти
               </Button>
             </div>
@@ -362,122 +374,122 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         <NotificationPrompt />
         
         <LimitsIndicator compact />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6 mb-4 sm:mb-6">
           <Card 
             onClick={() => navigate('/assistant')}
-            className="p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-indigo-300 cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/30 transition-all duration-300 hover:scale-[1.02]"
+            className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-indigo-300 cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/30 transition-all duration-300 hover:scale-[1.02]"
           >
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Icon name="Bot" size={32} className="text-white" />
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <Icon name="Bot" size={24} className="text-white sm:w-8 sm:h-8" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-800 mb-1">ИИ-Ассистент</h3>
-                <p className="text-sm text-gray-600">Задай вопрос по своим материалам</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">ИИ-Ассистент</h3>
+                <p className="text-xs sm:text-sm text-gray-600">Задай вопрос по своим материалам</p>
               </div>
-              <Icon name="ArrowRight" size={24} className="text-indigo-600" />
+              <Icon name="ArrowRight" size={20} className="text-indigo-600 flex-shrink-0 sm:w-6 sm:h-6" />
             </div>
           </Card>
           
           <Card 
             onClick={() => navigate('/exam-prep')}
-            className="p-6 bg-gradient-to-r from-yellow-50 via-orange-50 to-red-50 border-2 border-orange-300 cursor-pointer hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-[1.02]"
+            className="p-4 sm:p-6 bg-gradient-to-r from-yellow-50 via-orange-50 to-red-50 border-2 border-orange-300 cursor-pointer hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-[1.02]"
           >
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <span className="text-3xl">🎯</span>
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <span className="text-2xl sm:text-3xl">🎯</span>
               </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-800 mb-1">Прогноз экзамена</h3>
-                <p className="text-sm text-gray-600">ИИ предсказывает вопросы на экзамене</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">Прогноз экзамена</h3>
+                <p className="text-xs sm:text-sm text-gray-600">ИИ предсказывает вопросы на экзамене</p>
               </div>
-              <Icon name="ArrowRight" size={24} className="text-orange-600" />
+              <Icon name="ArrowRight" size={20} className="text-orange-600 flex-shrink-0 sm:w-6 sm:h-6" />
             </div>
           </Card>
         </div>
 
         <Card
           onClick={() => navigate('/sharing')}
-          className="mb-6 p-6 bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 border-2 border-green-300 cursor-pointer hover:shadow-2xl hover:shadow-green-500/30 transition-all duration-300 hover:scale-[1.02]"
+          className="mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 border-2 border-green-300 cursor-pointer hover:shadow-2xl hover:shadow-green-500/30 transition-all duration-300 hover:scale-[1.02]"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Icon name="Share2" size={32} className="text-white" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <Icon name="Share2" size={24} className="text-white sm:w-8 sm:h-8" />
             </div>
-            <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-800 mb-1">Расшарить расписание с группой</h3>
-              <p className="text-sm text-gray-600">Создай код доступа и поделись расписанием с одногруппниками</p>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1">Расшарить расписание с группой</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Создай код доступа и поделись расписанием с одногруппниками</p>
             </div>
-            <Icon name="ArrowRight" size={24} className="text-green-600" />
+            <Icon name="ArrowRight" size={20} className="text-green-600 flex-shrink-0 sm:w-6 sm:h-6" />
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="group relative overflow-hidden p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
+          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/20">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Занятий сегодня</p>
-                <p className="text-4xl font-bold mt-3 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent group-hover:text-white transition-all">{todayLessons.length}</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Занятий сегодня</p>
+                <p className="text-3xl sm:text-4xl font-bold mt-2 sm:mt-3 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent group-hover:text-white transition-all">{todayLessons.length}</p>
               </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-indigo-100 to-purple-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg">
-                <Icon name="Calendar" size={28} className="text-indigo-600 group-hover:text-white transition-colors" />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-100 to-purple-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg flex-shrink-0">
+                <Icon name="Calendar" size={24} className="text-indigo-600 group-hover:text-white transition-colors sm:w-7 sm:h-7" />
               </div>
             </div>
           </Card>
 
-          <Card className="group relative overflow-hidden p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20">
+          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Активных задач</p>
-                <p className="text-4xl font-bold mt-3 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent group-hover:text-white transition-all">{activeTasks.length}</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Активных задач</p>
+                <p className="text-3xl sm:text-4xl font-bold mt-2 sm:mt-3 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent group-hover:text-white transition-all">{activeTasks.length}</p>
               </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-100 to-pink-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg">
-                <Icon name="CheckSquare" size={28} className="text-purple-600 group-hover:text-white transition-colors" />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-100 to-pink-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg flex-shrink-0">
+                <Icon name="CheckSquare" size={24} className="text-purple-600 group-hover:text-white transition-colors sm:w-7 sm:h-7" />
               </div>
             </div>
           </Card>
 
-          <Card className="group relative overflow-hidden p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-pink-500/20">
+          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-pink-500/20">
             <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Выполнено задач</p>
-                <p className="text-4xl font-bold mt-3 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent group-hover:text-white transition-all">{completionRate}%</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Выполнено задач</p>
+                <p className="text-3xl sm:text-4xl font-bold mt-2 sm:mt-3 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent group-hover:text-white transition-all">{completionRate}%</p>
               </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-pink-100 to-rose-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg">
-                <Icon name="TrendingUp" size={28} className="text-pink-600 group-hover:text-white transition-colors" />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-pink-100 to-rose-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg flex-shrink-0">
+                <Icon name="TrendingUp" size={24} className="text-pink-600 group-hover:text-white transition-colors sm:w-7 sm:h-7" />
               </div>
             </div>
           </Card>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 h-16 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-2">
-            <TabsTrigger value="schedule" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all">
-              <Icon name="Calendar" size={20} className="mr-2" />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-5 h-12 sm:h-16 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-2">
+            <TabsTrigger value="schedule" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
+              <Icon name="Calendar" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline font-semibold">Расписание</span>
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all">
-              <Icon name="CheckSquare" size={20} className="mr-2" />
+            <TabsTrigger value="tasks" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
+              <Icon name="CheckSquare" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline font-semibold">Задачи</span>
             </TabsTrigger>
-            <TabsTrigger value="scanner" onClick={() => navigate('/materials')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-pink-600 data-[state=active]:to-rose-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-pink-500/30 transition-all">
-              <Icon name="FileUp" size={20} className="mr-2" />
+            <TabsTrigger value="scanner" onClick={() => navigate('/materials')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-pink-600 data-[state=active]:to-rose-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-pink-500/30 transition-all text-xs sm:text-base">
+              <Icon name="FileUp" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline font-semibold">Загрузка файлов</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" onClick={() => navigate('/analytics')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 transition-all">
-              <Icon name="BarChart3" size={20} className="mr-2" />
+            <TabsTrigger value="analytics" onClick={() => navigate('/analytics')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 transition-all text-xs sm:text-base">
+              <Icon name="BarChart3" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline font-semibold">Аналитика</span>
             </TabsTrigger>
-            <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all">
-              <Icon name="User" size={20} className="mr-2" />
+            <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
+              <Icon name="User" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline font-semibold">Профиль</span>
             </TabsTrigger>
           </TabsList>

@@ -161,55 +161,55 @@ const Pricing = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50"
+                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10"
               >
-                <Icon name="ArrowLeft" size={24} className="text-purple-600" />
+                <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
               </Button>
               <div>
-                <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Тарифы
                 </h1>
-                <p className="text-xs text-purple-600/70 font-medium">Выберите подходящий план</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">Выберите подходящий план</p>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12">
+      <main className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-12">
+        <div className="text-center mb-6 sm:mb-12">
           {totalUsers > 0 && (
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-3 rounded-full border border-purple-200 mb-6">
-              <div className="flex -space-x-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 border-2 border-white"></div>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white"></div>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 border-2 border-white"></div>
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 px-3 sm:px-6 py-2 sm:py-3 rounded-full border border-purple-200 mb-4 sm:mb-6">
+              <div className="flex -space-x-1 sm:-space-x-2">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 border-2 border-white"></div>
+                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white"></div>
+                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 border-2 border-white"></div>
               </div>
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-xs sm:text-sm font-semibold text-gray-700">
                 <span className="text-purple-600">{totalUsers}</span> {totalUsers === 1 ? 'студент' : totalUsers < 5 ? 'студента' : 'студентов'} уже учатся эффективнее
               </span>
             </div>
           )}
-          <h2 className="text-4xl font-heading font-bold mb-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <h2 className="text-2xl sm:text-4xl font-heading font-bold mb-3 sm:mb-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent px-2">
             Инвестируйте в свою учёбу
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-lg text-gray-600 max-w-2xl mx-auto px-4">
             Начните бесплатно или получите полный доступ к AI-функциям с Premium подпиской
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-12">
           {plans.map((plan) => (
             <Card
               key={plan.name}
-              className={`p-6 relative overflow-hidden ${
+              className={`p-4 sm:p-6 relative overflow-hidden ${
                 plan.color === 'gradient'
                   ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-300 shadow-2xl shadow-purple-500/20'
                   : plan.color === 'gold'
@@ -218,44 +218,44 @@ const Pricing = () => {
               }`}
             >
               {plan.badge && (
-                <Badge className="absolute top-4 right-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white">
+                <Badge className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1">
                   {plan.badge}
                 </Badge>
               )}
 
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-2">{plan.name}</h3>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <div className="mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2">{plan.name}</h3>
+                <div className="flex items-baseline gap-1 sm:gap-2 mb-1">
+                  <span className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                     {plan.price}
                   </span>
-                  <span className="text-sm text-gray-600">{plan.period}</span>
+                  <span className="text-xs sm:text-sm text-gray-600">{plan.period}</span>
                 </div>
                 {'pricePerMonth' in plan && (
-                  <p className="text-sm text-amber-700 font-bold">
+                  <p className="text-xs sm:text-sm text-amber-700 font-bold">
                     {plan.pricePerMonth}
                   </p>
                 )}
                 {'savings' in plan && (
-                  <p className="text-xs text-orange-600 font-semibold mt-1">
+                  <p className="text-[10px] sm:text-xs text-orange-600 font-semibold mt-1">
                     🔥 Экономия {plan.savings}
                   </p>
                 )}
               </div>
 
-              <div className="space-y-2 mb-6">
+              <div className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-6">
                 {plan.features.map((feature, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
+                  <div key={idx} className="flex items-center gap-1.5 sm:gap-2">
                     {feature.included ? (
-                      <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                        <Icon name="Check" size={12} className="text-green-600" />
+                      <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                        <Icon name="Check" size={10} className="text-green-600 sm:w-3 sm:h-3" />
                       </div>
                     ) : (
-                      <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <Icon name="X" size={12} className="text-gray-400" />
+                      <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <Icon name="X" size={10} className="text-gray-400 sm:w-3 sm:h-3" />
                       </div>
                     )}
-                    <span className={`text-sm ${feature.included ? 'text-gray-700' : 'text-gray-400'}`}>
+                    <span className={`text-xs sm:text-sm ${feature.included ? 'text-gray-700' : 'text-gray-400'}`}>
                       {feature.text}
                     </span>
                   </div>
@@ -267,7 +267,7 @@ const Pricing = () => {
                   <Button
                     onClick={handleBuyPremium}
                     disabled={loading}
-                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-purple-500/30"
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-purple-500/30 text-xs sm:text-sm h-9 sm:h-10"
                   >
                     💳 Купить Premium
                   </Button>
@@ -275,7 +275,7 @@ const Pricing = () => {
                     onClick={handleActivateDemo}
                     disabled={loading}
                     variant="outline"
-                    className="w-full border-2 border-purple-300 hover:bg-purple-50"
+                    className="w-full border-2 border-purple-300 hover:bg-purple-50 text-xs sm:text-sm h-9 sm:h-10"
                   >
                     🎁 Попробовать 7 дней бесплатно
                   </Button>
@@ -283,7 +283,7 @@ const Pricing = () => {
               ) : (
                 <Button
                   disabled
-                  className="w-full bg-gray-200 text-gray-600 cursor-not-allowed"
+                  className="w-full bg-gray-200 text-gray-600 cursor-not-allowed text-xs sm:text-sm h-9 sm:h-10"
                 >
                   {plan.buttonText}
                 </Button>
@@ -294,32 +294,32 @@ const Pricing = () => {
           ))}
         </div>
 
-        <Card className="p-8 bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-orange-200">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Icon name="Zap" size={24} className="text-orange-600" />
+        <Card className="p-4 sm:p-8 bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-orange-200">
+          <h3 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2">
+            <Icon name="Zap" size={20} className="text-orange-600 sm:w-6 sm:h-6" />
             Разовые покупки (скоро)
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
             Не готовы к подписке? Покупайте AI-функции по мере необходимости
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-white rounded-lg border border-orange-200">
-              <p className="font-semibold text-gray-800">1 AI-прогноз</p>
-              <p className="text-2xl font-bold text-orange-600 mt-1">99₽</p>
-              <p className="text-xs text-gray-500 mt-1">Один экзамен</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+            <div className="p-3 sm:p-4 bg-white rounded-lg border border-orange-200">
+              <p className="text-sm sm:text-base font-semibold text-gray-800">1 AI-прогноз</p>
+              <p className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">99₽</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Один экзамен</p>
             </div>
-            <div className="p-4 bg-white rounded-lg border border-orange-200">
-              <p className="font-semibold text-gray-800">5 AI-прогнозов</p>
-              <p className="text-2xl font-bold text-orange-600 mt-1">399₽</p>
-              <Badge className="mt-1 bg-green-100 text-green-700">-20%</Badge>
+            <div className="p-3 sm:p-4 bg-white rounded-lg border border-orange-200">
+              <p className="text-sm sm:text-base font-semibold text-gray-800">5 AI-прогнозов</p>
+              <p className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">399₽</p>
+              <Badge className="mt-1 bg-green-100 text-green-700 text-[10px] sm:text-xs">-20%</Badge>
             </div>
-            <div className="p-4 bg-white rounded-lg border border-orange-200">
-              <p className="font-semibold text-gray-800">10 OCR-сканирований</p>
-              <p className="text-2xl font-bold text-orange-600 mt-1">29₽</p>
-              <p className="text-xs text-gray-500 mt-1">Пакет материалов</p>
+            <div className="p-3 sm:p-4 bg-white rounded-lg border border-orange-200">
+              <p className="text-sm sm:text-base font-semibold text-gray-800">10 OCR-сканирований</p>
+              <p className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">29₽</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Пакет материалов</p>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-4 text-center">
+          <p className="text-xs sm:text-sm text-gray-500 mt-3 sm:mt-4 text-center">
             🚀 Функция находится в разработке
           </p>
         </Card>
