@@ -133,6 +133,25 @@ const Pricing = () => {
       current: currentPlan === 'premium',
       buttonText: currentPlan === 'premium' ? 'Активен' : 'Получить Premium',
       color: 'gradient'
+    },
+    {
+      name: 'Premium Год',
+      price: '1990₽',
+      period: 'за год',
+      badge: 'Выгода 33%',
+      savings: '1998₽',
+      features: [
+        { text: 'Безлимитное расписание', included: true },
+        { text: 'Безлимитные задачи', included: true },
+        { text: 'Безлимитные материалы', included: true },
+        { text: 'Безлимит AI-вопросов', included: true },
+        { text: 'Генерация шпаргалок', included: true },
+        { text: 'AI-прогноз экзаменов', included: true },
+        { text: 'Экспорт в PDF + Приоритет', included: true }
+      ],
+      current: currentPlan === 'premium',
+      buttonText: currentPlan === 'premium' ? 'Активен' : 'Купить на год',
+      color: 'gold'
     }
   ];
 
@@ -183,13 +202,15 @@ const Pricing = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {plans.map((plan) => (
             <Card
               key={plan.name}
-              className={`p-8 relative overflow-hidden ${
+              className={`p-6 relative overflow-hidden ${
                 plan.color === 'gradient'
                   ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-300 shadow-2xl shadow-purple-500/20'
+                  : plan.color === 'gold'
+                  ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-400 shadow-2xl shadow-orange-500/20'
                   : 'bg-white border-2 border-gray-200'
               }`}
             >
@@ -200,28 +221,33 @@ const Pricing = () => {
               )}
 
               <div className="mb-6">
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">{plan.name}</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">{plan.name}</h3>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                     {plan.price}
                   </span>
-                  <span className="text-gray-600">{plan.period}</span>
+                  <span className="text-sm text-gray-600">{plan.period}</span>
                 </div>
+                {'savings' in plan && (
+                  <p className="text-xs text-green-600 font-semibold">
+                    Экономия {plan.savings} в год
+                  </p>
+                )}
               </div>
 
-              <div className="space-y-3 mb-8">
+              <div className="space-y-2 mb-6">
                 {plan.features.map((feature, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
+                  <div key={idx} className="flex items-center gap-2">
                     {feature.included ? (
-                      <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                        <Icon name="Check" size={14} className="text-green-600" />
+                      <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                        <Icon name="Check" size={12} className="text-green-600" />
                       </div>
                     ) : (
-                      <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <Icon name="X" size={14} className="text-gray-400" />
+                      <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <Icon name="X" size={12} className="text-gray-400" />
                       </div>
                     )}
-                    <span className={feature.included ? 'text-gray-700' : 'text-gray-400'}>
+                    <span className={`text-sm ${feature.included ? 'text-gray-700' : 'text-gray-400'}`}>
                       {feature.text}
                     </span>
                   </div>
