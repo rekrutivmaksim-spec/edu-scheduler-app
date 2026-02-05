@@ -277,31 +277,33 @@ const Materials = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50"
+                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
               >
-                <Icon name="ArrowLeft" size={24} className="text-purple-600" />
+                <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
               </Button>
-              <div>
-                <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <div className="overflow-hidden">
+                <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent truncate">
                   Мои материалы
                 </h1>
-                <p className="text-xs text-purple-600/70 font-medium">Загружайте документы для ИИ-анализа</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium truncate">Загружайте документы для ИИ-анализа</p>
               </div>
             </div>
             <Button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl shadow-lg"
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl shadow-lg text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4"
             >
               {isUploading ? (
                 <>
-                  <Icon name="Loader2" size={20} className="mr-2 animate-spin" />
-                  Загрузка...
+                  <Icon name="Loader2" size={16} className="mr-1.5 sm:mr-2 animate-spin sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Загрузка...</span>
+                  <Icon name="Loader2" size={16} className="sm:hidden animate-spin" />
                 </>
               ) : (
                 <>
-                  <Icon name="Upload" size={20} className="mr-2" />
-                  Загрузить файл
+                  <Icon name="Upload" size={16} className="mr-1.5 sm:mr-2 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Загрузить файл</span>
+                  <Icon name="Upload" size={16} className="sm:hidden" />
                 </>
               )}
             </Button>

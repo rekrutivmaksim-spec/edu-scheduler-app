@@ -209,7 +209,7 @@ const Pricing = () => {
           {plans.map((plan) => (
             <Card
               key={plan.name}
-              className={`p-4 sm:p-6 relative overflow-hidden ${
+              className={`p-4 sm:p-6 relative overflow-hidden flex flex-col ${
                 plan.color === 'gradient'
                   ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-300 shadow-2xl shadow-purple-500/20'
                   : plan.color === 'gold'
@@ -243,7 +243,7 @@ const Pricing = () => {
                 )}
               </div>
 
-              <div className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-6">
+              <div className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-6 flex-grow">
                 {plan.features.map((feature, idx) => (
                   <div key={idx} className="flex items-center gap-1.5 sm:gap-2">
                     {feature.included ? (
@@ -263,7 +263,7 @@ const Pricing = () => {
               </div>
 
               {plan.color === 'gradient' && !plan.current ? (
-                <div className="space-y-2">
+                <div className="space-y-2 mt-auto">
                   <Button
                     onClick={handleBuyPremium}
                     disabled={loading}
@@ -280,10 +280,18 @@ const Pricing = () => {
                     🎁 Попробовать 7 дней бесплатно
                   </Button>
                 </div>
+              ) : plan.color === 'gold' && !plan.current ? (
+                <Button
+                  onClick={handleBuyPremium}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30 text-xs sm:text-sm h-9 sm:h-10 mt-auto"
+                >
+                  {plan.buttonText}
+                </Button>
               ) : (
                 <Button
                   disabled
-                  className="w-full bg-gray-200 text-gray-600 cursor-not-allowed text-xs sm:text-sm h-9 sm:h-10"
+                  className="w-full bg-gray-200 text-gray-600 cursor-not-allowed text-xs sm:text-sm h-9 sm:h-10 mt-auto"
                 >
                   {plan.buttonText}
                 </Button>

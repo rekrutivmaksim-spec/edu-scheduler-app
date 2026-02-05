@@ -177,26 +177,26 @@ const Calendar = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50"
+                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
               >
-                <Icon name="ArrowLeft" size={24} className="text-purple-600" />
+                <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
               </Button>
-              <div>
-                <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <div className="overflow-hidden">
+                <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent truncate">
                   Календарь
                 </h1>
-                <p className="text-xs text-purple-600/70 font-medium">Расписание и дедлайны</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium truncate">Расписание и дедлайны</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button onClick={previousMonth} variant="ghost" size="icon" className="rounded-xl">
-                <Icon name="ChevronLeft" size={20} />
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Button onClick={previousMonth} variant="ghost" size="icon" className="rounded-xl h-8 w-8 sm:h-10 sm:w-10">
+                <Icon name="ChevronLeft" size={18} className="sm:w-5 sm:h-5" />
               </Button>
-              <div className="px-4 py-2 bg-white rounded-xl border-2 border-purple-200 font-bold text-gray-800">
+              <div className="px-2 sm:px-4 py-1.5 sm:py-2 bg-white rounded-xl border-2 border-purple-200 font-bold text-gray-800 text-xs sm:text-base whitespace-nowrap">
                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
               </div>
-              <Button onClick={nextMonth} variant="ghost" size="icon" className="rounded-xl">
-                <Icon name="ChevronRight" size={20} />
+              <Button onClick={nextMonth} variant="ghost" size="icon" className="rounded-xl h-8 w-8 sm:h-10 sm:w-10">
+                <Icon name="ChevronRight" size={18} className="sm:w-5 sm:h-5" />
               </Button>
             </div>
           </div>

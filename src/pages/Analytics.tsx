@@ -221,7 +221,7 @@ const Analytics = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50"
+                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
               >
                 <Icon name="ArrowLeft" size={24} className="text-purple-600" />
               </Button>

@@ -202,15 +202,15 @@ const ExamPrep = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50"
+                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
               >
-                <Icon name="ArrowLeft" size={24} className="text-purple-600" />
+                <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
               </Button>
-              <div>
-                <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <div className="overflow-hidden">
+                <h1 className="text-base sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent break-words">
                   🎯 Прогноз вопросов на экзамене
                 </h1>
-                <p className="text-xs text-purple-600/70 font-medium">AI анализирует материалы и предсказывает вопросы</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium truncate">AI анализирует материалы и предсказывает вопросы</p>
               </div>
             </div>
           </div>
