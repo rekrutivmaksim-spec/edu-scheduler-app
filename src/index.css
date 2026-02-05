@@ -145,6 +145,15 @@
     }
   }
 
+  /* Utility класс для скрытия скроллбара */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Улучшение читаемости на маленьких экранах */
   @media (max-width: 640px) {
     .card-grid {
