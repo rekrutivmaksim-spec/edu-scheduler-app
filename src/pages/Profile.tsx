@@ -252,7 +252,7 @@ const Profile = () => {
                   <h3 className="text-base sm:text-lg font-bold text-gray-800 truncate">
                     {subscriptionType === 'premium' ? 'Premium активен' : 'Подключить Premium'}
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">
+                  <p className="text-xs sm:text-sm text-gray-600 break-words line-clamp-2">
                     {subscriptionType === 'premium' 
                       ? 'Доступ к ИИ-ассистенту активен' 
                       : 'Получи доступ к ИИ-ассистенту от 199₽/месяц'}

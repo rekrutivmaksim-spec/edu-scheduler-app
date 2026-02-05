@@ -509,13 +509,13 @@ const Index = () => {
               </Button>
             </div>
 
-            <div className="flex gap-1 sm:gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex gap-1 sm:gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
               {dayNames.map((day, idx) => (
                 <Button
                   key={idx}
                   variant={selectedDay === idx + 1 ? "default" : "outline"}
                   onClick={() => setSelectedDay(idx + 1)}
-                  className={`flex-shrink-0 text-[10px] sm:text-sm h-8 sm:h-10 px-2 sm:px-4 whitespace-nowrap ${selectedDay === idx + 1 ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white" : ""}`}
+                  className={`flex-shrink-0 text-[11px] sm:text-sm h-8 sm:h-10 px-2.5 sm:px-4 whitespace-nowrap ${selectedDay === idx + 1 ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white" : ""}`}
                 >
                   {day}
                 </Button>
