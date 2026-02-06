@@ -8,12 +8,12 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ'
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 
-# Клиент OpenAI для Artemox
+# Клиент OpenAI для DeepSeek
 client = OpenAI(
-    api_key=ARTEMOX_API_KEY,
-    base_url='https://api.artemox.com/v1'
+    api_key=DEEPSEEK_API_KEY,
+    base_url='https://api.deepseek.com'
 )
 
 def get_user_id_from_token(token: str) -> int:
