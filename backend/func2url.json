@@ -1,7 +1,6 @@
 {
   "trial-reminder": "https://functions.poehali.dev/2c1becc4-590e-48a4-a712-3efc4e707169",
   "stats": "https://functions.poehali.dev/81b3aaba-9af0-426e-8f14-e7420a9f4ecc",
-  "cheat-sheet": "https://functions.poehali.dev/f87f21f9-9606-4c0f-8ffb-360ed66b2bb3",
   "payments": "https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b",
   "sms-auth": "https://functions.poehali.dev/4817b3b5-17f5-4d59-9ee9-e3092837306f",
   "vk-auth": "https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f343ebd7d3",
@@ -10,7 +9,6 @@
   "notifications": "https://functions.poehali.dev/710399d8-fbc7-4df6-8c6c-200b2828678f",
   "subscription": "https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4",
   "schedule": "https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d",
-  "exam-predictor": "https://functions.poehali.dev/fdcff74e-fb1a-49cc-bd7d-a462ade65859",
   "materials": "https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09",
   "universities": "https://functions.poehali.dev/f5286e45-f3b6-4a53-a2ff-d1bc8c0af0fa",
   "auth": "https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5"

@@ -11,7 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
-const CHEAT_SHEET_URL = 'https://functions.poehali.dev/f87f21f9-9606-4c0f-8ffb-360ed66b2bb3';
 
 interface Material {
   id: number;
@@ -36,8 +35,7 @@ const Materials = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSubject, setFilterSubject] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('date');
-  const [cheatSheet, setCheatSheet] = useState<string | null>(null);
-  const [isGeneratingCheatSheet, setIsGeneratingCheatSheet] = useState(false);
+
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -212,42 +210,7 @@ const Materials = () => {
     }
   };
 
-  const handleGenerateCheatSheet = async (materialId: number) => {
-    setIsGeneratingCheatSheet(true);
-    setCheatSheet(null);
 
-    try {
-      const token = authService.getToken();
-      const response = await fetch(CHEAT_SHEET_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ material_id: materialId })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCheatSheet(data.cheat_sheet);
-        toast({
-          title: "✅ Шпаргалка готова!",
-          description: "ИИ создал компактную шпаргалку для быстрого повторения"
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Ошибка генерации');
-      }
-    } catch (error) {
-      toast({
-        title: "Ошибка",
-        description: error instanceof Error ? error.message : "Не удалось создать шпаргалку",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGeneratingCheatSheet(false);
-    }
-  };
 
   const filteredMaterials = materials
     .filter(m => {
@@ -441,7 +404,6 @@ const Materials = () => {
       {selectedMaterial && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => {
           setSelectedMaterial(null);
-          setCheatSheet(null);
         }}>
           <Card className="max-w-3xl w-full max-h-[80vh] overflow-y-auto bg-white" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-start justify-between">
@@ -483,37 +445,7 @@ const Materials = () => {
                   </div>
                 </div>
               )}
-              {/* Шпаргалка */}
-              {cheatSheet && (
-                <div className="mt-6 p-4 bg-green-50 border-2 border-green-200 rounded-xl">
-                  <h3 className="font-bold text-green-900 mb-2 flex items-center gap-2">
-                    <Icon name="FileCheck" size={20} />
-                    Шпаргалка для быстрого повторения
-                  </h3>
-                  <div className="prose prose-sm max-w-none bg-white p-4 rounded-lg prose-headings:text-green-900 prose-p:text-green-800 prose-strong:text-green-900 prose-ul:text-green-800 prose-ol:text-green-800">
-                    <ReactMarkdown>{cheatSheet}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button
-                  onClick={() => handleGenerateCheatSheet(selectedMaterial.id)}
-                  disabled={isGeneratingCheatSheet}
-                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl"
-                >
-                  {isGeneratingCheatSheet ? (
-                    <>
-                      <Icon name="Loader2" size={20} className="mr-2 animate-spin" />
-                      Генерация...
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="FileCheck" size={20} className="mr-2" />
-                      Шпаргалка
-                    </>
-                  )}
-                </Button>
                 <Button
                   onClick={() => {
                     navigate('/assistant');

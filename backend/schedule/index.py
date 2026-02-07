@@ -296,6 +296,52 @@ def handler(event: dict, context) -> dict:
                     'body': json.dumps({'message': 'Задача удалена'})
                 }
         
+        # GET /pomodoro-stats - Получить статистику помодоро
+        elif method == 'GET' and path == 'pomodoro-stats':
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT id, subject, duration, completed_at
+                    FROM pomodoro_sessions
+                    WHERE user_id = %s
+                    ORDER BY completed_at DESC
+                    LIMIT 100
+                """, (user_id,))
+                
+                sessions = cur.fetchall()
+                
+                total_sessions = len(sessions)
+                total_minutes = sum(s['duration'] for s in sessions)
+                
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'sessions': [dict(s) for s in sessions],
+                        'total_sessions': total_sessions,
+                        'total_minutes': total_minutes
+                    }, default=str)
+                }
+        
+        # POST /pomodoro-session - Сохранить сессию помодоро
+        elif method == 'POST' and path == 'pomodoro-session':
+            body = json.loads(event.get('body', '{}'))
+            subject = body.get('subject', '')
+            duration = body.get('duration', 25)
+            
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO pomodoro_sessions (user_id, subject, duration, completed_at)
+                    VALUES (%s, %s, %s, NOW())
+                """, (user_id, subject, duration))
+                
+                conn.commit()
+                
+                return {
+                    'statusCode': 201,
+                    'headers': headers,
+                    'body': json.dumps({'success': True})
+                }
+        
         return {
             'statusCode': 404,
             'headers': headers,

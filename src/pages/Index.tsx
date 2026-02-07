@@ -397,18 +397,18 @@ const Index = () => {
           </Card>
           
           <Card 
-            onClick={() => navigate('/exam-prep')}
-            className="p-4 sm:p-6 bg-gradient-to-r from-yellow-50 via-orange-50 to-red-50 border-2 border-orange-300 cursor-pointer hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-[1.02]"
+            onClick={() => navigate('/pomodoro')}
+            className="p-4 sm:p-6 bg-gradient-to-r from-red-50 via-pink-50 to-rose-50 border-2 border-red-300 cursor-pointer hover:shadow-2xl hover:shadow-red-500/30 transition-all duration-300 hover:scale-[1.02]"
           >
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <span className="text-2xl sm:text-3xl">🎯</span>
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <span className="text-2xl sm:text-3xl">🍅</span>
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">Прогноз экзамена</h3>
-                <p className="text-xs sm:text-sm text-gray-600">ИИ предсказывает вопросы на экзамене</p>
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">Таймер Помодоро</h3>
+                <p className="text-xs sm:text-sm text-gray-600">Учись эффективно с таймером и статистикой</p>
               </div>
-              <Icon name="ArrowRight" size={20} className="text-orange-600 flex-shrink-0 sm:w-6 sm:h-6" />
+              <Icon name="ArrowRight" size={20} className="text-red-600 flex-shrink-0 sm:w-6 sm:h-6" />
             </div>
           </Card>
         </div>

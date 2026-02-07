@@ -108,8 +108,8 @@ const Pricing = () => {
         { text: 'До 10 активных задач', included: true },
         { text: '2 материала в месяц', included: true },
         { text: '3 AI-вопроса в месяц', included: true },
-        { text: 'Генерация шпаргалок', included: false },
-        { text: 'AI-прогноз экзаменов', included: false },
+        { text: 'Таймер Помодоро', included: false },
+        { text: 'Расширенная аналитика', included: false },
         { text: 'Экспорт в PDF', included: false }
       ],
       current: currentPlan === 'free',
@@ -127,8 +127,8 @@ const Pricing = () => {
         { text: 'Безлимитные задачи', included: true },
         { text: 'Безлимитные материалы', included: true },
         { text: 'Безлимит AI-вопросов', included: true },
-        { text: 'Генерация шпаргалок', included: true },
-        { text: 'AI-прогноз экзаменов', included: true },
+        { text: 'Таймер Помодоро', included: true },
+        { text: 'Расширенная аналитика', included: true },
         { text: 'Экспорт в PDF', included: true }
       ],
       current: currentPlan === 'premium',
@@ -148,8 +148,8 @@ const Pricing = () => {
         { text: 'Безлимитные задачи', included: true },
         { text: 'Безлимитные материалы', included: true },
         { text: 'Безлимит AI-вопросов', included: true },
-        { text: 'Генерация шпаргалок', included: true },
-        { text: 'AI-прогноз экзаменов', included: true },
+        { text: 'Таймер Помодоро', included: true },
+        { text: 'Расширенная аналитика', included: true },
         { text: 'Экспорт в PDF + Приоритет', included: true }
       ],
       current: currentPlan === 'premium',

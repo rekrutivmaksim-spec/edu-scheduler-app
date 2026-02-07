@@ -52,11 +52,11 @@ const UpgradeModal = ({ open, onClose, feature, description }: UpgradeModalProps
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Check" size={16} className="text-green-600" />
-                Генерация шпаргалок
+                Таймер Помодоро с аналитикой
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Check" size={16} className="text-green-600" />
-                AI-прогноз экзаменов
+                Расширенная статистика учёбы
               </li>
             </ul>
             <div className="mt-4 pt-4 border-t border-indigo-200">

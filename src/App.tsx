@@ -12,7 +12,7 @@ import VKCallback from "./pages/VKCallback";
 import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
 import Materials from "./pages/Materials";
-import ExamPrep from "./pages/ExamPrep";
+import Pomodoro from "./pages/Pomodoro";
 import Pricing from "./pages/Pricing";
 import Assistant from "./pages/Assistant";
 import Calendar from "./pages/Calendar";
@@ -42,7 +42,7 @@ const App = () => (
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/materials" element={<Materials />} />
-          <Route path="/exam-prep" element={<ExamPrep />} />
+          <Route path="/pomodoro" element={<Pomodoro />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/assistant" element={<Assistant />} />
           <Route path="/calendar" element={<Calendar />} />
