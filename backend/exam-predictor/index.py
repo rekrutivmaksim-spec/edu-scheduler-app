@@ -8,6 +8,13 @@ import jwt
 from openai import OpenAI
 from datetime import datetime
 
+# Глобальный клиент Artemox (создаётся один раз)
+ARTEMOX_API_KEY = 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ'
+client = OpenAI(
+    api_key=ARTEMOX_API_KEY,
+    base_url="https://api.artemox.com/v1"
+)
+
 
 def get_db_connection():
     """Создаёт подключение к PostgreSQL базе данных"""
@@ -60,14 +67,7 @@ def check_premium_access(conn, user_id: int) -> dict:
 
 def analyze_materials_with_deepseek(materials: list, past_exams: str = None) -> dict:
     """Анализирует материалы студента и генерирует прогноз вопросов через Artemox"""
-    artemox_key = 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ'
-    
     print(f"[EXAM-PREDICTOR] Анализ {len(materials)} материалов")
-    
-    client = OpenAI(
-        api_key=artemox_key,
-        base_url="https://api.artemox.com/v1"
-    )
     
     # Собираем весь текст из материалов
     all_text = "\n\n".join([
