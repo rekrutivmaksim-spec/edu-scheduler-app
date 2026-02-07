@@ -13,6 +13,7 @@ import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
 import Materials from "./pages/Materials";
 import ExamPrep from "./pages/ExamPrep";
+import Flashcards from "./pages/Flashcards";
 import Pricing from "./pages/Pricing";
 import Assistant from "./pages/Assistant";
 import Calendar from "./pages/Calendar";
@@ -43,6 +44,7 @@ const App = () => (
           <Route path="/profile" element={<Profile />} />
           <Route path="/materials" element={<Materials />} />
           <Route path="/exam-prep" element={<ExamPrep />} />
+          <Route path="/flashcards" element={<Flashcards />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/assistant" element={<Assistant />} />
           <Route path="/calendar" element={<Calendar />} />
