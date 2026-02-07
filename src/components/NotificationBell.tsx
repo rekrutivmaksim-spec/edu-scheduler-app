@@ -106,17 +106,17 @@ export default function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative rounded-xl hover:bg-purple-100/50"
+          className="relative rounded-xl hover:bg-purple-100/50 dark:hover:bg-purple-900/50 h-8 w-8 sm:h-10 sm:w-10"
         >
-          <Icon name="Bell" size={20} className="text-purple-600" />
+          <Icon name="Bell" size={18} className="text-purple-600 dark:text-purple-400 sm:w-5 sm:h-5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+            <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className="w-[90vw] max-w-sm sm:w-80">
         <div className="px-4 py-3 border-b">
           <h3 className="font-semibold text-gray-900">Уведомления</h3>
           {unreadCount > 0 && (

@@ -255,25 +255,25 @@ const Pomodoro = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-rose-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-rose-100 p-3 sm:p-4">
       <audio ref={audioRef} src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGnuTwum0" preload="auto" />
       
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <Button variant="ghost" onClick={() => navigate('/')}>
-            <Icon name="ArrowLeft" size={20} className="mr-2" />
-            Назад
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-9">
+            <Icon name="ArrowLeft" size={18} className="mr-1.5 sm:mr-2 sm:w-5 sm:h-5" />
+            <span className="hidden xs:inline">Назад</span>
           </Button>
-          <h1 className="text-3xl font-bold text-gray-800">🍅 Помодоро</h1>
-          <div className="w-24" />
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">🍅 Помодоро</h1>
+          <div className="w-12 sm:w-24" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="p-8 bg-white/80 backdrop-blur">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            <Card className="p-4 sm:p-6 lg:p-8 bg-white/80 backdrop-blur">
               <div className="text-center">
                 <Badge 
-                  className={`mb-6 text-lg px-6 py-2 ${
+                  className={`mb-4 sm:mb-6 text-sm sm:text-base lg:text-lg px-4 sm:px-6 py-1.5 sm:py-2 ${
                     mode === 'work' 
                       ? 'bg-red-500 hover:bg-red-600' 
                       : 'bg-green-500 hover:bg-green-600'
@@ -282,17 +282,17 @@ const Pomodoro = () => {
                   {mode === 'work' ? '💼 Работа' : '☕ Перерыв'}
                 </Badge>
 
-                <div className="relative mb-8">
-                  <div className="text-8xl font-bold text-gray-800 mb-4">
+                <div className="relative mb-6 sm:mb-8">
+                  <div className="text-5xl sm:text-6xl lg:text-8xl font-bold text-gray-800 mb-3 sm:mb-4">
                     {formatTime(timeLeft)}
                   </div>
-                  <Progress value={getProgress()} className="h-3" />
+                  <Progress value={getProgress()} className="h-2 sm:h-3" />
                 </div>
 
                 {mode === 'work' && (
-                  <div className="mb-6">
+                  <div className="mb-4 sm:mb-6">
                     <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                      <SelectTrigger className="w-full max-w-md mx-auto">
+                      <SelectTrigger className="w-full max-w-md mx-auto text-sm sm:text-base h-10 sm:h-11">
                         <SelectValue placeholder="Выбери предмет" />
                       </SelectTrigger>
                       <SelectContent>
@@ -307,17 +307,17 @@ const Pomodoro = () => {
                   </div>
                 )}
 
-                <div className="flex gap-4 justify-center">
+                <div className="flex flex-col xs:flex-row gap-2 sm:gap-3 lg:gap-4 justify-center">
                   <Button 
                     size="lg"
                     onClick={handleStartPause}
-                    className={`w-40 ${
+                    className={`w-full xs:w-32 sm:w-40 text-sm sm:text-base h-10 sm:h-11 ${
                       mode === 'work'
                         ? 'bg-red-500 hover:bg-red-600'
                         : 'bg-green-500 hover:bg-green-600'
                     }`}
                   >
-                    <Icon name={isRunning ? "Pause" : "Play"} size={20} className="mr-2" />
+                    <Icon name={isRunning ? "Pause" : "Play"} size={18} className="mr-1.5 sm:mr-2 sm:w-5 sm:h-5" />
                     {isRunning ? 'Пауза' : 'Старт'}
                   </Button>
                   
@@ -325,9 +325,9 @@ const Pomodoro = () => {
                     size="lg"
                     variant="outline"
                     onClick={handleReset}
-                    className="w-32"
+                    className="w-full xs:w-28 sm:w-32 text-sm sm:text-base h-10 sm:h-11"
                   >
-                    <Icon name="RotateCcw" size={20} className="mr-2" />
+                    <Icon name="RotateCcw" size={18} className="mr-1.5 sm:mr-2 sm:w-5 sm:h-5" />
                     Сброс
                   </Button>
 
@@ -335,10 +335,11 @@ const Pomodoro = () => {
                     size="lg"
                     variant="outline"
                     onClick={handleSkip}
-                    className="w-32"
+                    className="w-full xs:w-28 sm:w-32 text-sm sm:text-base h-10 sm:h-11"
                   >
-                    <Icon name="SkipForward" size={20} className="mr-2" />
-                    Пропустить
+                    <Icon name="SkipForward" size={18} className="mr-1.5 sm:mr-2 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">Пропустить</span>
+                    <span className="sm:hidden">Далее</span>
                   </Button>
                 </div>
               </div>

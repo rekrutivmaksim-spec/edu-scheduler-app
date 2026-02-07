@@ -288,13 +288,14 @@ const ScheduleExport = ({ schedule }: ScheduleExportProps) => {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="border-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+          size="sm"
+          className="border-2 border-purple-300 text-purple-700 hover:bg-purple-50 text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4"
         >
-          <Icon name="Download" size={18} className="mr-2" />
-          Экспорт
+          <Icon name="Download" size={16} className="sm:mr-2 sm:w-[18px] sm:h-[18px]" />
+          <span className="hidden xs:inline ml-1.5">Экспорт</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[90vw] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Экспорт расписания</DialogTitle>
           <DialogDescription>

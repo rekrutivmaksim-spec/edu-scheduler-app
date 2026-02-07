@@ -233,22 +233,22 @@ const Materials = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
+                className="rounded-xl hover:bg-purple-100/50 h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex-shrink-0"
               >
-                <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
+                <Icon name="ArrowLeft" size={18} className="text-purple-600 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
               </Button>
-              <div className="overflow-hidden">
-                <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent truncate">
+              <div className="overflow-hidden min-w-0">
+                <h1 className="text-base sm:text-lg lg:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent truncate">
                   Мои материалы
                 </h1>
-                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium truncate">Загружайте документы для ИИ-анализа</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium truncate hidden xs:block">Загружайте документы для ИИ-анализа</p>
               </div>
             </div>
             <Button
@@ -281,14 +281,14 @@ const Materials = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Инфо о поддерживаемых форматах */}
-        <Card className="p-4 mb-6 bg-blue-50 border-2 border-blue-200">
-          <div className="flex items-start gap-3">
-            <Icon name="Info" size={20} className="text-blue-600 mt-0.5" />
-            <div>
-              <p className="text-sm text-blue-900 font-medium mb-1">Поддерживаемые форматы</p>
-              <p className="text-xs text-blue-700">
+        <Card className="p-3 sm:p-4 mb-4 sm:mb-6 bg-blue-50 border-2 border-blue-200">
+          <div className="flex items-start gap-2 sm:gap-3">
+            <Icon name="Info" size={18} className="text-blue-600 mt-0.5 flex-shrink-0 sm:w-5 sm:h-5" />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-blue-900 font-medium mb-1">Поддерживаемые форматы</p>
+              <p className="text-[11px] sm:text-xs text-blue-700">
                 Word (.docx), PDF, Текст (.txt) — до 50 МБ. ИИ автоматически извлечёт текст с таблицами и создаст краткое резюме.
               </p>
             </div>
@@ -296,15 +296,15 @@ const Materials = () => {
         </Card>
 
         {/* Фильтры и поиск */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="flex-1 relative">
             <Input
               placeholder="Глобальный поиск по всем материалам..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="rounded-xl border-2 border-purple-200 pr-10"
+              className="rounded-lg sm:rounded-xl border-2 border-purple-200 pr-10 text-sm h-10"
             />
-            <Icon name="Search" size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400" />
+            <Icon name="Search" size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 sm:w-5 sm:h-5" />
             {searchQuery && (
               <p className="text-xs text-purple-600 mt-1">
                 Поиск в названиях и содержимом всех документов
@@ -312,7 +312,7 @@ const Materials = () => {
             )}
           </div>
           <Select value={filterSubject} onValueChange={setFilterSubject}>
-            <SelectTrigger className="w-full sm:w-48 rounded-xl border-2 border-purple-200">
+            <SelectTrigger className="w-full sm:w-48 rounded-lg sm:rounded-xl border-2 border-purple-200 text-sm h-10">
               <SelectValue placeholder="Предмет" />
             </SelectTrigger>
             <SelectContent>
@@ -323,7 +323,7 @@ const Materials = () => {
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-48 rounded-xl border-2 border-purple-200">
+            <SelectTrigger className="w-full sm:w-48 rounded-lg sm:rounded-xl border-2 border-purple-200 text-sm h-10">
               <SelectValue placeholder="Сортировка" />
             </SelectTrigger>
             <SelectContent>
