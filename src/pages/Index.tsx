@@ -16,6 +16,10 @@ import NotificationPrompt from '@/components/NotificationPrompt';
 import ExamReminder from '@/components/ExamReminder';
 import LimitsIndicator from '@/components/LimitsIndicator';
 import NotificationBell from '@/components/NotificationBell';
+import ScheduleExport from '@/components/ScheduleExport';
+import GoogleCalendarSync from '@/components/GoogleCalendarSync';
+import ThemeToggle from '@/components/ThemeToggle';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 
@@ -54,6 +58,8 @@ const Index = () => {
   const [selectedDay, setSelectedDay] = useState(1);
   const [taskFilter, setTaskFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [taskSearch, setTaskSearch] = useState('');
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
 
   const [lessonForm, setLessonForm] = useState({
     subject: '',
@@ -95,6 +101,7 @@ const Index = () => {
   }, [navigate]);
 
   const loadSchedule = async () => {
+    setIsLoadingSchedule(true);
     try {
       const token = authService.getToken();
       const response = await fetch(`${SCHEDULE_URL}?path=schedule`, {
@@ -103,13 +110,27 @@ const Index = () => {
       if (response.ok) {
         const data = await response.json();
         setSchedule(data.schedule);
+      } else {
+        toast({
+          title: "Ошибка загрузки",
+          description: "Не удалось загрузить расписание",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Failed to load schedule:', error);
+      toast({
+        title: "Ошибка сети",
+        description: "Проверьте подключение к интернету",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSchedule(false);
     }
   };
 
   const loadTasks = async () => {
+    setIsLoadingTasks(true);
     try {
       const token = authService.getToken();
       const response = await fetch(`${SCHEDULE_URL}?path=tasks`, {
@@ -118,9 +139,22 @@ const Index = () => {
       if (response.ok) {
         const data = await response.json();
         setTasks(data.tasks);
+      } else {
+        toast({
+          title: "Ошибка загрузки",
+          description: "Не удалось загрузить задачи",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Failed to load tasks:', error);
+      toast({
+        title: "Ошибка сети",
+        description: "Проверьте подключение к интернету",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingTasks(false);
     }
   };
 
@@ -332,10 +366,11 @@ const Index = () => {
                 variant="ghost" 
                 size="icon"
                 onClick={() => navigate('/calendar')}
-                className="hover:bg-purple-100/50 rounded-xl h-8 w-8 sm:h-10 sm:w-10"
+                className="hover:bg-purple-100/50 dark:hover:bg-purple-900/50 rounded-xl h-8 w-8 sm:h-10 sm:w-10"
               >
-                <Icon name="CalendarDays" size={18} className="text-purple-600 sm:w-5 sm:h-5" />
+                <Icon name="CalendarDays" size={18} className="text-purple-600 dark:text-purple-400 sm:w-5 sm:h-5" />
               </Button>
+              <ThemeToggle />
               <NotificationBell />
               <Button 
                 variant="ghost" 
@@ -500,13 +535,17 @@ const Index = () => {
                 <h2 className="text-xl sm:text-3xl font-heading font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Расписание</h2>
                 <p className="text-purple-600/70 text-xs sm:text-sm mt-0.5 sm:mt-1">Управление занятиями</p>
               </div>
-              <Button 
-                onClick={() => setIsAddingLesson(true)}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-purple-500/30 rounded-xl text-xs sm:text-sm h-9 sm:h-10 w-full sm:w-auto"
-              >
-                <Icon name="Plus" size={16} className="mr-1.5 sm:mr-2 sm:w-[18px] sm:h-[18px]" />
-                Добавить занятие
-              </Button>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <GoogleCalendarSync schedule={schedule} />
+                <ScheduleExport schedule={schedule} />
+                <Button 
+                  onClick={() => setIsAddingLesson(true)}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-purple-500/30 rounded-xl text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial"
+                >
+                  <Icon name="Plus" size={16} className="mr-1.5 sm:mr-2 sm:w-[18px] sm:h-[18px]" />
+                  Добавить занятие
+                </Button>
+              </div>
             </div>
 
             <div className="flex gap-1 sm:gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
@@ -601,7 +640,11 @@ const Index = () => {
             )}
 
             <div className="space-y-3 sm:space-y-4">
-              {todayLessons.length === 0 ? (
+              {isLoadingSchedule ? (
+                <Card className="p-8 sm:p-12 text-center bg-white">
+                  <LoadingSpinner size={40} text="Загрузка расписания..." />
+                </Card>
+              ) : todayLessons.length === 0 ? (
                 <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
                   <Icon name="CalendarOff" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
                   <p className="text-sm sm:text-base text-gray-600">Нет занятий на этот день</p>
@@ -765,7 +808,11 @@ const Index = () => {
             )}
 
             <div className="space-y-3 sm:space-y-4">
-              {tasks.length === 0 ? (
+              {isLoadingTasks ? (
+                <Card className="p-8 sm:p-12 text-center bg-white">
+                  <LoadingSpinner size={40} text="Загрузка задач..." />
+                </Card>
+              ) : tasks.length === 0 ? (
                 <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
                   <Icon name="ListTodo" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
                   <p className="text-sm sm:text-base text-gray-600">Нет задач</p>

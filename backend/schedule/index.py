@@ -238,6 +238,36 @@ def handler(event: dict, context) -> dict:
                 ))
                 
                 task = cur.fetchone()
+                
+                # Планируем уведомления, если есть deadline
+                if task['deadline']:
+                    from datetime import datetime, timedelta
+                    deadline_dt = task['deadline']
+                    
+                    # За 1 час
+                    one_hour_before = deadline_dt - timedelta(hours=1)
+                    if one_hour_before > datetime.now():
+                        cur.execute("""
+                            INSERT INTO task_notifications (user_id, task_id, notification_type, notification_time)
+                            VALUES (%s, %s, '1hour', %s)
+                        """, (user_id, task['id'], one_hour_before))
+                    
+                    # За 1 день
+                    one_day_before = deadline_dt - timedelta(days=1)
+                    if one_day_before > datetime.now():
+                        cur.execute("""
+                            INSERT INTO task_notifications (user_id, task_id, notification_type, notification_time)
+                            VALUES (%s, %s, '1day', %s)
+                        """, (user_id, task['id'], one_day_before))
+                    
+                    # За 3 дня
+                    three_days_before = deadline_dt - timedelta(days=3)
+                    if three_days_before > datetime.now():
+                        cur.execute("""
+                            INSERT INTO task_notifications (user_id, task_id, notification_type, notification_time)
+                            VALUES (%s, %s, '3days', %s)
+                        """, (user_id, task['id'], three_days_before))
+                
                 conn.commit()
                 
                 return {

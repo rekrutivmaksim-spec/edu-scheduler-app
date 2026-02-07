@@ -246,48 +246,73 @@ def handle_send_lesson_reminders(conn) -> dict:
 
 def handle_send_deadline_reminders(conn) -> dict:
     """Отправка напоминаний о дедлайнах (запускается по расписанию)"""
-    cursor = conn.cursor()
+    from psycopg2.extras import RealDictCursor
     
-    tomorrow = datetime.now() + timedelta(days=1)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     
+    # Проверяем task_notifications которые нужно отправить
     cursor.execute('''
-        SELECT DISTINCT u.id, u.full_name, ps.endpoint, ps.p256dh, ps.auth
-        FROM users u
-        JOIN push_subscriptions ps ON u.id = ps.user_id
-        JOIN notification_settings ns ON u.id = ns.user_id
-        JOIN tasks t ON u.id = t.user_id
-        WHERE ps.endpoint IS NOT NULL
-        AND ns.deadline_reminder = TRUE
+        SELECT 
+            tn.id as notification_id,
+            tn.user_id,
+            tn.notification_type,
+            t.title as task_title,
+            t.deadline,
+            u.full_name,
+            ps.endpoint,
+            ps.p256dh,
+            ps.auth
+        FROM task_notifications tn
+        JOIN tasks t ON tn.task_id = t.id
+        JOIN users u ON tn.user_id = u.id
+        LEFT JOIN push_subscriptions ps ON u.id = ps.user_id
+        WHERE tn.is_sent = FALSE
+        AND tn.notification_time <= NOW()
         AND t.completed = FALSE
-        AND t.deadline >= CURRENT_TIMESTAMP
-        AND t.deadline <= %s
-    ''', (tomorrow,))
+        ORDER BY tn.notification_time ASC
+        LIMIT 100
+    ''')
     
-    users = cursor.fetchall()
+    notifications_to_send = cursor.fetchall()
+    sent_count = 0
     
-    for user_id, full_name, endpoint, p256dh, auth in users:
-        cursor.execute('''
-            SELECT title, deadline FROM tasks
-            WHERE user_id = %s AND completed = FALSE
-            AND deadline >= CURRENT_TIMESTAMP AND deadline <= %s
-            ORDER BY deadline LIMIT 3
-        ''', (user_id, tomorrow))
-        
-        tasks = cursor.fetchall()
-        if tasks:
-            task_count = len(tasks)
-            first_task = tasks[0]
-            notification_data = {
-                'title': f'⏰ Дедлайн через 24 часа!',
-                'body': f'{first_task[0]}' + (f' и ещё {task_count - 1}' if task_count > 1 else ''),
-                'tag': f'deadline-{user_id}',
-                'url': '/'
-            }
+    for notif in notifications_to_send:
+        if notif['deadline']:
+            hours_left = int((notif['deadline'] - datetime.now()).total_seconds() / 3600)
             
-            try:
-                send_push_notification(endpoint, p256dh, auth, notification_data)
-            except Exception as e:
-                print(f'Failed to send deadline reminder: {e}')
+            if notif['notification_type'] == '1hour':
+                message = f'⏰ Меньше часа до дедлайна!'
+            elif notif['notification_type'] == '1day':
+                message = f'📅 Завтра дедлайн!'
+            elif notif['notification_type'] == '3days':
+                message = f'📌 Через 3 дня дедлайн'
+            else:
+                message = f'⏰ Осталось {hours_left}ч'
+            
+            # Отправляем push если есть подписка
+            if notif.get('endpoint') and notif.get('p256dh') and notif.get('auth'):
+                notification_data = {
+                    'title': notif['task_title'],
+                    'body': message,
+                    'tag': f'deadline-{notif["user_id"]}-{notif["notification_id"]}',
+                    'url': '/?tab=tasks'
+                }
+                
+                try:
+                    send_push_notification(notif['endpoint'], notif['p256dh'], notif['auth'], notification_data)
+                except Exception as e:
+                    print(f'Failed to send deadline reminder: {e}')
+            
+            # Помечаем как отправленное
+            cursor.execute('''
+                UPDATE task_notifications
+                SET is_sent = TRUE, sent_at = NOW()
+                WHERE id = %s
+            ''', (notif['notification_id'],))
+            
+            sent_count += 1
+    
+    conn.commit()
     
     cursor.close()
     

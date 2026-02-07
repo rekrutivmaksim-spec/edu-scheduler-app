@@ -227,6 +227,33 @@ const Pomodoro = () => {
 
   const maxMinutes = Math.max(...weeklyData.map(d => d.minutes), 1);
 
+  // Статистика по времени дня
+  const hourlyStats = sessions.reduce((acc, session) => {
+    const hour = new Date(session.completed_at).getHours();
+    acc[hour] = (acc[hour] || 0) + 1;
+    return acc;
+  }, {} as { [key: number]: number });
+
+  const timeBlocks = [
+    { name: 'Утро', icon: 'Sunrise', hours: [6, 7, 8, 9, 10, 11], color: 'from-yellow-400 to-orange-500' },
+    { name: 'День', icon: 'Sun', hours: [12, 13, 14, 15, 16, 17], color: 'from-orange-400 to-red-500' },
+    { name: 'Вечер', icon: 'Sunset', hours: [18, 19, 20, 21, 22], color: 'from-purple-400 to-pink-500' },
+    { name: 'Ночь', icon: 'Moon', hours: [23, 0, 1, 2, 3, 4, 5], color: 'from-indigo-500 to-purple-700' }
+  ];
+
+  const productivityByTime = timeBlocks.map(block => {
+    const sessions = block.hours.reduce((sum, hour) => sum + (hourlyStats[hour] || 0), 0);
+    return {
+      ...block,
+      sessions,
+      percentage: sessions > 0 ? Math.round((sessions / Object.values(hourlyStats).reduce((a, b) => a + b, 0)) * 100) : 0
+    };
+  });
+
+  const mostProductiveTime = productivityByTime.reduce((max, curr) => 
+    curr.sessions > max.sessions ? curr : max, productivityByTime[0]
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-rose-100 p-4">
       <audio ref={audioRef} src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGnuTwum0" preload="auto" />
@@ -391,6 +418,50 @@ const Pomodoro = () => {
                     {(totalMinutes / 60).toFixed(1)}
                   </span>
                 </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 bg-white/80 backdrop-blur">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Icon name="Clock" size={20} />
+                Когда ты продуктивнее?
+              </h3>
+              <div className="space-y-4">
+                {sessions.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    Начни сессии, чтобы увидеть статистику
+                  </p>
+                ) : (
+                  <>
+                    {productivityByTime.map((block) => (
+                      <div key={block.name} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Icon name={block.icon} size={16} className="text-gray-600" />
+                            <span className="text-sm font-semibold">{block.name}</span>
+                          </div>
+                          <span className="text-xs text-gray-600">{block.sessions} сессий</span>
+                        </div>
+                        <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className={`absolute h-full bg-gradient-to-r ${block.color} rounded-full transition-all`}
+                            style={{ width: `${block.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    {mostProductiveTime.sessions > 0 && (
+                      <div className="mt-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Icon name="TrendingUp" size={16} className="text-green-600" />
+                          <span className="text-xs font-semibold text-green-800">
+                            Твой пик: {mostProductiveTime.name}!
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </Card>
 
