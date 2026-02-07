@@ -142,7 +142,7 @@ def analyze_materials_with_deepseek(materials: list, past_exams: str = None) -> 
     try:
         print(f"[EXAM-PREDICTOR] Отправка запроса в Artemox API...")
         response = client.chat.completions.create(
-            model="deepseek-chat",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=3500,
             temperature=0.8,

@@ -389,7 +389,7 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
     try:
         print(f"[AI-ASSISTANT] Запрос к Artemox через OpenAI client")
         response = client.chat.completions.create(
-            model="deepseek-chat",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": question}
