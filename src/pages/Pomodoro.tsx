@@ -422,31 +422,95 @@ const Pomodoro = () => {
           </div>
         </div>
 
-        <Card className="mt-6 p-6 bg-white/80 backdrop-blur">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Icon name="Info" size={20} />
-            Что такое Помодоро?
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-700">
-            <div className="p-4 bg-red-50 rounded-lg">
-              <div className="text-2xl mb-2">1️⃣</div>
-              <div className="font-semibold mb-1">Выбери задачу</div>
-              <div className="text-xs text-gray-600">Определи, над чем будешь работать</div>
+        <Card className="mt-6 p-6 sm:p-8 bg-gradient-to-br from-red-50 via-pink-50 to-rose-50 border-2 border-red-200">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl mb-4 shadow-lg">
+              <span className="text-3xl">🍅</span>
             </div>
-            <div className="p-4 bg-pink-50 rounded-lg">
-              <div className="text-2xl mb-2">2️⃣</div>
-              <div className="font-semibold mb-1">Работай 25 минут</div>
-              <div className="text-xs text-gray-600">Полная концентрация на задаче</div>
+            <h3 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent mb-2">
+              Зачем нужен Помодоро?
+            </h3>
+            <p className="text-gray-700 text-sm sm:text-base max-w-2xl mx-auto">
+              Техника Помодоро помогает учиться эффективнее, не выгорать и запоминать больше материала
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+            <div className="p-5 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center mb-3">
+                <Icon name="Brain" size={24} className="text-white" />
+              </div>
+              <h4 className="font-bold text-lg mb-2 text-gray-800">Лучше запоминаешь</h4>
+              <p className="text-sm text-gray-600">
+                Мозг работает продуктивнее короткими спринтами. 25 минут — идеальное время для концентрации без усталости
+              </p>
             </div>
-            <div className="p-4 bg-rose-50 rounded-lg">
-              <div className="text-2xl mb-2">3️⃣</div>
-              <div className="font-semibold mb-1">Отдохни 5 минут</div>
-              <div className="text-xs text-gray-600">Короткий перерыв для восстановления</div>
+
+            <div className="p-5 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center mb-3">
+                <Icon name="Zap" size={24} className="text-white" />
+              </div>
+              <h4 className="font-bold text-lg mb-2 text-gray-800">Не выгораешь</h4>
+              <p className="text-sm text-gray-600">
+                Регулярные перерывы не дают мозгу перегрузиться. Ты сохраняешь энергию на весь день, а не устаёшь после часа учёбы
+              </p>
             </div>
-            <div className="p-4 bg-red-50 rounded-lg">
-              <div className="text-2xl mb-2">4️⃣</div>
-              <div className="font-semibold mb-1">Повтори 4 раза</div>
-              <div className="text-xs text-gray-600">После 4 циклов — большой перерыв</div>
+
+            <div className="p-5 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg flex items-center justify-center mb-3">
+                <Icon name="Target" size={24} className="text-white" />
+              </div>
+              <h4 className="font-bold text-lg mb-2 text-gray-800">Больше успеваешь</h4>
+              <p className="text-sm text-gray-600">
+                Видишь конкретный прогресс в цифрах. Каждая сессия — это +25 минут продуктивной учёбы. Мотивация растёт!
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6">
+            <h4 className="font-bold text-lg mb-4 text-center text-gray-800">Как это работает</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">1</div>
+                <div>
+                  <div className="font-semibold text-sm mb-1">Выбери предмет</div>
+                  <div className="text-xs text-gray-600">Определи, что будешь изучать</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">2</div>
+                <div>
+                  <div className="font-semibold text-sm mb-1">Работай 25 минут</div>
+                  <div className="text-xs text-gray-600">Полная концентрация, никаких отвлечений</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-rose-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">3</div>
+                <div>
+                  <div className="font-semibold text-sm mb-1">Перерыв 5 минут</div>
+                  <div className="text-xs text-gray-600">Отдохни, попей воды, подвигайся</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">4</div>
+                <div>
+                  <div className="font-semibold text-sm mb-1">Повтори 4 раза</div>
+                  <div className="text-xs text-gray-600">Затем большой перерыв 15-30 минут</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl">
+            <div className="flex items-start gap-3">
+              <div className="text-2xl">💡</div>
+              <div>
+                <h5 className="font-bold text-gray-800 mb-1">Совет</h5>
+                <p className="text-sm text-gray-700">
+                  В перерывах НЕ листай телефон и соцсети — это не отдых для мозга! 
+                  Лучше посмотри в окно, потянись, сделай пару приседаний. Так мозг реально отдохнёт и восстановится.
+                </p>
+              </div>
             </div>
           </div>
         </Card>
