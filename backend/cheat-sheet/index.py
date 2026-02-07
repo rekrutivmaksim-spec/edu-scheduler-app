@@ -10,7 +10,7 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ'
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 
 
 def verify_token(token: str) -> dict:
@@ -82,11 +82,11 @@ def get_material_content(conn, material_id: int, user_id: int) -> dict:
 
 
 def generate_cheat_sheet(material_data: dict) -> str:
-    """Генерирует шпаргалку через Artemox"""
-    if not ARTEMOX_API_KEY:
-        return "Ошибка: не настроен ключ Artemox"
+    """Генерирует шпаргалку через DeepSeek"""
+    if not DEEPSEEK_API_KEY:
+        return "Ошибка: не настроен ключ DeepSeek"
     
-    client = OpenAI(api_key=ARTEMOX_API_KEY, base_url="https://api.artemox.com/v1", timeout=30.0)
+    client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com", timeout=30.0)
     
     text = material_data.get('recognized_text', '')[:6000]  # Берем первые 6000 символов
     title = material_data.get('title', 'Материал')
@@ -118,19 +118,19 @@ def generate_cheat_sheet(material_data: dict) -> str:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=1200,
-            temperature=0.5
+            max_tokens=1500,
+            temperature=0.3
         )
         return response.choices[0].message.content
     except Exception as e:
-        print(f"[CHEAT-SHEET] Ошибка Artemox: {e}")
+        print(f"[CHEAT-SHEET] Ошибка DeepSeek: {e}")
         error_str = str(e)
         
         # Человекопонятное сообщение об ошибке
         if 'Insufficient Balance' in error_str or '402' in error_str:
-            return "⚠️ Шпаргалка временно недоступна: закончился баланс Artemox API. Попробуйте позже или обратитесь к администратору."
+            return "⚠️ Шпаргалка временно недоступна: закончился баланс DeepSeek API. Попробуйте позже или обратитесь к администратору."
         elif 'timeout' in error_str.lower():
             return "⏱️ Превышено время ожидания. Попробуйте с более коротким материалом."
         else:

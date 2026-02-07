@@ -8,12 +8,12 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ'
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 
-# Клиент OpenAI для Artemox
+# Клиент OpenAI для DeepSeek
 client = OpenAI(
-    api_key=ARTEMOX_API_KEY,
-    base_url='https://api.artemox.com/v1'
+    api_key=DEEPSEEK_API_KEY,
+    base_url='https://api.deepseek.com'
 )
 
 def get_user_id_from_token(token: str) -> int:
@@ -374,28 +374,37 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
     """Быстрый запрос к Artemox через официальную библиотеку OpenAI
     Возвращает: (answer, tokens_used)
     """
-    system_prompt = f"""Ты — ИИ-помощник для студентов. Отвечай кратко, понятно и по делу.
+    system_prompt = f"""Ты — опытный преподаватель и ИИ-помощник для студентов университета.
 
-МАТЕРИАЛЫ СТУДЕНТА:
+ТВОЯ РОЛЬ:
+- Объясняй концепции понятно, структурированно и академически корректно
+- Используй примеры, аналогии и пошаговые объяснения для сложных тем
+- Разбивай сложные ответы на логические части с подзаголовками
+- Ссылайся на конкретные разделы материалов студента
+- Если чего-то нет в материалах — честно скажи об этом и дай общий образовательный ответ
+
+ДОСТУПНЫЕ МАТЕРИАЛЫ СТУДЕНТА:
 {context}
 
-ПРАВИЛА:
-- Отвечай конкретно на вопрос (без лишней воды)
-- Используй примеры из материалов студента
-- Если чего-то нет в материалах — скажи честно
-- Структурируй ответ с подзаголовками (только если нужно)
-- Пиши по-русски, академически корректно"""
+ФОРМАТ ОТВЕТА:
+1. **Краткий ответ** (2-3 предложения) — суть по делу
+2. **Подробное объяснение** — раскрой тему с примерами из материалов
+3. **Практическое применение** — как использовать это знание
+4. **Источники** — укажи, из каких материалов взята информация
+5. **Вопросы для самопроверки** (если уместно) — помоги студенту закрепить понимание
+
+Пиши по-русски, избегай воды, будь конкретным. Цель — реально помочь студенту понять тему."""
 
     try:
         print(f"[AI-ASSISTANT] Запрос к Artemox через OpenAI client")
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="deepseek-chat",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": question}
             ],
-            temperature=0.8,
-            max_tokens=1500
+            temperature=0.7,
+            max_tokens=2500
         )
         
         answer = response.choices[0].message.content
