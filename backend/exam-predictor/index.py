@@ -144,8 +144,8 @@ def analyze_materials_with_deepseek(materials: list, past_exams: str = None) -> 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=4000,
-            temperature=0.7,
+            max_tokens=3500,
+            temperature=0.8,
             response_format={"type": "json_object"},
             timeout=90.0
         )

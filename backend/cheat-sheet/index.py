@@ -120,8 +120,8 @@ def generate_cheat_sheet(material_data: dict) -> str:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=1500,
-            temperature=0.3
+            max_tokens=1200,
+            temperature=0.5
         )
         return response.choices[0].message.content
     except Exception as e:
