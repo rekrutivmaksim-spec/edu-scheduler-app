@@ -74,15 +74,15 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
     }
 
     return (
-      <div className="flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+      <div className="flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
         {items.map((item, idx) => {
           const percentage = getPercentage(item.used, item.max);
           const isNearLimit = percentage >= 70;
           
           return (
             <div key={idx} className="flex items-center gap-2">
-              <Icon name={item.icon as any} size={16} className={isNearLimit ? getColor(percentage) : 'text-gray-600'} />
-              <span className={`text-sm font-medium ${isNearLimit ? getColor(percentage) : 'text-gray-700'}`}>
+              <Icon name={item.icon as 'Calendar' | 'CheckSquare' | 'FileText' | 'Bot'} size={16} className={isNearLimit ? getColor(percentage) : 'text-gray-600 dark:text-gray-300'} />
+              <span className={`text-sm font-medium ${isNearLimit ? getColor(percentage) : 'text-gray-700 dark:text-gray-200'}`}>
                 {item.used}/{item.max}
               </span>
             </div>
@@ -92,7 +92,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
           size="sm"
           variant="ghost"
           onClick={() => navigate('/pricing')}
-          className="ml-auto text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-100"
+          className="ml-auto text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50"
         >
           <Icon name="Zap" size={14} className="mr-1" />
           Premium
@@ -102,13 +102,13 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
   }
 
   return (
-    <Card className="p-4 bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 border-2 border-purple-200">
+    <Card className="p-4 bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-pink-950/30 border-2 border-purple-200 dark:border-purple-800">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-          <Icon name="BarChart3" size={18} className="text-purple-600" />
+        <h3 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+          <Icon name="BarChart3" size={18} className="text-purple-600 dark:text-purple-400" />
           Ваши лимиты
         </h3>
-        <Badge variant="outline" className="bg-white">
+        <Badge variant="outline" className="bg-white dark:bg-gray-800">
           Free Plan
         </Badge>
       </div>
@@ -117,7 +117,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
         {/* Расписание */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm text-gray-700 flex items-center gap-1">
+            <span className="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-1">
               <Icon name="Calendar" size={14} />
               Занятия
             </span>
@@ -131,7 +131,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
         {/* Задачи */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm text-gray-700 flex items-center gap-1">
+            <span className="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-1">
               <Icon name="CheckSquare" size={14} />
               Активные задачи
             </span>
@@ -145,7 +145,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
         {/* Материалы */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm text-gray-700 flex items-center gap-1">
+            <span className="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-1">
               <Icon name="FileText" size={14} />
               Материалы (в месяц)
             </span>
@@ -160,7 +160,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
         {limits.ai_questions && limits.ai_questions.max && (
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-gray-700 flex items-center gap-1">
+              <span className="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-1">
                 <Icon name="Bot" size={14} />
                 AI-вопросы (в месяц)
               </span>

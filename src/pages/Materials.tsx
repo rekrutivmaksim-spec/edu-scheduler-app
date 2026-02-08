@@ -231,8 +231,8 @@ const Materials = () => {
   const subjects = Array.from(new Set(materials.map(m => m.subject).filter(Boolean)));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20">
+      <header className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -240,9 +240,9 @@ const Materials = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50 h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex-shrink-0"
+                className="rounded-xl hover:bg-purple-100/50 dark:hover:bg-purple-900/50 h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex-shrink-0"
               >
-                <Icon name="ArrowLeft" size={18} className="text-purple-600 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+                <Icon name="ArrowLeft" size={18} className="text-purple-600 dark:text-purple-400 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
               </Button>
               <div className="overflow-hidden min-w-0">
                 <h1 className="text-base sm:text-lg lg:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent truncate">
@@ -283,12 +283,12 @@ const Materials = () => {
 
       <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Инфо о поддерживаемых форматах */}
-        <Card className="p-3 sm:p-4 mb-4 sm:mb-6 bg-blue-50 border-2 border-blue-200">
+        <Card className="p-3 sm:p-4 mb-4 sm:mb-6 bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-200 dark:border-blue-800">
           <div className="flex items-start gap-2 sm:gap-3">
-            <Icon name="Info" size={18} className="text-blue-600 mt-0.5 flex-shrink-0 sm:w-5 sm:h-5" />
+            <Icon name="Info" size={18} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0 sm:w-5 sm:h-5" />
             <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-blue-900 font-medium mb-1">Поддерживаемые форматы</p>
-              <p className="text-[11px] sm:text-xs text-blue-700">
+              <p className="text-xs sm:text-sm text-blue-900 dark:text-blue-100 font-medium mb-1">Поддерживаемые форматы</p>
+              <p className="text-[11px] sm:text-xs text-blue-700 dark:text-blue-300">
                 Word (.docx), PDF, Текст (.txt) — до 50 МБ. ИИ автоматически извлечёт текст с таблицами и создаст краткое резюме.
               </p>
             </div>

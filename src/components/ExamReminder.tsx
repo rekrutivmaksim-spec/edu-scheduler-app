@@ -134,11 +134,11 @@ const ExamReminder = ({ isOpen, onClose }: ExamReminderProps) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <Card className="max-w-lg w-full bg-white p-6" onClick={(e) => e.stopPropagation()}>
+      <Card className="max-w-lg w-full bg-white dark:bg-gray-800 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Напоминание об экзамене</h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Напоминание об экзамене</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
               Получите уведомление на телефон в день экзамена
             </p>
           </div>
@@ -189,12 +189,12 @@ const ExamReminder = ({ isOpen, onClose }: ExamReminderProps) => {
             </div>
           </div>
 
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+          <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500 dark:border-blue-600 p-4 rounded">
             <div className="flex items-start gap-2">
-              <Icon name="Info" size={20} className="text-blue-600 mt-0.5" />
-              <div className="text-sm text-blue-900">
+              <Icon name="Info" size={20} className="text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div className="text-sm text-blue-900 dark:text-blue-100">
                 <p className="font-medium mb-1">Как работают напоминания:</p>
-                <ul className="list-disc list-inside space-y-1 text-blue-800">
+                <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
                   <li>В день экзамена вы получите push-уведомление на телефон</li>
                   <li>Уведомление придет утром и за час до экзамена</li>
                   <li>Для работы нужно разрешить уведомления в браузере</li>

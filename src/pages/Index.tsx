@@ -343,8 +343,8 @@ const Index = () => {
   }, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20">
+      <header className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -417,15 +417,15 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6 mb-4 sm:mb-6">
           <Card 
             onClick={() => navigate('/assistant')}
-            className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-indigo-300 cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/30 transition-all duration-300 hover:scale-[1.02]"
+            className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/30 dark:via-indigo-950/30 dark:to-purple-950/30 border-2 border-indigo-300 dark:border-indigo-700 cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/30 transition-all duration-300 hover:scale-[1.02]"
           >
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
                 <Icon name="Bot" size={24} className="text-white sm:w-8 sm:h-8" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">ИИ-Ассистент</h3>
-                <p className="text-xs sm:text-sm text-gray-600">Задай вопрос по своим материалам</p>
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-0.5 sm:mb-1 truncate">ИИ-Ассистент</h3>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">Задай вопрос по своим материалам</p>
               </div>
               <Icon name="ArrowRight" size={20} className="text-indigo-600 flex-shrink-0 sm:w-6 sm:h-6" />
             </div>
@@ -433,15 +433,15 @@ const Index = () => {
           
           <Card 
             onClick={() => navigate('/pomodoro')}
-            className="p-4 sm:p-6 bg-gradient-to-r from-red-50 via-pink-50 to-rose-50 border-2 border-red-300 cursor-pointer hover:shadow-2xl hover:shadow-red-500/30 transition-all duration-300 hover:scale-[1.02]"
+            className="p-4 sm:p-6 bg-gradient-to-r from-red-50 via-pink-50 to-rose-50 dark:from-red-950/30 dark:via-pink-950/30 dark:to-rose-950/30 border-2 border-red-300 dark:border-red-700 cursor-pointer hover:shadow-2xl hover:shadow-red-500/30 transition-all duration-300 hover:scale-[1.02]"
           >
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
                 <span className="text-2xl sm:text-3xl">🍅</span>
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">Таймер Помодоро</h3>
-                <p className="text-xs sm:text-sm text-gray-600">Учись эффективно с таймером и статистикой</p>
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-0.5 sm:mb-1 truncate">Таймер Помодоро</h3>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">Учись эффективно с таймером и статистикой</p>
               </div>
               <Icon name="ArrowRight" size={20} className="text-red-600 flex-shrink-0 sm:w-6 sm:h-6" />
             </div>
@@ -450,26 +450,26 @@ const Index = () => {
 
         <Card
           onClick={() => navigate('/sharing')}
-          className="mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 border-2 border-green-300 cursor-pointer hover:shadow-2xl hover:shadow-green-500/30 transition-all duration-300 hover:scale-[1.02]"
+          className="mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 dark:from-emerald-950/30 dark:via-green-950/30 dark:to-teal-950/30 border-2 border-green-300 dark:border-green-700 cursor-pointer hover:shadow-2xl hover:shadow-green-500/30 transition-all duration-300 hover:scale-[1.02]"
         >
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
               <Icon name="Share2" size={24} className="text-white sm:w-8 sm:h-8" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1">Расшарить расписание с группой</h3>
-              <p className="text-xs sm:text-sm text-gray-600">Создай код доступа и поделись расписанием с одногруппниками</p>
+              <h3 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-0.5 sm:mb-1">Расшарить расписание с группой</h3>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">Создай код доступа и поделись расписанием с одногруппниками</p>
             </div>
             <Icon name="ArrowRight" size={20} className="text-green-600 flex-shrink-0 sm:w-6 sm:h-6" />
           </div>
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
-          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/20">
+          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white dark:bg-gray-800 border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/20">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Занятий сегодня</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-white transition-colors">Занятий сегодня</p>
                 <p className="text-3xl sm:text-4xl font-bold mt-2 sm:mt-3 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent group-hover:text-white transition-all">{todayLessons.length}</p>
               </div>
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-100 to-purple-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg flex-shrink-0">
@@ -478,11 +478,11 @@ const Index = () => {
             </div>
           </Card>
 
-          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20">
+          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white dark:bg-gray-800 border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Активных задач</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-white transition-colors">Активных задач</p>
                 <p className="text-3xl sm:text-4xl font-bold mt-2 sm:mt-3 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent group-hover:text-white transition-all">{activeTasks.length}</p>
               </div>
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-100 to-pink-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg flex-shrink-0">
@@ -491,11 +491,11 @@ const Index = () => {
             </div>
           </Card>
 
-          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-pink-500/20">
+          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white dark:bg-gray-800 border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-pink-500/20">
             <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Выполнено задач</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-white transition-colors">Выполнено задач</p>
                 <p className="text-3xl sm:text-4xl font-bold mt-2 sm:mt-3 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent group-hover:text-white transition-all">{completionRate}%</p>
               </div>
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-pink-100 to-rose-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg flex-shrink-0">
@@ -506,7 +506,7 @@ const Index = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-5 h-12 sm:h-16 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-2">
+          <TabsList className="grid w-full grid-cols-5 h-12 sm:h-16 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border-2 border-purple-200/50 dark:border-purple-800/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-2">
             <TabsTrigger value="schedule" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
               <Icon name="Calendar" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline font-semibold">Расписание</span>
