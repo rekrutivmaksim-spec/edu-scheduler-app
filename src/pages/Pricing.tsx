@@ -159,8 +159,8 @@ const Pricing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20">
-      <header className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -168,9 +168,9 @@ const Pricing = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50 dark:hover:bg-purple-900/50 h-9 w-9 sm:h-10 sm:w-10"
+                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10"
               >
-                <Icon name="ArrowLeft" size={20} className="text-purple-600 dark:text-purple-400 sm:w-6 sm:h-6" />
+                <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
               </Button>
               <div>
                 <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
@@ -186,13 +186,13 @@ const Pricing = () => {
       <main className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-12">
         <div className="text-center mb-6 sm:mb-12">
           {totalUsers > 0 && (
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 px-3 sm:px-6 py-2 sm:py-3 rounded-full border border-purple-200 dark:border-purple-700 mb-4 sm:mb-6">
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 px-3 sm:px-6 py-2 sm:py-3 rounded-full border border-purple-200 mb-4 sm:mb-6">
               <div className="flex -space-x-1 sm:-space-x-2">
                 <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 border-2 border-white"></div>
                 <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white"></div>
                 <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 border-2 border-white"></div>
               </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200">
+              <span className="text-xs sm:text-sm font-semibold text-gray-700">
                 <span className="text-purple-600">{totalUsers}</span> {totalUsers === 1 ? 'студент' : totalUsers < 5 ? 'студента' : 'студентов'} уже учатся эффективнее
               </span>
             </div>

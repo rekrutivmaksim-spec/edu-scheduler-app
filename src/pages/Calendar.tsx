@@ -168,8 +168,8 @@ const Calendar = () => {
   const calendarDays = generateCalendarDays();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20">
-      <header className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -177,9 +177,9 @@ const Calendar = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50 dark:hover:bg-purple-900/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
+                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
               >
-                <Icon name="ArrowLeft" size={20} className="text-purple-600 dark:text-purple-400 sm:w-6 sm:h-6" />
+                <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
               </Button>
               <div className="overflow-hidden">
                 <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent truncate">
@@ -192,7 +192,7 @@ const Calendar = () => {
               <Button onClick={previousMonth} variant="ghost" size="icon" className="rounded-xl h-8 w-8 sm:h-10 sm:w-10">
                 <Icon name="ChevronLeft" size={18} className="sm:w-5 sm:h-5" />
               </Button>
-              <div className="px-2 sm:px-4 py-1.5 sm:py-2 bg-white dark:bg-gray-800 rounded-xl border-2 border-purple-200 dark:border-purple-700 font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-base whitespace-nowrap">
+              <div className="px-2 sm:px-4 py-1.5 sm:py-2 bg-white rounded-xl border-2 border-purple-200 font-bold text-gray-800 text-xs sm:text-base whitespace-nowrap">
                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
               </div>
               <Button onClick={nextMonth} variant="ghost" size="icon" className="rounded-xl h-8 w-8 sm:h-10 sm:w-10">
@@ -209,7 +209,7 @@ const Calendar = () => {
             <Card className="p-6 bg-white">
               <div className="grid grid-cols-7 gap-2 mb-4">
                 {weekDays.map(day => (
-                  <div key={day} className="text-center font-bold text-gray-600 dark:text-gray-300 text-sm py-2">
+                  <div key={day} className="text-center font-bold text-gray-600 text-sm py-2">
                     {day}
                   </div>
                 ))}
@@ -227,7 +227,7 @@ const Calendar = () => {
                       className={`
                         aspect-square p-2 rounded-xl border-2 transition-all duration-200
                         ${!day.isCurrentMonth ? 'opacity-30' : ''}
-                        ${isToday(day.date) ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white border-indigo-700' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20'}
+                        ${isToday(day.date) ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white border-indigo-700' : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50'}
                         ${selectedDay?.date.toDateString() === day.date.toDateString() ? 'ring-2 ring-purple-500' : ''}
                       `}
                     >
@@ -253,9 +253,9 @@ const Calendar = () => {
 
           <div className="lg:col-span-1">
             {selectedDay ? (
-              <Card className="p-6 bg-white dark:bg-gray-800">
-                <h3 className="font-bold text-lg mb-4 flex items-center gap-2 dark:text-gray-100">
-                  <Icon name="CalendarDays" size={20} className="text-purple-600 dark:text-purple-400" />
+              <Card className="p-6 bg-white">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                  <Icon name="CalendarDays" size={20} className="text-purple-600" />
                   {selectedDay.date.toLocaleDateString('ru-RU', { 
                     day: 'numeric', 
                     month: 'long',
@@ -264,7 +264,7 @@ const Calendar = () => {
                 </h3>
 
                 {selectedDay.lessons.length === 0 && selectedDay.tasks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+                  <div className="text-center py-8 text-gray-400">
                     <Icon name="Calendar" size={48} className="mx-auto mb-2 opacity-30" />
                     <p className="text-sm">Нет событий</p>
                   </div>
@@ -272,20 +272,20 @@ const Calendar = () => {
                   <div className="space-y-4">
                     {selectedDay.lessons.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-bold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-gray-600 mb-2 flex items-center gap-2">
                           <Icon name="BookOpen" size={16} />
                           Занятия ({selectedDay.lessons.length})
                         </h4>
                         <div className="space-y-2">
                           {selectedDay.lessons.map(lesson => (
-                            <Card key={lesson.id} className="p-3 bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800">
+                            <Card key={lesson.id} className="p-3 bg-indigo-50 border-indigo-200">
                               <div className="flex items-start gap-2">
                                 <Badge className="bg-indigo-600 text-xs">{lesson.start_time}</Badge>
                                 <div className="flex-1">
-                                  <p className="font-semibold text-sm dark:text-gray-100">{lesson.subject}</p>
-                                  <p className="text-xs text-gray-600 dark:text-gray-300">{lesson.type}</p>
+                                  <p className="font-semibold text-sm">{lesson.subject}</p>
+                                  <p className="text-xs text-gray-600">{lesson.type}</p>
                                   {lesson.room && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <p className="text-xs text-gray-500 mt-1">
                                       <Icon name="MapPin" size={12} className="inline mr-1" />
                                       {lesson.room}
                                     </p>
@@ -300,7 +300,7 @@ const Calendar = () => {
 
                     {selectedDay.tasks.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-bold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-gray-600 mb-2 flex items-center gap-2">
                           <Icon name="CheckSquare" size={16} />
                           Задачи ({selectedDay.tasks.length})
                         </h4>
@@ -310,8 +310,8 @@ const Calendar = () => {
                               key={task.id} 
                               className={`p-3 ${
                                 task.completed 
-                                  ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' 
-                                  : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+                                  ? 'bg-green-50 border-green-200' 
+                                  : 'bg-red-50 border-red-200'
                               }`}
                             >
                               <div className="flex items-start gap-2">
@@ -321,7 +321,7 @@ const Calendar = () => {
                                   <Icon name="AlertCircle" size={16} className="text-red-600 mt-1" />
                                 )}
                                 <div className="flex-1">
-                                  <p className={`font-semibold text-sm ${task.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'dark:text-gray-100'}`}>
+                                  <p className={`font-semibold text-sm ${task.completed ? 'line-through text-gray-500' : ''}`}>
                                     {task.title}
                                   </p>
                                   {task.subject && (

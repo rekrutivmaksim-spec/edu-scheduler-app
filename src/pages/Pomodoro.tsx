@@ -255,7 +255,7 @@ const Pomodoro = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-rose-100 dark:from-gray-950 dark:via-pink-950/20 dark:to-rose-950/20 p-3 sm:p-4">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-rose-100 p-3 sm:p-4">
       <audio ref={audioRef} src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGnuTwum0" preload="auto" />
       
       <div className="max-w-6xl mx-auto">
@@ -264,13 +264,13 @@ const Pomodoro = () => {
             <Icon name="ArrowLeft" size={18} className="mr-1.5 sm:mr-2 sm:w-5 sm:h-5" />
             <span className="hidden xs:inline">Назад</span>
           </Button>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-gray-100">🍅 Помодоро</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">🍅 Помодоро</h1>
           <div className="w-12 sm:w-24" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            <Card className="p-4 sm:p-6 lg:p-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur">
+            <Card className="p-4 sm:p-6 lg:p-8 bg-white/80 backdrop-blur">
               <div className="text-center">
                 <Badge 
                   className={`mb-4 sm:mb-6 text-sm sm:text-base lg:text-lg px-4 sm:px-6 py-1.5 sm:py-2 ${
@@ -283,7 +283,7 @@ const Pomodoro = () => {
                 </Badge>
 
                 <div className="relative mb-6 sm:mb-8">
-                  <div className="text-5xl sm:text-6xl lg:text-8xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
+                  <div className="text-5xl sm:text-6xl lg:text-8xl font-bold text-gray-800 mb-3 sm:mb-4">
                     {formatTime(timeLeft)}
                   </div>
                   <Progress value={getProgress()} className="h-2 sm:h-3" />

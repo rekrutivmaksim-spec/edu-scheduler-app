@@ -40,7 +40,7 @@ const Subscription = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [tokenPacks, setTokenPacks] = useState<TokenPack[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<{is_premium?: boolean; is_trial?: boolean; expires_at?: string} | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -291,7 +291,7 @@ const Subscription = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <Icon name="Loader2" size={48} className="animate-spin text-purple-600" />
       </div>
     );
@@ -303,8 +303,8 @@ const Subscription = () => {
   const trialEndsAt = subscriptionStatus?.trial_ends_at;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20">
-      <header className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -312,9 +312,9 @@ const Subscription = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/profile')}
-                className="rounded-xl hover:bg-purple-100/50 dark:hover:bg-purple-900/50"
+                className="rounded-xl hover:bg-purple-100/50"
               >
-                <Icon name="ArrowLeft" size={24} className="text-purple-600 dark:text-purple-400" />
+                <Icon name="ArrowLeft" size={24} className="text-purple-600" />
               </Button>
               <div>
                 <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
@@ -330,15 +330,15 @@ const Subscription = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Пробный период */}
         {!isPremium && isTrial && trialEndsAt && (
-          <Card className="p-6 mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-2 border-blue-300 dark:border-blue-700">
+          <Card className="p-6 mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center">
                   <Icon name="Gift" size={32} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-1">🎁 Пробный период активен</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <h3 className="text-xl font-bold text-gray-800 mb-1">🎁 Пробный период активен</h3>
+                  <p className="text-sm text-gray-600">
                     Действует до {new Date(trialEndsAt).toLocaleDateString('ru-RU', {
                       day: 'numeric',
                       month: 'long',
@@ -347,7 +347,7 @@ const Subscription = () => {
                       minute: '2-digit'
                     })}
                   </p>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  <p className="text-xs text-blue-700 mt-1">
                     Полный доступ ко всем функциям ИИ-ассистента, материалам и прогнозам экзаменов
                   </p>
                 </div>
@@ -359,15 +359,15 @@ const Subscription = () => {
 
         {/* Текущий статус подписки */}
         {isPremium && (
-          <Card className="p-6 mb-8 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-2 border-green-300 dark:border-green-700">
+          <Card className="p-6 mb-8 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center">
                   <Icon name="CheckCircle2" size={32} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-1">Premium подписка активна</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <h3 className="text-xl font-bold text-gray-800 mb-1">Premium подписка активна</h3>
+                  <p className="text-sm text-gray-600">
                     Действует до {new Date(expiresAt).toLocaleDateString('ru-RU', {
                       day: 'numeric',
                       month: 'long',
@@ -383,9 +383,9 @@ const Subscription = () => {
 
         {/* Тарифы */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Выберите подписку</h2>
-          <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500 dark:border-blue-700 p-4 rounded-lg mb-6">
-            <p className="text-sm text-blue-900 dark:text-blue-100">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Выберите подписку</h2>
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg mb-6">
+            <p className="text-sm text-blue-900">
               <Icon name="Info" size={16} className="inline mr-1" />
               <strong>Важно:</strong> Подписка не продлевается автоматически. Для продления необходимо повторить оплату после окончания срока действия.
             </p>

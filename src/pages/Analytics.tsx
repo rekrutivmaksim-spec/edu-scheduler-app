@@ -205,15 +205,15 @@ const Analytics = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <Icon name="Loader2" size={48} className="animate-spin text-purple-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20">
-      <header className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -221,9 +221,9 @@ const Analytics = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50 dark:hover:bg-purple-900/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
+                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
               >
-                <Icon name="ArrowLeft" size={24} className="text-purple-600 dark:text-purple-400" />
+                <Icon name="ArrowLeft" size={24} className="text-purple-600" />
               </Button>
               <div>
                 <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
@@ -238,15 +238,15 @@ const Analytics = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/30 dark:to-indigo-950/30 border-2 border-indigo-200 dark:border-indigo-700">
+          <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-indigo-200">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center">
                 <Icon name="Clock" size={24} className="text-white" />
               </div>
               <Badge className="bg-indigo-600">{Math.round(weeklyHours)} ч</Badge>
             </div>
-            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Учебных часов в неделю</h3>
-            <p className="text-2xl font-bold text-indigo-800 dark:text-indigo-200 mt-2">{schedule.length} пар</p>
+            <h3 className="text-sm font-semibold text-gray-600">Учебных часов в неделю</h3>
+            <p className="text-2xl font-bold text-indigo-800 mt-2">{schedule.length} пар</p>
           </Card>
 
           <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-200">
