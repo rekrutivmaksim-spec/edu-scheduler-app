@@ -89,7 +89,7 @@ export default function Settings() {
       } else {
         throw new Error('Не удалось сохранить настройки');
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Ошибка',
@@ -106,14 +106,14 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 flex items-center justify-center">
         <Icon name="Loader2" size={48} className="animate-spin text-purple-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
           <Button
@@ -123,34 +123,34 @@ export default function Settings() {
             <Icon name="ArrowLeft" size={18} className="mr-2" />
             Назад
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900">Настройки уведомлений</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Настройки уведомлений</h1>
         </div>
 
         <div className="space-y-6">
           {/* Общие настройки */}
-          <Card className="p-6">
+          <Card className="p-6 dark:bg-gray-800">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center">
                 <Icon name="Bell" size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Каналы уведомлений</h2>
-                <p className="text-sm text-gray-600">Выберите, как вы хотите получать уведомления</p>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Каналы уведомлений</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Выберите, как вы хотите получать уведомления</p>
               </div>
             </div>
 
             <div className="space-y-4">
               {/* SMS уведомления */}
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
                 <div className="flex-1">
-                  <Label className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                    <Icon name="MessageSquare" size={20} className="text-blue-600" />
+                  <Label className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <Icon name="MessageSquare" size={20} className="text-blue-600 dark:text-blue-400" />
                     SMS-уведомления
                   </Label>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                     Напоминания о занятиях и дедлайнах по SMS
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                     ⚠️ SMS-коды для входа отключить нельзя (требуется для безопасности)
                   </p>
                 </div>
@@ -161,13 +161,13 @@ export default function Settings() {
               </div>
 
               {/* Push уведомления */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                 <div className="flex-1">
-                  <Label className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                    <Icon name="Smartphone" size={20} className="text-purple-600" />
+                  <Label className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <Icon name="Smartphone" size={20} className="text-purple-600 dark:text-purple-400" />
                     Push-уведомления
                   </Label>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                     Уведомления в браузере/приложении
                   </p>
                 </div>
@@ -178,13 +178,13 @@ export default function Settings() {
               </div>
 
               {/* Email уведомления */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                 <div className="flex-1">
-                  <Label className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                    <Icon name="Mail" size={20} className="text-indigo-600" />
+                  <Label className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <Icon name="Mail" size={20} className="text-indigo-600 dark:text-indigo-400" />
                     Email-уведомления
                   </Label>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                     Еженедельные дайджесты на почту
                   </p>
                 </div>
@@ -197,24 +197,24 @@ export default function Settings() {
           </Card>
 
           {/* Типы событий */}
-          <Card className="p-6">
+          <Card className="p-6 dark:bg-gray-800">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-2xl flex items-center justify-center">
                 <Icon name="Calendar" size={24} className="text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">О чём уведомлять</h2>
-                <p className="text-sm text-gray-600">Выберите типы событий для уведомлений</p>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">О чём уведомлять</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Выберите типы событий для уведомлений</p>
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                 <div className="flex-1">
-                  <Label className="text-base font-semibold text-gray-900">
+                  <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">
                     Занятия
                   </Label>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                     Напоминания о предстоящих парах
                   </p>
                 </div>
@@ -224,12 +224,12 @@ export default function Settings() {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                 <div className="flex-1">
-                  <Label className="text-base font-semibold text-gray-900">
+                  <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">
                     Дедлайны
                   </Label>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                     Напоминания о сроках сдачи задач
                   </p>
                 </div>
@@ -239,12 +239,12 @@ export default function Settings() {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                 <div className="flex-1">
-                  <Label className="text-base font-semibold text-gray-900">
+                  <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">
                     Новые материалы
                   </Label>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                     Уведомления о добавленных материалах
                   </p>
                 </div>
@@ -257,7 +257,7 @@ export default function Settings() {
           </Card>
 
           {/* Время уведомлений */}
-          <Card className="p-6">
+          <Card className="p-6 dark:bg-gray-800">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-2xl flex items-center justify-center">
                 <Icon name="Clock" size={24} className="text-white" />

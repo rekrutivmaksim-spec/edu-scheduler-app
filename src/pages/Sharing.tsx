@@ -241,8 +241,8 @@ const Sharing = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-pink-950/20">
+      <header className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-purple-200/50 dark:border-purple-800/30 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -250,9 +250,9 @@ const Sharing = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
+                className="rounded-xl hover:bg-purple-100/50 dark:hover:bg-purple-900/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
               >
-                <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
+                <Icon name="ArrowLeft" size={20} className="text-purple-600 dark:text-purple-400 sm:w-6 sm:h-6" />
               </Button>
               <div className="overflow-hidden">
                 <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent truncate">
@@ -267,12 +267,12 @@ const Sharing = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <Card className="p-6 bg-gradient-to-br from-indigo-50 to-purple-100 border-2 border-indigo-300">
-            <h2 className="text-base sm:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Icon name="Share2" size={20} className="text-indigo-600 sm:w-6 sm:h-6 flex-shrink-0" />
+          <Card className="p-6 bg-gradient-to-br from-indigo-50 to-purple-100 dark:from-indigo-950/30 dark:to-purple-950/30 border-2 border-indigo-300 dark:border-indigo-700">
+            <h2 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+              <Icon name="Share2" size={20} className="text-indigo-600 dark:text-indigo-400 sm:w-6 sm:h-6 flex-shrink-0" />
               <span className="break-words">Расшарить моё расписание</span>
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
               Создай код доступа, чтобы другие студенты смогли подписаться на твоё расписание
             </p>
             <Button
@@ -284,12 +284,12 @@ const Sharing = () => {
             </Button>
           </Card>
 
-          <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-300">
-            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Icon name="UserPlus" size={24} className="text-green-600" />
+          <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950/30 dark:to-emerald-950/30 border-2 border-green-300 dark:border-green-700">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+              <Icon name="UserPlus" size={24} className="text-green-600 dark:text-green-400" />
               Подписаться на расписание
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
               Введи код, который тебе дал одногруппник, и получи доступ к его расписанию
             </p>
             <div className="flex gap-2">
