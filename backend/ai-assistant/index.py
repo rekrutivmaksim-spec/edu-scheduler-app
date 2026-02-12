@@ -496,6 +496,74 @@ def handler(event: dict, context) -> dict:
                     print(f"[AI-ASSISTANT] ⚠️ Ошибка создания задачи: {e}", flush=True)
                     # Продолжаем работу с ИИ, если создание задачи не удалось
             
+            elif action_intent['action'] == 'schedule':
+                # Создаём занятие в расписании БЕЗ обращения к ИИ
+                try:
+                    cursor = conn.cursor()
+                    
+                    # Парсим день недели и время из вопроса
+                    parsed_data = parse_schedule_details(question)
+                    
+                    cursor.execute(f'''
+                        INSERT INTO {SCHEMA_NAME}.schedule 
+                        (user_id, subject, type, start_time, end_time, day_of_week, room, teacher, color)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id, subject, type, day_of_week, start_time, end_time
+                    ''', (
+                        user_id,
+                        action_intent.get('subject') or action_intent['title'],
+                        parsed_data.get('type', 'лекция'),
+                        parsed_data.get('start_time'),
+                        parsed_data.get('end_time'),
+                        parsed_data.get('day_of_week'),
+                        parsed_data.get('room'),
+                        parsed_data.get('teacher'),
+                        'bg-purple-500'
+                    ))
+                    
+                    lesson = cursor.fetchone()
+                    conn.commit()
+                    cursor.close()
+                    
+                    # Увеличиваем счетчик вопросов
+                    increment_ai_questions(conn, user_id)
+                    access_updated = check_subscription_access(conn, user_id)
+                    questions_remaining = access_updated.get('questions_limit', 0) - access_updated.get('questions_used', 0)
+                    
+                    # Форматируем день недели
+                    days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
+                    day_name = days[lesson[3]] if lesson[3] is not None else 'не указан'
+                    
+                    # Формируем быстрый ответ
+                    quick_answer = f"✅ **Занятие добавлено в расписание!**\n\n📚 **{lesson[1]}**\n📖 Тип: {lesson[2]}\n📅 День: {day_name}"
+                    if lesson[4] and lesson[5]:
+                        quick_answer += f"\n⏰ Время: {lesson[4]} - {lesson[5]}"
+                    quick_answer += f"\n\n💡 Занятие добавлено в **Расписание**. Проверь детали в разделе!"
+                    
+                    # Сохраняем в историю чата
+                    if session_id:
+                        save_message(conn, session_id, user_id, 'assistant', quick_answer, [], 0, False)
+                    
+                    print(f"[AI-ASSISTANT] ✅ Создано занятие #{lesson[0]}: {lesson[1]} (БЕЗ вызова ИИ)", flush=True)
+                    
+                    # Возвращаем ответ СРАЗУ
+                    return {
+                        'statusCode': 200,
+                        'headers': {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*'
+                        },
+                        'body': json.dumps({
+                            'answer': quick_answer,
+                            'questions_used': access_updated.get('questions_used', 0),
+                            'questions_limit': access_updated.get('questions_limit', 0),
+                            'questions_remaining': questions_remaining
+                        })
+                    }
+                except Exception as e:
+                    print(f"[AI-ASSISTANT] ⚠️ Ошибка создания занятия: {e}", flush=True)
+                    # Продолжаем работу с ИИ, если создание занятия не удалось
+            
             # Проверяем кэш ТОЛЬКО если это НЕ команда создания задачи
             cache_result = check_cache(conn, question, material_ids)
             
@@ -704,6 +772,72 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
         print(f"[AI-ASSISTANT] ❌ КРИТИЧЕСКАЯ ошибка при загрузке материалов: {e}", flush=True)
         cursor.close()
         return "Не удалось загрузить материалы из базы данных. Попробуйте задать вопрос позже."
+
+def parse_schedule_details(question: str) -> dict:
+    """Парсит детали занятия из вопроса (день недели, время, тип)"""
+    import re
+    question_lower = question.lower()
+    
+    # Дни недели
+    days_map = {
+        'понедельник': 0, 'пн': 0,
+        'вторник': 1, 'вт': 1,
+        'среда': 2, 'ср': 2,
+        'четверг': 3, 'чт': 3,
+        'пятница': 4, 'пт': 4,
+        'суббота': 5, 'сб': 5,
+        'воскресенье': 6, 'вс': 6
+    }
+    
+    # Типы занятий
+    types_map = {
+        'лекция': 'лекция',
+        'семинар': 'семинар',
+        'практика': 'практика',
+        'лаб': 'лаб. работа',
+        'консультация': 'консультация'
+    }
+    
+    result = {
+        'day_of_week': None,
+        'start_time': None,
+        'end_time': None,
+        'type': 'лекция',
+        'room': None,
+        'teacher': None
+    }
+    
+    # Ищем день недели
+    for day_name, day_num in days_map.items():
+        if day_name in question_lower:
+            result['day_of_week'] = day_num
+            break
+    
+    # Ищем тип занятия
+    for type_name, type_full in types_map.items():
+        if type_name in question_lower:
+            result['type'] = type_full
+            break
+    
+    # Ищем время (формат 10:00, 14:30 и т.д.)
+    time_pattern = r'(\d{1,2}):(\d{2})'
+    times = re.findall(time_pattern, question)
+    if len(times) >= 1:
+        result['start_time'] = f"{times[0][0].zfill(2)}:{times[0][1]}"
+    if len(times) >= 2:
+        result['end_time'] = f"{times[1][0].zfill(2)}:{times[1][1]}"
+    
+    # Ищем аудиторию
+    room_match = re.search(r'ауд(?:итория)?\s*([0-9а-яА-Я\-]+)', question)
+    if room_match:
+        result['room'] = room_match.group(1)
+    
+    # Ищем преподавателя
+    teacher_match = re.search(r'преподаватель\s+([\w\s\.]+)', question)
+    if teacher_match:
+        result['teacher'] = teacher_match.group(1).strip()[:100]
+    
+    return result
 
 def detect_action_intent(question: str) -> dict:
     """Определяет, хочет ли пользователь создать задачу или событие

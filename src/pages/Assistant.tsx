@@ -452,10 +452,20 @@ const Assistant = () => {
                   <Icon name="Sparkles" size={20} className="text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base">💡 Я умею создавать задачи автоматически!</h3>
+                  <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base">💡 Я умею управлять твоим планировщиком!</h3>
                   <p className="text-xs sm:text-sm text-gray-600 mb-3">
-                    Просто скажи: <span className="font-medium text-purple-700">"Создай задачу: сдать курсовую до 15.03"</span> или <span className="font-medium text-purple-700">"Напомни сдать реферат по истории"</span>
+                    Создавай задачи и добавляй занятия одной фразой:
                   </p>
+                  <div className="space-y-2 mb-3 text-xs sm:text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-600">📋</span>
+                      <span className="text-gray-700"><span className="font-medium text-purple-700">"Создай задачу: сдать курсовую до 15.03"</span></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-600">📚</span>
+                      <span className="text-gray-700"><span className="font-medium text-purple-700">"Добавь лекцию по математике в понедельник 10:00"</span></span>
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       onClick={() => setQuestion('Создай задачу: подготовиться к экзамену по математике')}
@@ -464,6 +474,14 @@ const Assistant = () => {
                       className="text-xs rounded-full border-purple-300 hover:bg-purple-100 h-auto py-1.5 px-3"
                     >
                       📝 Пример задачи
+                    </Button>
+                    <Button
+                      onClick={() => setQuestion('Добавь семинар по физике в среду 14:30')}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs rounded-full border-purple-300 hover:bg-purple-100 h-auto py-1.5 px-3"
+                    >
+                      📅 Пример занятия
                     </Button>
                   </div>
                 </div>
