@@ -63,6 +63,25 @@ TOKEN_PACKS = {
     }
 }
 
+# Микро-платежи: пакеты вопросов
+QUESTION_PACKS = {
+    'questions_10': {
+        'price': 99,
+        'questions': 10,
+        'name': '+10 вопросов к ИИ'
+    }
+}
+
+# Сезонные тарифы
+SEASONAL_PLANS = {
+    'session': {
+        'price': 499,
+        'duration_days': 30,
+        'name': 'Тариф "Сессия" (30 дней безлимита)',
+        'available_months': [1, 6]  # январь и июнь
+    }
+}
+
 def verify_token(token: str) -> dict:
     """Проверяет JWT токен и возвращает payload"""
     if token == 'mock-token':
@@ -153,17 +172,30 @@ def check_tinkoff_payment(payment_id: str) -> dict:
 
 def create_payment(conn, user_id: int, plan_type: str) -> dict:
     """Создает запись о платеже и инициирует оплату в Т-кассе"""
-    # Проверяем, это подписка или пакет токенов
+    # Проверяем, что это: подписка, пакет токенов, пакет вопросов или сезонный тариф
     is_token_pack = plan_type in TOKEN_PACKS
     is_subscription = plan_type in PLANS
+    is_question_pack = plan_type in QUESTION_PACKS
+    is_seasonal = plan_type in SEASONAL_PLANS
     
-    if not is_token_pack and not is_subscription:
+    if not (is_token_pack or is_subscription or is_question_pack or is_seasonal):
         return None
     
     if is_subscription:
         plan = PLANS[plan_type]
         expires_at = datetime.now() + timedelta(days=plan['duration_days'])
         description = f"Studyfay подписка: {plan['name']}"
+    elif is_seasonal:
+        plan = SEASONAL_PLANS[plan_type]
+        current_month = datetime.now().month
+        if current_month not in plan['available_months']:
+            return {'error': 'Сезонный тариф доступен только в январе и июне'}
+        expires_at = datetime.now() + timedelta(days=plan['duration_days'])
+        description = f"Studyfay {plan['name']}"
+    elif is_question_pack:
+        plan = QUESTION_PACKS[plan_type]
+        expires_at = None
+        description = f"Studyfay {plan['name']}"
     else:
         plan = TOKEN_PACKS[plan_type]
         expires_at = None
@@ -228,6 +260,8 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
         
         plan_type = payment['plan_type']
         is_token_pack = plan_type in TOKEN_PACKS
+        is_question_pack = plan_type in QUESTION_PACKS
+        is_seasonal = plan_type in SEASONAL_PLANS
         
         # Обновляем статус платежа
         cur.execute(f"""
@@ -239,7 +273,24 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
             WHERE id = %s
         """, (payment_method, external_payment_id, payment_id))
         
-        if is_token_pack:
+        if is_question_pack:
+            # Добавляем бонусные вопросы
+            questions_to_add = QUESTION_PACKS[plan_type]['questions']
+            cur.execute(f"""
+                UPDATE {SCHEMA_NAME}.users
+                SET bonus_questions = COALESCE(bonus_questions, 0) + %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (questions_to_add, payment['user_id']))
+            
+            # Записываем в таблицу question_packs
+            cur.execute(f"""
+                INSERT INTO {SCHEMA_NAME}.question_packs 
+                (user_id, pack_type, questions_count, price_rub, payment_id)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (payment['user_id'], plan_type, questions_to_add, QUESTION_PACKS[plan_type]['price'], payment_id))
+            
+        elif is_token_pack:
             # Добавляем токены к текущему лимиту (не сбрасываем)
             tokens_to_add = TOKEN_PACKS[plan_type]['tokens']
             cur.execute(f"""
@@ -248,6 +299,25 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (tokens_to_add, payment['user_id']))
+            
+        elif is_seasonal:
+            # Активируем сезонную подписку
+            cur.execute(f"""
+                UPDATE {SCHEMA_NAME}.users
+                SET subscription_type = 'premium',
+                    subscription_expires_at = %s,
+                    subscription_plan = 'session',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (payment['expires_at'], payment['user_id']))
+            
+            # Записываем в таблицу seasonal_subscriptions
+            cur.execute(f"""
+                INSERT INTO {SCHEMA_NAME}.seasonal_subscriptions 
+                (user_id, season_type, expires_at, price_rub, payment_id)
+                VALUES (%s, 'session', %s, %s, %s)
+            """, (payment['user_id'], payment['expires_at'], SEASONAL_PLANS['session']['price'], payment_id))
+            
         else:
             # Активируем подписку и сбрасываем счетчик вопросов
             plan_limits = {
@@ -349,7 +419,7 @@ def handler(event: dict, context) -> dict:
                 }
             
             elif action == 'token_packs':
-                # Возвращаем доступные пакеты токенов
+                # Возвращаем доступные пакеты токенов и вопросов
                 token_packs_list = [
                     {
                         'id': key,
@@ -360,10 +430,36 @@ def handler(event: dict, context) -> dict:
                     for key, pack in TOKEN_PACKS.items()
                 ]
                 
+                question_packs_list = [
+                    {
+                        'id': key,
+                        'name': pack['name'],
+                        'price': pack['price'],
+                        'questions': pack['questions']
+                    }
+                    for key, pack in QUESTION_PACKS.items()
+                ]
+                
+                # Проверяем доступность сезонного тарифа
+                current_month = datetime.now().month
+                seasonal_packs_list = []
+                for key, pack in SEASONAL_PLANS.items():
+                    if current_month in pack['available_months']:
+                        seasonal_packs_list.append({
+                            'id': key,
+                            'name': pack['name'],
+                            'price': pack['price'],
+                            'duration_days': pack['duration_days']
+                        })
+                
                 return {
                     'statusCode': 200,
                     'headers': headers,
-                    'body': json.dumps({'token_packs': token_packs_list})
+                    'body': json.dumps({
+                        'token_packs': token_packs_list,
+                        'question_packs': question_packs_list,
+                        'seasonal_packs': seasonal_packs_list
+                    })
                 }
             
             elif action == 'history':

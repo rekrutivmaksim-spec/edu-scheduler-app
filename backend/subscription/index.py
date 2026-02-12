@@ -32,7 +32,9 @@ def check_subscription_status(user_id: int, conn) -> dict:
             SELECT subscription_type, subscription_expires_at,
                    materials_quota_used, materials_quota_reset_at,
                    trial_ends_at, is_trial_used,
-                   ai_questions_used, ai_questions_reset_at
+                   ai_questions_used, ai_questions_reset_at,
+                   daily_questions_used, daily_questions_reset_at,
+                   bonus_questions
             FROM users
             WHERE id = %s
         """, (user_id,))
@@ -68,6 +70,14 @@ def check_subscription_status(user_id: int, conn) -> dict:
             if trial_ends_naive > now:
                 is_trial = True
                 trial_ends_at = user['trial_ends_at']
+            else:
+                # Триал закончился - помечаем как использованный
+                cur.execute("""
+                    UPDATE users 
+                    SET is_trial_used = TRUE
+                    WHERE id = %s
+                """, (user_id,))
+                conn.commit()
         
         if user['materials_quota_reset_at'] and user['materials_quota_reset_at'] < datetime.now():
             cur.execute("""
@@ -79,16 +89,18 @@ def check_subscription_status(user_id: int, conn) -> dict:
             conn.commit()
             user['materials_quota_used'] = 0
         
-        # Сброс AI вопросов раз в месяц
-        if user.get('ai_questions_reset_at') and user['ai_questions_reset_at'] < datetime.now():
-            cur.execute("""
-                UPDATE users 
-                SET ai_questions_used = 0,
-                    ai_questions_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 month'
-                WHERE id = %s
-            """, (user_id,))
-            conn.commit()
-            user['ai_questions_used'] = 0
+        # Сброс дневных вопросов каждый день
+        if user.get('daily_questions_reset_at'):
+            reset_naive = user['daily_questions_reset_at'].replace(tzinfo=None) if user['daily_questions_reset_at'].tzinfo else user['daily_questions_reset_at']
+            if reset_naive < now:
+                cur.execute("""
+                    UPDATE users 
+                    SET daily_questions_used = 0,
+                        daily_questions_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 day'
+                    WHERE id = %s
+                """, (user_id,))
+                conn.commit()
+                user['daily_questions_used'] = 0
         
         return {
             'is_premium': is_premium,
@@ -99,7 +111,10 @@ def check_subscription_status(user_id: int, conn) -> dict:
             'materials_quota_used': user['materials_quota_used'] or 0,
             'materials_quota_reset_at': user['materials_quota_reset_at'].isoformat() if user['materials_quota_reset_at'] else None,
             'ai_questions_used': user.get('ai_questions_used', 0) or 0,
-            'ai_questions_reset_at': user.get('ai_questions_reset_at').isoformat() if user.get('ai_questions_reset_at') else None
+            'ai_questions_reset_at': user.get('ai_questions_reset_at').isoformat() if user.get('ai_questions_reset_at') else None,
+            'daily_questions_used': user.get('daily_questions_used', 0) or 0,
+            'daily_questions_reset_at': user.get('daily_questions_reset_at').isoformat() if user.get('daily_questions_reset_at') else None,
+            'bonus_questions': user.get('bonus_questions', 0) or 0
         }
 
 
@@ -125,26 +140,38 @@ def get_limits(conn, user_id: int) -> dict:
             }
         }
     elif status['is_trial']:
-        # Триал: увеличенные лимиты чтобы пользователь понял ценность
+        # Триал (24 часа): безлимитный доступ ко всему
         return {
             **status,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
-                'materials': {'used': status['materials_quota_used'], 'max': 10, 'unlimited': False},
-                'ai_questions': {'used': status.get('ai_questions_used', 0), 'max': 20, 'unlimited': False},
+                'materials': {'used': status['materials_quota_used'], 'max': None, 'unlimited': True},
+                'ai_questions': {'used': 0, 'max': None, 'unlimited': True, 'daily_used': 0},
                 'exam_predictions': {'unlimited': True, 'available': True}
             }
         }
     else:
-        # Free: жёсткие лимиты для стимулирования покупки
+        # Free: 3 бесплатных вопроса в день + бонусные вопросы
+        daily_used = status.get('daily_questions_used', 0)
+        bonus = status.get('bonus_questions', 0)
+        total_available = 3 + bonus
+        total_used = daily_used
+        
         return {
             **status,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
                 'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
                 'materials': {'used': status['materials_quota_used'], 'max': 2, 'unlimited': False},
-                'ai_questions': {'used': status.get('ai_questions_used', 0), 'max': 3, 'unlimited': False},
+                'ai_questions': {
+                    'used': total_used, 
+                    'max': total_available, 
+                    'unlimited': False,
+                    'daily_used': daily_used,
+                    'daily_limit': 3,
+                    'bonus_available': bonus
+                },
                 'exam_predictions': {'unlimited': False, 'available': False}
             }
         }
@@ -210,12 +237,152 @@ def handler(event: dict, context) -> dict:
                     'headers': headers,
                     'body': json.dumps(limits, default=str)
                 }
+            
+            elif action == 'referral':
+                # Получение реферальных данных
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute("""
+                        SELECT referral_code, referral_count, referral_rewards_earned
+                        FROM users
+                        WHERE id = %s
+                    """, (user_id,))
+                    user = cur.fetchone()
+                    
+                    if not user or not user['referral_code']:
+                        # Генерируем реферальный код если его нет
+                        import hashlib
+                        referral_code = hashlib.md5((str(user_id) + str(datetime.now().timestamp())).encode()).hexdigest()[:8].upper()
+                        cur.execute("""
+                            UPDATE users 
+                            SET referral_code = %s
+                            WHERE id = %s
+                            RETURNING referral_code, referral_count, referral_rewards_earned
+                        """, (referral_code, user_id))
+                        user = cur.fetchone()
+                        conn.commit()
+                    
+                    # Рассчитываем награды
+                    count = user['referral_count'] or 0
+                    reward_1month = count >= 10
+                    reward_1year = count >= 20
+                    
+                    return {
+                        'statusCode': 200,
+                        'headers': headers,
+                        'body': json.dumps({
+                            'referral_code': user['referral_code'],
+                            'referral_count': count,
+                            'rewards_earned': user['referral_rewards_earned'] or 0,
+                            'next_reward': '1 месяц бесплатно' if count < 10 else ('1 год бесплатно' if count < 20 else 'Все награды получены!'),
+                            'progress_to_1month': min(count, 10),
+                            'progress_to_1year': min(count, 20),
+                            'has_1month_reward': reward_1month,
+                            'has_1year_reward': reward_1year
+                        })
+                    }
         
         elif method == 'POST':
             body = json.loads(event.get('body', '{}'))
             action = body.get('action')
             
-            if action == 'upgrade_demo':
+            if action == 'use_referral':
+                # Использование реферального кода
+                referral_code = body.get('referral_code', '').strip().upper()
+                
+                if not referral_code:
+                    return {
+                        'statusCode': 400,
+                        'headers': headers,
+                        'body': json.dumps({'error': 'Реферальный код обязателен'})
+                    }
+                
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    # Проверяем что пользователь еще не использовал реферальный код
+                    cur.execute("SELECT referred_by FROM users WHERE id = %s", (user_id,))
+                    user = cur.fetchone()
+                    
+                    if user and user['referred_by']:
+                        return {
+                            'statusCode': 400,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'Вы уже использовали реферальный код'})
+                        }
+                    
+                    # Ищем реферера
+                    cur.execute("SELECT id FROM users WHERE referral_code = %s", (referral_code,))
+                    referrer = cur.fetchone()
+                    
+                    if not referrer:
+                        return {
+                            'statusCode': 404,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'Реферальный код не найден'})
+                        }
+                    
+                    if referrer['id'] == user_id:
+                        return {
+                            'statusCode': 400,
+                            'headers': headers,
+                            'body': json.dumps({'error': 'Нельзя использовать свой собственный код'})
+                        }
+                    
+                    # Обновляем реферала
+                    cur.execute("""
+                        UPDATE users 
+                        SET referred_by = %s
+                        WHERE id = %s
+                    """, (referrer['id'], user_id))
+                    
+                    # Увеличиваем счетчик рефералов
+                    cur.execute("""
+                        UPDATE users 
+                        SET referral_count = COALESCE(referral_count, 0) + 1
+                        WHERE id = %s
+                        RETURNING referral_count
+                    """, (referrer['id'],))
+                    
+                    updated = cur.fetchone()
+                    new_count = updated['referral_count']
+                    
+                    # Проверяем награды
+                    if new_count == 10:
+                        # Награда: 1 месяц бесплатно
+                        cur.execute("""
+                            UPDATE users 
+                            SET subscription_type = 'premium',
+                                subscription_expires_at = CURRENT_TIMESTAMP + INTERVAL '30 days',
+                                referral_rewards_earned = COALESCE(referral_rewards_earned, 0) + 1
+                            WHERE id = %s
+                        """, (referrer['id'],))
+                    elif new_count == 20:
+                        # Награда: 1 год бесплатно
+                        cur.execute("""
+                            UPDATE users 
+                            SET subscription_type = 'premium',
+                                subscription_expires_at = CURRENT_TIMESTAMP + INTERVAL '365 days',
+                                referral_rewards_earned = COALESCE(referral_rewards_earned, 0) + 1
+                            WHERE id = %s
+                        """, (referrer['id'],))
+                    
+                    # Даем бонус новому пользователю: +5 бонусных вопросов
+                    cur.execute("""
+                        UPDATE users 
+                        SET bonus_questions = COALESCE(bonus_questions, 0) + 5
+                        WHERE id = %s
+                    """, (user_id,))
+                    
+                    conn.commit()
+                    
+                    return {
+                        'statusCode': 200,
+                        'headers': headers,
+                        'body': json.dumps({
+                            'message': 'Реферальный код успешно применен! Вы получили +5 бонусных вопросов',
+                            'bonus_added': 5
+                        })
+                    }
+            
+            elif action == 'upgrade_demo':
                 with conn.cursor() as cur:
                     cur.execute("""
                         UPDATE users 

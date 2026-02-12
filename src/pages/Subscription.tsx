@@ -24,6 +24,20 @@ interface TokenPack {
   tokens: number;
 }
 
+interface QuestionPack {
+  id: string;
+  name: string;
+  price: number;
+  questions: number;
+}
+
+interface SeasonalPlan {
+  id: string;
+  name: string;
+  price: number;
+  duration_days: number;
+}
+
 interface Payment {
   id: number;
   amount: number;
@@ -39,8 +53,16 @@ const Subscription = () => {
   const { toast } = useToast();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [tokenPacks, setTokenPacks] = useState<TokenPack[]>([]);
+  const [questionPacks, setQuestionPacks] = useState<QuestionPack[]>([]);
+  const [seasonalPlans, setSeasonalPlans] = useState<SeasonalPlan[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<{
+    is_premium?: boolean;
+    is_trial?: boolean;
+    subscription_type?: string;
+    subscription_expires_at?: string;
+    trial_ends_at?: string;
+  } | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -93,7 +115,9 @@ const Subscription = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        setTokenPacks(data.token_packs);
+        setTokenPacks(data.token_packs || []);
+        setQuestionPacks(data.question_packs || []);
+        setSeasonalPlans(data.seasonal_packs || []);
       }
     } catch (error) {
       console.error('Failed to load token packs:', error);
@@ -348,11 +372,11 @@ const Subscription = () => {
                     })}
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
-                    Полный доступ ко всем функциям ИИ-ассистента, материалам и прогнозам экзаменов
+                    Безлимитный доступ ко всем функциям на 24 часа! После — 3 бесплатных вопроса в день навсегда
                   </p>
                 </div>
               </div>
-              <Badge className="bg-blue-500 text-white text-lg px-4 py-2">2 дня</Badge>
+              <Badge className="bg-blue-500 text-white text-lg px-4 py-2">24 часа</Badge>
             </div>
           </Card>
         )}
@@ -443,8 +467,9 @@ const Subscription = () => {
                   </div>
 
                   <div className="text-xs text-gray-500 mb-4 space-y-1">
-                    <p className="font-semibold text-purple-600">🎁 Первые 2 дня бесплатно!</p>
+                    <p className="font-semibold text-purple-600">🎁 Первые 24 часа бесплатно!</p>
                     <p>• Подписка НЕ продлевается автоматически</p>
+                    <p>• После окончания: 3 бесплатных вопроса в день навсегда</p>
                     <p>• Возврат возможен в течение 14 дней при отсутствии использования</p>
                   </div>
 
@@ -473,6 +498,152 @@ const Subscription = () => {
             })}
           </div>
         </div>
+
+        {/* Микро-платежи: пакеты вопросов */}
+        {!isPremium && questionPacks.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">💡 Нужны дополнительные вопросы?</h2>
+            <p className="text-sm text-gray-600 mb-6">Купите пакет вопросов без подписки — доступно сразу после оплаты</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {questionPacks.map((pack) => (
+                <Card
+                  key={pack.id}
+                  className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 hover:shadow-xl transition-all"
+                >
+                  <div className="text-center mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                      <Icon name="MessageCircle" size={32} className="text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">{pack.name}</h3>
+                    <div className="flex items-baseline justify-center gap-2">
+                      <span className="text-4xl font-bold text-amber-600">{pack.price}</span>
+                      <span className="text-gray-600">₽</span>
+                    </div>
+                    <Badge className="mt-2 bg-amber-500 text-white">Разовая покупка</Badge>
+                  </div>
+
+                  <div className="bg-white rounded-lg p-4 mb-4">
+                    <div className="flex items-start gap-2 mb-2">
+                      <Icon name="Check" size={18} className="text-green-500 mt-0.5" />
+                      <p className="text-sm text-gray-700">Добавляется к вашим бесплатным вопросам</p>
+                    </div>
+                    <div className="flex items-start gap-2 mb-2">
+                      <Icon name="Check" size={18} className="text-green-500 mt-0.5" />
+                      <p className="text-sm text-gray-700">Не сгорает со временем</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Icon name="Check" size={18} className="text-green-500 mt-0.5" />
+                      <p className="text-sm text-gray-700">Мгновенная активация</p>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => handleBuySubscription(pack.id)}
+                    disabled={isProcessing}
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl shadow-lg text-lg"
+                  >
+                    {isProcessing && selectedPlan === pack.id ? (
+                      <>
+                        <Icon name="Loader2" size={20} className="mr-2 animate-spin" />
+                        Оформление...
+                      </>
+                    ) : (
+                      'Купить вопросы'
+                    )}
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Сезонный тариф "Сессия" */}
+        {!isPremium && seasonalPlans.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">🔥 Специальное предложение</h2>
+            <p className="text-sm text-gray-600 mb-6">Доступно только в период сессии (январь и июнь)</p>
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 max-w-2xl mx-auto">
+              {seasonalPlans.map((plan) => (
+                <Card
+                  key={plan.id}
+                  className="p-8 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 border-4 border-rose-400 hover:shadow-2xl transition-all relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-rose-400/20 rounded-full -mr-16 -mt-16"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-400/20 rounded-full -ml-12 -mb-12"></div>
+                  
+                  <div className="relative z-10">
+                    <div className="text-center mb-6">
+                      <Badge className="mb-4 bg-rose-500 text-white text-sm px-4 py-1">
+                        🎓 Сезонный тариф
+                      </Badge>
+                      <h3 className="text-3xl font-bold text-gray-800 mb-3">{plan.name}</h3>
+                      <div className="flex items-baseline justify-center gap-2 mb-2">
+                        <span className="text-5xl font-bold bg-gradient-to-r from-rose-600 to-purple-600 bg-clip-text text-transparent">{plan.price}</span>
+                        <span className="text-gray-600 text-xl">₽</span>
+                      </div>
+                      <p className="text-sm text-gray-600">30 дней безлимитного доступа</p>
+                    </div>
+
+                    <div className="bg-white/80 backdrop-blur rounded-xl p-5 mb-6 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <Icon name="Infinity" size={22} className="text-purple-600 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-gray-800">Безлимитный ИИ-ассистент</p>
+                          <p className="text-xs text-gray-600">Неограниченные вопросы весь месяц</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Icon name="BookOpen" size={22} className="text-purple-600 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-gray-800">Все материалы и конспекты</p>
+                          <p className="text-xs text-gray-600">Загружайте сколько угодно</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Icon name="TrendingUp" size={22} className="text-purple-600 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-gray-800">Прогноз экзаменационных вопросов</p>
+                          <p className="text-xs text-gray-600">ИИ анализирует и предсказывает</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Icon name="Calendar" size={22} className="text-purple-600 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-gray-800">Идеально для сессии</p>
+                          <p className="text-xs text-gray-600">Подготовься к экзаменам на 100%</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-rose-100 border-l-4 border-rose-500 rounded-lg p-4 mb-6">
+                      <p className="text-sm text-rose-900 font-medium">
+                        ⏰ Ограниченное предложение! Тариф доступен только в январе и июне
+                      </p>
+                    </div>
+
+                    <Button
+                      onClick={() => handleBuySubscription(plan.id)}
+                      disabled={isProcessing}
+                      className="w-full bg-gradient-to-r from-rose-500 via-pink-500 to-purple-500 hover:from-rose-600 hover:via-pink-600 hover:to-purple-600 text-white rounded-xl shadow-xl text-xl py-6"
+                    >
+                      {isProcessing && selectedPlan === plan.id ? (
+                        <>
+                          <Icon name="Loader2" size={24} className="mr-2 animate-spin" />
+                          Оформление...
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="Sparkles" size={24} className="mr-2" />
+                          Купить тариф "Сессия"
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Дополнительные пакеты токенов */}
         {isPremium && tokenPacks.length > 0 && (

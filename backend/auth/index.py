@@ -130,19 +130,26 @@ def handler(event: dict, context) -> dict:
                         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                         full_name = email.split('@')[0]  # Используем часть email как имя
                         
+                        import hashlib
+                        referral_code = hashlib.md5((email + str(datetime.utcnow().timestamp())).encode()).hexdigest()[:8].upper()
+                        
                         cur.execute("""
                             INSERT INTO users (
                                 email, password_hash, full_name, last_login_at,
                                 trial_ends_at, is_trial_used,
-                                ai_tokens_limit, ai_tokens_used, ai_tokens_reset_at
+                                ai_tokens_limit, ai_tokens_used, ai_tokens_reset_at,
+                                daily_questions_used, daily_questions_reset_at,
+                                referral_code
                             )
                             VALUES (
                                 %s, %s, %s, CURRENT_TIMESTAMP,
-                                CURRENT_TIMESTAMP + INTERVAL '2 days', FALSE,
-                                50000, 0, CURRENT_TIMESTAMP + INTERVAL '1 month'
+                                CURRENT_TIMESTAMP + INTERVAL '1 day', FALSE,
+                                50000, 0, CURRENT_TIMESTAMP + INTERVAL '1 month',
+                                0, CURRENT_TIMESTAMP,
+                                %s
                             )
                             RETURNING id, email, full_name, university, faculty, course, trial_ends_at
-                        """, (email, password_hash, full_name))
+                        """, (email, password_hash, full_name, referral_code))
                         
                         new_user = cur.fetchone()
                         conn.commit()

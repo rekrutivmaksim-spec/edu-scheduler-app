@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import ReferralProgram from '@/components/ReferralProgram';
 
 const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
@@ -241,7 +242,7 @@ const Profile = () => {
 
           <Card 
             onClick={() => navigate('/subscription')}
-            className={`p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all ${subscriptionType === 'premium' ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-300' : 'bg-gradient-to-r from-purple-50 via-pink-50 to-rose-50 border-2 border-purple-300 hover:shadow-purple-500/30 hover:scale-[1.02]'}`}
+            className={`p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all mb-4 ${subscriptionType === 'premium' ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-300' : 'bg-gradient-to-r from-purple-50 via-pink-50 to-rose-50 border-2 border-purple-300 hover:shadow-purple-500/30 hover:scale-[1.02]'}`}
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 sm:gap-4 flex-1">
@@ -260,6 +261,24 @@ const Profile = () => {
                 </div>
               </div>
               <Icon name="ArrowRight" size={20} className={`flex-shrink-0 sm:w-6 sm:h-6 ${subscriptionType === 'premium' ? 'text-indigo-600' : 'text-purple-600'}`} />
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 mb-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-green-500 to-emerald-500">
+                <Icon name="PiggyBank" size={24} className="text-white sm:w-7 sm:h-7" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs sm:text-sm text-gray-600 font-medium">Сэкономлено на репетиторах</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl sm:text-3xl font-bold text-green-600">{stats.materials * 500}</span>
+                  <span className="text-sm sm:text-base text-gray-600">₽</span>
+                </div>
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
+                  ~{stats.materials} материалов × 500₽ за консультацию
+                </p>
+              </div>
             </div>
           </Card>
 
@@ -351,6 +370,10 @@ const Profile = () => {
             </div>
           )}
         </Card>
+
+        <div className="mt-6">
+          <ReferralProgram />
+        </div>
 
         <Card className="p-6 bg-white border-0 shadow-xl mt-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">Быстрые действия</h3>

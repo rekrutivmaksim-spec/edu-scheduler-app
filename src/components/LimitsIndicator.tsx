@@ -25,6 +25,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
   const [limits, setLimits] = useState<Limits | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showUpgradeButton, setShowUpgradeButton] = useState(false);
 
   useEffect(() => {
     loadLimits();
@@ -40,6 +41,13 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
         const data = await response.json();
         setLimits(data.limits);
         setIsPremium(data.is_premium || data.is_trial);
+        
+        // Показываем кнопку подписки только когда закончились бесплатные вопросы
+        if (!data.is_premium && !data.is_trial && data.limits?.ai_questions) {
+          const aiLimits = data.limits.ai_questions;
+          const questionsExhausted = aiLimits.used >= aiLimits.max;
+          setShowUpgradeButton(questionsExhausted);
+        }
       }
     } catch (error) {
       console.error('Failed to load limits:', error);
@@ -49,7 +57,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
   };
 
   if (loading || !limits) return null;
-  if (isPremium) return null; // Не показываем для Premium
+  if (isPremium && !showUpgradeButton) return null;
 
   const getPercentage = (used: number, max: number | null) => {
     if (!max) return 0;
@@ -81,22 +89,24 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
           
           return (
             <div key={idx} className="flex items-center gap-2">
-              <Icon name={item.icon as any} size={16} className={isNearLimit ? getColor(percentage) : 'text-gray-600'} />
+              <Icon name={item.icon} size={16} className={isNearLimit ? getColor(percentage) : 'text-gray-600'} />
               <span className={`text-sm font-medium ${isNearLimit ? getColor(percentage) : 'text-gray-700'}`}>
                 {item.used}/{item.max}
               </span>
             </div>
           );
         })}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => navigate('/pricing')}
-          className="ml-auto text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-100"
-        >
-          <Icon name="Zap" size={14} className="mr-1" />
-          Premium
-        </Button>
+        {showUpgradeButton && (
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => navigate('/subscription')}
+            className="ml-auto text-xs bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+          >
+            <Icon name="Zap" size={14} className="mr-1" />
+            Купить
+          </Button>
+        )}
       </div>
     );
   }
@@ -173,14 +183,16 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
         )}
       </div>
 
-      <Button
-        onClick={() => navigate('/pricing')}
-        className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg"
-        size="sm"
-      >
-        <Icon name="Zap" size={16} className="mr-2" />
-        Перейти на Premium
-      </Button>
+      {showUpgradeButton && (
+        <Button
+          onClick={() => navigate('/subscription')}
+          className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg"
+          size="sm"
+        >
+          <Icon name="Zap" size={16} className="mr-2" />
+          Купить вопросы
+        </Button>
+      )}
     </Card>
   );
 };
