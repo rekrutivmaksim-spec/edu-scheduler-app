@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
@@ -23,6 +24,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  isReading?: boolean;
 }
 
 const Assistant = () => {
@@ -41,6 +43,7 @@ const Assistant = () => {
   ]);
   const [question, setQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isReading, setIsReading] = useState(false);
   const [showMaterials, setShowMaterials] = useState(false);
   const [wordsRemaining, setWordsRemaining] = useState<number | null>(null);
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null);
@@ -86,6 +89,14 @@ const Assistant = () => {
     
     setMessages(prev => [...prev, userMessage]);
     setQuestion('');
+    
+    // Показываем индикацию чтения документа
+    if (selectedMaterials.length > 0) {
+      setIsReading(true);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setIsReading(false);
+    }
+    
     setIsLoading(true);
 
     try {
@@ -281,11 +292,11 @@ const Assistant = () => {
                 }`}
               >
                 {message.role === 'assistant' ? (
-                  <div className="prose prose-sm max-w-none prose-headings:text-gray-800 prose-p:text-gray-700 prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  <div className="prose prose-sm max-w-none prose-headings:mt-4 prose-headings:mb-2 prose-headings:text-gray-800 prose-p:my-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-ul:my-3 prose-ul:text-gray-700 prose-ol:my-3 prose-ol:text-gray-700 prose-li:my-1 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded-lg prose-table:my-4 prose-th:bg-purple-100 prose-th:p-2 prose-th:text-left prose-td:p-2 prose-td:border prose-td:border-gray-300">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                   </div>
                 ) : (
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                 )}
                 <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-white/70' : 'text-gray-400'}`}>
                   {message.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
@@ -298,16 +309,32 @@ const Assistant = () => {
               )}
             </div>
           ))}
+          {isReading && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <Icon name="BookOpen" size={20} className="text-white animate-pulse" />
+              </div>
+              <Card className="p-4 bg-white border-2 border-purple-200">
+                <div className="flex items-center gap-2">
+                  <Icon name="FileText" size={16} className="text-purple-600 animate-pulse" />
+                  <p className="text-sm text-gray-600 animate-pulse">Читаю материалы...</p>
+                </div>
+              </Card>
+            </div>
+          )}
           {isLoading && (
             <div className="flex gap-3 justify-start">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
                 <Icon name="Bot" size={20} className="text-white" />
               </div>
               <Card className="p-4 bg-white border-2 border-purple-200">
-                <div className="flex gap-2">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                  <p className="text-sm text-gray-600">Генерирую ответ...</p>
                 </div>
               </Card>
             </div>
