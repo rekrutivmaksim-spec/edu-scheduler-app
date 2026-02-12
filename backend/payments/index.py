@@ -488,7 +488,7 @@ def handler(event: dict, context) -> dict:
                 
                 print(f"[PAYMENT] Создание платежа: user_id={user_id}, plan_type={plan_type}")
                 
-                if plan_type not in PLANS and plan_type not in TOKEN_PACKS:
+                if plan_type not in PLANS and plan_type not in TOKEN_PACKS and plan_type not in QUESTION_PACKS and plan_type not in SEASONAL_PLANS:
                     print(f"[PAYMENT] Ошибка: неверный plan_type={plan_type}")
                     return {
                         'statusCode': 400,
