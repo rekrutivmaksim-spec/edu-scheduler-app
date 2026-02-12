@@ -447,6 +447,28 @@ def handler(event: dict, context) -> dict:
             if session_id:
                 save_message(conn, session_id, user_id, 'user', question, material_ids)
             
+            # ПРОВЕРЯЕМ, ХОЧЕТ ЛИ ПОЛЬЗОВАТЕЛЬ СОЗДАТЬ ЗАДАЧУ/СОБЫТИЕ
+            action_intent = detect_action_intent(question)
+            action_result = None
+            
+            if action_intent['action'] == 'task':
+                # Создаём задачу
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(f'''
+                        INSERT INTO {SCHEMA_NAME}.tasks (user_id, title, subject, priority)
+                        VALUES (%s, %s, %s, 'high')
+                        RETURNING id, title, subject
+                    ''', (user_id, action_intent['title'], action_intent.get('subject')))
+                    task = cursor.fetchone()
+                    conn.commit()
+                    cursor.close()
+                    
+                    action_result = f"\n\n✅ **Задача создана!**\n📋 {task[1]}" + (f"\n📚 Предмет: {task[2]}" if task[2] else "")
+                    print(f"[AI-ASSISTANT] ✅ Создана задача #{task[0]}: {task[1]}", flush=True)
+                except Exception as e:
+                    print(f"[AI-ASSISTANT] ⚠️ Ошибка создания задачи: {e}", flush=True)
+            
             # Проверяем кэш
             cache_result = check_cache(conn, question, material_ids)
             
@@ -464,6 +486,10 @@ def handler(event: dict, context) -> dict:
                 # Сохраняем в кэш только успешные ответы (не fallback)
                 if tokens_used > 0:
                     save_to_cache(conn, question, material_ids, answer, tokens_used)
+            
+            # Добавляем информацию о созданной задаче к ответу
+            if action_result:
+                answer = answer + action_result
             
             # Сохраняем ответ ассистента в историю
             if session_id:
@@ -655,6 +681,87 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
         print(f"[AI-ASSISTANT] ❌ КРИТИЧЕСКАЯ ошибка при загрузке материалов: {e}", flush=True)
         cursor.close()
         return "Не удалось загрузить материалы из базы данных. Попробуйте задать вопрос позже."
+
+def detect_action_intent(question: str) -> dict:
+    """Определяет, хочет ли пользователь создать задачу или событие
+    Возвращает: {'action': 'task'|'schedule'|None, 'title': str, 'deadline': str|None, 'subject': str|None}
+    """
+    question_lower = question.lower()
+    
+    # Триггеры для создания задачи
+    task_triggers = [
+        'создай задачу', 'добавь задачу', 'напомни', 'не забыть', 'нужно сделать',
+        'дедлайн', 'сдать', 'deadline', 'задача:', 'todo:'
+    ]
+    
+    # Триггеры для добавления в расписание
+    schedule_triggers = [
+        'добавь занятие', 'добавь пару', 'занятие', 'пара', 'лекция', 'семинар',
+        'расписание', 'в расписание'
+    ]
+    
+    # Проверяем триггеры
+    action = None
+    if any(trigger in question_lower for trigger in task_triggers):
+        action = 'task'
+    elif any(trigger in question_lower for trigger in schedule_triggers):
+        action = 'schedule'
+    
+    if not action:
+        return {'action': None}
+    
+    # Парсим детали из вопроса
+    import re
+    
+    # Извлекаем дату/время
+    deadline = None
+    date_patterns = [
+        r'до (\d{1,2})\.(\d{1,2})',  # до 15.03
+        r'к (\d{1,2})\.(\d{1,2})',   # к 20.05
+        r'(\d{1,2})\.(\d{1,2})',     # 10.04
+        r'(завтра|послезавтра|сегодня)',
+        r'через (\d+) (день|дня|дней|час|часа|часов)'
+    ]
+    
+    for pattern in date_patterns:
+        match = re.search(pattern, question_lower)
+        if match:
+            deadline = match.group(0)
+            break
+    
+    # Извлекаем предмет
+    subject = None
+    subject_match = re.search(r'по ([а-яё\s]+)', question_lower)
+    if subject_match:
+        subject = subject_match.group(1).strip()[:50]
+    
+    # Извлекаем название задачи (после двоеточия или в кавычках)
+    title = None
+    title_patterns = [
+        r'["«]([^"»]+)["»]',  # в кавычках
+        r':\s*(.+?)(?:\s+до|\s+к|$)',  # после двоеточия
+    ]
+    
+    for pattern in title_patterns:
+        match = re.search(pattern, question)
+        if match:
+            title = match.group(1).strip()[:200]
+            break
+    
+    if not title:
+        # Если не нашли явное название, берём всё после триггера
+        for trigger in task_triggers + schedule_triggers:
+            if trigger in question_lower:
+                idx = question_lower.find(trigger) + len(trigger)
+                title = question[idx:].strip()[:200]
+                break
+    
+    return {
+        'action': action,
+        'title': title or question[:100],
+        'deadline': deadline,
+        'subject': subject
+    }
 
 def ask_artemox_openai(question: str, context: str) -> tuple:
     """ОТКАЗОУСТОЙЧИВЫЙ запрос к Artemox с retry и fallback ответами

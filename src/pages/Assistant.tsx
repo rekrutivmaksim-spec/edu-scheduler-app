@@ -445,22 +445,48 @@ const Assistant = () => {
         </div>
 
         {messages.length === 1 && (
-          <Card className="mt-6 p-4 sm:p-5 bg-white border-2 border-dashed border-purple-200">
-            <h3 className="font-bold text-gray-800 mb-3 text-sm sm:text-base">Примеры вопросов:</h3>
-            <div className="flex flex-wrap gap-2">
-              {quickQuestions.map((q, index) => (
-                <Button
-                  key={index}
-                  onClick={() => setQuestion(q)}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs sm:text-sm rounded-full border-purple-200 hover:bg-purple-50 h-auto py-2 px-3"
-                >
-                  {q}
-                </Button>
-              ))}
-            </div>
-          </Card>
+          <>
+            <Card className="mt-6 p-4 sm:p-5 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-300">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+                  <Icon name="Sparkles" size={20} className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base">💡 Я умею создавать задачи автоматически!</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-3">
+                    Просто скажи: <span className="font-medium text-purple-700">"Создай задачу: сдать курсовую до 15.03"</span> или <span className="font-medium text-purple-700">"Напомни сдать реферат по истории"</span>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => setQuestion('Создай задачу: подготовиться к экзамену по математике')}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs rounded-full border-purple-300 hover:bg-purple-100 h-auto py-1.5 px-3"
+                    >
+                      📝 Пример задачи
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="mt-4 p-4 sm:p-5 bg-white border-2 border-dashed border-purple-200">
+              <h3 className="font-bold text-gray-800 mb-3 text-sm sm:text-base">Примеры вопросов:</h3>
+              <div className="flex flex-wrap gap-2">
+                {quickQuestions.map((q, index) => (
+                  <Button
+                    key={index}
+                    onClick={() => setQuestion(q)}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs sm:text-sm rounded-full border-purple-200 hover:bg-purple-50 h-auto py-2 px-3"
+                  >
+                    {q}
+                  </Button>
+                ))}
+              </div>
+            </Card>
+          </>
         )}
       </main>
 
