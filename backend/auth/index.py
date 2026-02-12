@@ -76,11 +76,28 @@ def handler(event: dict, context) -> dict:
                     'body': json.dumps({'error': 'Email и пароль обязательны'})
                 }
             
+            # ВАЛИДАЦИЯ EMAIL
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, email):
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Некорректный формат email'})
+                }
+            
             if len(password) < 6:
                 return {
                     'statusCode': 400,
                     'headers': headers,
                     'body': json.dumps({'error': 'Пароль должен быть минимум 6 символов'})
+                }
+            
+            if len(password) > 100:
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Пароль слишком длинный'})
                 }
             
             conn = get_db_connection()

@@ -247,15 +247,22 @@ def create_payment(conn, user_id: int, plan_type: str) -> dict:
 def complete_payment(conn, payment_id: int, payment_method: str = None, external_payment_id: str = None) -> bool:
     """Завершает платеж и активирует подписку или добавляет токены"""
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        # Получаем информацию о платеже
+        # ЗАЩИТА: проверяем что платеж еще не обработан (защита от повторной обработки)
         cur.execute(f"""
-            SELECT user_id, plan_type, expires_at
+            SELECT user_id, plan_type, expires_at, payment_status
             FROM {SCHEMA_NAME}.payments
-            WHERE id = %s AND payment_status = 'pending'
+            WHERE id = %s
+            FOR UPDATE
         """, (payment_id,))
         
         payment = cur.fetchone()
         if not payment:
+            print(f'[PAYMENT] Payment {payment_id} not found')
+            return False
+        
+        # КРИТИЧЕСКАЯ ПРОВЕРКА: защита от повторной обработки
+        if payment['payment_status'] != 'pending':
+            print(f'[PAYMENT] Payment {payment_id} already processed with status {payment["payment_status"]}')
             return False
         
         plan_type = payment['plan_type']

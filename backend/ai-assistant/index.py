@@ -8,7 +8,8 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ'
+# КРИТИЧЕСКАЯ БЕЗОПАСНОСТЬ: API ключ из переменных окружения, НЕ хардкод!
+ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 
 # Клиент OpenAI для Artemox
 client = OpenAI(
@@ -116,12 +117,10 @@ def check_subscription_access(conn, user_id: int) -> dict:
             'questions_limit': trial_limit
         }
     
-    # Бесплатная версия - 3 вопроса в месяц
-    # Проверяем месячную квоту для Free пользователей
-    free_limit = 3
+    # Бесплатная версия - 3 вопроса в ДЕНЬ + бонусные
     cursor = conn.cursor()
     cursor.execute(f'''
-        SELECT ai_questions_free_used, ai_questions_free_reset_at
+        SELECT daily_questions_used, daily_questions_reset_at, bonus_questions
         FROM {SCHEMA_NAME}.users
         WHERE id = %s
     ''', (user_id,))
@@ -129,31 +128,38 @@ def check_subscription_access(conn, user_id: int) -> dict:
     cursor.close()
     
     if result:
-        free_used, free_reset = result
-        free_used = free_used or 0
+        daily_used, daily_reset, bonus = result
+        daily_used = daily_used or 0
+        bonus = bonus or 0
         
-        # Сбрасываем счетчик если прошел месяц
-        if free_reset and free_reset < now:
+        # Сбрасываем дневной счетчик каждые 24 часа
+        if daily_reset and daily_reset < now:
             cursor = conn.cursor()
             cursor.execute(f'''
                 UPDATE {SCHEMA_NAME}.users
-                SET ai_questions_free_used = 0,
-                    ai_questions_free_reset_at = %s
+                SET daily_questions_used = 0,
+                    daily_questions_reset_at = %s
                 WHERE id = %s
-            ''', (now + timedelta(days=30), user_id))
+            ''', (now + timedelta(days=1), user_id))
             conn.commit()
             cursor.close()
-            free_used = 0
+            daily_used = 0
         
-        if free_used >= free_limit:
+        daily_limit = 3
+        total_available = daily_limit + bonus
+        
+        # КРИТИЧЕСКАЯ ПРОВЕРКА: проверяем и дневной, и бонусный лимит
+        if daily_used >= total_available:
             return {
                 'has_access': False, 
                 'reason': 'questions_limit_reached', 
                 'is_premium': False,
                 'is_trial': False,
                 'is_free': True,
-                'questions_used': free_used,
-                'questions_limit': free_limit
+                'questions_used': daily_used,
+                'questions_limit': total_available,
+                'daily_limit': daily_limit,
+                'bonus_available': bonus
             }
         
         return {
@@ -161,8 +167,10 @@ def check_subscription_access(conn, user_id: int) -> dict:
             'is_premium': False,
             'is_trial': False,
             'is_free': True,
-            'questions_used': free_used,
-            'questions_limit': free_limit
+            'questions_used': daily_used,
+            'questions_limit': total_available,
+            'daily_limit': daily_limit,
+            'bonus_available': bonus
         }
     
     # Нет доступа (не должно случиться)
@@ -173,7 +181,8 @@ def increment_ai_questions(conn, user_id: int):
     cursor = conn.cursor()
     # Проверяем тип подписки
     cursor.execute(f'''
-        SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used
+        SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used, 
+               daily_questions_used, bonus_questions
         FROM {SCHEMA_NAME}.users
         WHERE id = %s
     ''', (user_id,))
@@ -184,7 +193,7 @@ def increment_ai_questions(conn, user_id: int):
     now = datetime.now()
     
     if user:
-        sub_type, expires, trial_ends, trial_used = user
+        sub_type, expires, trial_ends, trial_used, daily_used, bonus = user
         if sub_type == 'premium' and expires and expires > now:
             is_premium = True
         elif trial_ends and not trial_used and trial_ends > now:
@@ -198,13 +207,28 @@ def increment_ai_questions(conn, user_id: int):
             WHERE id = %s
         ''', (user_id,))
     else:
-        # Free пользователь - инкрементируем бесплатный счетчик
-        cursor.execute(f'''
-            UPDATE {SCHEMA_NAME}.users
-            SET ai_questions_free_used = COALESCE(ai_questions_free_used, 0) + 1,
-                ai_questions_free_reset_at = COALESCE(ai_questions_free_reset_at, %s)
-            WHERE id = %s
-        ''', (now + timedelta(days=30), user_id))
+        # Free пользователь - инкрементируем дневной счетчик
+        daily_used = daily_used or 0
+        bonus = bonus or 0
+        
+        # КРИТИЧЕСКАЯ ЛОГИКА: сначала тратим бонусные вопросы
+        if daily_used < 3:
+            # Есть дневной лимит - используем его
+            cursor.execute(f'''
+                UPDATE {SCHEMA_NAME}.users
+                SET daily_questions_used = COALESCE(daily_questions_used, 0) + 1,
+                    daily_questions_reset_at = COALESCE(daily_questions_reset_at, %s)
+                WHERE id = %s
+            ''', (now + timedelta(days=1), user_id))
+        elif bonus > 0:
+            # Дневной лимит исчерпан - тратим бонусные
+            cursor.execute(f'''
+                UPDATE {SCHEMA_NAME}.users
+                SET daily_questions_used = COALESCE(daily_questions_used, 0) + 1,
+                    bonus_questions = bonus_questions - 1,
+                    daily_questions_reset_at = COALESCE(daily_questions_reset_at, %s)
+                WHERE id = %s AND bonus_questions > 0
+            ''', (now + timedelta(days=1), user_id))
     
     conn.commit()
     cursor.close()
