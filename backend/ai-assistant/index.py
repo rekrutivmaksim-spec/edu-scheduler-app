@@ -452,7 +452,7 @@ def handler(event: dict, context) -> dict:
             action_result = None
             
             if action_intent['action'] == 'task':
-                # Создаём задачу
+                # Создаём задачу БЕЗ обращения к ИИ — это быстрая команда
                 try:
                     cursor = conn.cursor()
                     cursor.execute(f'''
@@ -464,12 +464,39 @@ def handler(event: dict, context) -> dict:
                     conn.commit()
                     cursor.close()
                     
-                    action_result = f"\n\n✅ **Задача создана!**\n📋 {task[1]}" + (f"\n📚 Предмет: {task[2]}" if task[2] else "")
-                    print(f"[AI-ASSISTANT] ✅ Создана задача #{task[0]}: {task[1]}", flush=True)
+                    # Увеличиваем счетчик вопросов (т.к. это тоже использование ассистента)
+                    increment_ai_questions(conn, user_id)
+                    access_updated = check_subscription_access(conn, user_id)
+                    questions_remaining = access_updated.get('questions_limit', 0) - access_updated.get('questions_used', 0)
+                    
+                    # Формируем быстрый ответ без обращения к ИИ
+                    quick_answer = f"✅ **Задача успешно создана!**\n\n📋 **{task[1]}**" + (f"\n📚 Предмет: {task[2]}" if task[2] else "") + f"\n\n💡 Задача добавлена в раздел **Планировщик**. Не забудь выполнить её вовремя!"
+                    
+                    # Сохраняем в историю чата
+                    if session_id:
+                        save_message(conn, session_id, user_id, 'assistant', quick_answer, [], 0, False)
+                    
+                    print(f"[AI-ASSISTANT] ✅ Создана задача #{task[0]}: {task[1]} (БЕЗ вызова ИИ)", flush=True)
+                    
+                    # Возвращаем ответ СРАЗУ, минуя ИИ
+                    return {
+                        'statusCode': 200,
+                        'headers': {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*'
+                        },
+                        'body': json.dumps({
+                            'answer': quick_answer,
+                            'questions_used': access_updated.get('questions_used', 0),
+                            'questions_limit': access_updated.get('questions_limit', 0),
+                            'questions_remaining': questions_remaining
+                        })
+                    }
                 except Exception as e:
                     print(f"[AI-ASSISTANT] ⚠️ Ошибка создания задачи: {e}", flush=True)
+                    # Продолжаем работу с ИИ, если создание задачи не удалось
             
-            # Проверяем кэш
+            # Проверяем кэш ТОЛЬКО если это НЕ команда создания задачи
             cache_result = check_cache(conn, question, material_ids)
             
             if cache_result['found']:
@@ -486,10 +513,6 @@ def handler(event: dict, context) -> dict:
                 # Сохраняем в кэш только успешные ответы (не fallback)
                 if tokens_used > 0:
                     save_to_cache(conn, question, material_ids, answer, tokens_used)
-            
-            # Добавляем информацию о созданной задаче к ответу
-            if action_result:
-                answer = answer + action_result
             
             # Сохраняем ответ ассистента в историю
             if session_id:
