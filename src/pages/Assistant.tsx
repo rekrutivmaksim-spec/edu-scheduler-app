@@ -27,6 +27,14 @@ interface Message {
   isReading?: boolean;
 }
 
+interface ChatSession {
+  id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+}
+
 const Assistant = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -47,6 +55,8 @@ const Assistant = () => {
   const [showMaterials, setShowMaterials] = useState(false);
   const [wordsRemaining, setWordsRemaining] = useState<number | null>(null);
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -55,6 +65,7 @@ const Assistant = () => {
         return;
       }
       await loadMaterials();
+      await loadChatSessions();
     };
     checkAuth();
   }, [navigate]);
@@ -75,6 +86,47 @@ const Assistant = () => {
       }
     } catch (error) {
       console.error('Failed to load materials:', error);
+    }
+  };
+
+  const loadChatSessions = async () => {
+    try {
+      const token = authService.getToken();
+      const response = await fetch(`${AI_URL}?action=sessions`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setChatSessions(data.sessions || []);
+      }
+    } catch (error) {
+      console.error('Failed to load chat sessions:', error);
+    }
+  };
+
+  const loadChatMessages = async (sessionId: number) => {
+    try {
+      const token = authService.getToken();
+      const response = await fetch(`${AI_URL}?action=messages&session_id=${sessionId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const loadedMessages = data.messages.map((msg: {role: string; content: string; timestamp: string}) => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+          timestamp: new Date(msg.timestamp)
+        }));
+        setMessages(loadedMessages);
+        setShowHistory(false);
+      }
+    } catch (error) {
+      console.error('Failed to load chat messages:', error);
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось загрузить историю чата',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -223,19 +275,66 @@ const Assistant = () => {
                 )}
               </div>
             </div>
-            <Button
-              onClick={() => setShowMaterials(!showMaterials)}
-              variant="outline"
-              className="rounded-xl border-2 border-purple-200"
-            >
-              <Icon name="BookOpen" size={20} className="mr-2" />
-              Материалы ({selectedMaterials.length > 0 ? selectedMaterials.length : 'все'})
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowHistory(!showHistory)}
+                variant="outline"
+                className="rounded-xl border-2 border-purple-200"
+              >
+                <Icon name="History" size={20} className="mr-2" />
+                История
+              </Button>
+              <Button
+                onClick={() => setShowMaterials(!showMaterials)}
+                variant="outline"
+                className="rounded-xl border-2 border-purple-200"
+              >
+                <Icon name="BookOpen" size={20} className="mr-2" />
+                Материалы ({selectedMaterials.length > 0 ? selectedMaterials.length : 'все'})
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
+        {showHistory && (
+          <Card className="p-5 mb-6 bg-white border-2 border-purple-200">
+            <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <Icon name="MessageSquare" size={20} className="text-purple-600" />
+              История чатов
+            </h3>
+            {chatSessions.length === 0 ? (
+              <p className="text-sm text-gray-500">История чатов пуста</p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {chatSessions.map((session) => (
+                  <button
+                    key={session.id}
+                    onClick={() => loadChatMessages(session.id)}
+                    className="w-full text-left p-3 rounded-lg hover:bg-purple-50 transition-colors border border-gray-200"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-800 truncate">{session.title}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {session.message_count} сообщений • {new Date(session.updated_at).toLocaleDateString('ru-RU', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <Icon name="ChevronRight" size={20} className="text-gray-400 flex-shrink-0 ml-2" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+        
         {showMaterials && (
           <Card className="p-5 mb-6 bg-white border-2 border-purple-200">
             <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">

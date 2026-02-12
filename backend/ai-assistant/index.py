@@ -3,6 +3,7 @@ import os
 import jwt
 import psycopg2
 import time
+import hashlib
 from datetime import datetime, timedelta
 from openai import OpenAI
 
@@ -235,10 +236,153 @@ def increment_ai_questions(conn, user_id: int):
     conn.commit()
     cursor.close()
 
+def normalize_question(question: str) -> str:
+    """Нормализует вопрос для кэширования (убирает лишние пробелы, приводит к нижнему регистру)"""
+    return ' '.join(question.lower().strip().split())
+
+def get_question_hash(question: str, material_ids: list) -> str:
+    """Генерирует хэш вопроса + материалов для поиска в кэше"""
+    normalized = normalize_question(question)
+    # Добавляем отсортированные material_ids для уникальности
+    key = f"{normalized}:{sorted(material_ids)}"
+    return hashlib.md5(key.encode('utf-8')).hexdigest()
+
+def check_cache(conn, question: str, material_ids: list) -> dict:
+    """Проверяет, есть ли ответ в кэше. Возвращает {found: bool, answer: str, tokens: int}"""
+    question_hash = get_question_hash(question, material_ids)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(f'''
+            SELECT answer, tokens_used, hit_count
+            FROM {SCHEMA_NAME}.ai_question_cache
+            WHERE question_hash = %s
+            AND (last_used_at > CURRENT_TIMESTAMP - INTERVAL '30 days')
+        ''', (question_hash,))
+        
+        result = cursor.fetchone()
+        
+        if result:
+            answer, tokens, hit_count = result
+            # Обновляем статистику использования кэша
+            cursor.execute(f'''
+                UPDATE {SCHEMA_NAME}.ai_question_cache
+                SET hit_count = hit_count + 1,
+                    last_used_at = CURRENT_TIMESTAMP
+                WHERE question_hash = %s
+            ''', (question_hash,))
+            conn.commit()
+            
+            print(f"[AI-ASSISTANT] ✅ Ответ найден в кэше (hit #{hit_count + 1})", flush=True)
+            cursor.close()
+            return {'found': True, 'answer': answer, 'tokens': tokens}
+        
+        cursor.close()
+        return {'found': False}
+    except Exception as e:
+        print(f"[AI-ASSISTANT] ⚠️ Ошибка при проверке кэша: {e}", flush=True)
+        cursor.close()
+        return {'found': False}
+
+def save_to_cache(conn, question: str, material_ids: list, answer: str, tokens_used: int):
+    """Сохраняет ответ в кэш"""
+    question_hash = get_question_hash(question, material_ids)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(f'''
+            INSERT INTO {SCHEMA_NAME}.ai_question_cache 
+            (question_hash, question_text, answer, material_ids, tokens_used)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (question_hash) DO UPDATE
+            SET answer = EXCLUDED.answer,
+                tokens_used = EXCLUDED.tokens_used,
+                hit_count = {SCHEMA_NAME}.ai_question_cache.hit_count + 1,
+                last_used_at = CURRENT_TIMESTAMP
+        ''', (question_hash, question[:500], answer, material_ids or [], tokens_used))
+        conn.commit()
+        cursor.close()
+        print(f"[AI-ASSISTANT] 💾 Ответ сохранён в кэш", flush=True)
+    except Exception as e:
+        print(f"[AI-ASSISTANT] ⚠️ Ошибка при сохранении в кэш: {e}", flush=True)
+        cursor.close()
+
+def get_or_create_session(conn, user_id: int) -> int:
+    """Получает активную сессию чата или создаёт новую"""
+    cursor = conn.cursor()
+    
+    try:
+        # Ищем последнюю активную сессию (обновлённую менее 24 часов назад)
+        cursor.execute(f'''
+            SELECT id FROM {SCHEMA_NAME}.chat_sessions
+            WHERE user_id = %s 
+            AND updated_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
+            ORDER BY updated_at DESC
+            LIMIT 1
+        ''', (user_id,))
+        
+        result = cursor.fetchone()
+        
+        if result:
+            session_id = result[0]
+            cursor.close()
+            return session_id
+        
+        # Создаём новую сессию
+        cursor.execute(f'''
+            INSERT INTO {SCHEMA_NAME}.chat_sessions (user_id, title)
+            VALUES (%s, 'Новый чат')
+            RETURNING id
+        ''', (user_id,))
+        
+        session_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        print(f"[AI-ASSISTANT] 📝 Создана новая сессия чата: {session_id}", flush=True)
+        return session_id
+    except Exception as e:
+        print(f"[AI-ASSISTANT] ⚠️ Ошибка при работе с сессиями: {e}", flush=True)
+        cursor.close()
+        return None
+
+def save_message(conn, session_id: int, user_id: int, role: str, content: str, 
+                 material_ids: list = None, tokens_used: int = 0, was_cached: bool = False):
+    """Сохраняет сообщение в историю чата"""
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(f'''
+            INSERT INTO {SCHEMA_NAME}.chat_messages 
+            (session_id, user_id, role, content, material_ids, tokens_used, was_cached)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', (session_id, user_id, role, content, material_ids or [], tokens_used, was_cached))
+        
+        # Обновляем счётчик сообщений и время обновления сессии
+        cursor.execute(f'''
+            UPDATE {SCHEMA_NAME}.chat_sessions
+            SET message_count = message_count + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (session_id,))
+        
+        # Обновляем title сессии (первый вопрос пользователя)
+        if role == 'user':
+            cursor.execute(f'''
+                UPDATE {SCHEMA_NAME}.chat_sessions
+                SET title = %s
+                WHERE id = %s AND title = 'Новый чат'
+            ''', (content[:100], session_id))
+        
+        conn.commit()
+        cursor.close()
+    except Exception as e:
+        print(f"[AI-ASSISTANT] ⚠️ Ошибка при сохранении сообщения: {e}", flush=True)
+        cursor.close()
+
 def handler(event: dict, context) -> dict:
     """API для ИИ-ассистента: отвечает на вопросы по материалам пользователя"""
     method = event.get('httpMethod', 'GET')
-    print(f"[AI-ASSISTANT] Method: {method}, Headers: {event.get('headers', {})}")
+    print(f"[AI-ASSISTANT] Method: {method}, Headers: {event.get('headers', {})}", flush=True)
     
     if method == 'OPTIONS':
         return {
@@ -306,8 +450,35 @@ def handler(event: dict, context) -> dict:
             
             context_text = get_materials_context(conn, user_id, material_ids)
             
-            # Быстрый ответ через Artemox
-            answer, tokens_used = ask_artemox_openai(question, context_text)
+            # Получаем или создаём сессию чата
+            session_id = get_or_create_session(conn, user_id)
+            
+            # Сохраняем вопрос пользователя
+            if session_id:
+                save_message(conn, session_id, user_id, 'user', question, material_ids)
+            
+            # Проверяем кэш
+            cache_result = check_cache(conn, question, material_ids)
+            
+            if cache_result['found']:
+                # Ответ найден в кэше - используем его
+                answer = cache_result['answer']
+                tokens_used = 0  # Токены не тратятся при использовании кэша
+                was_cached = True
+                print(f"[AI-ASSISTANT] 🚀 Ответ из кэша (экономия {cache_result['tokens']} токенов)", flush=True)
+            else:
+                # Получаем ответ от ИИ
+                answer, tokens_used = ask_artemox_openai(question, context_text)
+                was_cached = False
+                
+                # Сохраняем в кэш только успешные ответы (не fallback)
+                if tokens_used > 0:
+                    save_to_cache(conn, question, material_ids, answer, tokens_used)
+            
+            # Сохраняем ответ ассистента в историю
+            if session_id:
+                save_message(conn, session_id, user_id, 'assistant', answer, 
+                           material_ids, tokens_used, was_cached)
             
             # Увеличиваем счетчик вопросов на 1
             increment_ai_questions(conn, user_id)
@@ -332,6 +503,80 @@ def handler(event: dict, context) -> dict:
                 },
                 'body': answer_data
             }
+        finally:
+            conn.close()
+    
+    if method == 'GET':
+        # GET запрос для получения истории чатов
+        action = event.get('queryStringParameters', {}).get('action', 'sessions')
+        conn = psycopg2.connect(DATABASE_URL)
+        
+        try:
+            if action == 'sessions':
+                # Получаем список всех чатов пользователя
+                cursor = conn.cursor()
+                cursor.execute(f'''
+                    SELECT id, title, created_at, updated_at, message_count
+                    FROM {SCHEMA_NAME}.chat_sessions
+                    WHERE user_id = %s
+                    ORDER BY updated_at DESC
+                    LIMIT 50
+                ''', (user_id,))
+                
+                sessions = []
+                for row in cursor.fetchall():
+                    sessions.append({
+                        'id': row[0],
+                        'title': row[1],
+                        'created_at': row[2].isoformat() if row[2] else None,
+                        'updated_at': row[3].isoformat() if row[3] else None,
+                        'message_count': row[4]
+                    })
+                cursor.close()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'sessions': sessions})
+                }
+            
+            elif action == 'messages':
+                # Получаем сообщения конкретного чата
+                session_id = event.get('queryStringParameters', {}).get('session_id')
+                
+                if not session_id:
+                    return {
+                        'statusCode': 400,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'session_id required'})
+                    }
+                
+                cursor = conn.cursor()
+                cursor.execute(f'''
+                    SELECT role, content, created_at, tokens_used, was_cached
+                    FROM {SCHEMA_NAME}.chat_messages
+                    WHERE session_id = %s AND user_id = %s
+                    ORDER BY created_at ASC
+                    LIMIT 200
+                ''', (session_id, user_id))
+                
+                messages = []
+                for row in cursor.fetchall():
+                    messages.append({
+                        'role': row[0],
+                        'content': row[1],
+                        'timestamp': row[2].isoformat() if row[2] else None,
+                        'tokens_used': row[3],
+                        'was_cached': row[4]
+                    })
+                cursor.close()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'messages': messages})
+                }
+        
         finally:
             conn.close()
     
