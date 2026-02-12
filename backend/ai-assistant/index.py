@@ -17,7 +17,7 @@ ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 client = OpenAI(
     api_key=ARTEMOX_API_KEY,
     base_url='https://api.artemox.com/v1',
-    timeout=25.0  # 25 секунд — оставляем 5 секунд на обработку
+    timeout=10.0  # 10 секунд — короткий таймаут для быстрого response/fallback
 )
 
 def get_user_id_from_token(token: str) -> int:
@@ -664,7 +664,7 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
     system_prompt = f"""Ты — ИИ-помощник для студентов. Отвечай чётко и структурированно.
 
 МАТЕРИАЛЫ СТУДЕНТА:
-{context[:3000]}
+{context[:1500]}
 
 ПРАВИЛА ФОРМАТИРОВАНИЯ:
 • Разделяй текст на абзацы (используй двойной перенос строки между абзацами)
@@ -680,10 +680,10 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
 • Если информации нет — скажи об этом
 • Простой русский язык, без воды"""
 
-    # RETRY ЛОГИКА: до 3 попыток с уменьшением timeout
+    # RETRY ЛОГИКА: до 3 попыток с коротким timeout (чтобы уложиться в 30s Cloud Function)
     for attempt in range(3):
         try:
-            timeout_value = 25 - (attempt * 5)  # 25s, 20s, 15s
+            timeout_value = 8 - (attempt * 2)  # 8s, 6s, 4s (итого макс 18s + запас)
             print(f"[AI-ASSISTANT] Попытка {attempt + 1}/3: Запрос к Artemox (timeout: {timeout_value}s)", flush=True)
             
             response = client.chat.completions.create(
@@ -693,7 +693,7 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
                     {"role": "user", "content": question}
                 ],
                 temperature=0.7,
-                max_tokens=800,
+                max_tokens=600,  # Уменьшено для быстрого ответа
                 timeout=timeout_value
             )
             
@@ -712,8 +712,8 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
                 print(f"[AI-ASSISTANT] 🔄 Все попытки провалены, возвращаем fallback ответ", flush=True)
                 return generate_fallback_answer(question, context), 0
             
-            # Ждём перед следующей попыткой
-            time.sleep(0.5)
+            # Быстрая retry без задержки (экономим время)
+            continue
     
     # На случай непредвиденных ситуаций
     return generate_fallback_answer(question, context), 0
