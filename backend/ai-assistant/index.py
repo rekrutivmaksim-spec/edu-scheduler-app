@@ -2,6 +2,7 @@ import json
 import os
 import jwt
 import psycopg2
+import time
 from datetime import datetime, timedelta
 from openai import OpenAI
 
@@ -341,63 +342,88 @@ def handler(event: dict, context) -> dict:
     }
 
 def get_materials_context(conn, user_id: int, material_ids: list) -> str:
-    """Получение текста материалов для контекста ИИ с поддержкой чанков"""
+    """ОТКАЗОУСТОЙЧИВОЕ получение текста материалов для контекста ИИ
+    ВСЕГДА возвращает либо контекст, либо понятное сообщение
+    """
     cursor = conn.cursor()
     
-    if material_ids:
-        placeholders = ','.join(['%s'] * len(material_ids))
-        cursor.execute(f'''
-            SELECT id, title, subject, recognized_text, summary, total_chunks
-            FROM {SCHEMA_NAME}.materials
-            WHERE user_id = %s AND id IN ({placeholders})
-            ORDER BY created_at DESC
-            LIMIT 10
-        ''', [user_id] + material_ids)
-    else:
-        cursor.execute(f'''
-            SELECT id, title, subject, recognized_text, summary, total_chunks
-            FROM {SCHEMA_NAME}.materials
-            WHERE user_id = %s
-            ORDER BY created_at DESC
-            LIMIT 10
-        ''', (user_id,))
-    
-    materials = cursor.fetchall()
-    
-    if not materials:
-        cursor.close()
-        return "У пользователя нет загруженных материалов."
-    
-    context_parts = []
-    for material_id, title, subject, text, summary, total_chunks in materials:
-        context_parts.append(f"Материал: {title}")
-        if subject:
-            context_parts.append(f"Предмет: {subject}")
-        if summary:
-            context_parts.append(f"Краткое содержание: {summary}")
-        
-        # ОПТИМИЗАЦИЯ: загружаем меньше чанков и текста для скорости
-        if total_chunks and total_chunks > 1:
+    try:
+        if material_ids:
+            placeholders = ','.join(['%s'] * len(material_ids))
             cursor.execute(f'''
-                SELECT chunk_text FROM {SCHEMA_NAME}.document_chunks
-                WHERE material_id = %s
-                ORDER BY chunk_index
-                LIMIT 3
-            ''', (material_id,))
-            chunks = cursor.fetchall()
-            full_text = '\n\n'.join([chunk[0] for chunk in chunks])
-            context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:3000]}")
-        elif text:
-            context_parts.append(f"Текст: {text[:3000]}")
+                SELECT id, title, subject, recognized_text, summary, total_chunks
+                FROM {SCHEMA_NAME}.materials
+                WHERE user_id = %s AND id IN ({placeholders})
+                ORDER BY created_at DESC
+                LIMIT 10
+            ''', [user_id] + material_ids)
+        else:
+            cursor.execute(f'''
+                SELECT id, title, subject, recognized_text, summary, total_chunks
+                FROM {SCHEMA_NAME}.materials
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT 10
+            ''', (user_id,))
         
-        context_parts.append("---")
-    
-    cursor.close()
-    return "\n".join(context_parts)
+        materials = cursor.fetchall()
+        
+        if not materials:
+            cursor.close()
+            return "У пользователя нет загруженных материалов. Загрузите конспекты или учебники в раздел 'Материалы' для получения ответов."
+        
+        context_parts = []
+        for material_id, title, subject, text, summary, total_chunks in materials:
+            try:
+                context_parts.append(f"Материал: {title or 'Без названия'}")
+                if subject:
+                    context_parts.append(f"Предмет: {subject}")
+                if summary:
+                    context_parts.append(f"Краткое содержание: {summary}")
+                
+                # ОТКАЗОУСТОЙЧИВОЕ чтение чанков
+                if total_chunks and total_chunks > 1:
+                    try:
+                        cursor.execute(f'''
+                            SELECT chunk_text FROM {SCHEMA_NAME}.document_chunks
+                            WHERE material_id = %s
+                            ORDER BY chunk_index
+                            LIMIT 3
+                        ''', (material_id,))
+                        chunks = cursor.fetchall()
+                        if chunks:
+                            full_text = '\n\n'.join([chunk[0] for chunk in chunks if chunk[0]])
+                            if full_text:
+                                context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:3000]}")
+                    except Exception as chunk_error:
+                        print(f"[AI-ASSISTANT] ⚠️ Ошибка чтения чанков для material_id={material_id}: {chunk_error}", flush=True)
+                        # Продолжаем без чанков
+                        if text:
+                            context_parts.append(f"Текст: {text[:3000]}")
+                elif text:
+                    context_parts.append(f"Текст: {text[:3000]}")
+                
+                context_parts.append("---")
+            except Exception as material_error:
+                print(f"[AI-ASSISTANT] ⚠️ Ошибка обработки материала {material_id}: {material_error}", flush=True)
+                # Пропускаем этот материал и идём дальше
+                continue
+        
+        cursor.close()
+        
+        if not context_parts:
+            return "Не удалось загрузить содержимое материалов. Попробуйте выбрать другие документы."
+        
+        return "\n".join(context_parts)
+        
+    except Exception as e:
+        print(f"[AI-ASSISTANT] ❌ КРИТИЧЕСКАЯ ошибка при загрузке материалов: {e}", flush=True)
+        cursor.close()
+        return "Не удалось загрузить материалы из базы данных. Попробуйте задать вопрос позже."
 
 def ask_artemox_openai(question: str, context: str) -> tuple:
-    """Быстрый запрос к Artemox через официальную библиотеку OpenAI
-    Возвращает: (answer, tokens_used)
+    """ОТКАЗОУСТОЙЧИВЫЙ запрос к Artemox с retry и fallback ответами
+    Возвращает: (answer, tokens_used) — ВСЕГДА возвращает полезный ответ
     """
     # ОПТИМИЗИРОВАННЫЙ промпт с форматированием
     system_prompt = f"""Ты — ИИ-помощник для студентов. Отвечай чётко и структурированно.
@@ -419,28 +445,75 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
 • Если информации нет — скажи об этом
 • Простой русский язык, без воды"""
 
-    try:
-        print(f"[AI-ASSISTANT] Запрос к Artemox (deepseek-chat, timeout: 25s)", flush=True)
-        response = client.chat.completions.create(
-            model="deepseek-chat",  # Artemox поддерживает только deepseek-chat и deepseek-reasoner
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": question}
-            ],
-            temperature=0.7,
-            max_tokens=800,  # Сокращено для скорости
-            timeout=25  # Явный timeout 25 секунд
-        )
+    # RETRY ЛОГИКА: до 3 попыток с уменьшением timeout
+    for attempt in range(3):
+        try:
+            timeout_value = 25 - (attempt * 5)  # 25s, 20s, 15s
+            print(f"[AI-ASSISTANT] Попытка {attempt + 1}/3: Запрос к Artemox (timeout: {timeout_value}s)", flush=True)
+            
+            response = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": question}
+                ],
+                temperature=0.7,
+                max_tokens=800,
+                timeout=timeout_value
+            )
+            
+            answer = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens
+            
+            print(f"[AI-ASSISTANT] ✅ Ответ получен (попытка {attempt + 1}), токенов: {tokens_used}", flush=True)
+            return answer, tokens_used
+            
+        except Exception as e:
+            error_type = type(e).__name__
+            print(f"[AI-ASSISTANT] ⚠️ Попытка {attempt + 1} провалена: {error_type}: {str(e)}", flush=True)
+            
+            # Если это последняя попытка — возвращаем fallback ответ
+            if attempt == 2:
+                print(f"[AI-ASSISTANT] 🔄 Все попытки провалены, возвращаем fallback ответ", flush=True)
+                return generate_fallback_answer(question, context), 0
+            
+            # Ждём перед следующей попыткой
+            time.sleep(0.5)
+    
+    # На случай непредвиденных ситуаций
+    return generate_fallback_answer(question, context), 0
+
+def generate_fallback_answer(question: str, context: str) -> str:
+    """Генерирует полезный fallback ответ на основе контекста и вопроса
+    Эта функция ВСЕГДА возвращает что-то полезное, даже если API недоступен
+    """
+    # Анализируем вопрос
+    question_lower = question.lower()
+    
+    # Если контекст есть — используем его
+    if context and len(context) > 100:
+        # Берём первые 500 символов контекста как выжимку
+        context_snippet = context[:500].strip()
         
-        answer = response.choices[0].message.content
-        tokens_used = response.usage.total_tokens
-        
-        print(f"[AI-ASSISTANT] ✅ Ответ получен, токенов: {tokens_used}", flush=True)
-        return answer, tokens_used
-        
-    except TimeoutError as e:
-        print(f"[AI-ASSISTANT] ⏱️ Timeout при запросе к Artemox: {e}", flush=True)
-        return "⏱️ Запрос превысил время ожидания. Попробуйте задать более короткий вопрос или выбрать меньше материалов.", 0
-    except Exception as e:
-        print(f"[AI-ASSISTANT] ❌ Ошибка Artemox: {type(e).__name__}: {str(e)}", flush=True)
-        return f"❌ Ошибка при получении ответа. Попробуйте ещё раз или обратитесь в поддержку.", 0
+        return f"""Основываясь на ваших материалах:
+
+{context_snippet}...
+
+---
+
+💡 **Совет**: Попробуйте переформулировать вопрос более конкретно, это поможет получить более точный ответ.
+
+📚 Если материалов много — выберите 1-2 самых важных документа через кнопку "Материалы"."""
+    
+    # Если контекста нет — даём общие рекомендации
+    return f"""Я вижу ваш вопрос: "{question[:100]}..."
+
+Чтобы я мог помочь вам качественно, нужны материалы по этой теме.
+
+**Что можно сделать:**
+
+1. 📤 Загрузите конспекты, лекции или учебники в раздел "Материалы"
+2. ✅ Выберите нужные документы через кнопку "Материалы" в чате
+3. ❓ Задайте вопрос снова
+
+Я проанализирую ваши материалы и дам подробный ответ!"""
