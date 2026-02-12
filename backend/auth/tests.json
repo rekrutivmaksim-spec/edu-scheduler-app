@@ -6,7 +6,7 @@
       "path": "/",
       "body": {
         "action": "login",
-        "email": "newuser@example.com",
+        "email": "testuser_TIMESTAMP@example.com",
         "password": "password123"
       },
       "expectedStatus": 201,
