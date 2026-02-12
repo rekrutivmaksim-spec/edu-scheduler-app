@@ -420,15 +420,15 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
 • Простой русский язык, без воды"""
 
     try:
-        print(f"[AI-ASSISTANT] Запрос к Artemox (gpt-4o-mini, timeout: 25s)", flush=True)
+        print(f"[AI-ASSISTANT] Запрос к Artemox (deepseek-chat, timeout: 25s)", flush=True)
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # КРИТИЧНО: gpt-4o-mini быстрее deepseek-chat!
+            model="deepseek-chat",  # Artemox поддерживает только deepseek-chat и deepseek-reasoner
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
-            max_tokens=800,  # Сокращаем с 2500 до 800 для скорости
+            max_tokens=800,  # Сокращено для скорости
             timeout=25  # Явный timeout 25 секунд
         )
         
