@@ -11,10 +11,11 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 # КРИТИЧЕСКАЯ БЕЗОПАСНОСТЬ: API ключ из переменных окружения, НЕ хардкод!
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 
-# Клиент OpenAI для Artemox
+# Клиент OpenAI для Artemox с timeout
 client = OpenAI(
     api_key=ARTEMOX_API_KEY,
-    base_url='https://api.artemox.com/v1'
+    base_url='https://api.artemox.com/v1',
+    timeout=25.0  # 25 секунд — оставляем 5 секунд на обработку
 )
 
 def get_user_id_from_token(token: str) -> int:
@@ -375,19 +376,19 @@ def get_materials_context(conn, user_id: int, material_ids: list) -> str:
         if summary:
             context_parts.append(f"Краткое содержание: {summary}")
         
-        # Если документ разбит на чанки, загружаем первые 8 чанков (больше контекста)
+        # ОПТИМИЗАЦИЯ: загружаем меньше чанков и текста для скорости
         if total_chunks and total_chunks > 1:
             cursor.execute(f'''
                 SELECT chunk_text FROM {SCHEMA_NAME}.document_chunks
                 WHERE material_id = %s
                 ORDER BY chunk_index
-                LIMIT 8
+                LIMIT 3
             ''', (material_id,))
             chunks = cursor.fetchall()
             full_text = '\n\n'.join([chunk[0] for chunk in chunks])
-            context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:20000]}")
+            context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:3000]}")
         elif text:
-            context_parts.append(f"Текст: {text[:20000]}")
+            context_parts.append(f"Текст: {text[:3000]}")
         
         context_parts.append("---")
     
@@ -398,45 +399,41 @@ def ask_artemox_openai(question: str, context: str) -> tuple:
     """Быстрый запрос к Artemox через официальную библиотеку OpenAI
     Возвращает: (answer, tokens_used)
     """
-    system_prompt = f"""Ты — опытный преподаватель и ИИ-помощник для студентов университета.
+    # ОПТИМИЗИРОВАННЫЙ промпт — короче и чётче
+    system_prompt = f"""Ты — ИИ-помощник для студентов. Твоя задача: дать чёткий и полезный ответ на вопрос студента.
 
-ТВОЯ РОЛЬ:
-- Объясняй концепции понятно, структурированно и академически корректно
-- Используй примеры, аналогии и пошаговые объяснения для сложных тем
-- Разбивай сложные ответы на логические части с подзаголовками
-- Ссылайся на конкретные разделы материалов студента
-- Если чего-то нет в материалах — честно скажи об этом и дай общий образовательный ответ
+МАТЕРИАЛЫ СТУДЕНТА:
+{context[:3000]}
 
-ДОСТУПНЫЕ МАТЕРИАЛЫ СТУДЕНТА:
-{context}
-
-ФОРМАТ ОТВЕТА:
-1. **Краткий ответ** (2-3 предложения) — суть по делу
-2. **Подробное объяснение** — раскрой тему с примерами из материалов
-3. **Практическое применение** — как использовать это знание
-4. **Источники** — укажи, из каких материалов взята информация
-5. **Вопросы для самопроверки** (если уместно) — помоги студенту закрепить понимание
-
-Пиши по-русски, избегай воды, будь конкретным. Цель — реально помочь студенту понять тему."""
+ПРАВИЛА:
+• Отвечай кратко и по делу (2-4 абзаца максимум)
+• Используй информацию из материалов студента
+• Если информации нет в материалах — скажи об этом
+• Пиши простым языком на русском
+• Избегай воды и повторов"""
 
     try:
-        print(f"[AI-ASSISTANT] Запрос к Artemox через OpenAI client")
+        print(f"[AI-ASSISTANT] Запрос к Artemox (gpt-4o-mini, timeout: 25s)", flush=True)
         response = client.chat.completions.create(
-            model="deepseek-chat",
+            model="gpt-4o-mini",  # КРИТИЧНО: gpt-4o-mini быстрее deepseek-chat!
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
-            max_tokens=2500
+            max_tokens=800,  # Сокращаем с 2500 до 800 для скорости
+            timeout=25  # Явный timeout 25 секунд
         )
         
         answer = response.choices[0].message.content
         tokens_used = response.usage.total_tokens
         
-        print(f"[AI-ASSISTANT] Получен ответ от Artemox, токенов: {tokens_used}")
+        print(f"[AI-ASSISTANT] ✅ Ответ получен, токенов: {tokens_used}", flush=True)
         return answer, tokens_used
         
+    except TimeoutError as e:
+        print(f"[AI-ASSISTANT] ⏱️ Timeout при запросе к Artemox: {e}", flush=True)
+        return "⏱️ Запрос превысил время ожидания. Попробуйте задать более короткий вопрос или выбрать меньше материалов.", 0
     except Exception as e:
-        print(f"[AI-ASSISTANT] Ошибка Artemox: {type(e).__name__}: {str(e)}")
-        return f"Ошибка получения ответа: {str(e)}", 0
+        print(f"[AI-ASSISTANT] ❌ Ошибка Artemox: {type(e).__name__}: {str(e)}", flush=True)
+        return f"❌ Ошибка при получении ответа. Попробуйте ещё раз или обратитесь в поддержку.", 0
