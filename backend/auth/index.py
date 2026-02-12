@@ -7,6 +7,7 @@ import jwt
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from rate_limiter import check_rate_limit, check_failed_login, record_failed_login, reset_failed_login, get_client_ip
 
 
 def get_db_connection():
@@ -42,6 +43,23 @@ def verify_token(token: str) -> dict:
 def handler(event: dict, context) -> dict:
     """Обработчик запросов аутентификации"""
     method = event.get('httpMethod', 'GET')
+    client_ip = get_client_ip(event)
+    
+    # Rate limiting: общий лимит 60 запросов/минуту с одного IP
+    is_allowed, remaining, retry_after = check_rate_limit(f"{client_ip}_auth", max_requests=60, window_seconds=60)
+    if not is_allowed:
+        return {
+            'statusCode': 429,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Retry-After': str(retry_after)
+            },
+            'body': json.dumps({
+                'error': 'Слишком много запросов. Попробуйте через несколько секунд',
+                'retry_after': retry_after
+            })
+        }
     
     # CORS preflight
     if method == 'OPTIONS':
@@ -68,6 +86,20 @@ def handler(event: dict, context) -> dict:
         if action == 'login':
             email = body.get('email', '').strip().lower()
             password = body.get('password', '')
+            
+            # ЗАЩИТА ОТ БРУТФОРСА: проверяем блокировку по IP
+            is_login_allowed, attempts_left, locked_until = check_failed_login(client_ip, max_attempts=5, lockout_minutes=15)
+            if not is_login_allowed:
+                minutes_left = int((locked_until - datetime.now()).seconds / 60) + 1
+                print(f"[AUTH] IP {client_ip} заблокирован до {locked_until} за брутфорс")
+                return {
+                    'statusCode': 429,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'error': f'Слишком много неудачных попыток входа. Аккаунт заблокирован на {minutes_left} минут',
+                        'locked_until': locked_until.isoformat()
+                    }, default=str)
+                }
             
             if not email or not password:
                 return {
@@ -114,15 +146,27 @@ def handler(event: dict, context) -> dict:
                     # Если пользователь существует - проверяем пароль
                     if user:
                         if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+                            # КРИТИЧЕСКАЯ ЗАЩИТА: записываем неудачную попытку
+                            record_failed_login(client_ip)
+                            _, attempts_remaining, _ = check_failed_login(client_ip)
+                            print(f"[AUTH] Неверный пароль для {email} с IP {client_ip}, осталось попыток: {attempts_remaining}")
+                            
                             return {
                                 'statusCode': 401,
                                 'headers': headers,
-                                'body': json.dumps({'error': 'Неверный пароль'})
+                                'body': json.dumps({
+                                    'error': 'Неверный пароль',
+                                    'attempts_remaining': attempts_remaining
+                                })
                             }
                         
                         # Обновляем last_login_at
                         cur.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = %s", (user['id'],))
                         conn.commit()
+                        
+                        # ЗАЩИТА: сбрасываем счетчик неудачных попыток при успешном входе
+                        reset_failed_login(client_ip)
+                        print(f"[AUTH] Успешный вход для {email} с IP {client_ip}")
                         
                         token = generate_token(user['id'], user['email'])
                         
@@ -170,6 +214,10 @@ def handler(event: dict, context) -> dict:
                         
                         new_user = cur.fetchone()
                         conn.commit()
+                        
+                        # ЗАЩИТА: сбрасываем счетчик при успешной регистрации
+                        reset_failed_login(client_ip)
+                        print(f"[AUTH] Новый пользователь {email} с IP {client_ip}")
                         
                         token = generate_token(new_user['id'], new_user['email'])
                         

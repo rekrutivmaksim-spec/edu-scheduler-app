@@ -11,6 +11,8 @@ from openai import OpenAI
 import io
 from PyPDF2 import PdfReader
 from docx import Document
+from rate_limiter import check_rate_limit, get_client_ip
+from security_validator import sanitize_filename, check_ownership
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
 CHUNK_SIZE = 3500

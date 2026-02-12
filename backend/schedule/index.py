@@ -6,6 +6,8 @@ from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import jwt
+from rate_limiter import check_rate_limit, get_client_ip
+from security_validator import check_ownership, validate_string_field, validate_integer_field
 
 
 def get_db_connection():
@@ -28,6 +30,19 @@ def verify_token(token: str) -> dict:
 def handler(event: dict, context) -> dict:
     """Обработчик запросов для расписания и задач"""
     method = event.get('httpMethod', 'GET')
+    client_ip = get_client_ip(event)
+    
+    # Rate limiting
+    is_allowed, remaining, retry_after = check_rate_limit(f"{client_ip}_schedule", max_requests=120, window_seconds=60)
+    if not is_allowed:
+        return {
+            'statusCode': 429,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({'error': 'Слишком много запросов', 'retry_after': retry_after})
+        }
     
     if method == 'OPTIONS':
         return {
@@ -153,6 +168,14 @@ def handler(event: dict, context) -> dict:
         # DELETE /schedule - Удалить занятие
         elif method == 'DELETE' and path == 'schedule':
             lesson_id = event.get('queryStringParameters', {}).get('id')
+            
+            # ЗАЩИТА ОТ IDOR
+            if not check_ownership(conn, 'schedule', int(lesson_id), user_id):
+                return {
+                    'statusCode': 403,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Доступ запрещен'})
+                }
             
             with conn.cursor() as cur:
                 cur.execute("""
@@ -311,6 +334,14 @@ def handler(event: dict, context) -> dict:
         # DELETE /tasks - Удалить задачу
         elif method == 'DELETE' and path == 'tasks':
             task_id = event.get('queryStringParameters', {}).get('id')
+            
+            # ЗАЩИТА ОТ IDOR
+            if not check_ownership(conn, 'tasks', int(task_id), user_id):
+                return {
+                    'statusCode': 403,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Доступ запрещен'})
+                }
             
             with conn.cursor() as cur:
                 cur.execute("""
