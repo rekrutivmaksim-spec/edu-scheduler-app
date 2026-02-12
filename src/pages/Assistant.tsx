@@ -275,22 +275,25 @@ const Assistant = () => {
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2">
               <Button
                 onClick={() => setShowHistory(!showHistory)}
                 variant="outline"
-                className="rounded-xl border-2 border-purple-200"
+                size="sm"
+                className="rounded-xl border-2 border-purple-200 h-9 px-2 sm:px-4"
               >
-                <Icon name="History" size={20} className="mr-2" />
-                История
+                <Icon name="History" size={18} className="sm:mr-2" />
+                <span className="hidden sm:inline">История</span>
               </Button>
               <Button
                 onClick={() => setShowMaterials(!showMaterials)}
                 variant="outline"
-                className="rounded-xl border-2 border-purple-200"
+                size="sm"
+                className="rounded-xl border-2 border-purple-200 h-9 px-2 sm:px-4"
               >
-                <Icon name="BookOpen" size={20} className="mr-2" />
-                Материалы ({selectedMaterials.length > 0 ? selectedMaterials.length : 'все'})
+                <Icon name="BookOpen" size={18} className="sm:mr-2" />
+                <span className="hidden sm:inline">Материалы ({selectedMaterials.length > 0 ? selectedMaterials.length : 'все'})</span>
+                <span className="sm:hidden">{selectedMaterials.length > 0 ? selectedMaterials.length : '📚'}</span>
               </Button>
             </div>
           </div>
@@ -384,7 +387,7 @@ const Assistant = () => {
                 </div>
               )}
               <Card
-                className={`max-w-[80%] p-4 ${
+                className={`max-w-[85%] sm:max-w-[80%] p-3 sm:p-4 ${
                   message.role === 'user'
                     ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white border-0'
                     : 'bg-white border-2 border-purple-200'
@@ -442,8 +445,8 @@ const Assistant = () => {
         </div>
 
         {messages.length === 1 && (
-          <Card className="mt-6 p-5 bg-white border-2 border-dashed border-purple-200">
-            <h3 className="font-bold text-gray-800 mb-3">Примеры вопросов:</h3>
+          <Card className="mt-6 p-4 sm:p-5 bg-white border-2 border-dashed border-purple-200">
+            <h3 className="font-bold text-gray-800 mb-3 text-sm sm:text-base">Примеры вопросов:</h3>
             <div className="flex flex-wrap gap-2">
               {quickQuestions.map((q, index) => (
                 <Button
@@ -451,7 +454,7 @@ const Assistant = () => {
                   onClick={() => setQuestion(q)}
                   variant="outline"
                   size="sm"
-                  className="text-xs rounded-full border-purple-200 hover:bg-purple-50"
+                  className="text-xs sm:text-sm rounded-full border-purple-200 hover:bg-purple-50 h-auto py-2 px-3"
                 >
                   {q}
                 </Button>
@@ -462,8 +465,8 @@ const Assistant = () => {
       </main>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-purple-200 shadow-lg">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex gap-3">
+        <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex gap-2 sm:gap-3">
             <Textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
@@ -473,24 +476,25 @@ const Assistant = () => {
                   handleAsk();
                 }
               }}
-              placeholder="Задай вопрос по материалам..."
-              className="resize-none rounded-xl border-2 border-purple-200 focus:border-purple-400"
+              placeholder="Задай вопрос..."
+              className="resize-none rounded-xl border-2 border-purple-200 focus:border-purple-400 text-sm sm:text-base"
               rows={2}
               disabled={isLoading}
             />
             <Button
               onClick={handleAsk}
               disabled={!question.trim() || isLoading}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl px-6 self-end"
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl px-4 sm:px-6 self-end flex-shrink-0"
+              size="sm"
             >
               {isLoading ? (
-                <Icon name="Loader2" size={20} className="animate-spin" />
+                <Icon name="Loader2" size={18} className="animate-spin" />
               ) : (
-                <Icon name="Send" size={20} />
+                <Icon name="Send" size={18} />
               )}
             </Button>
           </div>
-          <p className="text-xs text-gray-500 mt-2 text-center">
+          <p className="text-xs text-gray-500 mt-2 text-center hidden sm:block">
             Нажми Enter для отправки • Shift+Enter для новой строки
           </p>
         </div>

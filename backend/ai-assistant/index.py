@@ -98,26 +98,16 @@ def check_subscription_access(conn, user_id: int) -> dict:
             # Подписка истекла - проверяем триал
             pass
     
-    # Проверяем триал период (7 дней)
+    # Проверяем триал период (24 часа)
     if trial_ends_at and not is_trial_used and trial_ends_at > now:
-        trial_limit = 3  # Триал: 3 вопроса
-        if questions_used >= trial_limit:
-            return {
-                'has_access': False, 
-                'reason': 'questions_limit_reached', 
-                'is_premium': False,
-                'is_trial': True,
-                'trial_ends_at': trial_ends_at,
-                'questions_used': questions_used,
-                'questions_limit': trial_limit
-            }
+        # БЕЗЛИМИТ на 24 часа пробного периода
         return {
             'has_access': True, 
             'is_premium': False,
             'is_trial': True,
             'trial_ends_at': trial_ends_at,
             'questions_used': questions_used,
-            'questions_limit': trial_limit
+            'questions_limit': 999999  # Безлимит для триала
         }
     
     # Бесплатная версия - 3 вопроса в ДЕНЬ + бонусные

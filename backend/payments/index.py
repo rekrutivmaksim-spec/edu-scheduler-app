@@ -104,7 +104,8 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
         'OrderId': order_id,
         'Description': description,
         'SuccessURL': 'https://eduhelper.poehali.dev/subscription?payment=success',
-        'FailURL': 'https://eduhelper.poehali.dev/subscription?payment=failed'
+        'FailURL': 'https://eduhelper.poehali.dev/subscription?payment=failed',
+        'PayType': 'O'  # O = одностадийная оплата (включает СБП)
     }
     
     print(f"[TINKOFF] Создание платежа для user_id={user_id}, amount={amount}, order_id={order_id}")
@@ -118,6 +119,7 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
         'FailURL': params['FailURL'],
         'OrderId': params['OrderId'],
         'Password': TINKOFF_PASSWORD,
+        'PayType': params['PayType'],
         'SuccessURL': params['SuccessURL'],
         'TerminalKey': params['TerminalKey']
     }

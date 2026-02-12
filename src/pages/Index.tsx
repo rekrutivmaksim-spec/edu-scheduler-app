@@ -18,7 +18,7 @@ import LimitsIndicator from '@/components/LimitsIndicator';
 import NotificationBell from '@/components/NotificationBell';
 import ScheduleExport from '@/components/ScheduleExport';
 import GoogleCalendarSync from '@/components/GoogleCalendarSync';
-import ThemeToggle from '@/components/ThemeToggle';
+
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
@@ -366,11 +366,10 @@ const Index = () => {
                 variant="ghost" 
                 size="icon"
                 onClick={() => navigate('/calendar')}
-                className="hover:bg-purple-100/50 dark:hover:bg-purple-900/50 rounded-xl h-8 w-8 sm:h-10 sm:w-10"
+                className="hover:bg-purple-100/50 rounded-xl h-8 w-8 sm:h-10 sm:w-10"
               >
-                <Icon name="CalendarDays" size={18} className="text-purple-600 dark:text-purple-400 sm:w-5 sm:h-5" />
+                <Icon name="CalendarDays" size={18} className="text-purple-600 sm:w-5 sm:h-5" />
               </Button>
-              <ThemeToggle />
               <NotificationBell />
               <Button 
                 variant="ghost" 
