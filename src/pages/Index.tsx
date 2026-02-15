@@ -20,6 +20,7 @@ import ScheduleExport from '@/components/ScheduleExport';
 import GoogleCalendarSync from '@/components/GoogleCalendarSync';
 
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { trackActivity } from '@/lib/gamification';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 
@@ -261,6 +262,9 @@ const Index = () => {
       });
 
       if (response.ok) {
+        if (!task.completed) {
+          trackActivity('tasks_completed', 1);
+        }
         loadTasks();
       }
     } catch (error) {
@@ -460,6 +464,22 @@ const Index = () => {
               <p className="text-xs sm:text-sm text-gray-600">Создай код доступа и поделись расписанием с одногруппниками</p>
             </div>
             <Icon name="ArrowRight" size={20} className="text-green-600 flex-shrink-0 sm:w-6 sm:h-6" />
+          </div>
+        </Card>
+
+        <Card
+          onClick={() => navigate('/achievements')}
+          className="mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border-2 border-amber-300 cursor-pointer hover:shadow-2xl hover:shadow-amber-500/30 transition-all duration-300 hover:scale-[1.02]"
+        >
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <span className="text-2xl sm:text-3xl">🔥</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1">Достижения и стрики</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Зарабатывай XP, открывай бейджи, соревнуйся с другими</p>
+            </div>
+            <Icon name="ArrowRight" size={20} className="text-amber-600 flex-shrink-0 sm:w-6 sm:h-6" />
           </div>
         </Card>
 

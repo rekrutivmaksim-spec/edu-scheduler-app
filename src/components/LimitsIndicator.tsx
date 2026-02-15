@@ -42,11 +42,14 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
         setLimits(data.limits);
         setIsPremium(data.is_premium || data.is_trial);
         
-        // Показываем кнопку подписки только когда закончились бесплатные вопросы
-        if (!data.is_premium && !data.is_trial && data.limits?.ai_questions) {
-          const aiLimits = data.limits.ai_questions;
-          const questionsExhausted = aiLimits.used >= aiLimits.max;
-          setShowUpgradeButton(questionsExhausted);
+        if (!data.is_premium && !data.is_trial && data.limits) {
+          const l = data.limits;
+          const anyNearLimit = 
+            (l.schedule?.max && l.schedule.used / l.schedule.max >= 0.7) ||
+            (l.tasks?.max && l.tasks.used / l.tasks.max >= 0.7) ||
+            (l.materials?.max && l.materials.used / l.materials.max >= 0.7) ||
+            (l.ai_questions?.max && l.ai_questions.used / l.ai_questions.max >= 0.7);
+          setShowUpgradeButton(!!anyNearLimit);
         }
       }
     } catch (error) {
@@ -101,10 +104,10 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
             size="sm"
             variant="default"
             onClick={() => navigate('/subscription')}
-            className="ml-auto text-xs bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+            className="ml-auto text-xs bg-gradient-to-r from-purple-600 to-indigo-600 text-white animate-pulse"
           >
-            <Icon name="Zap" size={14} className="mr-1" />
-            Купить
+            <Icon name="Crown" size={14} className="mr-1" />
+            Premium
           </Button>
         )}
       </div>
@@ -184,14 +187,19 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
       </div>
 
       {showUpgradeButton && (
-        <Button
-          onClick={() => navigate('/subscription')}
-          className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg"
-          size="sm"
-        >
-          <Icon name="Zap" size={16} className="mr-2" />
-          Купить вопросы
-        </Button>
+        <div className="mt-4 space-y-2">
+          <p className="text-xs text-center text-purple-700 font-medium">
+            Лимиты заканчиваются? Получи безлимитный доступ!
+          </p>
+          <Button
+            onClick={() => navigate('/subscription')}
+            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg"
+            size="sm"
+          >
+            <Icon name="Crown" size={16} className="mr-2" />
+            Попробовать Premium бесплатно
+          </Button>
+        </div>
       )}
     </Card>
   );

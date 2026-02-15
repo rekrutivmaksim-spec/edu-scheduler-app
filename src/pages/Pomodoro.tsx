@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import { trackActivity } from '@/lib/gamification';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 
@@ -106,6 +107,8 @@ const Pomodoro = () => {
         await saveSession();
       }
       
+      trackActivity('pomodoro_minutes', 25);
+
       toast({
         title: "🎉 Сессия завершена!",
         description: "Время отдохнуть 5 минут",

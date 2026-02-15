@@ -25,6 +25,7 @@ import Terms from "./pages/Terms";
 import Settings from "./pages/Settings";
 import Subscription from "./pages/Subscription";
 import PaymentSetup from "./pages/PaymentSetup";
+import Achievements from "./pages/Achievements";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/settings" element={<Settings />} />
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/payment-setup" element={<PaymentSetup />} />
+              <Route path="/achievements" element={<Achievements />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

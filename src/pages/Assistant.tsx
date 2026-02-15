@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import { trackActivity } from '@/lib/gamification';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -193,6 +194,7 @@ const Assistant = () => {
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
+        trackActivity('ai_questions_asked', 1);
       } else if (response.status === 403) {
         const data = await response.json();
         

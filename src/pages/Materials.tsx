@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import { trackActivity } from '@/lib/gamification';
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
@@ -166,6 +167,7 @@ const Materials = () => {
           description: `Создан материал: ${data.material.title}`,
         });
 
+        trackActivity('materials_uploaded', 1);
         await loadMaterials();
       } else {
         const errorData = await response.json();
