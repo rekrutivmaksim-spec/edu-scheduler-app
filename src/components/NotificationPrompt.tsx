@@ -146,8 +146,11 @@ const NotificationPrompt = () => {
         </div>
         <div className="flex-1">
           <h3 className="font-bold text-gray-800 mb-1">Включите уведомления 🔔</h3>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 mb-1.5">
             Получайте напоминания о парах, дедлайнах и важных задачах прямо на телефон
+          </p>
+          <p className="text-xs text-indigo-600 font-medium mb-3">
+            {'\u{1F525}'} Не потеряй свой стрик — включи уведомления и мы напомним!
           </p>
           <div className="flex gap-2">
             <Button

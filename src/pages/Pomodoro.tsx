@@ -107,10 +107,23 @@ const Pomodoro = () => {
         await saveSession();
       }
       
-      trackActivity('pomodoro_minutes', 25);
+      const result = await trackActivity('pomodoro_minutes', 25);
+      if (result?.new_achievements?.length) {
+        result.new_achievements.forEach((ach) => {
+          toast({
+            title: `\u{1F3C6} Достижение!`,
+            description: `${ach.title} (+${ach.xp_reward} XP)`,
+          });
+        });
+      } else if (result?.xp_gained) {
+        toast({
+          title: `\u{1F345} +${result.xp_gained} XP`,
+          description: `Отличная сессия! Время отдохнуть`,
+        });
+      }
 
       toast({
-        title: "🎉 Сессия завершена!",
+        title: "\u{1F389} Сессия завершена!",
         description: "Время отдохнуть 5 минут",
       });
       

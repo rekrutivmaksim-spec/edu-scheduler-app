@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import UpgradeModal from '@/components/UpgradeModal';
 
 const API_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
@@ -23,11 +24,33 @@ interface Achievement {
   unlocked_at: string | null;
 }
 
+interface DailyQuest {
+  id: number;
+  type: string;
+  title: string;
+  target: number;
+  current: number;
+  xp_reward: number;
+  is_completed: boolean;
+  completed_at: string | null;
+}
+
+interface StreakReward {
+  streak_days: number;
+  reward_type: string;
+  value: number;
+  title: string;
+  description: string;
+  is_available: boolean;
+  is_claimed: boolean;
+}
+
 interface GamificationProfile {
   level: number;
   xp_total: number;
   xp_progress: number;
   xp_needed: number;
+  is_premium: boolean;
   streak: {
     current: number;
     longest: number;
@@ -45,6 +68,8 @@ interface GamificationProfile {
   achievements_unlocked: number;
   achievements_total: number;
   recent_activity: { date: string; xp: number; tasks: number; pomodoro: number }[];
+  daily_quests: DailyQuest[];
+  streak_rewards: StreakReward[];
 }
 
 interface LeaderItem {
@@ -55,6 +80,7 @@ interface LeaderItem {
   xp: number;
   streak: number;
   is_me: boolean;
+  subscription_type: string;
 }
 
 interface CheckinResponse {
@@ -92,6 +118,18 @@ function getRankBg(rank: number): string {
   return 'bg-white/60 border-purple-100';
 }
 
+function getQuestEmoji(questType: string): string {
+  const map: Record<string, string> = {
+    complete_tasks: '\u2705',
+    pomodoro_session: '\u{1F345}',
+    ask_ai: '\u{1F916}',
+    upload_material: '\u{1F4DA}',
+    daily_checkin: '\u{1F44B}',
+    complete_all_quests: '\u2B50',
+  };
+  return map[questType] || '\u{1F3AF}';
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   all: 'Все',
   streak: 'Серия',
@@ -111,6 +149,10 @@ const Achievements = () => {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeSection, setActiveSection] = useState('achievements');
+  const [claimingReward, setClaimingReward] = useState<number | null>(null);
+  const [freezingStreak, setFreezingStreak] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeModalTrigger, setUpgradeModalTrigger] = useState<'streak_freeze' | 'daily_quest' | 'general'>('general');
 
   const loadProfile = useCallback(async () => {
     try {
@@ -175,6 +217,111 @@ const Achievements = () => {
     }
   }, [toast]);
 
+  const claimStreakReward = useCallback(async (streakDays: number) => {
+    setClaimingReward(streakDays);
+    try {
+      const token = authService.getToken();
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'claim_streak_reward', streak_days: streakDays }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({
+          title: '\u{1F381} Награда получена!',
+          description: `${data.reward.title}: ${data.reward.description}`,
+        });
+        await loadProfile();
+      } else {
+        toast({
+          title: 'Ошибка',
+          description: data.error || 'Не удалось получить награду',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Claim reward failed:', error);
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось получить награду',
+        variant: 'destructive',
+      });
+    } finally {
+      setClaimingReward(null);
+    }
+  }, [toast, loadProfile]);
+
+  const useStreakFreeze = useCallback(async () => {
+    setFreezingStreak(true);
+    try {
+      const token = authService.getToken();
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'use_freeze' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({
+          title: '\u{2744}\uFE0F Стрик заморожен!',
+          description: 'Твоя серия в безопасности на сегодня',
+        });
+        await loadProfile();
+      } else if (res.status === 403) {
+        setUpgradeModalTrigger('streak_freeze');
+        setUpgradeModalOpen(true);
+      } else {
+        toast({
+          title: 'Ошибка',
+          description: data.error || 'Не удалось заморозить стрик',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Freeze failed:', error);
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось заморозить стрик',
+        variant: 'destructive',
+      });
+    } finally {
+      setFreezingStreak(false);
+    }
+  }, [toast, loadProfile]);
+
+  const shareStreak = useCallback(async () => {
+    if (!profile) return;
+    const text = `\u{1F525} Мой стрик в Studyfay: ${profile.streak.current} дней подряд! Уровень ${profile.level} (${profile.xp_total} XP). Присоединяйся: studyfay.ru`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+      } catch {
+        // user cancelled
+      }
+    } else if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast({
+          title: '\u{1F4CB} Скопировано!',
+          description: 'Текст скопирован в буфер обмена',
+        });
+      } catch {
+        toast({
+          title: 'Ошибка',
+          description: 'Не удалось скопировать',
+          variant: 'destructive',
+        });
+      }
+    }
+  }, [profile, toast]);
+
   useEffect(() => {
     const init = async () => {
       if (!authService.isAuthenticated()) {
@@ -198,6 +345,9 @@ const Achievements = () => {
     profile && profile.xp_needed > 0
       ? Math.min(100, Math.round((profile.xp_progress / profile.xp_needed) * 100))
       : 0;
+
+  const completedQuestsCount = profile?.daily_quests?.filter((q) => q.is_completed).length || 0;
+  const totalQuestsCount = profile?.daily_quests?.length || 0;
 
   if (loading) {
     return (
@@ -304,6 +454,210 @@ const Achievements = () => {
                   </div>
                 )}
               </div>
+              {/* Streak Action Buttons */}
+              <div className="flex items-center gap-2 mt-4 flex-wrap">
+                {profile.streak.current > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={useStreakFreeze}
+                    disabled={freezingStreak}
+                    className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-xl text-xs h-8 px-3"
+                  >
+                    {freezingStreak ? (
+                      <Icon name="Loader2" size={14} className="animate-spin mr-1.5" />
+                    ) : (
+                      <Icon name="Lock" size={14} className="mr-1.5" />
+                    )}
+                    Заморозка (Premium)
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={shareStreak}
+                  className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-xl text-xs h-8 px-3"
+                >
+                  <Icon name="Share2" size={14} className="mr-1.5" />
+                  Поделиться
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Streak Rewards */}
+        {profile && profile.streak_rewards && profile.streak_rewards.length > 0 && (
+          <div>
+            <h2 className="text-lg font-heading font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <span>{'\u{1F381}'}</span> Награды за стрик
+            </h2>
+            <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-hide -mx-4 px-4">
+              {profile.streak_rewards.map((reward) => (
+                <Card
+                  key={reward.streak_days}
+                  className={`flex-shrink-0 w-40 sm:w-48 p-4 border-2 transition-all ${
+                    reward.is_claimed
+                      ? 'border-green-300 bg-green-50/80'
+                      : reward.is_available
+                        ? 'border-amber-300 bg-gradient-to-b from-amber-50 to-orange-50 shadow-md hover:scale-[1.03]'
+                        : 'border-gray-200 bg-gray-50/60 opacity-70'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-2xl mb-1">
+                      {reward.is_claimed ? '\u2705' : reward.is_available ? '\u{1F525}' : '\u{1F512}'}
+                    </div>
+                    <p className="text-lg font-bold text-gray-800">
+                      {reward.streak_days} {getDaysWord(reward.streak_days)}
+                    </p>
+                    <p className="text-xs font-semibold text-gray-700 mt-1 line-clamp-1">
+                      {reward.title}
+                    </p>
+                    <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2 min-h-[28px]">
+                      {reward.description}
+                    </p>
+                    <div className="mt-3">
+                      {reward.is_claimed ? (
+                        <div className="flex items-center justify-center gap-1 text-green-600 text-xs font-medium">
+                          <Icon name="CheckCircle" size={14} />
+                          <span>Получено</span>
+                        </div>
+                      ) : reward.is_available ? (
+                        <Button
+                          size="sm"
+                          onClick={() => claimStreakReward(reward.streak_days)}
+                          disabled={claimingReward === reward.streak_days}
+                          className="w-full h-7 text-xs bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 rounded-lg"
+                        >
+                          {claimingReward === reward.streak_days ? (
+                            <Icon name="Loader2" size={12} className="animate-spin" />
+                          ) : (
+                            'Получить'
+                          )}
+                        </Button>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1 text-gray-400 text-xs">
+                          <Icon name="Lock" size={12} />
+                          <span>Недоступно</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Daily Quests */}
+        {profile && profile.daily_quests && profile.daily_quests.length > 0 && (
+          <Card className="border-2 border-amber-300/60 shadow-md overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-b border-amber-200/60 px-5 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md">
+                    <Icon name="Scroll" size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-heading font-bold text-gray-800">
+                      Ежедневные квесты
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      Выполнено {completedQuestsCount} из {totalQuestsCount}
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  className={`text-xs px-2.5 py-1 ${
+                    completedQuestsCount === totalQuestsCount && totalQuestsCount > 0
+                      ? 'bg-green-100 text-green-700 border-green-300'
+                      : 'bg-amber-100 text-amber-700 border-amber-300'
+                  }`}
+                >
+                  {completedQuestsCount}/{totalQuestsCount}
+                </Badge>
+              </div>
+              {/* quest completion bar */}
+              {totalQuestsCount > 0 && (
+                <div className="mt-3 relative w-full h-2 rounded-full bg-amber-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-500"
+                    style={{ width: `${Math.round((completedQuestsCount / totalQuestsCount) * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="divide-y divide-gray-100">
+              {profile.daily_quests.map((quest) => {
+                const questProgress = quest.target > 0
+                  ? Math.min(100, Math.round((quest.current / quest.target) * 100))
+                  : 0;
+                const isPremiumQuest = quest.type === 'complete_all_quests';
+                return (
+                  <div
+                    key={quest.id}
+                    className={`px-5 py-3.5 flex items-center gap-3 transition-colors ${
+                      quest.is_completed ? 'bg-green-50/50' : 'hover:bg-amber-50/30'
+                    }`}
+                  >
+                    {/* Status icon */}
+                    <div className="flex-shrink-0">
+                      {quest.is_completed ? (
+                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                          <Icon name="Check" size={16} className="text-green-600" />
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+                          <span className="text-base leading-none">{getQuestEmoji(quest.type)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Quest info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p
+                          className={`text-sm font-medium truncate ${
+                            quest.is_completed ? 'text-green-700 line-through' : 'text-gray-800'
+                          }`}
+                        >
+                          {quest.title}
+                        </p>
+                        {isPremiumQuest && !profile.is_premium && (
+                          <Icon name="Crown" size={12} className="text-amber-500 flex-shrink-0" />
+                        )}
+                        {isPremiumQuest && profile.is_premium && (
+                          <Icon name="Crown" size={12} className="text-amber-500 flex-shrink-0" />
+                        )}
+                      </div>
+                      {!quest.is_completed && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 relative h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-300"
+                              style={{ width: `${questProgress}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] text-gray-400 font-medium flex-shrink-0">
+                            {quest.current}/{quest.target}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {/* XP badge */}
+                    <Badge
+                      variant="secondary"
+                      className={`text-[11px] px-2 py-0.5 flex-shrink-0 ${
+                        quest.is_completed
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      +{quest.xp_reward} XP
+                    </Badge>
+                  </div>
+                );
+              })}
             </div>
           </Card>
         )}
@@ -323,6 +677,12 @@ const Achievements = () => {
                   <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-0">
                     {profile.xp_total} XP
                   </Badge>
+                  {profile.is_premium && (
+                    <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-[10px] px-1.5">
+                      <Icon name="Crown" size={10} className="mr-0.5" />
+                      Premium
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-gray-500 mt-0.5">
                   {profile.xp_progress} / {profile.xp_needed} XP до следующего уровня
@@ -609,6 +969,9 @@ const Achievements = () => {
                           }`}
                         >
                           {item.name}
+                          {item.subscription_type === 'premium' && (
+                            <span className="ml-1" title="Premium">{'\u{1F451}'}</span>
+                          )}
                           {item.is_me && (
                             <span className="text-xs text-purple-500 ml-1">
                               (вы)
@@ -654,6 +1017,15 @@ const Achievements = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        feature="Заморозка стрика"
+        description="С Premium подпиской ты можешь заморозить свой стрик 1 раз в неделю и не потерять прогресс"
+        trigger={upgradeModalTrigger}
+      />
     </div>
   );
 };

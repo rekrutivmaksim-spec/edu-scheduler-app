@@ -263,7 +263,20 @@ const Index = () => {
 
       if (response.ok) {
         if (!task.completed) {
-          trackActivity('tasks_completed', 1);
+          const result = await trackActivity('tasks_completed', 1);
+          if (result?.new_achievements?.length) {
+            result.new_achievements.forEach((ach) => {
+              toast({
+                title: `\u{1F3C6} Достижение!`,
+                description: `${ach.title} (+${ach.xp_reward} XP)`,
+              });
+            });
+          } else if (result?.xp_gained) {
+            toast({
+              title: `\u2728 +${result.xp_gained} XP`,
+              description: `Продолжай в том же духе!`,
+            });
+          }
         }
         loadTasks();
       }

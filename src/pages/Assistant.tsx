@@ -194,7 +194,20 @@ const Assistant = () => {
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
-        trackActivity('ai_questions_asked', 1);
+        const gamResult = await trackActivity('ai_questions_asked', 1);
+        if (gamResult?.new_achievements?.length) {
+          gamResult.new_achievements.forEach((ach) => {
+            toast({
+              title: `\u{1F3C6} Достижение!`,
+              description: `${ach.title} (+${ach.xp_reward} XP)`,
+            });
+          });
+        } else if (gamResult?.xp_gained) {
+          toast({
+            title: `\u{1F916} +${gamResult.xp_gained} XP`,
+            description: `За вопрос ИИ-ассистенту`,
+          });
+        }
       } else if (response.status === 403) {
         const data = await response.json();
         

@@ -1,13 +1,43 @@
-"""API геймификации: стрики, достижения, XP и уровни"""
+"""API геймификации: стрики, достижения, XP, уровни, квесты, награды за стрик"""
 
 import json
 import os
 import math
+import random
 from datetime import datetime, date, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import jwt
 from rate_limiter import check_rate_limit, get_client_ip
+from pywebpush import webpush, WebPushException
+
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_EMAIL = os.environ.get('VAPID_EMAIL', 'mailto:admin@studyfay.app')
+
+STREAK_REWARDS = [
+    {'streak_days': 3, 'reward_type': 'bonus_questions', 'value': 5, 'title': '3 дня подряд', 'description': '+5 вопросов к ИИ'},
+    {'streak_days': 7, 'reward_type': 'bonus_questions', 'value': 10, 'title': 'Неделя стрика', 'description': '+10 вопросов к ИИ'},
+    {'streak_days': 14, 'reward_type': 'bonus_questions', 'value': 20, 'title': '2 недели подряд', 'description': '+20 вопросов к ИИ'},
+    {'streak_days': 21, 'reward_type': 'premium_days', 'value': 3, 'title': '3 недели стрика', 'description': '3 дня Premium бесплатно'},
+    {'streak_days': 30, 'reward_type': 'premium_days', 'value': 7, 'title': 'Месяц стрика', 'description': '7 дней Premium бесплатно'},
+    {'streak_days': 60, 'reward_type': 'premium_days', 'value': 14, 'title': '2 месяца стрика', 'description': '14 дней Premium бесплатно'},
+    {'streak_days': 90, 'reward_type': 'premium_days', 'value': 30, 'title': '3 месяца стрика', 'description': '30 дней Premium бесплатно'},
+    {'streak_days': 180, 'reward_type': 'premium_days', 'value': 60, 'title': 'Полгода стрика', 'description': '60 дней Premium бесплатно'},
+    {'streak_days': 365, 'reward_type': 'premium_days', 'value': 180, 'title': 'Год стрика', 'description': '180 дней Premium бесплатно'},
+]
+
+QUEST_POOL = [
+    {'type': 'complete_tasks', 'title': 'Выполни {n} задач', 'min': 1, 'max': 3, 'xp_min': 20, 'xp_max': 40, 'premium_only': False},
+    {'type': 'pomodoro_session', 'title': 'Проведи {n} помодоро-сессий', 'min': 1, 'max': 2, 'xp_min': 25, 'xp_max': 40, 'premium_only': False},
+    {'type': 'ask_ai', 'title': 'Задай {n} вопросов ИИ', 'min': 1, 'max': 2, 'xp_min': 20, 'xp_max': 35, 'premium_only': False},
+    {'type': 'upload_material', 'title': 'Загрузи материал', 'min': 1, 'max': 1, 'xp_min': 30, 'xp_max': 50, 'premium_only': False},
+    {'type': 'daily_checkin', 'title': 'Зайди в приложение', 'min': 1, 'max': 1, 'xp_min': 20, 'xp_max': 20, 'premium_only': False},
+]
+
+PREMIUM_QUEST = {
+    'type': 'complete_all_quests', 'title': 'Выполни все квесты дня', 'target': 1, 'xp_reward': 100
+}
 
 
 def get_db_connection():
@@ -35,8 +65,200 @@ def xp_for_level(level: int) -> int:
     return (level - 1) ** 2 * 50
 
 
+def send_push(endpoint, p256dh, auth, notification_data):
+    """Отправка push-уведомления через Web Push API"""
+    try:
+        webpush(
+            subscription_info={
+                "endpoint": endpoint,
+                "keys": {"p256dh": p256dh, "auth": auth}
+            },
+            data=json.dumps(notification_data),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims={"sub": VAPID_EMAIL}
+        )
+        return True
+    except WebPushException as e:
+        print(f"Push failed for {endpoint}: {e}")
+        return False
+    except Exception as e:
+        print(f"Push error: {e}")
+        return False
+
+
+def check_user_premium(conn, user_id):
+    """Проверяет, является ли пользователь Premium"""
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("""
+        SELECT subscription_type, subscription_expires_at
+        FROM users WHERE id = %s
+    """, (user_id,))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        return False, None
+    if row['subscription_type'] == 'premium' and row['subscription_expires_at']:
+        if row['subscription_expires_at'] >= datetime.now():
+            return True, row['subscription_expires_at']
+    return False, row.get('subscription_expires_at')
+
+
+def generate_daily_quests(conn, user_id, is_premium):
+    """Генерирует ежедневные квесты. 3 для обычных, 5 для premium."""
+    today = date.today()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("""
+        SELECT id FROM daily_quests
+        WHERE user_id = %s AND quest_date = %s
+        LIMIT 1
+    """, (user_id, today))
+    existing = cur.fetchone()
+
+    if existing:
+        cur.close()
+        return get_today_quests(conn, user_id)
+
+    quest_count = 5 if is_premium else 3
+    pool = list(QUEST_POOL)
+    random.shuffle(pool)
+    selected = pool[:quest_count]
+
+    for q in selected:
+        target = random.randint(q['min'], q['max'])
+        xp_reward = random.randint(q['xp_min'], q['xp_max'])
+        title = q['title'].format(n=target)
+        cur.execute("""
+            INSERT INTO daily_quests (user_id, quest_date, quest_type, title, target_value, current_value, xp_reward, is_completed)
+            VALUES (%s, %s, %s, %s, %s, 0, %s, false)
+        """, (user_id, today, q['type'], title, target, xp_reward))
+
+    if is_premium:
+        cur.execute("""
+            INSERT INTO daily_quests (user_id, quest_date, quest_type, title, target_value, current_value, xp_reward, is_completed)
+            VALUES (%s, %s, %s, %s, %s, 0, %s, false)
+        """, (user_id, today, PREMIUM_QUEST['type'], PREMIUM_QUEST['title'], PREMIUM_QUEST['target'], PREMIUM_QUEST['xp_reward']))
+
+    conn.commit()
+    cur.close()
+    return get_today_quests(conn, user_id)
+
+
+def get_today_quests(conn, user_id):
+    """Возвращает квесты на сегодня"""
+    today = date.today()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("""
+        SELECT id, quest_type, title, target_value, current_value, xp_reward, is_completed, completed_at
+        FROM daily_quests
+        WHERE user_id = %s AND quest_date = %s
+        ORDER BY id
+    """, (user_id, today))
+    quests = cur.fetchall()
+    cur.close()
+
+    result = []
+    for q in quests:
+        result.append({
+            'id': q['id'],
+            'type': q['quest_type'],
+            'title': q['title'],
+            'target': q['target_value'],
+            'current': q['current_value'],
+            'xp_reward': q['xp_reward'],
+            'is_completed': q['is_completed'],
+            'completed_at': q['completed_at'].isoformat() if q['completed_at'] else None
+        })
+    return result
+
+
+def update_quest_progress(conn, user_id, quest_type, value=1):
+    """Обновляет прогресс квеста и возвращает информацию о завершении"""
+    today = date.today()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("""
+        SELECT id, target_value, current_value, xp_reward, is_completed
+        FROM daily_quests
+        WHERE user_id = %s AND quest_date = %s AND quest_type = %s AND is_completed = false
+        LIMIT 1
+    """, (user_id, today, quest_type))
+    quest = cur.fetchone()
+
+    if not quest:
+        cur.close()
+        return {'quest_completed': False, 'xp_gained': 0}
+
+    new_value = min(quest['current_value'] + value, quest['target_value'])
+    completed = new_value >= quest['target_value']
+    xp_gained = 0
+
+    if completed:
+        cur.execute("""
+            UPDATE daily_quests
+            SET current_value = %s, is_completed = true, completed_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (new_value, quest['id']))
+        xp_gained = quest['xp_reward']
+
+        cur.execute("""
+            UPDATE users SET xp_total = xp_total + %s WHERE id = %s RETURNING xp_total
+        """, (xp_gained, user_id))
+        row = cur.fetchone()
+        if row:
+            new_level = calculate_level(row['xp_total'])
+            cur.execute("UPDATE users SET level = %s WHERE id = %s", (new_level, user_id))
+
+        check_complete_all_quest(conn, cur, user_id)
+    else:
+        cur.execute("""
+            UPDATE daily_quests SET current_value = %s WHERE id = %s
+        """, (new_value, quest['id']))
+
+    conn.commit()
+    cur.close()
+    return {'quest_completed': completed, 'xp_gained': xp_gained}
+
+
+def check_complete_all_quest(conn, cur, user_id):
+    """Проверяет, выполнены ли все обычные квесты, и завершает квест complete_all_quests"""
+    today = date.today()
+
+    cur.execute("""
+        SELECT COUNT(*) as total, SUM(CASE WHEN is_completed THEN 1 ELSE 0 END) as done
+        FROM daily_quests
+        WHERE user_id = %s AND quest_date = %s AND quest_type != 'complete_all_quests'
+    """, (user_id, today))
+    row = cur.fetchone()
+
+    if not row or row['total'] == 0:
+        return
+
+    if row['done'] >= row['total']:
+        cur.execute("""
+            SELECT id, xp_reward, is_completed FROM daily_quests
+            WHERE user_id = %s AND quest_date = %s AND quest_type = 'complete_all_quests' AND is_completed = false
+            LIMIT 1
+        """, (user_id, today))
+        all_quest = cur.fetchone()
+        if all_quest:
+            cur.execute("""
+                UPDATE daily_quests
+                SET current_value = target_value, is_completed = true, completed_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (all_quest['id'],))
+
+            cur.execute("""
+                UPDATE users SET xp_total = xp_total + %s WHERE id = %s RETURNING xp_total
+            """, (all_quest['xp_reward'], user_id))
+            u = cur.fetchone()
+            if u:
+                new_level = calculate_level(u['xp_total'])
+                cur.execute("UPDATE users SET level = %s WHERE id = %s", (new_level, user_id))
+
+
 def record_activity(conn, user_id: int, activity_type: str, value: int = 1):
-    """Записывает активность и обновляет стрик"""
+    """Записывает активность, обновляет стрик и прогресс ежедневных квестов"""
     today = date.today()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -99,6 +321,17 @@ def record_activity(conn, user_id: int, activity_type: str, value: int = 1):
 
     conn.commit()
     cur.close()
+
+    quest_type_map = {
+        'tasks_completed': 'complete_tasks',
+        'pomodoro_minutes': 'pomodoro_session',
+        'ai_questions_asked': 'ask_ai',
+        'materials_uploaded': 'upload_material',
+        'schedule_views': 'daily_checkin'
+    }
+    mapped_quest = quest_type_map.get(activity_type)
+    if mapped_quest:
+        update_quest_progress(conn, user_id, mapped_quest, value)
 
     return {'xp_gained': xp_gained, 'total_xp': new_xp, 'level': new_level}
 
@@ -191,15 +424,48 @@ def check_achievements(conn, user_id: int):
     return newly_unlocked
 
 
+def get_streak_rewards_data(conn, user_id):
+    """Возвращает награды за стрик с информацией о том, какие забраны"""
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SELECT * FROM user_streaks WHERE user_id = %s", (user_id,))
+    streak = cur.fetchone()
+    longest = streak['longest_streak'] if streak else 0
+
+    cur.execute("""
+        SELECT streak_days FROM streak_reward_claims WHERE user_id = %s
+    """, (user_id,))
+    claimed_set = {r['streak_days'] for r in cur.fetchall()}
+    cur.close()
+
+    result = []
+    for reward in STREAK_REWARDS:
+        result.append({
+            'streak_days': reward['streak_days'],
+            'reward_type': reward['reward_type'],
+            'value': reward['value'],
+            'title': reward['title'],
+            'description': reward['description'],
+            'is_available': longest >= reward['streak_days'],
+            'is_claimed': reward['streak_days'] in claimed_set
+        })
+    return result
+
+
 def get_profile_data(conn, user_id: int):
     """Полный профиль геймификации"""
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    cur.execute("SELECT xp_total, level, referral_count FROM users WHERE id = %s", (user_id,))
+    cur.execute("SELECT xp_total, level, referral_count, subscription_type, subscription_expires_at FROM users WHERE id = %s", (user_id,))
     user = cur.fetchone()
     if not user:
         cur.close()
         return None
+
+    is_premium = False
+    if user['subscription_type'] == 'premium' and user['subscription_expires_at']:
+        if user['subscription_expires_at'] >= datetime.now():
+            is_premium = True
 
     cur.execute("SELECT * FROM user_streaks WHERE user_id = %s", (user_id,))
     streak = cur.fetchone()
@@ -293,11 +559,15 @@ def get_profile_data(conn, user_id: int):
             'pomodoro': row['pomodoro_minutes']
         })
 
+    daily_quests = get_today_quests(conn, user_id)
+    streak_rewards = get_streak_rewards_data(conn, user_id)
+
     return {
         'level': current_level,
         'xp_total': current_xp,
         'xp_progress': xp_progress,
         'xp_needed': xp_needed,
+        'is_premium': is_premium,
         'streak': {
             'current': streak['current_streak'] if streak else 0,
             'longest': streak['longest_streak'] if streak else 0,
@@ -314,12 +584,48 @@ def get_profile_data(conn, user_id: int):
         'achievements': all_ach_list,
         'achievements_unlocked': len(unlocked),
         'achievements_total': total_ach,
-        'recent_activity': activity_list
+        'recent_activity': activity_list,
+        'daily_quests': daily_quests,
+        'streak_rewards': streak_rewards
     }
 
 
+def handle_streak_reminders(conn):
+    """Находит пользователей с риском потерять стрик и отправляет push-уведомления"""
+    yesterday = date.today() - timedelta(days=1)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("""
+        SELECT us.user_id, us.current_streak, ps.endpoint, ps.p256dh, ps.auth
+        FROM user_streaks us
+        JOIN push_subscriptions ps ON ps.user_id = us.user_id
+        JOIN notification_settings ns ON ns.user_id = us.user_id
+        WHERE us.last_activity_date = %s
+          AND us.current_streak >= 3
+          AND ps.endpoint IS NOT NULL
+          AND ns.streak_reminder = true
+    """, (yesterday,))
+
+    users = cur.fetchall()
+    sent_count = 0
+
+    for u in users:
+        notification_data = {
+            'title': '\U0001f525 \u041d\u0435 \u043f\u043e\u0442\u0435\u0440\u044f\u0439 \u0441\u0442\u0440\u0438\u043a!',
+            'body': f'\u0422\u0432\u043e\u044f \u0441\u0435\u0440\u0438\u044f {u["current_streak"]} \u0434\u043d\u0435\u0439 \u0432 \u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438! \u0417\u0430\u0439\u0434\u0438 \u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u0438 \u0441\u0442\u0440\u0438\u043a',
+            'tag': f'streak-danger-{u["user_id"]}',
+            'url': '/'
+        }
+        ok = send_push(u['endpoint'], u['p256dh'], u['auth'], notification_data)
+        if ok:
+            sent_count += 1
+
+    cur.close()
+    return {'sent': sent_count, 'total_users': len(users)}
+
+
 def handler(event: dict, context) -> dict:
-    """Обработчик запросов геймификации: стрики, XP, достижения"""
+    """Обработчик запросов геймификации: стрики, XP, достижения, квесты, награды за стрик и push-уведомления"""
     method = event.get('httpMethod', 'GET')
     client_ip = get_client_ip(event)
 
@@ -328,7 +634,7 @@ def handler(event: dict, context) -> dict:
         return {
             'statusCode': 429,
             'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Слишком много запросов', 'retry_after': retry_after})
+            'body': json.dumps({'error': '\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u0432', 'retry_after': retry_after})
         }
 
     if method == 'OPTIONS':
@@ -347,14 +653,34 @@ def handler(event: dict, context) -> dict:
         'Access-Control-Allow-Origin': '*'
     }
 
+    # Check for cron actions that don't need auth
+    if method == 'POST':
+        try:
+            body_raw = json.loads(event.get('body', '{}'))
+        except:
+            body_raw = {}
+        if body_raw.get('action') == 'send_streak_reminders':
+            conn = get_db_connection()
+            try:
+                result = handle_streak_reminders(conn)
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({'success': True, **result})
+                }
+            except Exception as e:
+                return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
+            finally:
+                conn.close()
+
     auth_header = event.get('headers', {}).get('X-Authorization', '')
     token = auth_header.replace('Bearer ', '')
     if not token:
-        return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': 'Требуется авторизация'})}
+        return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': '\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044f \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f'})}
 
     payload = verify_token(token)
     if not payload:
-        return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': 'Недействительный токен'})}
+        return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0439 \u0442\u043e\u043a\u0435\u043d'})}
 
     user_id = payload.get('user_id')
     conn = get_db_connection()
@@ -366,13 +692,14 @@ def handler(event: dict, context) -> dict:
             if action == 'profile':
                 profile = get_profile_data(conn, user_id)
                 if not profile:
-                    return {'statusCode': 404, 'headers': headers, 'body': json.dumps({'error': 'Пользователь не найден'})}
+                    return {'statusCode': 404, 'headers': headers, 'body': json.dumps({'error': '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d'})}
                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps(profile, default=str)}
 
             elif action == 'leaderboard':
                 cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT u.id, u.full_name, u.university, u.level, u.xp_total,
+                           u.subscription_type,
                            COALESCE(us.current_streak, 0) as streak
                     FROM users u
                     LEFT JOIN user_streaks us ON us.user_id = u.id
@@ -385,6 +712,9 @@ def handler(event: dict, context) -> dict:
 
                 result = []
                 for i, l in enumerate(leaders):
+                    is_leader_premium = False
+                    if l.get('subscription_type') == 'premium':
+                        is_leader_premium = True
                     result.append({
                         'rank': i + 1,
                         'name': l['full_name'],
@@ -392,12 +722,22 @@ def handler(event: dict, context) -> dict:
                         'level': l['level'],
                         'xp': l['xp_total'],
                         'streak': l['streak'],
-                        'is_me': l['id'] == user_id
+                        'is_me': l['id'] == user_id,
+                        'subscription_type': l.get('subscription_type', 'free')
                     })
 
                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps(result, default=str)}
 
-            return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неизвестное действие'})}
+            elif action == 'quests':
+                is_premium, _ = check_user_premium(conn, user_id)
+                quests = generate_daily_quests(conn, user_id, is_premium)
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'quests': quests}, default=str)}
+
+            elif action == 'streak_rewards':
+                rewards = get_streak_rewards_data(conn, user_id)
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'streak_rewards': rewards}, default=str)}
+
+            return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435'})}
 
         elif method == 'POST':
             body = json.loads(event.get('body', '{}'))
@@ -408,7 +748,7 @@ def handler(event: dict, context) -> dict:
                 value = min(int(body.get('value', 1)), 100)
                 valid_types = ['tasks_completed', 'pomodoro_minutes', 'ai_questions_asked', 'materials_uploaded', 'schedule_views']
                 if activity_type not in valid_types:
-                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неверный тип активности'})}
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 \u0442\u0438\u043f \u0430\u043a\u0442\u0438\u0432\u043d\u043e\u0441\u0442\u0438'})}
 
                 result = record_activity(conn, user_id, activity_type, value)
                 new_achievements = check_achievements(conn, user_id)
@@ -426,6 +766,9 @@ def handler(event: dict, context) -> dict:
                 }
 
             elif action == 'checkin':
+                is_premium, _ = check_user_premium(conn, user_id)
+                generate_daily_quests(conn, user_id, is_premium)
+
                 result = record_activity(conn, user_id, 'schedule_views', 1)
                 new_achievements = check_achievements(conn, user_id)
                 cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -448,7 +791,140 @@ def handler(event: dict, context) -> dict:
                     })
                 }
 
-            return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неизвестное действие'})}
+            elif action == 'update_quest':
+                quest_type = body.get('type', '')
+                value = int(body.get('value', 1))
+                if not quest_type:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u0422\u0438\u043f \u043a\u0432\u0435\u0441\u0442\u0430 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u0435\u043d'})}
+                result = update_quest_progress(conn, user_id, quest_type, value)
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps(result, default=str)}
+
+            elif action == 'use_freeze':
+                is_premium, _ = check_user_premium(conn, user_id)
+                if not is_premium:
+                    return {
+                        'statusCode': 403,
+                        'headers': headers,
+                        'body': json.dumps({'error': '\u0417\u0430\u043c\u043e\u0440\u043e\u0437\u043a\u0430 \u0441\u0442\u0440\u0438\u043a\u0430 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0442\u043e\u043b\u044c\u043a\u043e \u0434\u043b\u044f Premium'})
+                    }
+
+                today = date.today()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+
+                cur.execute("""
+                    SELECT id FROM streak_freeze_log
+                    WHERE user_id = %s AND freeze_date = %s
+                    LIMIT 1
+                """, (user_id, today))
+                already_used = cur.fetchone()
+                if already_used:
+                    cur.close()
+                    return {
+                        'statusCode': 400,
+                        'headers': headers,
+                        'body': json.dumps({'error': '\u0417\u0430\u043c\u043e\u0440\u043e\u0437\u043a\u0430 \u0443\u0436\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0430 \u0441\u0435\u0433\u043e\u0434\u043d\u044f'})
+                    }
+
+                week_start = today - timedelta(days=today.weekday())
+                cur.execute("""
+                    SELECT COUNT(*) as cnt FROM streak_freeze_log
+                    WHERE user_id = %s AND freeze_date >= %s
+                """, (user_id, week_start))
+                week_count = cur.fetchone()['cnt']
+                if week_count >= 1:
+                    cur.close()
+                    return {
+                        'statusCode': 400,
+                        'headers': headers,
+                        'body': json.dumps({'error': '\u041b\u0438\u043c\u0438\u0442 \u0437\u0430\u043c\u043e\u0440\u043e\u0437\u043e\u043a \u043d\u0430 \u044d\u0442\u0443 \u043d\u0435\u0434\u0435\u043b\u044e \u0438\u0441\u0447\u0435\u0440\u043f\u0430\u043d'})
+                    }
+
+                cur.execute("""
+                    INSERT INTO streak_freeze_log (user_id, freeze_date)
+                    VALUES (%s, %s)
+                """, (user_id, today))
+
+                cur.execute("""
+                    UPDATE user_streaks
+                    SET last_activity_date = %s, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = %s
+                """, (today, user_id))
+
+                conn.commit()
+                cur.close()
+
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({'success': True, 'message': '\u0421\u0442\u0440\u0438\u043a \u0437\u0430\u043c\u043e\u0440\u043e\u0436\u0435\u043d \u043d\u0430 \u0441\u0435\u0433\u043e\u0434\u043d\u044f'})
+                }
+
+            elif action == 'claim_streak_reward':
+                streak_days = int(body.get('streak_days', 0))
+                reward_def = None
+                for r in STREAK_REWARDS:
+                    if r['streak_days'] == streak_days:
+                        reward_def = r
+                        break
+
+                if not reward_def:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u0430\u044f \u043d\u0430\u0433\u0440\u0430\u0434\u0430'})}
+
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+
+                cur.execute("SELECT longest_streak FROM user_streaks WHERE user_id = %s", (user_id,))
+                streak_row = cur.fetchone()
+                longest = streak_row['longest_streak'] if streak_row else 0
+
+                if longest < streak_days:
+                    cur.close()
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u044b\u0439 \u0441\u0442\u0440\u0438\u043a'})}
+
+                cur.execute("""
+                    SELECT id FROM streak_reward_claims
+                    WHERE user_id = %s AND streak_days = %s
+                    LIMIT 1
+                """, (user_id, streak_days))
+                already_claimed = cur.fetchone()
+                if already_claimed:
+                    cur.close()
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0430\u0433\u0440\u0430\u0434\u0430 \u0443\u0436\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0430'})}
+
+                if reward_def['reward_type'] == 'bonus_questions':
+                    cur.execute("""
+                        UPDATE users SET bonus_questions = bonus_questions + %s WHERE id = %s
+                    """, (reward_def['value'], user_id))
+                elif reward_def['reward_type'] == 'premium_days':
+                    cur.execute("""
+                        UPDATE users
+                        SET subscription_type = 'premium',
+                            subscription_expires_at = GREATEST(COALESCE(subscription_expires_at, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) + interval '%s days'
+                        WHERE id = %s
+                    """ % (int(reward_def['value']), int(user_id)))
+
+                cur.execute("""
+                    INSERT INTO streak_reward_claims (user_id, streak_days, reward_type, reward_value)
+                    VALUES (%s, %s, %s, %s)
+                """, (user_id, streak_days, reward_def['reward_type'], reward_def['value']))
+
+                conn.commit()
+                cur.close()
+
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'success': True,
+                        'reward': {
+                            'type': reward_def['reward_type'],
+                            'value': reward_def['value'],
+                            'title': reward_def['title'],
+                            'description': reward_def['description']
+                        }
+                    })
+                }
+
+            return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435'})}
 
     except Exception as e:
         return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
