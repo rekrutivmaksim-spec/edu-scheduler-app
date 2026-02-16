@@ -2,7 +2,6 @@ import json
 import os
 import jwt
 import psycopg2
-import time
 import hashlib
 from datetime import datetime, timedelta
 from openai import OpenAI
@@ -10,19 +9,29 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-# КРИТИЧЕСКАЯ БЕЗОПАСНОСТЬ: API ключ из переменных окружения, НЕ хардкод!
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 
-# Клиент OpenAI для Artemox с timeout
 client = OpenAI(
     api_key=ARTEMOX_API_KEY,
     base_url='https://api.artemox.com/v1',
-    timeout=10.0  # 10 секунд — короткий таймаут для быстрого response/fallback
+    timeout=20.0
 )
 
-def get_user_id_from_token(token: str) -> int:
-    """Извлечение user_id из JWT токена"""
-    if token == 'mock-token' or token == 'guest_token':
+CORS_HEADERS = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+}
+
+def ok(body: dict) -> dict:
+    return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps(body, ensure_ascii=False)}
+
+def err(status: int, body: dict) -> dict:
+    return {'statusCode': status, 'headers': CORS_HEADERS, 'body': json.dumps(body, ensure_ascii=False)}
+
+def get_user_id(token: str):
+    if token in ('mock-token', 'guest_token'):
         return 1
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
@@ -30,989 +39,425 @@ def get_user_id_from_token(token: str) -> int:
     except Exception:
         return None
 
-def check_subscription_access(conn, user_id: int) -> dict:
-    """Проверяет доступ пользователя к ИИ-ассистенту (учитывает триал период)"""
-    cursor = conn.cursor()
-    cursor.execute(f'''
+def check_access(conn, user_id: int) -> dict:
+    """Проверка доступа с учетом подписки/триала/free"""
+    cur = conn.cursor()
+    cur.execute(f'''
         SELECT subscription_type, subscription_expires_at, subscription_plan,
-               ai_questions_used, ai_questions_reset_at, ai_questions_limit,
-               trial_ends_at, is_trial_used
-        FROM {SCHEMA_NAME}.users
-        WHERE id = %s
+               ai_questions_used, ai_questions_limit,
+               trial_ends_at, is_trial_used,
+               daily_questions_used, daily_questions_reset_at, bonus_questions
+        FROM {SCHEMA_NAME}.users WHERE id = %s
     ''', (user_id,))
-    
-    row = cursor.fetchone()
-    cursor.close()
-    
+    row = cur.fetchone()
+    cur.close()
     if not row:
-        return {'has_access': False, 'reason': 'user_not_found', 'questions_used': 0, 'questions_limit': 0}
-    
-    sub_type, expires_at, sub_plan, questions_used, reset_at, questions_limit, trial_ends_at, is_trial_used = row
-    now = datetime.now()
-    
-    # Определяем лимит вопросов на основе плана подписки
-    plan_limits = {
-        '1month': 40,
-        '3months': 120,
-        '6months': 260
-    }
-    
-    # Если лимит не установлен или подписка изменилась, устанавливаем новый
-    expected_limit = plan_limits.get(sub_plan, 40)
-    if questions_limit is None or questions_limit != expected_limit:
-        questions_limit = expected_limit
-        cursor = conn.cursor()
-        cursor.execute(f'''
-            UPDATE {SCHEMA_NAME}.users
-            SET ai_questions_limit = %s
-            WHERE id = %s
-        ''', (questions_limit, user_id))
-        conn.commit()
-        cursor.close()
-    
-    # Проверяем, нужно ли сбросить счетчик вопросов (НЕ сбрасываем автоматически по времени)
-    # Счетчик сбрасывается только при покупке НОВОЙ подписки
-    if questions_used is None:
-        questions_used = 0
-    
-    # Проверяем премиум подписку
-    if sub_type == 'premium':
-        if expires_at and expires_at > now:
-            # Premium: проверяем лимит вопросов
-            if questions_used >= questions_limit:
-                return {
-                    'has_access': False, 
-                    'reason': 'questions_limit_reached', 
-                    'is_premium': True,
-                    'questions_used': questions_used,
-                    'questions_limit': questions_limit
-                }
-            return {
-                'has_access': True, 
-                'is_premium': True,
-                'is_trial': False,
-                'questions_used': questions_used,
-                'questions_limit': questions_limit
-            }
-        else:
-            # Подписка истекла - проверяем триал
-            pass
-    
-    # Проверяем триал период (24 часа)
-    if trial_ends_at and not is_trial_used and trial_ends_at > now:
-        # БЕЗЛИМИТ на 24 часа пробного периода
-        return {
-            'has_access': True, 
-            'is_premium': False,
-            'is_trial': True,
-            'trial_ends_at': trial_ends_at,
-            'questions_used': questions_used,
-            'questions_limit': 999999  # Безлимит для триала
-        }
-    
-    # Бесплатная версия - 3 вопроса в ДЕНЬ + бонусные
-    cursor = conn.cursor()
-    cursor.execute(f'''
-        SELECT daily_questions_used, daily_questions_reset_at, bonus_questions
-        FROM {SCHEMA_NAME}.users
-        WHERE id = %s
-    ''', (user_id,))
-    result = cursor.fetchone()
-    cursor.close()
-    
-    if result:
-        daily_used, daily_reset, bonus = result
-        daily_used = daily_used or 0
-        bonus = bonus or 0
-        
-        # Сбрасываем дневной счетчик каждые 24 часа
-        if daily_reset and daily_reset < now:
-            cursor = conn.cursor()
-            cursor.execute(f'''
-                UPDATE {SCHEMA_NAME}.users
-                SET daily_questions_used = 0,
-                    daily_questions_reset_at = %s
-                WHERE id = %s
-            ''', (now + timedelta(days=1), user_id))
-            conn.commit()
-            cursor.close()
-            daily_used = 0
-        
-        daily_limit = 3
-        total_available = daily_limit + bonus
-        
-        # КРИТИЧЕСКАЯ ПРОВЕРКА: проверяем и дневной, и бонусный лимит
-        if daily_used >= total_available:
-            return {
-                'has_access': False, 
-                'reason': 'questions_limit_reached', 
-                'is_premium': False,
-                'is_trial': False,
-                'is_free': True,
-                'questions_used': daily_used,
-                'questions_limit': total_available,
-                'daily_limit': daily_limit,
-                'bonus_available': bonus
-            }
-        
-        return {
-            'has_access': True, 
-            'is_premium': False,
-            'is_trial': False,
-            'is_free': True,
-            'questions_used': daily_used,
-            'questions_limit': total_available,
-            'daily_limit': daily_limit,
-            'bonus_available': bonus
-        }
-    
-    # Нет доступа (не должно случиться)
-    return {'has_access': False, 'reason': 'no_subscription', 'is_premium': False, 'is_trial': False, 'questions_used': 0, 'questions_limit': 0}
+        return {'has_access': False, 'reason': 'user_not_found'}
 
-def increment_ai_questions(conn, user_id: int):
-    """Увеличивает счетчик использованных вопросов на 1"""
-    cursor = conn.cursor()
-    # Проверяем тип подписки
-    cursor.execute(f'''
-        SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used, 
+    (sub_type, expires_at, sub_plan, q_used, q_limit,
+     trial_ends, trial_used, daily_used, daily_reset, bonus) = row
+    now = datetime.now()
+    q_used = q_used or 0
+    daily_used = daily_used or 0
+    bonus = bonus or 0
+
+    limits = {'1month': 40, '3months': 120, '6months': 260}
+    expected = limits.get(sub_plan, 40)
+    if q_limit != expected:
+        cur2 = conn.cursor()
+        cur2.execute(f'UPDATE {SCHEMA_NAME}.users SET ai_questions_limit=%s WHERE id=%s', (expected, user_id))
+        conn.commit()
+        cur2.close()
+        q_limit = expected
+
+    if sub_type == 'premium' and expires_at and expires_at > now:
+        if q_used >= q_limit:
+            return {'has_access': False, 'reason': 'limit', 'used': q_used, 'limit': q_limit}
+        return {'has_access': True, 'is_premium': True, 'used': q_used, 'limit': q_limit, 'remaining': q_limit - q_used}
+
+    if trial_ends and not trial_used and trial_ends > now:
+        return {'has_access': True, 'is_trial': True, 'used': q_used, 'limit': 999, 'remaining': 999}
+
+    if daily_reset and daily_reset < now:
+        cur2 = conn.cursor()
+        cur2.execute(f'UPDATE {SCHEMA_NAME}.users SET daily_questions_used=0, daily_questions_reset_at=%s WHERE id=%s',
+                     (now + timedelta(days=1), user_id))
+        conn.commit()
+        cur2.close()
+        daily_used = 0
+
+    total = 3 + bonus
+    if daily_used >= total:
+        return {'has_access': False, 'reason': 'limit', 'used': daily_used, 'limit': total, 'is_free': True}
+    return {'has_access': True, 'is_free': True, 'used': daily_used, 'limit': total, 'remaining': total - daily_used}
+
+def increment_questions(conn, user_id: int):
+    cur = conn.cursor()
+    cur.execute(f'''
+        SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used,
                daily_questions_used, bonus_questions
-        FROM {SCHEMA_NAME}.users
-        WHERE id = %s
+        FROM {SCHEMA_NAME}.users WHERE id=%s
     ''', (user_id,))
-    user = cursor.fetchone()
-    
-    is_premium = False
-    is_trial = False
+    u = cur.fetchone()
     now = datetime.now()
-    
-    if user:
-        sub_type, expires, trial_ends, trial_used, daily_used, bonus = user
-        if sub_type == 'premium' and expires and expires > now:
-            is_premium = True
-        elif trial_ends and not trial_used and trial_ends > now:
-            is_trial = True
-    
-    # Инкрементируем соответствующий счетчик
-    if is_premium or is_trial:
-        cursor.execute(f'''
-            UPDATE {SCHEMA_NAME}.users
-            SET ai_questions_used = COALESCE(ai_questions_used, 0) + 1
-            WHERE id = %s
-        ''', (user_id,))
-    else:
-        # Free пользователь - инкрементируем дневной счетчик
+    if u:
+        sub_type, expires, trial_ends, trial_used, daily_used, bonus = u
         daily_used = daily_used or 0
         bonus = bonus or 0
-        
-        # КРИТИЧЕСКАЯ ЛОГИКА: сначала тратим бонусные вопросы
-        if daily_used < 3:
-            # Есть дневной лимит - используем его
-            cursor.execute(f'''
-                UPDATE {SCHEMA_NAME}.users
-                SET daily_questions_used = COALESCE(daily_questions_used, 0) + 1,
-                    daily_questions_reset_at = COALESCE(daily_questions_reset_at, %s)
-                WHERE id = %s
-            ''', (now + timedelta(days=1), user_id))
+        is_premium = sub_type == 'premium' and expires and expires > now
+        is_trial = trial_ends and not trial_used and trial_ends > now
+        if is_premium or is_trial:
+            cur.execute(f'UPDATE {SCHEMA_NAME}.users SET ai_questions_used=COALESCE(ai_questions_used,0)+1 WHERE id=%s', (user_id,))
+        elif daily_used < 3:
+            cur.execute(f'UPDATE {SCHEMA_NAME}.users SET daily_questions_used=COALESCE(daily_questions_used,0)+1, daily_questions_reset_at=COALESCE(daily_questions_reset_at,%s) WHERE id=%s',
+                        (now + timedelta(days=1), user_id))
         elif bonus > 0:
-            # Дневной лимит исчерпан - тратим бонусные
-            cursor.execute(f'''
-                UPDATE {SCHEMA_NAME}.users
-                SET daily_questions_used = COALESCE(daily_questions_used, 0) + 1,
-                    bonus_questions = bonus_questions - 1,
-                    daily_questions_reset_at = COALESCE(daily_questions_reset_at, %s)
-                WHERE id = %s AND bonus_questions > 0
-            ''', (now + timedelta(days=1), user_id))
-    
+            cur.execute(f'UPDATE {SCHEMA_NAME}.users SET daily_questions_used=COALESCE(daily_questions_used,0)+1, bonus_questions=bonus_questions-1, daily_questions_reset_at=COALESCE(daily_questions_reset_at,%s) WHERE id=%s AND bonus_questions>0',
+                        (now + timedelta(days=1), user_id))
     conn.commit()
-    cursor.close()
+    cur.close()
 
-def normalize_question(question: str) -> str:
-    """Нормализует вопрос для кэширования (убирает лишние пробелы, приводит к нижнему регистру)"""
-    return ' '.join(question.lower().strip().split())
-
-def get_question_hash(question: str, material_ids: list) -> str:
-    """Генерирует хэш вопроса + материалов для поиска в кэше"""
-    normalized = normalize_question(question)
-    # Добавляем отсортированные material_ids для уникальности
-    key = f"{normalized}:{sorted(material_ids)}"
-    return hashlib.md5(key.encode('utf-8')).hexdigest()
-
-def check_cache(conn, question: str, material_ids: list) -> dict:
-    """Проверяет, есть ли ответ в кэше. Возвращает {found: bool, answer: str, tokens: int}"""
-    question_hash = get_question_hash(question, material_ids)
-    cursor = conn.cursor()
-    
+def get_cache(conn, question, material_ids):
+    h = hashlib.md5(f"{question.lower().strip()}:{sorted(material_ids)}".encode()).hexdigest()
+    cur = conn.cursor()
     try:
-        cursor.execute(f'''
-            SELECT answer, tokens_used, hit_count
-            FROM {SCHEMA_NAME}.ai_question_cache
-            WHERE question_hash = %s
-            AND (last_used_at > CURRENT_TIMESTAMP - INTERVAL '30 days')
-        ''', (question_hash,))
-        
-        result = cursor.fetchone()
-        
-        if result:
-            answer, tokens, hit_count = result
-            # Обновляем статистику использования кэша
-            cursor.execute(f'''
-                UPDATE {SCHEMA_NAME}.ai_question_cache
-                SET hit_count = hit_count + 1,
-                    last_used_at = CURRENT_TIMESTAMP
-                WHERE question_hash = %s
-            ''', (question_hash,))
+        cur.execute(f"SELECT answer FROM {SCHEMA_NAME}.ai_question_cache WHERE question_hash=%s AND last_used_at > CURRENT_TIMESTAMP - INTERVAL '30 days'", (h,))
+        row = cur.fetchone()
+        if row:
+            cur.execute(f"UPDATE {SCHEMA_NAME}.ai_question_cache SET hit_count=hit_count+1, last_used_at=CURRENT_TIMESTAMP WHERE question_hash=%s", (h,))
             conn.commit()
-            
-            print(f"[AI-ASSISTANT] ✅ Ответ найден в кэше (hit #{hit_count + 1})", flush=True)
-            cursor.close()
-            return {'found': True, 'answer': answer, 'tokens': tokens}
-        
-        cursor.close()
-        return {'found': False}
-    except Exception as e:
-        print(f"[AI-ASSISTANT] ⚠️ Ошибка при проверке кэша: {e}", flush=True)
-        cursor.close()
-        return {'found': False}
+            cur.close()
+            return row[0]
+    except Exception:
+        pass
+    cur.close()
+    return None
 
-def save_to_cache(conn, question: str, material_ids: list, answer: str, tokens_used: int):
-    """Сохраняет ответ в кэш"""
-    question_hash = get_question_hash(question, material_ids)
-    cursor = conn.cursor()
-    
+def set_cache(conn, question, material_ids, answer, tokens):
+    h = hashlib.md5(f"{question.lower().strip()}:{sorted(material_ids)}".encode()).hexdigest()
+    cur = conn.cursor()
     try:
-        cursor.execute(f'''
-            INSERT INTO {SCHEMA_NAME}.ai_question_cache 
-            (question_hash, question_text, answer, material_ids, tokens_used)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (question_hash) DO UPDATE
-            SET answer = EXCLUDED.answer,
-                tokens_used = EXCLUDED.tokens_used,
-                hit_count = {SCHEMA_NAME}.ai_question_cache.hit_count + 1,
-                last_used_at = CURRENT_TIMESTAMP
-        ''', (question_hash, question[:500], answer, material_ids or [], tokens_used))
+        cur.execute(f'''
+            INSERT INTO {SCHEMA_NAME}.ai_question_cache (question_hash, question_text, answer, material_ids, tokens_used)
+            VALUES (%s,%s,%s,%s,%s)
+            ON CONFLICT (question_hash) DO UPDATE SET answer=EXCLUDED.answer, tokens_used=EXCLUDED.tokens_used,
+            hit_count={SCHEMA_NAME}.ai_question_cache.hit_count+1, last_used_at=CURRENT_TIMESTAMP
+        ''', (h, question[:500], answer, material_ids or [], tokens))
         conn.commit()
-        cursor.close()
-        print(f"[AI-ASSISTANT] 💾 Ответ сохранён в кэш", flush=True)
-    except Exception as e:
-        print(f"[AI-ASSISTANT] ⚠️ Ошибка при сохранении в кэш: {e}", flush=True)
-        cursor.close()
+    except Exception:
+        pass
+    cur.close()
 
-def get_or_create_session(conn, user_id: int) -> int:
-    """Получает активную сессию чата или создаёт новую"""
-    cursor = conn.cursor()
-    
+def get_session(conn, user_id):
+    cur = conn.cursor()
     try:
-        # Ищем последнюю активную сессию (обновлённую менее 24 часов назад)
-        cursor.execute(f'''
-            SELECT id FROM {SCHEMA_NAME}.chat_sessions
-            WHERE user_id = %s 
-            AND updated_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
-            ORDER BY updated_at DESC
-            LIMIT 1
-        ''', (user_id,))
-        
-        result = cursor.fetchone()
-        
-        if result:
-            session_id = result[0]
-            cursor.close()
-            return session_id
-        
-        # Создаём новую сессию
-        cursor.execute(f'''
-            INSERT INTO {SCHEMA_NAME}.chat_sessions (user_id, title)
-            VALUES (%s, 'Новый чат')
-            RETURNING id
-        ''', (user_id,))
-        
-        session_id = cursor.fetchone()[0]
+        cur.execute(f"SELECT id FROM {SCHEMA_NAME}.chat_sessions WHERE user_id=%s AND updated_at > CURRENT_TIMESTAMP - INTERVAL '24 hours' ORDER BY updated_at DESC LIMIT 1", (user_id,))
+        row = cur.fetchone()
+        if row:
+            cur.close()
+            return row[0]
+        cur.execute(f"INSERT INTO {SCHEMA_NAME}.chat_sessions (user_id, title) VALUES (%s, %s) RETURNING id", (user_id, 'Новый чат'))
+        sid = cur.fetchone()[0]
         conn.commit()
-        cursor.close()
-        print(f"[AI-ASSISTANT] 📝 Создана новая сессия чата: {session_id}", flush=True)
-        return session_id
-    except Exception as e:
-        print(f"[AI-ASSISTANT] ⚠️ Ошибка при работе с сессиями: {e}", flush=True)
-        cursor.close()
+        cur.close()
+        return sid
+    except Exception:
+        cur.close()
         return None
 
-def save_message(conn, session_id: int, user_id: int, role: str, content: str, 
-                 material_ids: list = None, tokens_used: int = 0, was_cached: bool = False):
-    """Сохраняет сообщение в историю чата"""
-    cursor = conn.cursor()
-    
+def save_msg(conn, sid, uid, role, content, mids=None, tokens=0, cached=False):
+    if not sid:
+        return
+    cur = conn.cursor()
     try:
-        cursor.execute(f'''
-            INSERT INTO {SCHEMA_NAME}.chat_messages 
-            (session_id, user_id, role, content, material_ids, tokens_used, was_cached)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ''', (session_id, user_id, role, content, material_ids or [], tokens_used, was_cached))
-        
-        # Обновляем счётчик сообщений и время обновления сессии
-        cursor.execute(f'''
-            UPDATE {SCHEMA_NAME}.chat_sessions
-            SET message_count = message_count + 1,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        ''', (session_id,))
-        
-        # Обновляем title сессии (первый вопрос пользователя)
+        cur.execute(f"INSERT INTO {SCHEMA_NAME}.chat_messages (session_id,user_id,role,content,material_ids,tokens_used,was_cached) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                    (sid, uid, role, content, mids or [], tokens, cached))
+        cur.execute(f"UPDATE {SCHEMA_NAME}.chat_sessions SET message_count=message_count+1, updated_at=CURRENT_TIMESTAMP WHERE id=%s", (sid,))
         if role == 'user':
-            cursor.execute(f'''
-                UPDATE {SCHEMA_NAME}.chat_sessions
-                SET title = %s
-                WHERE id = %s AND title = 'Новый чат'
-            ''', (content[:100], session_id))
-        
+            cur.execute(f"UPDATE {SCHEMA_NAME}.chat_sessions SET title=%s WHERE id=%s AND title='Новый чат'", (content[:100], sid))
         conn.commit()
-        cursor.close()
-    except Exception as e:
-        print(f"[AI-ASSISTANT] ⚠️ Ошибка при сохранении сообщения: {e}", flush=True)
-        cursor.close()
+    except Exception:
+        pass
+    cur.close()
 
-def handler(event: dict, context) -> dict:
-    """API для ИИ-ассистента: отвечает на вопросы по материалам пользователя"""
-    method = event.get('httpMethod', 'GET')
-    print(f"[AI-ASSISTANT] Method: {method}, Headers: {event.get('headers', {})}", flush=True)
-    
-    if method == 'OPTIONS':
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            },
-            'body': ''
-        }
-    
-    token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
-    user_id = get_user_id_from_token(token)
-    
-    if not user_id:
-        return {
-            'statusCode': 401,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Unauthorized'})
-        }
-    
-    if method == 'POST':
-        body = json.loads(event.get('body', '{}'))
-        question = body.get('question', '').strip()
-        material_ids = body.get('material_ids', [])
-        print(f"[AI-ASSISTANT] User: {user_id}, Question: {question[:50]}, Materials: {material_ids}")
-        
-        if not question:
-            return {
-                'statusCode': 400,
-                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'Question is required'})
-            }
-        
-        conn = psycopg2.connect(DATABASE_URL)
-        conn.autocommit = True
-        
-        try:
-            # Проверяем доступ к ИИ-ассистенту
-            access = check_subscription_access(conn, user_id)
-            if not access['has_access']:
-                reason = access.get('reason', 'no_access')
-                questions_used = access.get('questions_used', 0)
-                questions_limit = access.get('questions_limit', 0)
-                
-                if reason == 'subscription_expired':
-                    message = '⏰ Ваша подписка истекла. Оформите новую подписку для доступа к ИИ-ассистенту.'
-                elif reason == 'questions_limit_reached':
-                    message = f'🚨 Вы использовали все вопросы по вашей подписке ({questions_used}/{questions_limit}). Оформите новую подписку для продолжения работы.'
-                else:
-                    message = '🔒 Доступ к ИИ-ассистенту доступен только по подписке. Оформите подписку в профиле!'
-                
-                return {
-                    'statusCode': 403,
-                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                    'body': json.dumps({
-                        'error': 'subscription_required',
-                        'message': message,
-                        'reason': reason,
-                        'questions_used': questions_used,
-                        'questions_limit': questions_limit
-                    })
-                }
-            
-            context_text = get_materials_context(conn, user_id, material_ids)
-            
-            # Получаем или создаём сессию чата
-            session_id = get_or_create_session(conn, user_id)
-            
-            # Сохраняем вопрос пользователя
-            if session_id:
-                save_message(conn, session_id, user_id, 'user', question, material_ids)
-            
-            # ПРОВЕРЯЕМ, ХОЧЕТ ЛИ ПОЛЬЗОВАТЕЛЬ СОЗДАТЬ ЗАДАЧУ/СОБЫТИЕ
-            action_intent = detect_action_intent(question)
-            action_result = None
-            
-            if action_intent['action'] == 'task':
-                # Создаём задачу БЕЗ обращения к ИИ — это быстрая команда
-                try:
-                    cursor = conn.cursor()
-                    cursor.execute(f'''
-                        INSERT INTO {SCHEMA_NAME}.tasks (user_id, title, subject, priority)
-                        VALUES (%s, %s, %s, 'high')
-                        RETURNING id, title, subject
-                    ''', (user_id, action_intent['title'], action_intent.get('subject')))
-                    task = cursor.fetchone()
-                    conn.commit()
-                    cursor.close()
-                    
-                    # Увеличиваем счетчик вопросов (т.к. это тоже использование ассистента)
-                    increment_ai_questions(conn, user_id)
-                    access_updated = check_subscription_access(conn, user_id)
-                    questions_remaining = access_updated.get('questions_limit', 0) - access_updated.get('questions_used', 0)
-                    
-                    # Формируем быстрый ответ без обращения к ИИ
-                    quick_answer = f"✅ **Задача успешно создана!**\n\n📋 **{task[1]}**" + (f"\n📚 Предмет: {task[2]}" if task[2] else "") + f"\n\n💡 Задача добавлена в раздел **Планировщик**. Не забудь выполнить её вовремя!"
-                    
-                    # Сохраняем в историю чата
-                    if session_id:
-                        save_message(conn, session_id, user_id, 'assistant', quick_answer, [], 0, False)
-                    
-                    print(f"[AI-ASSISTANT] ✅ Создана задача #{task[0]}: {task[1]} (БЕЗ вызова ИИ)", flush=True)
-                    
-                    # Возвращаем ответ СРАЗУ, минуя ИИ
-                    return {
-                        'statusCode': 200,
-                        'headers': {
-                            'Content-Type': 'application/json',
-                            'Access-Control-Allow-Origin': '*'
-                        },
-                        'body': json.dumps({
-                            'answer': quick_answer,
-                            'questions_used': access_updated.get('questions_used', 0),
-                            'questions_limit': access_updated.get('questions_limit', 0),
-                            'questions_remaining': questions_remaining
-                        })
-                    }
-                except Exception as e:
-                    print(f"[AI-ASSISTANT] ⚠️ Ошибка создания задачи: {e}", flush=True)
-                    # Продолжаем работу с ИИ, если создание задачи не удалось
-            
-            elif action_intent['action'] == 'schedule':
-                # Создаём занятие в расписании БЕЗ обращения к ИИ
-                try:
-                    cursor = conn.cursor()
-                    
-                    # Парсим день недели и время из вопроса
-                    parsed_data = parse_schedule_details(question)
-                    
-                    cursor.execute(f'''
-                        INSERT INTO {SCHEMA_NAME}.schedule 
-                        (user_id, subject, type, start_time, end_time, day_of_week, room, teacher, color)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id, subject, type, day_of_week, start_time, end_time
-                    ''', (
-                        user_id,
-                        action_intent.get('subject') or action_intent['title'],
-                        parsed_data.get('type', 'лекция'),
-                        parsed_data.get('start_time'),
-                        parsed_data.get('end_time'),
-                        parsed_data.get('day_of_week'),
-                        parsed_data.get('room'),
-                        parsed_data.get('teacher'),
-                        'bg-purple-500'
-                    ))
-                    
-                    lesson = cursor.fetchone()
-                    conn.commit()
-                    cursor.close()
-                    
-                    # Увеличиваем счетчик вопросов
-                    increment_ai_questions(conn, user_id)
-                    access_updated = check_subscription_access(conn, user_id)
-                    questions_remaining = access_updated.get('questions_limit', 0) - access_updated.get('questions_used', 0)
-                    
-                    # Форматируем день недели
-                    days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
-                    day_name = days[lesson[3]] if lesson[3] is not None else 'не указан'
-                    
-                    # Формируем быстрый ответ
-                    quick_answer = f"✅ **Занятие добавлено в расписание!**\n\n📚 **{lesson[1]}**\n📖 Тип: {lesson[2]}\n📅 День: {day_name}"
-                    if lesson[4] and lesson[5]:
-                        quick_answer += f"\n⏰ Время: {lesson[4]} - {lesson[5]}"
-                    quick_answer += f"\n\n💡 Занятие добавлено в **Расписание**. Проверь детали в разделе!"
-                    
-                    # Сохраняем в историю чата
-                    if session_id:
-                        save_message(conn, session_id, user_id, 'assistant', quick_answer, [], 0, False)
-                    
-                    print(f"[AI-ASSISTANT] ✅ Создано занятие #{lesson[0]}: {lesson[1]} (БЕЗ вызова ИИ)", flush=True)
-                    
-                    # Возвращаем ответ СРАЗУ
-                    return {
-                        'statusCode': 200,
-                        'headers': {
-                            'Content-Type': 'application/json',
-                            'Access-Control-Allow-Origin': '*'
-                        },
-                        'body': json.dumps({
-                            'answer': quick_answer,
-                            'questions_used': access_updated.get('questions_used', 0),
-                            'questions_limit': access_updated.get('questions_limit', 0),
-                            'questions_remaining': questions_remaining
-                        })
-                    }
-                except Exception as e:
-                    print(f"[AI-ASSISTANT] ⚠️ Ошибка создания занятия: {e}", flush=True)
-                    # Продолжаем работу с ИИ, если создание занятия не удалось
-            
-            # Проверяем кэш ТОЛЬКО если это НЕ команда создания задачи
-            cache_result = check_cache(conn, question, material_ids)
-            
-            if cache_result['found']:
-                # Ответ найден в кэше - используем его
-                answer = cache_result['answer']
-                tokens_used = 0  # Токены не тратятся при использовании кэша
-                was_cached = True
-                print(f"[AI-ASSISTANT] 🚀 Ответ из кэша (экономия {cache_result['tokens']} токенов)", flush=True)
-            else:
-                # Получаем ответ от ИИ
-                answer, tokens_used = ask_artemox_openai(question, context_text)
-                was_cached = False
-                
-                # Сохраняем в кэш только успешные ответы (не fallback)
-                if tokens_used > 0:
-                    save_to_cache(conn, question, material_ids, answer, tokens_used)
-            
-            # Сохраняем ответ ассистента в историю
-            if session_id:
-                save_message(conn, session_id, user_id, 'assistant', answer, 
-                           material_ids, tokens_used, was_cached)
-            
-            # Увеличиваем счетчик вопросов на 1
-            increment_ai_questions(conn, user_id)
-            
-            # Получаем обновленные данные о лимитах
-            access_updated = check_subscription_access(conn, user_id)
-            
-            questions_remaining = access_updated.get('questions_limit', 0) - access_updated.get('questions_used', 0)
-            
-            answer_data = json.dumps({
-                'answer': answer,
-                'questions_used': access_updated.get('questions_used', 0),
-                'questions_limit': access_updated.get('questions_limit', 0),
-                'questions_remaining': questions_remaining
-            })
-            
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': answer_data
-            }
-        finally:
-            conn.close()
-    
-    if method == 'GET':
-        # GET запрос для получения истории чатов
-        action = event.get('queryStringParameters', {}).get('action', 'sessions')
-        conn = psycopg2.connect(DATABASE_URL)
-        
-        try:
-            if action == 'sessions':
-                # Получаем список всех чатов пользователя
-                cursor = conn.cursor()
-                cursor.execute(f'''
-                    SELECT id, title, created_at, updated_at, message_count
-                    FROM {SCHEMA_NAME}.chat_sessions
-                    WHERE user_id = %s
-                    ORDER BY updated_at DESC
-                    LIMIT 50
-                ''', (user_id,))
-                
-                sessions = []
-                for row in cursor.fetchall():
-                    sessions.append({
-                        'id': row[0],
-                        'title': row[1],
-                        'created_at': row[2].isoformat() if row[2] else None,
-                        'updated_at': row[3].isoformat() if row[3] else None,
-                        'message_count': row[4]
-                    })
-                cursor.close()
-                
-                return {
-                    'statusCode': 200,
-                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                    'body': json.dumps({'sessions': sessions})
-                }
-            
-            elif action == 'messages':
-                # Получаем сообщения конкретного чата
-                session_id = event.get('queryStringParameters', {}).get('session_id')
-                
-                if not session_id:
-                    return {
-                        'statusCode': 400,
-                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                        'body': json.dumps({'error': 'session_id required'})
-                    }
-                
-                cursor = conn.cursor()
-                cursor.execute(f'''
-                    SELECT role, content, created_at, tokens_used, was_cached
-                    FROM {SCHEMA_NAME}.chat_messages
-                    WHERE session_id = %s AND user_id = %s
-                    ORDER BY created_at ASC
-                    LIMIT 200
-                ''', (session_id, user_id))
-                
-                messages = []
-                for row in cursor.fetchall():
-                    messages.append({
-                        'role': row[0],
-                        'content': row[1],
-                        'timestamp': row[2].isoformat() if row[2] else None,
-                        'tokens_used': row[3],
-                        'was_cached': row[4]
-                    })
-                cursor.close()
-                
-                return {
-                    'statusCode': 200,
-                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                    'body': json.dumps({'messages': messages})
-                }
-        
-        finally:
-            conn.close()
-    
-    return {
-        'statusCode': 405,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'error': 'Method not allowed'})
-    }
-
-def get_materials_context(conn, user_id: int, material_ids: list) -> str:
-    """ОТКАЗОУСТОЙЧИВОЕ получение текста материалов для контекста ИИ
-    ВСЕГДА возвращает либо контекст, либо понятное сообщение
-    """
-    cursor = conn.cursor()
-    
+def get_context(conn, user_id, material_ids):
+    cur = conn.cursor()
     try:
         if material_ids:
-            placeholders = ','.join(['%s'] * len(material_ids))
-            cursor.execute(f'''
-                SELECT id, title, subject, recognized_text, summary, total_chunks
-                FROM {SCHEMA_NAME}.materials
-                WHERE user_id = %s AND id IN ({placeholders})
-                ORDER BY created_at DESC
-                LIMIT 10
-            ''', [user_id] + material_ids)
+            ph = ','.join(['%s'] * len(material_ids))
+            cur.execute(f"SELECT id,title,subject,recognized_text,summary,total_chunks FROM {SCHEMA_NAME}.materials WHERE user_id=%s AND id IN ({ph}) ORDER BY created_at DESC LIMIT 5", [user_id]+material_ids)
         else:
-            cursor.execute(f'''
-                SELECT id, title, subject, recognized_text, summary, total_chunks
-                FROM {SCHEMA_NAME}.materials
-                WHERE user_id = %s
-                ORDER BY created_at DESC
-                LIMIT 10
-            ''', (user_id,))
-        
-        materials = cursor.fetchall()
-        
+            cur.execute(f"SELECT id,title,subject,recognized_text,summary,total_chunks FROM {SCHEMA_NAME}.materials WHERE user_id=%s ORDER BY created_at DESC LIMIT 5", (user_id,))
+        materials = cur.fetchall()
         if not materials:
-            cursor.close()
-            return "У пользователя нет загруженных материалов. Загрузите конспекты или учебники в раздел 'Материалы' для получения ответов."
-        
-        context_parts = []
-        for material_id, title, subject, text, summary, total_chunks in materials:
-            try:
-                context_parts.append(f"Материал: {title or 'Без названия'}")
-                if subject:
-                    context_parts.append(f"Предмет: {subject}")
-                if summary:
-                    context_parts.append(f"Краткое содержание: {summary}")
-                
-                # ОТКАЗОУСТОЙЧИВОЕ чтение чанков
-                if total_chunks and total_chunks > 1:
-                    try:
-                        cursor.execute(f'''
-                            SELECT chunk_text FROM {SCHEMA_NAME}.document_chunks
-                            WHERE material_id = %s
-                            ORDER BY chunk_index
-                            LIMIT 3
-                        ''', (material_id,))
-                        chunks = cursor.fetchall()
-                        if chunks:
-                            full_text = '\n\n'.join([chunk[0] for chunk in chunks if chunk[0]])
-                            if full_text:
-                                context_parts.append(f"Текст (первые фрагменты из {total_chunks} частей):\n{full_text[:3000]}")
-                    except Exception as chunk_error:
-                        print(f"[AI-ASSISTANT] ⚠️ Ошибка чтения чанков для material_id={material_id}: {chunk_error}", flush=True)
-                        # Продолжаем без чанков
-                        if text:
-                            context_parts.append(f"Текст: {text[:3000]}")
-                elif text:
-                    context_parts.append(f"Текст: {text[:3000]}")
-                
-                context_parts.append("---")
-            except Exception as material_error:
-                print(f"[AI-ASSISTANT] ⚠️ Ошибка обработки материала {material_id}: {material_error}", flush=True)
-                # Пропускаем этот материал и идём дальше
-                continue
-        
-        cursor.close()
-        
-        if not context_parts:
-            return "Не удалось загрузить содержимое материалов. Попробуйте выбрать другие документы."
-        
-        return "\n".join(context_parts)
-        
+            cur.close()
+            return ""
+        parts = []
+        for mid, title, subject, text, summary, chunks in materials:
+            parts.append(f"## {title or 'Документ'}" + (f" ({subject})" if subject else ""))
+            if summary:
+                parts.append(summary[:500])
+            if chunks and chunks > 1:
+                try:
+                    cur.execute(f"SELECT chunk_text FROM {SCHEMA_NAME}.document_chunks WHERE material_id=%s ORDER BY chunk_index LIMIT 2", (mid,))
+                    for c in cur.fetchall():
+                        if c[0]:
+                            parts.append(c[0][:1500])
+                except Exception:
+                    if text:
+                        parts.append(text[:1500])
+            elif text:
+                parts.append(text[:1500])
+        cur.close()
+        result = "\n\n".join(parts)
+        return result[:3000]
     except Exception as e:
-        print(f"[AI-ASSISTANT] ❌ КРИТИЧЕСКАЯ ошибка при загрузке материалов: {e}", flush=True)
-        cursor.close()
-        return "Не удалось загрузить материалы из базы данных. Попробуйте задать вопрос позже."
+        print(f"[AI] context error: {e}", flush=True)
+        cur.close()
+        return ""
 
-def parse_schedule_details(question: str) -> dict:
-    """Парсит детали занятия из вопроса (день недели, время, тип)"""
+def detect_action(question):
+    q = question.lower()
+    task_triggers = ['создай задачу', 'добавь задачу', 'задача:']
+    schedule_triggers = ['добавь занятие', 'добавь пару', 'в расписание']
+    if any(t in q for t in task_triggers):
+        return 'task'
+    if any(t in q for t in schedule_triggers):
+        return 'schedule'
+    return None
+
+def parse_schedule(question):
     import re
-    question_lower = question.lower()
-    
-    # Дни недели
-    days_map = {
-        'понедельник': 0, 'пн': 0,
-        'вторник': 1, 'вт': 1,
-        'среда': 2, 'ср': 2,
-        'четверг': 3, 'чт': 3,
-        'пятница': 4, 'пт': 4,
-        'суббота': 5, 'сб': 5,
-        'воскресенье': 6, 'вс': 6
-    }
-    
-    # Типы занятий
-    types_map = {
-        'лекция': 'лекция',
-        'семинар': 'семинар',
-        'практика': 'практика',
-        'лаб': 'лаб. работа',
-        'консультация': 'консультация'
-    }
-    
-    result = {
-        'day_of_week': None,
-        'start_time': None,
-        'end_time': None,
-        'type': 'лекция',
-        'room': None,
-        'teacher': None
-    }
-    
-    # Ищем день недели
-    for day_name, day_num in days_map.items():
-        if day_name in question_lower:
-            result['day_of_week'] = day_num
+    q = question.lower()
+    days = {'понедельник':0,'пн':0,'вторник':1,'вт':1,'среда':2,'ср':2,'четверг':3,'чт':3,'пятница':4,'пт':4,'суббота':5,'сб':5,'воскресенье':6,'вс':6}
+    types = {'лекция':'лекция','семинар':'семинар','практика':'практика','лаб':'лаб. работа'}
+    r = {'day_of_week':None,'start_time':None,'end_time':None,'type':'лекция','room':None,'teacher':None}
+    for dn, dv in days.items():
+        if dn in q:
+            r['day_of_week'] = dv
             break
-    
-    # Ищем тип занятия
-    for type_name, type_full in types_map.items():
-        if type_name in question_lower:
-            result['type'] = type_full
+    for tn, tv in types.items():
+        if tn in q:
+            r['type'] = tv
             break
-    
-    # Ищем время (формат 10:00, 14:30 и т.д.)
-    time_pattern = r'(\d{1,2}):(\d{2})'
-    times = re.findall(time_pattern, question)
-    if len(times) >= 1:
-        result['start_time'] = f"{times[0][0].zfill(2)}:{times[0][1]}"
+    times = re.findall(r'(\d{1,2}):(\d{2})', question)
+    if times:
+        r['start_time'] = f"{times[0][0].zfill(2)}:{times[0][1]}"
     if len(times) >= 2:
-        result['end_time'] = f"{times[1][0].zfill(2)}:{times[1][1]}"
-    
-    # Ищем аудиторию
-    room_match = re.search(r'ауд(?:итория)?\s*([0-9а-яА-Я\-]+)', question)
-    if room_match:
-        result['room'] = room_match.group(1)
-    
-    # Ищем преподавателя
-    teacher_match = re.search(r'преподаватель\s+([\w\s\.]+)', question)
-    if teacher_match:
-        result['teacher'] = teacher_match.group(1).strip()[:100]
-    
-    return result
+        r['end_time'] = f"{times[1][0].zfill(2)}:{times[1][1]}"
+    elif r['start_time']:
+        h, m = int(times[0][0]), int(times[0][1])
+        eh = h + 1
+        if eh < 24:
+            r['end_time'] = f"{str(eh).zfill(2)}:{str(m).zfill(2)}"
+    return r
 
-def detect_action_intent(question: str) -> dict:
-    """Определяет, хочет ли пользователь создать задачу или событие
-    Возвращает: {'action': 'task'|'schedule'|None, 'title': str, 'deadline': str|None, 'subject': str|None}
-    """
-    question_lower = question.lower()
-    
-    # Триггеры для создания задачи
-    task_triggers = [
-        'создай задачу', 'добавь задачу', 'напомни', 'не забыть', 'нужно сделать',
-        'дедлайн', 'сдать', 'deadline', 'задача:', 'todo:'
-    ]
-    
-    # Триггеры для добавления в расписание
-    schedule_triggers = [
-        'добавь занятие', 'добавь пару', 'занятие', 'пара', 'лекция', 'семинар',
-        'расписание', 'в расписание'
-    ]
-    
-    # Проверяем триггеры
-    action = None
-    if any(trigger in question_lower for trigger in task_triggers):
-        action = 'task'
-    elif any(trigger in question_lower for trigger in schedule_triggers):
-        action = 'schedule'
-    
-    if not action:
-        return {'action': None}
-    
-    # Парсим детали из вопроса
+def extract_title(question, action):
     import re
-    
-    # Извлекаем дату/время
-    deadline = None
-    date_patterns = [
-        r'до (\d{1,2})\.(\d{1,2})',  # до 15.03
-        r'к (\d{1,2})\.(\d{1,2})',   # к 20.05
-        r'(\d{1,2})\.(\d{1,2})',     # 10.04
-        r'(завтра|послезавтра|сегодня)',
-        r'через (\d+) (день|дня|дней|час|часа|часов)'
-    ]
-    
-    for pattern in date_patterns:
-        match = re.search(pattern, question_lower)
-        if match:
-            deadline = match.group(0)
-            break
-    
-    # Извлекаем предмет
-    subject = None
-    subject_match = re.search(r'по ([а-яё\s]+)', question_lower)
-    if subject_match:
-        subject = subject_match.group(1).strip()[:50]
-    
-    # Извлекаем название задачи (после двоеточия или в кавычках)
-    title = None
-    title_patterns = [
-        r'["«]([^"»]+)["»]',  # в кавычках
-        r':\s*(.+?)(?:\s+до|\s+к|$)',  # после двоеточия
-    ]
-    
-    for pattern in title_patterns:
-        match = re.search(pattern, question)
-        if match:
-            title = match.group(1).strip()[:200]
-            break
-    
-    if not title:
-        # Если не нашли явное название, берём всё после триггера
-        for trigger in task_triggers + schedule_triggers:
-            if trigger in question_lower:
-                idx = question_lower.find(trigger) + len(trigger)
-                title = question[idx:].strip()[:200]
-                break
-    
-    return {
-        'action': action,
-        'title': title or question[:100],
-        'deadline': deadline,
-        'subject': subject
-    }
+    m = re.search(r'["«]([^"»]+)["»]', question)
+    if m:
+        return m.group(1).strip()[:200]
+    m = re.search(r':\s*(.+?)(?:\s+до|\s+к|$)', question)
+    if m:
+        return m.group(1).strip()[:200]
+    triggers = ['создай задачу','добавь задачу','задача:','добавь занятие','добавь пару','в расписание']
+    q = question.lower()
+    for t in triggers:
+        if t in q:
+            idx = q.find(t) + len(t)
+            return question[idx:].strip()[:200]
+    return question[:100]
 
-def ask_artemox_openai(question: str, context: str) -> tuple:
-    """ОТКАЗОУСТОЙЧИВЫЙ запрос к Artemox с retry и fallback ответами
-    Возвращает: (answer, tokens_used) — ВСЕГДА возвращает полезный ответ
-    """
-    system_prompt = f"""Ты — Studyfay, умный и дружелюбный ИИ-репетитор для студентов. Твоя задача — помогать студентам учиться эффективно.
+def ask_ai(question, context):
+    """Один запрос к ИИ с коротким промптом — укладываемся в 20 секунд"""
+    has_context = bool(context and len(context) > 50)
 
-КОНТЕКСТ ИЗ МАТЕРИАЛОВ СТУДЕНТА:
-{context[:4000]}
+    if has_context:
+        system = f"""Ты — Studyfay, ИИ-репетитор. Отвечай на русском, по делу, дружелюбно.
 
-КАК ОТВЕЧАТЬ:
-1. Если вопрос связан с материалами студента — используй их как основу ответа
-2. Если в материалах нет ответа — используй свои знания, но предупреди об этом
-3. Объясняй сложные вещи простым языком, как лучший репетитор
-4. Приводи примеры и аналогии для лучшего понимания
-5. Если студент просит помощь с задачей — не решай за него, а направляй к решению
+МАТЕРИАЛЫ СТУДЕНТА:
+{context}
 
-ФОРМАТИРОВАНИЕ:
-• Структурируй ответ с заголовками ## и подзаголовками ###
-• Выделяй **ключевые термины** жирным
-• Используй нумерованные списки для пошаговых объяснений
-• Используй маркированные списки для перечислений
-• Формулы и код оборачивай в `обратные кавычки`
-• Таблицы используй для сравнений: | Колонка 1 | Колонка 2 |
+ПРАВИЛА:
+- Отвечай на основе материалов студента, если вопрос связан с ними
+- Если в материалах нет ответа — используй свои знания
+- Объясняй просто, с примерами
+- Используй **жирный** для терминов, списки для структуры
+- 2-4 абзаца, не лей воду"""
+    else:
+        system = """Ты — Studyfay, ИИ-репетитор для студентов. Отвечай на русском, по делу, дружелюбно.
 
-СТИЛЬ:
-• Пиши на русском языке, дружелюбно но по делу
-• Ответ должен быть полным и полезным (3-6 абзацев)
-• Не лей воду — каждое предложение должно нести пользу
-• В конце можешь предложить, что ещё изучить по теме"""
+ПРАВИЛА:
+- Отвечай на любые учебные вопросы, используя свои знания
+- Объясняй просто, с примерами и аналогиями
+- Используй **жирный** для терминов, списки для структуры
+- Если вопрос не учебный — всё равно помоги, но кратко
+- 2-4 абзаца, не лей воду"""
 
-    # RETRY ЛОГИКА: до 3 попыток с коротким timeout (чтобы уложиться в 30s Cloud Function)
-    for attempt in range(3):
-        try:
-            timeout_value = 15 - (attempt * 3)  # 15s, 12s, 9s
-            print(f"[AI-ASSISTANT] Попытка {attempt + 1}/3: Запрос к Artemox (timeout: {timeout_value}s)", flush=True)
-            
-            response = client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": question}
-                ],
-                temperature=0.6,
-                max_tokens=1200,
-                timeout=timeout_value
-            )
-            
-            answer = response.choices[0].message.content
-            tokens_used = response.usage.total_tokens
-            
-            print(f"[AI-ASSISTANT] ✅ Ответ получен (попытка {attempt + 1}), токенов: {tokens_used}", flush=True)
-            return answer, tokens_used
-            
-        except Exception as e:
-            error_type = type(e).__name__
-            print(f"[AI-ASSISTANT] ⚠️ Попытка {attempt + 1} провалена: {error_type}: {str(e)}", flush=True)
-            
-            # Если это последняя попытка — возвращаем fallback ответ
-            if attempt == 2:
-                print(f"[AI-ASSISTANT] 🔄 Все попытки провалены, возвращаем fallback ответ", flush=True)
-                return generate_fallback_answer(question, context), 0
-            
-            # Быстрая retry без задержки (экономим время)
-            continue
-    
-    # На случай непредвиденных ситуаций
-    return generate_fallback_answer(question, context), 0
+    try:
+        print(f"[AI] Запрос к Artemox (timeout: 20s)", flush=True)
+        resp = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.6,
+            max_tokens=900,
+            timeout=20.0
+        )
+        answer = resp.choices[0].message.content
+        tokens = resp.usage.total_tokens if resp.usage else 0
+        print(f"[AI] OK, tokens: {tokens}", flush=True)
+        return answer, tokens
+    except Exception as e:
+        print(f"[AI] ERROR: {type(e).__name__}: {e}", flush=True)
+        return None, 0
 
-def generate_fallback_answer(question: str, context: str) -> str:
-    """Генерирует полезный fallback ответ на основе контекста и вопроса"""
-    question_lower = question.lower()
-    
+def fallback_answer(question, context):
     if context and len(context) > 100:
-        context_snippet = context[:800].strip()
-        
-        return f"""К сожалению, сервер ИИ временно недоступен, но я нашёл информацию в твоих материалах:
+        snippet = context[:600].strip()
+        return f"Сервер ИИ временно загружен, но вот что нашлось в твоих материалах:\n\n{snippet}\n\n---\nПопробуй задать вопрос ещё раз через минуту."
+    return "Сервер ИИ временно загружен. Попробуй через минуту! А пока загрузи конспекты в раздел **Материалы** — тогда я смогу отвечать точнее."
 
----
+def handler(event: dict, context) -> dict:
+    """ИИ-ассистент Studyfay: отвечает на вопросы студентов"""
+    method = event.get('httpMethod', 'GET')
 
-{context_snippet}...
+    if method == 'OPTIONS':
+        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
 
----
+    token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
+    user_id = get_user_id(token)
+    if not user_id:
+        return err(401, {'error': 'Unauthorized'})
 
-**Что делать дальше:**
-- Попробуй задать вопрос через минуту — сервер скоро восстановится
-- Если нужно срочно — перечитай выделенный фрагмент, там может быть ответ
-- Выбери конкретный документ через кнопку 📎 **Материалы** для более точного поиска"""
-    
-    return f"""Сервер ИИ временно недоступен. Попробуй через минуту!
+    conn = None
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        conn.autocommit = True
 
-А пока вот что можно сделать:
-1. 📤 Загрузи конспекты в раздел **Материалы** — я смогу отвечать точнее
-2. 📎 Выбери нужный документ через кнопку **Материалы** в чате
-3. ❓ Сформулируй вопрос конкретнее — например, не "расскажи про физику", а "объясни второй закон Ньютона"
+        if method == 'GET':
+            action = (event.get('queryStringParameters') or {}).get('action', 'sessions')
 
-💡 **Совет:** чем конкретнее вопрос, тем точнее ответ!"""
+            if action == 'sessions':
+                cur = conn.cursor()
+                cur.execute(f"SELECT id,title,created_at,updated_at,message_count FROM {SCHEMA_NAME}.chat_sessions WHERE user_id=%s ORDER BY updated_at DESC LIMIT 50", (user_id,))
+                sessions = [{'id':r[0],'title':r[1],'created_at':r[2].isoformat() if r[2] else None,'updated_at':r[3].isoformat() if r[3] else None,'message_count':r[4]} for r in cur.fetchall()]
+                cur.close()
+                return ok({'sessions': sessions})
+
+            elif action == 'messages':
+                sid = (event.get('queryStringParameters') or {}).get('session_id')
+                if not sid:
+                    return err(400, {'error': 'session_id required'})
+                cur = conn.cursor()
+                cur.execute(f"SELECT role,content,created_at FROM {SCHEMA_NAME}.chat_messages WHERE session_id=%s AND user_id=%s ORDER BY created_at ASC LIMIT 200", (sid, user_id))
+                msgs = [{'role':r[0],'content':r[1],'timestamp':r[2].isoformat() if r[2] else None} for r in cur.fetchall()]
+                cur.close()
+                return ok({'messages': msgs})
+
+            return ok({'status': 'ok'})
+
+        if method == 'POST':
+            body = json.loads(event.get('body', '{}'))
+            question = body.get('question', '').strip()
+            material_ids = body.get('material_ids', [])
+
+            if not question:
+                return err(400, {'error': 'Введи вопрос'})
+
+            print(f"[AI] User:{user_id} Q:{question[:60]} M:{material_ids}", flush=True)
+
+            access = check_access(conn, user_id)
+            if not access.get('has_access'):
+                msg = 'Лимит вопросов исчерпан. Оформи подписку или подожди до завтра!' if access.get('reason') == 'limit' else 'Для доступа к ИИ нужна подписка.'
+                return err(403, {'error': 'limit', 'message': msg, 'used': access.get('used', 0), 'limit': access.get('limit', 0)})
+
+            sid = get_session(conn, user_id)
+            save_msg(conn, sid, user_id, 'user', question, material_ids)
+
+            action_type = detect_action(question)
+
+            if action_type == 'task':
+                try:
+                    title = extract_title(question, 'task')
+                    import re
+                    subj_m = re.search(r'по ([а-яё\s]+)', question.lower())
+                    subj = subj_m.group(1).strip()[:50] if subj_m else None
+                    cur = conn.cursor()
+                    cur.execute(f"INSERT INTO {SCHEMA_NAME}.tasks (user_id,title,subject,priority) VALUES (%s,%s,%s,'high') RETURNING id,title", (user_id, title, subj))
+                    task = cur.fetchone()
+                    conn.commit()
+                    cur.close()
+                    increment_questions(conn, user_id)
+                    acc = check_access(conn, user_id)
+                    ans = f"✅ **Задача создана!**\n\n📋 **{task[1]}**" + (f"\n📚 Предмет: {subj}" if subj else "") + "\n\nНайдёшь её в разделе **Планировщик**."
+                    save_msg(conn, sid, user_id, 'assistant', ans)
+                    return ok({'answer': ans, 'remaining': acc.get('remaining', 0), 'action': 'task_created'})
+                except Exception as e:
+                    print(f"[AI] task error: {e}", flush=True)
+
+            if action_type == 'schedule':
+                try:
+                    title = extract_title(question, 'schedule')
+                    parsed = parse_schedule(question)
+                    import re
+                    subj_m = re.search(r'по ([а-яё\s]+)', question.lower())
+                    subj = subj_m.group(1).strip()[:50] if subj_m else title
+                    cur = conn.cursor()
+                    cur.execute(f"INSERT INTO {SCHEMA_NAME}.schedule (user_id,subject,type,start_time,end_time,day_of_week,room,teacher,color) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'bg-purple-500') RETURNING id,subject,day_of_week",
+                                (user_id, subj, parsed['type'], parsed['start_time'], parsed['end_time'], parsed['day_of_week'], parsed['room'], parsed['teacher']))
+                    lesson = cur.fetchone()
+                    conn.commit()
+                    cur.close()
+                    increment_questions(conn, user_id)
+                    acc = check_access(conn, user_id)
+                    days_names = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье']
+                    dn = days_names[lesson[2]] if lesson[2] is not None else 'не указан'
+                    ans = f"✅ **Занятие добавлено!**\n\n📚 **{lesson[1]}** — {parsed['type']}\n📅 {dn}"
+                    if parsed['start_time']:
+                        ans += f" в {parsed['start_time']}"
+                    ans += "\n\nСмотри в **Расписании**."
+                    save_msg(conn, sid, user_id, 'assistant', ans)
+                    return ok({'answer': ans, 'remaining': acc.get('remaining', 0), 'action': 'schedule_created'})
+                except Exception as e:
+                    print(f"[AI] schedule error: {e}", flush=True)
+
+            cached = get_cache(conn, question, material_ids)
+            if cached:
+                print(f"[AI] cache hit", flush=True)
+                increment_questions(conn, user_id)
+                acc = check_access(conn, user_id)
+                save_msg(conn, sid, user_id, 'assistant', cached, material_ids, 0, True)
+                return ok({'answer': cached, 'remaining': acc.get('remaining', 0), 'cached': True})
+
+            ctx = get_context(conn, user_id, material_ids)
+            answer, tokens = ask_ai(question, ctx)
+
+            if not answer:
+                answer = fallback_answer(question, ctx)
+                save_msg(conn, sid, user_id, 'assistant', answer, material_ids, 0, False)
+                increment_questions(conn, user_id)
+                acc = check_access(conn, user_id)
+                return ok({'answer': answer, 'remaining': acc.get('remaining', 0), 'fallback': True})
+
+            if tokens > 0:
+                set_cache(conn, question, material_ids, answer, tokens)
+
+            save_msg(conn, sid, user_id, 'assistant', answer, material_ids, tokens, False)
+            increment_questions(conn, user_id)
+            acc = check_access(conn, user_id)
+            return ok({'answer': answer, 'remaining': acc.get('remaining', 0)})
+
+        return err(405, {'error': 'Method not allowed'})
+
+    except Exception as e:
+        print(f"[AI] FATAL: {type(e).__name__}: {e}", flush=True)
+        return ok({'answer': 'Произошла временная ошибка. Попробуй задать вопрос ещё раз!', 'remaining': 0, 'error': True})
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass

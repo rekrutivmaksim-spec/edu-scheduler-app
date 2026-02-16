@@ -1,11 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { trackActivity } from '@/lib/gamification';
@@ -25,537 +22,327 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  isReading?: boolean;
-}
-
-interface ChatSession {
-  id: number;
-  title: string;
-  created_at: string;
-  updated_at: string;
-  message_count: number;
 }
 
 const Assistant = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   
   const [materials, setMaterials] = useState<Material[]>([]);
   const [selectedMaterials, setSelectedMaterials] = useState<number[]>([]);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Привет! 👋 Я твой ИИ-ассистент Studyfay. Могу ответить на вопросы по твоим материалам, объяснить сложные темы и помочь с учёбой. Задай мне вопрос!',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isReading, setIsReading] = useState(false);
-  const [showMaterials, setShowMaterials] = useState(false);
-  const [wordsRemaining, setWordsRemaining] = useState<number | null>(null);
-  const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null);
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [showMaterialPicker, setShowMaterialPicker] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      if (!authService.isAuthenticated()) {
-        navigate('/login');
-        return;
-      }
-      await loadMaterials();
-      await loadChatSessions();
-    };
-    checkAuth();
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+    loadMaterials();
   }, [navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const loadMaterials = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(MATERIALS_URL, {
+      const resp = await fetch(MATERIALS_URL, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (response.ok) {
-        const data = await response.json();
-        setMaterials(data.materials);
+      if (resp.ok) {
+        const data = await resp.json();
+        setMaterials(data.materials || []);
       }
-    } catch (error) {
-      console.error('Failed to load materials:', error);
+    } catch (e) {
+      console.warn('Materials load:', e);
     }
   };
 
-  const loadChatSessions = async () => {
-    try {
-      const token = authService.getToken();
-      const response = await fetch(`${AI_URL}?action=sessions`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setChatSessions(data.sessions || []);
-      }
-    } catch (error) {
-      console.error('Failed to load chat sessions:', error);
-    }
-  };
+  const sendMessage = useCallback(async (text?: string) => {
+    const q = (text || question).trim();
+    if (!q || isLoading) return;
 
-  const loadChatMessages = async (sessionId: number) => {
-    try {
-      const token = authService.getToken();
-      const response = await fetch(`${AI_URL}?action=messages&session_id=${sessionId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const loadedMessages = data.messages.map((msg: {role: string; content: string; timestamp: string}) => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content,
-          timestamp: new Date(msg.timestamp)
-        }));
-        setMessages(loadedMessages);
-        setShowHistory(false);
-      }
-    } catch (error) {
-      console.error('Failed to load chat messages:', error);
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось загрузить историю чата',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleAsk = async () => {
-    if (!question.trim()) return;
-
-    const userMessage: Message = {
-      role: 'user',
-      content: question,
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
+    const userMsg: Message = { role: 'user', content: q, timestamp: new Date() };
+    setMessages(prev => [...prev, userMsg]);
     setQuestion('');
-    
-    // Показываем индикацию чтения документа
-    if (selectedMaterials.length > 0) {
-      setIsReading(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setIsReading(false);
-    }
-    
     setIsLoading(true);
 
     try {
       const token = authService.getToken();
-      const response = await fetch(AI_URL, {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25000);
+
+      const resp = await fetch(AI_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          question: userMessage.content,
-          material_ids: selectedMaterials.length > 0 ? selectedMaterials : []
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ question: q, material_ids: selectedMaterials }),
+        signal: controller.signal
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      clearTimeout(timeout);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.remaining !== undefined) setRemaining(data.remaining);
         
-        if (data.error) {
-          toast({
-            title: 'Ошибка',
-            description: data.error,
-            variant: 'destructive'
-          });
-          return;
-        }
-        
-        // Обновляем остаток вопросов В РЕАЛЬНОМ ВРЕМЕНИ
-        if (data.questions_remaining !== undefined) {
-          setQuestionsRemaining(data.questions_remaining);
-        }
-        
-        // Показываем остаток вопросов после ответа
-        const remainingText = data.questions_remaining !== undefined 
-          ? ` (Осталось: ${data.questions_remaining})`
-          : '';
-        
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: `${data.answer}${remainingText}`,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-        const gamResult = await trackActivity('ai_questions_asked', 1);
-        if (gamResult?.new_achievements?.length) {
-          gamResult.new_achievements.forEach((ach) => {
-            toast({
-              title: `\u{1F3C6} Достижение!`,
-              description: `${ach.title} (+${ach.xp_reward} XP)`,
+        const aiMsg: Message = { role: 'assistant', content: data.answer, timestamp: new Date() };
+        setMessages(prev => [...prev, aiMsg]);
+
+        try {
+          const gam = await trackActivity('ai_questions_asked', 1);
+          if (gam?.new_achievements?.length) {
+            gam.new_achievements.forEach((a: { title: string; xp_reward: number }) => {
+              toast({ title: `🏆 ${a.title}`, description: `+${a.xp_reward} XP` });
             });
-          });
-        } else if (gamResult?.xp_gained) {
-          toast({
-            title: `\u{1F916} +${gamResult.xp_gained} XP`,
-            description: `За вопрос ИИ-ассистенту`,
-          });
+          }
+        } catch (e) {
+          console.warn('Gamification:', e);
         }
-      } else if (response.status === 403) {
-        const data = await response.json();
-        
-        // Обновляем счётчик даже при ошибке (лимит исчерпан)
-        if (data.questions_used !== undefined && data.questions_limit !== undefined) {
-          setQuestionsRemaining(data.questions_limit - data.questions_used);
-        }
-        
-        const errorMessage: Message = {
+      } else if (resp.status === 403) {
+        const data = await resp.json();
+        const aiMsg: Message = {
           role: 'assistant',
-          content: data.message || 'Доступ к ИИ-ассистенту доступен только по подписке',
+          content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
           timestamp: new Date()
         };
-        setMessages(prev => [...prev, errorMessage]);
-        
-        toast({
-          title: 'Требуется подписка',
-          description: 'Оформите подписку для доступа к ИИ. Перейдите в раздел "Подписка".',
-          variant: 'destructive'
-        });
-        
-        // Перенаправляем на страницу подписки через 2 секунды
-        setTimeout(() => {
-          navigate('/subscription');
-        }, 2000);
+        setMessages(prev => [...prev, aiMsg]);
+        setRemaining(0);
       } else {
-        toast({
-          title: 'Ошибка',
-          description: 'Не удалось получить ответ от ИИ',
-          variant: 'destructive'
-        });
+        throw new Error('Server error');
       }
-    } catch (error) {
-      toast({
-        title: 'Ошибка',
-        description: 'Проблема с подключением к ИИ',
-        variant: 'destructive'
-      });
+    } catch (e) {
+      const errMsg: Message = {
+        role: 'assistant',
+        content: 'Не удалось получить ответ. Проверь интернет и попробуй ещё раз.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errMsg]);
     } finally {
       setIsLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [question, isLoading, selectedMaterials, toast]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   };
 
   const toggleMaterial = (id: number) => {
-    setSelectedMaterials(prev =>
-      prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
-    );
+    setSelectedMaterials(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
   };
 
-  const quickQuestions = [
-    'Объясни эту тему простыми словами',
-    'Какие главные тезисы в материалах?',
-    'Помоги подготовиться к экзамену',
-    'Составь краткий конспект',
-    'Какие формулы/определения важны?'
+  const quickActions = [
+    { icon: '📝', text: 'Объясни тему простыми словами' },
+    { icon: '📋', text: 'Составь краткий конспект' },
+    { icon: '🎯', text: 'Помоги подготовиться к экзамену' },
+    { icon: '❓', text: 'Какие главные тезисы?' },
+    { icon: '🧮', text: 'Какие формулы важны?' },
   ];
 
+  const hasMessages = messages.length > 0;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50 h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
-              >
-                <Icon name="ArrowLeft" size={24} className="text-purple-600" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  ИИ-Ассистент
-                </h1>
-                {questionsRemaining !== null && (
-                  <p className="text-xs text-purple-600/70 font-medium">
-                    Осталось ~{questionsRemaining} {questionsRemaining === 1 ? 'вопрос' : questionsRemaining < 5 ? 'вопроса' : 'вопросов'} по подписке
-                  </p>
-                )}
-              </div>
+    <div className="flex flex-col h-[100dvh] bg-white">
+      <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-3 safe-top">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/')} className="p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+              <Icon name="ArrowLeft" size={22} className="text-gray-700" />
+            </button>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">Studyfay</h1>
+              <p className="text-xs text-gray-500">
+                {isLoading ? 'Думаю...' : remaining !== null ? `Осталось ${remaining} вопросов` : 'ИИ-ассистент'}
+              </p>
             </div>
-            <div className="flex gap-1 sm:gap-2">
-              <Button
-                onClick={() => setShowHistory(!showHistory)}
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-2 border-purple-200 h-9 px-2 sm:px-4"
-              >
-                <Icon name="History" size={18} className="sm:mr-2" />
-                <span className="hidden sm:inline">История</span>
-              </Button>
-              <Button
-                onClick={() => setShowMaterials(!showMaterials)}
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-2 border-purple-200 h-9 px-2 sm:px-4"
-              >
-                <Icon name="BookOpen" size={18} className="sm:mr-2" />
-                <span className="hidden sm:inline">Материалы ({selectedMaterials.length > 0 ? selectedMaterials.length : 'все'})</span>
-                <span className="sm:hidden">{selectedMaterials.length > 0 ? selectedMaterials.length : '📚'}</span>
-              </Button>
-            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowMaterialPicker(!showMaterialPicker)}
+              className={`p-2 rounded-lg transition-colors relative ${showMaterialPicker ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-600'}`}
+            >
+              <Icon name="Paperclip" size={20} />
+              {selectedMaterials.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-purple-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {selectedMaterials.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setMessages([]);
+                setRemaining(null);
+              }}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+            >
+              <Icon name="Plus" size={20} />
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
-        {showHistory && (
-          <Card className="p-5 mb-6 bg-white border-2 border-purple-200">
-            <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <Icon name="MessageSquare" size={20} className="text-purple-600" />
-              История чатов
-            </h3>
-            {chatSessions.length === 0 ? (
-              <p className="text-sm text-gray-500">История чатов пуста</p>
+      {showMaterialPicker && (
+        <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50 px-4 py-3">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-gray-700">Контекст из материалов</p>
+              {selectedMaterials.length > 0 && (
+                <button onClick={() => setSelectedMaterials([])} className="text-xs text-purple-600 hover:text-purple-800">
+                  Сбросить
+                </button>
+              )}
+            </div>
+            {materials.length === 0 ? (
+              <p className="text-sm text-gray-500">Загрузи конспекты в разделе «Материалы»</p>
             ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {chatSessions.map((session) => (
+              <div className="flex flex-wrap gap-2">
+                {materials.map(m => (
                   <button
-                    key={session.id}
-                    onClick={() => loadChatMessages(session.id)}
-                    className="w-full text-left p-3 rounded-lg hover:bg-purple-50 transition-colors border border-gray-200"
+                    key={m.id}
+                    onClick={() => toggleMaterial(m.id)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                      selectedMaterials.includes(m.id)
+                        ? 'bg-purple-600 text-white border-purple-600'
+                        : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'
+                    }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-800 truncate">{session.title}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {session.message_count} сообщений • {new Date(session.updated_at).toLocaleDateString('ru-RU', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
-                      </div>
-                      <Icon name="ChevronRight" size={20} className="text-gray-400 flex-shrink-0 ml-2" />
-                    </div>
+                    {m.title.length > 30 ? m.title.slice(0, 30) + '...' : m.title}
+                    {m.subject && <span className="ml-1 opacity-70">· {m.subject}</span>}
                   </button>
                 ))}
               </div>
             )}
-          </Card>
-        )}
-        
-        {showMaterials && (
-          <Card className="p-5 mb-6 bg-white border-2 border-purple-200">
-            <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <Icon name="BookMarked" size={20} className="text-purple-600" />
-              Выбери материалы для контекста
-            </h3>
-            {materials.length === 0 ? (
-              <p className="text-sm text-gray-500">Сначала загрузите материалы в разделе &quot;Материалы&quot;</p>
-            ) : (
-              <div className="space-y-2">
-                <Button
-                  onClick={() => setSelectedMaterials([])}
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs"
+            {selectedMaterials.length === 0 && materials.length > 0 && (
+              <p className="text-xs text-gray-400 mt-1.5">Не выбрано — используются все материалы</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          {!hasMessages ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center mb-5 shadow-lg shadow-purple-200">
+                <Icon name="Sparkles" size={32} className="text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">Привет! Я Studyfay</h2>
+              <p className="text-gray-500 text-center mb-8 max-w-sm text-sm leading-relaxed">
+                Задай любой вопрос — помогу разобраться с учёбой, объясню тему или составлю конспект
+              </p>
+              <div className="w-full space-y-2">
+                {quickActions.map((qa, i) => (
+                  <button
+                    key={i}
+                    onClick={() => sendMessage(qa.text)}
+                    className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 hover:border-purple-200 transition-all text-sm text-gray-700 hover:text-purple-700 flex items-center gap-3"
+                  >
+                    <span className="text-lg">{qa.icon}</span>
+                    <span>{qa.text}</span>
+                  </button>
+                ))}
+              </div>
+              {materials.length > 0 && selectedMaterials.length === 0 && (
+                <button
+                  onClick={() => setShowMaterialPicker(true)}
+                  className="mt-4 text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
                 >
-                  Использовать все материалы
-                </Button>
-                {materials.map(material => (
-                  <div key={material.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-purple-50">
-                    <Checkbox
-                      checked={selectedMaterials.includes(material.id)}
-                      onCheckedChange={() => toggleMaterial(material.id)}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{material.title}</p>
-                      {material.subject && (
-                        <Badge variant="secondary" className="text-xs mt-1">{material.subject}</Badge>
+                  <Icon name="Paperclip" size={14} />
+                  Выбери материалы для точных ответов
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {msg.role === 'assistant' && (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Icon name="Sparkles" size={16} className="text-white" />
+                    </div>
+                  )}
+                  <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-first' : ''}`}>
+                    <div className={`px-4 py-3 rounded-2xl ${
+                      msg.role === 'user'
+                        ? 'bg-purple-600 text-white rounded-br-md'
+                        : 'bg-gray-100 text-gray-800 rounded-bl-md'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:text-gray-900 prose-strong:text-gray-900 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:rounded text-sm">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                       )}
                     </div>
+                    <p className={`text-[11px] mt-1 px-1 ${msg.role === 'user' ? 'text-right text-gray-400' : 'text-gray-400'}`}>
+                      {msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        )}
+                </div>
+              ))}
 
-        <div className="space-y-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.role === 'assistant' && (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                  <Icon name="Bot" size={20} className="text-white" />
+              {isLoading && (
+                <div className="flex gap-2.5 justify-start">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                    <Icon name="Sparkles" size={16} className="text-white animate-pulse" />
+                  </div>
+                  <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
+                    <div className="flex gap-1.5 items-center">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
                 </div>
               )}
-              <Card
-                className={`max-w-[85%] sm:max-w-[80%] p-3 sm:p-4 ${
-                  message.role === 'user'
-                    ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white border-0'
-                    : 'bg-white border-2 border-purple-200'
-                }`}
-              >
-                {message.role === 'assistant' ? (
-                  <div className="prose prose-sm max-w-none prose-headings:mt-4 prose-headings:mb-2 prose-headings:text-gray-800 prose-p:my-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-ul:my-3 prose-ul:text-gray-700 prose-ol:my-3 prose-ol:text-gray-700 prose-li:my-1 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded-lg prose-table:my-4 prose-th:bg-purple-100 prose-th:p-2 prose-th:text-left prose-td:p-2 prose-td:border prose-td:border-gray-300">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                )}
-                <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-white/70' : 'text-gray-400'}`}>
-                  {message.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </Card>
-              {message.role === 'user' && (
-                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                  <Icon name="User" size={20} className="text-purple-600" />
-                </div>
-              )}
-            </div>
-          ))}
-          {isReading && (
-            <div className="flex gap-3 justify-start">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                <Icon name="BookOpen" size={20} className="text-white animate-pulse" />
-              </div>
-              <Card className="p-4 bg-white border-2 border-purple-200">
-                <div className="flex items-center gap-2">
-                  <Icon name="FileText" size={16} className="text-purple-600 animate-pulse" />
-                  <p className="text-sm text-gray-600 animate-pulse">Читаю материалы...</p>
-                </div>
-              </Card>
+              <div ref={messagesEndRef} />
             </div>
           )}
-          {isLoading && (
-            <div className="flex gap-3 justify-start">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                <Icon name="Bot" size={20} className="text-white" />
-              </div>
-              <Card className="p-4 bg-white border-2 border-purple-200">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                  </div>
-                  <p className="text-sm text-gray-600">Генерирую ответ...</p>
-                </div>
-              </Card>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
         </div>
+      </div>
 
-        {messages.length === 1 && (
-          <>
-            <Card className="mt-6 p-4 sm:p-5 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-300">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                  <Icon name="Sparkles" size={20} className="text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base">💡 Я умею управлять твоим планировщиком!</h3>
-                  <p className="text-xs sm:text-sm text-gray-600 mb-3">
-                    Создавай задачи и добавляй занятия одной фразой:
-                  </p>
-                  <div className="space-y-2 mb-3 text-xs sm:text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-purple-600">📋</span>
-                      <span className="text-gray-700"><span className="font-medium text-purple-700">"Создай задачу: сдать курсовую до 15.03"</span></span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-purple-600">📚</span>
-                      <span className="text-gray-700"><span className="font-medium text-purple-700">"Добавь лекцию по математике в понедельник 10:00"</span></span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={() => setQuestion('Создай задачу: подготовиться к экзамену по математике')}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs rounded-full border-purple-300 hover:bg-purple-100 h-auto py-1.5 px-3"
-                    >
-                      📝 Пример задачи
-                    </Button>
-                    <Button
-                      onClick={() => setQuestion('Добавь семинар по физике в среду 14:30')}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs rounded-full border-purple-300 hover:bg-purple-100 h-auto py-1.5 px-3"
-                    >
-                      📅 Пример занятия
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="mt-4 p-4 sm:p-5 bg-white border-2 border-dashed border-purple-200">
-              <h3 className="font-bold text-gray-800 mb-3 text-sm sm:text-base">Примеры вопросов:</h3>
-              <div className="flex flex-wrap gap-2">
-                {quickQuestions.map((q, index) => (
-                  <Button
-                    key={index}
-                    onClick={() => setQuestion(q)}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs sm:text-sm rounded-full border-purple-200 hover:bg-purple-50 h-auto py-2 px-3"
-                  >
-                    {q}
-                  </Button>
-                ))}
-              </div>
-            </Card>
-          </>
-        )}
-      </main>
-
-      <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-purple-200 shadow-lg">
-        <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex gap-2 sm:gap-3">
-            <Textarea
+      <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-3 safe-bottom">
+        <div className="max-w-2xl mx-auto flex items-end gap-2">
+          <div className="flex-1 relative">
+            <textarea
+              ref={inputRef}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleAsk();
-                }
-              }}
+              onKeyDown={handleKeyDown}
               placeholder="Задай вопрос..."
-              className="resize-none rounded-xl border-2 border-purple-200 focus:border-purple-400 text-sm sm:text-base"
-              rows={2}
+              rows={1}
               disabled={isLoading}
+              className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 pr-12 text-sm focus:outline-none focus:border-purple-400 focus:bg-white transition-colors disabled:opacity-50 max-h-32"
+              style={{ minHeight: '44px' }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+              }}
             />
-            <Button
-              onClick={handleAsk}
-              disabled={!question.trim() || isLoading}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl px-4 sm:px-6 self-end flex-shrink-0"
-              size="sm"
-            >
-              {isLoading ? (
-                <Icon name="Loader2" size={18} className="animate-spin" />
-              ) : (
-                <Icon name="Send" size={18} />
-              )}
-            </Button>
           </div>
-          <p className="text-xs text-gray-500 mt-2 text-center hidden sm:block">
-            Нажми Enter для отправки • Shift+Enter для новой строки
-          </p>
+          <button
+            onClick={() => sendMessage()}
+            disabled={!question.trim() || isLoading}
+            className="w-11 h-11 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-200 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+          >
+            {isLoading ? (
+              <Icon name="Loader2" size={20} className="text-white animate-spin" />
+            ) : (
+              <Icon name="ArrowUp" size={20} className={question.trim() ? 'text-white' : 'text-gray-400'} />
+            )}
+          </button>
         </div>
       </div>
     </div>
