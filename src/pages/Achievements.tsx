@@ -32,6 +32,7 @@ interface DailyQuest {
   current: number;
   xp_reward: number;
   is_completed: boolean;
+  is_premium_only: boolean;
   completed_at: string | null;
 }
 
@@ -593,7 +594,7 @@ const Achievements = () => {
                 const questProgress = quest.target > 0
                   ? Math.min(100, Math.round((quest.current / quest.target) * 100))
                   : 0;
-                const isPremiumQuest = quest.type === 'complete_all_quests';
+                const isPremiumQuest = quest.is_premium_only;
                 return (
                   <div
                     key={quest.id}
@@ -623,10 +624,7 @@ const Achievements = () => {
                         >
                           {quest.title}
                         </p>
-                        {isPremiumQuest && !profile.is_premium && (
-                          <Icon name="Crown" size={12} className="text-amber-500 flex-shrink-0" />
-                        )}
-                        {isPremiumQuest && profile.is_premium && (
+                        {isPremiumQuest && (
                           <Icon name="Crown" size={12} className="text-amber-500 flex-shrink-0" />
                         )}
                       </div>

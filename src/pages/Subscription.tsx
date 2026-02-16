@@ -335,7 +335,7 @@ const Subscription = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => navigate('/profile')}
+                onClick={() => navigate('/')}
                 className="rounded-xl hover:bg-purple-100/50"
               >
                 <Icon name="ArrowLeft" size={24} className="text-purple-600" />
@@ -372,11 +372,11 @@ const Subscription = () => {
                     })}
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
-                    Безлимитный доступ ко всем функциям на 24 часа! После — 3 бесплатных вопроса в день навсегда
+                    Безлимитный доступ ко всем функциям на 7 дней! После — 3 бесплатных вопроса в день навсегда
                   </p>
                 </div>
               </div>
-              <Badge className="bg-blue-500 text-white text-lg px-4 py-2">24 часа</Badge>
+              <Badge className="bg-blue-500 text-white text-lg px-4 py-2">7 дней</Badge>
             </div>
           </Card>
         )}

@@ -95,7 +95,7 @@ const Pricing = () => {
   };
 
   const handleBuyPremium = () => {
-    navigate('/payment-setup');
+    navigate('/subscription');
   };
 
   const plans = [

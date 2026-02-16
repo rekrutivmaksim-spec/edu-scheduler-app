@@ -430,7 +430,26 @@ const Index = () => {
         
         <LimitsIndicator compact />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6 mb-4 sm:mb-6">
+        <Card 
+          onClick={() => navigate('/study-plan')}
+          className="mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-fuchsia-50 border-2 border-violet-300 cursor-pointer hover:shadow-2xl hover:shadow-violet-500/30 transition-all duration-300 hover:scale-[1.02]"
+        >
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <span className="text-2xl sm:text-3xl">🧠</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">План подготовки</h3>
+                <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5">Premium</Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-600">ИИ составит план подготовки к экзамену</p>
+            </div>
+            <Icon name="ArrowRight" size={20} className="text-violet-600 flex-shrink-0 sm:w-6 sm:h-6" />
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
           <Card 
             onClick={() => navigate('/assistant')}
             className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-indigo-300 cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/30 transition-all duration-300 hover:scale-[1.02]"

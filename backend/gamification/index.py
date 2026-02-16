@@ -129,14 +129,14 @@ def generate_daily_quests(conn, user_id, is_premium):
         xp_reward = random.randint(q['xp_min'], q['xp_max'])
         title = q['title'].format(n=target)
         cur.execute("""
-            INSERT INTO daily_quests (user_id, quest_date, quest_type, title, target_value, current_value, xp_reward, is_completed)
+            INSERT INTO daily_quests (user_id, quest_date, quest_type, quest_title, target_value, current_value, xp_reward, is_completed)
             VALUES (%s, %s, %s, %s, %s, 0, %s, false)
         """, (user_id, today, q['type'], title, target, xp_reward))
 
     if is_premium:
         cur.execute("""
-            INSERT INTO daily_quests (user_id, quest_date, quest_type, title, target_value, current_value, xp_reward, is_completed)
-            VALUES (%s, %s, %s, %s, %s, 0, %s, false)
+            INSERT INTO daily_quests (user_id, quest_date, quest_type, quest_title, target_value, current_value, xp_reward, is_completed, is_premium_only)
+            VALUES (%s, %s, %s, %s, %s, 0, %s, false, true)
         """, (user_id, today, PREMIUM_QUEST['type'], PREMIUM_QUEST['title'], PREMIUM_QUEST['target'], PREMIUM_QUEST['xp_reward']))
 
     conn.commit()
@@ -149,7 +149,7 @@ def get_today_quests(conn, user_id):
     today = date.today()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""
-        SELECT id, quest_type, title, target_value, current_value, xp_reward, is_completed, completed_at
+        SELECT id, quest_type, quest_title, target_value, current_value, xp_reward, is_completed, is_premium_only, completed_at
         FROM daily_quests
         WHERE user_id = %s AND quest_date = %s
         ORDER BY id
@@ -162,11 +162,12 @@ def get_today_quests(conn, user_id):
         result.append({
             'id': q['id'],
             'type': q['quest_type'],
-            'title': q['title'],
+            'title': q['quest_title'],
             'target': q['target_value'],
             'current': q['current_value'],
             'xp_reward': q['xp_reward'],
             'is_completed': q['is_completed'],
+            'is_premium_only': q.get('is_premium_only', False),
             'completed_at': q['completed_at'].isoformat() if q['completed_at'] else None
         })
     return result
@@ -559,7 +560,7 @@ def get_profile_data(conn, user_id: int):
             'pomodoro': row['pomodoro_minutes']
         })
 
-    daily_quests = get_today_quests(conn, user_id)
+    daily_quests = generate_daily_quests(conn, user_id, is_premium)
     streak_rewards = get_streak_rewards_data(conn, user_id)
 
     return {
