@@ -344,63 +344,65 @@ const Subscription = () => {
                 <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Подписка
                 </h1>
-                <p className="text-xs text-purple-600/70 font-medium">Доступ к ИИ-ассистенту</p>
+                <p className="text-xs text-purple-600/70 font-medium">Полный доступ ко всем функциям</p>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-8">
         {/* Пробный период */}
         {!isPremium && isTrial && trialEndsAt && (
-          <Card className="p-6 mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center">
-                  <Icon name="Gift" size={32} className="text-white" />
+          <Card className="p-4 sm:p-6 mb-6 sm:mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Icon name="Gift" size={24} className="text-white sm:w-8 sm:h-8" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-1">🎁 Пробный период активен</h3>
-                  <p className="text-sm text-gray-600">
-                    Действует до {new Date(trialEndsAt).toLocaleDateString('ru-RU', {
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-xl font-bold text-gray-800">Пробный период</h3>
+                    <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5 sm:hidden">7 дней</Badge>
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
+                    До {new Date(trialEndsAt).toLocaleDateString('ru-RU', {
                       day: 'numeric',
                       month: 'long',
-                      year: 'numeric',
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
-                    Безлимитный доступ ко всем функциям на 7 дней! После — 3 бесплатных вопроса в день навсегда
+                    Полный доступ! После — 3 вопроса в день бесплатно
                   </p>
                 </div>
               </div>
-              <Badge className="bg-blue-500 text-white text-lg px-4 py-2">7 дней</Badge>
+              <Badge className="bg-blue-500 text-white text-lg px-4 py-2 hidden sm:inline-flex">7 дней</Badge>
             </div>
           </Card>
         )}
 
         {/* Текущий статус подписки */}
         {isPremium && (
-          <Card className="p-6 mb-8 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center">
-                  <Icon name="CheckCircle2" size={32} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-1">Premium подписка активна</h3>
-                  <p className="text-sm text-gray-600">
-                    Действует до {new Date(expiresAt).toLocaleDateString('ru-RU', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
-                  </p>
-                </div>
+          <Card className="p-4 sm:p-6 mb-6 sm:mb-8 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-500 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <Icon name="CheckCircle2" size={24} className="text-white sm:w-8 sm:h-8" />
               </div>
-              <Badge className="bg-green-500 text-white text-lg px-4 py-2">Активна</Badge>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base sm:text-xl font-bold text-gray-800">Premium активна</h3>
+                  <Badge className="bg-green-500 text-white text-xs px-2 py-0.5">Активна</Badge>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
+                  До {new Date(expiresAt).toLocaleDateString('ru-RU', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </p>
+              </div>
             </div>
           </Card>
         )}
@@ -450,19 +452,19 @@ const Subscription = () => {
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center gap-2">
                       <Icon name="Check" size={20} className="text-green-500" />
-                      <span className="text-sm text-gray-700">Безлимитный доступ к ИИ-ассистенту</span>
+                      <span className="text-sm text-gray-700">Безлимитное расписание и задачи</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Icon name="Check" size={20} className="text-green-500" />
-                      <span className="text-sm text-gray-700">Ответы на вопросы по материалам</span>
+                      <span className="text-sm text-gray-700">До 40 AI-вопросов в месяц</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Icon name="Check" size={20} className="text-green-500" />
-                      <span className="text-sm text-gray-700">Умный чат с DeepSeek AI</span>
+                      <span className="text-sm text-gray-700">Безлимитные материалы</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Icon name="Check" size={20} className="text-green-500" />
-                      <span className="text-sm text-gray-700">Поддержка 24/7</span>
+                      <span className="text-sm text-gray-700">Помодоро-таймер + заморозка стрика</span>
                     </div>
                   </div>
 

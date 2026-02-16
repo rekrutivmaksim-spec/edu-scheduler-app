@@ -100,16 +100,16 @@ const Pricing = () => {
 
   const plans = [
     {
-      name: 'Free',
+      name: 'Бесплатный',
       price: '0₽',
       period: 'навсегда',
       features: [
         { text: 'До 7 занятий в расписании', included: true },
         { text: 'До 10 активных задач', included: true },
         { text: '2 материала в месяц', included: true },
-        { text: '3 AI-вопроса в месяц', included: true },
-        { text: 'Таймер Помодоро', included: false },
-        { text: 'Расширенная аналитика', included: false },
+        { text: '3 AI-вопроса в день', included: true },
+        { text: 'Помодоро-таймер', included: false },
+        { text: 'Заморозка стрика', included: false },
         { text: 'Экспорт в PDF', included: false }
       ],
       current: currentPlan === 'free',
@@ -117,7 +117,7 @@ const Pricing = () => {
       color: 'gray'
     },
     {
-      name: 'Premium',
+      name: 'Премиум',
       price: '249₽',
       period: 'в месяц',
       badge: 'Популярный',
@@ -125,18 +125,18 @@ const Pricing = () => {
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
+        { text: 'До 40 AI-вопросов / мес', included: true },
         { text: 'Безлимитные материалы', included: true },
-        { text: 'Безлимит AI-вопросов', included: true },
-        { text: 'Таймер Помодоро', included: true },
-        { text: 'Расширенная аналитика', included: true },
-        { text: 'Экспорт в PDF', included: true }
+        { text: 'Помодоро-таймер с аналитикой', included: true },
+        { text: 'Заморозка стрика (1 раз/нед)', included: true },
+        { text: '5 квестов + бонусный XP', included: true }
       ],
       current: currentPlan === 'premium',
-      buttonText: currentPlan === 'premium' ? 'Активен' : 'Получить Premium',
+      buttonText: currentPlan === 'premium' ? 'Активен' : 'Получить Премиум',
       color: 'gradient'
     },
     {
-      name: 'Premium Год',
+      name: 'Премиум Год',
       price: '1990₽',
       period: 'за год',
       pricePerMonth: '166₽/мес',
@@ -146,11 +146,11 @@ const Pricing = () => {
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
+        { text: 'До 40 AI-вопросов / мес', included: true },
         { text: 'Безлимитные материалы', included: true },
-        { text: 'Безлимит AI-вопросов', included: true },
-        { text: 'Таймер Помодоро', included: true },
-        { text: 'Расширенная аналитика', included: true },
-        { text: 'Экспорт в PDF + Приоритет', included: true }
+        { text: 'Помодоро-таймер с аналитикой', included: true },
+        { text: 'Заморозка стрика (1 раз/нед)', included: true },
+        { text: 'Экспорт в PDF + приоритет', included: true }
       ],
       current: currentPlan === 'premium',
       buttonText: currentPlan === 'premium' ? 'Активен' : 'Купить на год',
@@ -269,7 +269,7 @@ const Pricing = () => {
                     disabled={loading}
                     className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-purple-500/30 text-xs sm:text-sm h-9 sm:h-10"
                   >
-                    💳 Купить Premium
+                    💳 Купить Премиум
                   </Button>
                   <Button
                     onClick={handleActivateDemo}
@@ -308,7 +308,7 @@ const Pricing = () => {
             Разовые покупки (скоро)
           </h3>
           <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
-            Не готовы к подписке? Покупайте AI-функции по мере необходимости
+            Не готовы к подписке? Покупайте функции по мере необходимости
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             <div className="p-3 sm:p-4 bg-white rounded-lg border border-orange-200">

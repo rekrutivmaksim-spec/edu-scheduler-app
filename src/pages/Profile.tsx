@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import ReferralProgram from '@/components/ReferralProgram';
+import ProfileAvatar from '@/components/ProfileAvatar';
 import BottomNav from '@/components/BottomNav';
 
 const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
@@ -182,11 +183,7 @@ const Profile = () => {
         <Card className="p-4 sm:p-8 bg-white border-0 shadow-xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/30 flex-shrink-0">
-                <span className="text-2xl sm:text-3xl font-bold text-white">
-                  {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
-                </span>
-              </div>
+              <ProfileAvatar userName={user?.full_name} size="md" />
               <div className="overflow-hidden">
                 <h2 className="text-lg sm:text-2xl font-bold text-gray-800 truncate">{user?.full_name}</h2>
                 <p className="text-xs sm:text-sm text-gray-500 truncate">{user?.email}</p>
@@ -390,20 +387,6 @@ const Profile = () => {
               <div className="text-left">
                 <p className="font-semibold text-gray-800">Загрузка файлов</p>
                 <p className="text-xs text-gray-500">Загрузить фото конспектов</p>
-              </div>
-            </Button>
-
-            <Button
-              onClick={() => navigate('/exam-prep')}
-              variant="outline"
-              className="h-auto p-4 flex items-center gap-3 justify-start hover:bg-orange-50 border-2 hover:border-orange-300 transition-all"
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-                <span className="text-xl">🎯</span>
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-gray-800">Прогноз экзамена</p>
-                <p className="text-xs text-gray-500">AI предскажет вопросы</p>
               </div>
             </Button>
 

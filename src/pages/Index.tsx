@@ -432,23 +432,25 @@ const Index = () => {
         <LimitsIndicator compact />
 
         {user && (
-          <Card className="mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 border-0 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+          <Card className="animate-fade-in-up mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 border-0 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8 shimmer-bg" />
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-2 sm:mb-3">
                 <div>
                   <p className="text-white/80 text-xs sm:text-sm">
-                    {new Date().getHours() < 12 ? 'Доброе утро' : new Date().getHours() < 18 ? 'Добрый день' : 'Добрый вечер'}, {user.name?.split(' ')[0] || 'студент'}!
+                    {new Date().getHours() < 12 ? 'Доброе утро' : new Date().getHours() < 18 ? 'Добрый день' : 'Добрый вечер'}, {(user.full_name || user.name)?.split(' ')[0] || 'студент'}!
                   </p>
                   <h2 className="text-white font-bold text-base sm:text-lg mt-0.5">
-                    {activeTasks.length > 0
+                    {tasks.length === 0
+                      ? 'Добавь первую задачу!'
+                      : activeTasks.length > 0
                       ? `${activeTasks.length} ${activeTasks.length === 1 ? 'задача' : activeTasks.length < 5 ? 'задачи' : 'задач'} на сегодня`
-                      : 'Все задачи выполнены!'}
+                      : 'Все задачи выполнены! 🎉'}
                   </h2>
                 </div>
                 <div className="text-3xl sm:text-4xl">
-                  {completionRate >= 80 ? '🔥' : completionRate >= 50 ? '💪' : activeTasks.length === 0 ? '🎉' : '📚'}
+                  {tasks.length === 0 ? '✨' : completionRate >= 80 ? '🔥' : completionRate >= 50 ? '💪' : activeTasks.length === 0 ? '🎉' : '📚'}
                 </div>
               </div>
               {tasks.length > 0 && (
@@ -470,7 +472,7 @@ const Index = () => {
         
         <Card 
           onClick={() => navigate('/study-plan')}
-          className="mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-fuchsia-50 border-2 border-violet-300 cursor-pointer hover:shadow-2xl hover:shadow-violet-500/30 transition-all duration-300 hover:scale-[1.02]"
+          className="animate-fade-in-up-delay-1 mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-fuchsia-50 border-2 border-violet-300 cursor-pointer hover:shadow-2xl hover:shadow-violet-500/30 transition-all duration-300 hover:scale-[1.02]"
         >
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">

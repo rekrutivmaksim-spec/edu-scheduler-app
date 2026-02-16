@@ -75,7 +75,7 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Bot" size={16} className="text-purple-600" />
-                40 AI-вопросов в месяц
+                До 40 AI-вопросов в месяц
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Timer" size={16} className="text-purple-600" />
