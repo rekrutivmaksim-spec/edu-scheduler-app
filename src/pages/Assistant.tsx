@@ -74,56 +74,70 @@ const Assistant = () => {
     setQuestion('');
     setIsLoading(true);
 
-    try {
-      const token = authService.getToken();
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000);
+    const doRequest = async (attempt: number): Promise<boolean> => {
+      try {
+        const token = authService.getToken();
+        const controller = new AbortController();
+        const timeoutMs = attempt === 1 ? 28000 : 20000;
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      const resp = await fetch(AI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ question: q, material_ids: selectedMaterials }),
-        signal: controller.signal
-      });
+        const resp = await fetch(AI_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ question: q, material_ids: selectedMaterials }),
+          signal: controller.signal
+        });
 
-      clearTimeout(timeout);
+        clearTimeout(timeoutId);
 
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.remaining !== undefined) setRemaining(data.remaining);
-        
-        const aiMsg: Message = { role: 'assistant', content: data.answer, timestamp: new Date() };
-        setMessages(prev => [...prev, aiMsg]);
-
-        try {
-          const gam = await trackActivity('ai_questions_asked', 1);
-          if (gam?.new_achievements?.length) {
-            gam.new_achievements.forEach((a: { title: string; xp_reward: number }) => {
-              toast({ title: `🏆 ${a.title}`, description: `+${a.xp_reward} XP` });
-            });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.remaining !== undefined) setRemaining(data.remaining);
+          const aiMsg: Message = { role: 'assistant', content: data.answer, timestamp: new Date() };
+          setMessages(prev => [...prev, aiMsg]);
+          try {
+            const gam = await trackActivity('ai_questions_asked', 1);
+            if (gam?.new_achievements?.length) {
+              gam.new_achievements.forEach((a: { title: string; xp_reward: number }) => {
+                toast({ title: `🏆 ${a.title}`, description: `+${a.xp_reward} XP` });
+              });
+            }
+          } catch (e) {
+            console.warn('Gamification:', e);
           }
-        } catch (e) {
-          console.warn('Gamification:', e);
+          return true;
+        } else if (resp.status === 403) {
+          const data = await resp.json();
+          const aiMsg: Message = {
+            role: 'assistant',
+            content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, aiMsg]);
+          setRemaining(0);
+          return true;
         }
-      } else if (resp.status === 403) {
-        const data = await resp.json();
-        const aiMsg: Message = {
-          role: 'assistant',
-          content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, aiMsg]);
-        setRemaining(0);
-      } else {
-        throw new Error('Server error');
+        return false;
+      } catch {
+        return false;
       }
-    } catch (e) {
-      const errMsg: Message = {
-        role: 'assistant',
-        content: 'Не удалось получить ответ. Проверь интернет и попробуй ещё раз.',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errMsg]);
+    };
+
+    try {
+      const ok = await doRequest(1);
+      if (!ok) {
+        const ok2 = await doRequest(2);
+        if (!ok2) {
+          const aiMsg: Message = {
+            role: 'assistant',
+            content: 'Сервер сейчас загружен — попробуй через пару секунд, я обязательно отвечу!',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, aiMsg]);
+        }
+      }
+    } catch {
+      // ignore
     } finally {
       setIsLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
