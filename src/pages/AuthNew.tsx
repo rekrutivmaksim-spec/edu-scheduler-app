@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -10,10 +10,12 @@ import { authService } from '@/lib/auth';
 
 const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const STATS_URL = 'https://functions.poehali.dev/81b3aaba-9af0-426e-8f14-e7420a9f4ecc';
+const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
 export default function AuthNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,8 +23,12 @@ export default function AuthNew() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [totalUsers, setTotalUsers] = useState<number>(0);
+  const refCode = searchParams.get('ref') || '';
 
   useEffect(() => {
+    if (refCode) {
+      localStorage.setItem('pendingReferral', refCode);
+    }
     const savedEmail = localStorage.getItem('savedEmail');
     const savedPassword = localStorage.getItem('savedPassword');
     if (savedEmail && savedPassword) {
@@ -98,6 +104,18 @@ export default function AuthNew() {
         } else {
           localStorage.removeItem('savedEmail');
           localStorage.removeItem('savedPassword');
+        }
+
+        const pending = localStorage.getItem('pendingReferral');
+        if (pending) {
+          localStorage.removeItem('pendingReferral');
+          try {
+            await fetch(SUBSCRIPTION_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.token}` },
+              body: JSON.stringify({ action: 'use_referral', referral_code: pending.toUpperCase() })
+            });
+          } catch (_) { /* referral apply failed, ignore */ }
         }
         
         toast({
@@ -331,7 +349,15 @@ export default function AuthNew() {
             </div>
           </div>
 
-          {/* Подсказка */}
+          {refCode && (
+            <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
+              <p className="text-xs text-green-900 font-medium">
+                <Icon name="Gift" size={14} className="inline mr-1" />
+                Вас пригласил друг! Зарегистрируйтесь и получите +5 бонусных вопросов к ИИ-ассистенту
+              </p>
+            </div>
+          )}
+
           <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
             <p className="text-xs text-blue-900">
               <Icon name="Info" size={14} className="inline mr-1" />

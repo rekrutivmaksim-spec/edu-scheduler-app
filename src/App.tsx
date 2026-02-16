@@ -29,6 +29,7 @@ import Achievements from "./pages/Achievements";
 import StudyPlan from "./pages/StudyPlan";
 import AppStore from "./pages/AppStore";
 import PromoVideo from "./pages/PromoVideo";
+import Referral from "./pages/Referral";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/study-plan" element={<StudyPlan />} />
               <Route path="/app-store" element={<AppStore />} />
               <Route path="/promo" element={<PromoVideo />} />
+              <Route path="/referral" element={<Referral />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

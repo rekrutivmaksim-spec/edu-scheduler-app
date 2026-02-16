@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
-import ReferralProgram from '@/components/ReferralProgram';
+
 import ProfileAvatar from '@/components/ProfileAvatar';
 import BottomNav from '@/components/BottomNav';
 
@@ -369,9 +369,23 @@ const Profile = () => {
           )}
         </Card>
 
-        <div className="mt-6">
-          <ReferralProgram />
-        </div>
+        <Card 
+          className="mt-6 p-5 bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 border-0 shadow-xl cursor-pointer hover:opacity-95 transition-opacity"
+          onClick={() => navigate('/referral')}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <Icon name="Gift" size={24} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Пригласи друга</h3>
+                <p className="text-sm text-white/80">+7 дней Premium за каждого</p>
+              </div>
+            </div>
+            <Icon name="ChevronRight" size={24} className="text-white/60" />
+          </div>
+        </Card>
 
         <Card className="p-6 bg-white border-0 shadow-xl mt-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">Быстрые действия</h3>

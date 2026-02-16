@@ -267,10 +267,28 @@ def handler(event: dict, context) -> dict:
                         user = cur.fetchone()
                         conn.commit()
                     
-                    # Рассчитываем награды
                     count = user['referral_count'] or 0
-                    reward_1month = count >= 10
-                    reward_1year = count >= 20
+                    total_days = count * 7
+                    
+                    cur.execute("""
+                        SELECT ri.created_at, u.full_name
+                        FROM referral_invites ri
+                        JOIN users u ON u.id = ri.invited_id
+                        WHERE ri.referrer_id = %s
+                        ORDER BY ri.created_at DESC
+                        LIMIT 20
+                    """, (user_id,))
+                    invites = cur.fetchall()
+                    
+                    invite_list = []
+                    for inv in invites:
+                        name = inv['full_name'] or 'Студент'
+                        if len(name) > 2:
+                            name = name[0] + '***' + name[-1]
+                        invite_list.append({
+                            'name': name,
+                            'date': inv['created_at'].strftime('%d.%m.%Y') if inv['created_at'] else ''
+                        })
                     
                     return {
                         'statusCode': 200,
@@ -279,11 +297,13 @@ def handler(event: dict, context) -> dict:
                             'referral_code': user['referral_code'],
                             'referral_count': count,
                             'rewards_earned': user['referral_rewards_earned'] or 0,
-                            'next_reward': '1 месяц бесплатно' if count < 10 else ('1 год бесплатно' if count < 20 else 'Все награды получены!'),
+                            'total_premium_days': total_days,
+                            'next_reward': '+7 дней Premium за каждого друга',
                             'progress_to_1month': min(count, 10),
                             'progress_to_1year': min(count, 20),
-                            'has_1month_reward': reward_1month,
-                            'has_1year_reward': reward_1year
+                            'has_1month_reward': count >= 10,
+                            'has_1year_reward': count >= 20,
+                            'invites': invite_list
                         })
                     }
         
@@ -343,45 +363,45 @@ def handler(event: dict, context) -> dict:
                             'body': json.dumps({'error': 'Нельзя использовать свой собственный код'})
                         }
                     
-                    # Обновляем реферала
                     cur.execute("""
                         UPDATE users 
                         SET referred_by = %s
                         WHERE id = %s
                     """, (referrer['id'], user_id))
                     
-                    # Увеличиваем счетчик рефералов
                     cur.execute("""
                         UPDATE users 
                         SET referral_count = COALESCE(referral_count, 0) + 1
                         WHERE id = %s
-                        RETURNING referral_count
+                        RETURNING referral_count, subscription_expires_at
                     """, (referrer['id'],))
                     
                     updated = cur.fetchone()
                     new_count = updated['referral_count']
+                    current_expires = updated['subscription_expires_at']
                     
-                    # Проверяем награды
-                    if new_count == 10:
-                        # Награда: 1 месяц бесплатно
+                    if current_expires and current_expires > datetime.now():
                         cur.execute("""
                             UPDATE users 
-                            SET subscription_type = 'premium',
-                                subscription_expires_at = CURRENT_TIMESTAMP + INTERVAL '30 days',
+                            SET subscription_expires_at = subscription_expires_at + INTERVAL '7 days',
                                 referral_rewards_earned = COALESCE(referral_rewards_earned, 0) + 1
                             WHERE id = %s
                         """, (referrer['id'],))
-                    elif new_count == 20:
-                        # Награда: 1 год бесплатно
+                    else:
                         cur.execute("""
                             UPDATE users 
                             SET subscription_type = 'premium',
-                                subscription_expires_at = CURRENT_TIMESTAMP + INTERVAL '365 days',
+                                subscription_expires_at = CURRENT_TIMESTAMP + INTERVAL '7 days',
                                 referral_rewards_earned = COALESCE(referral_rewards_earned, 0) + 1
                             WHERE id = %s
                         """, (referrer['id'],))
                     
-                    # Даем бонус новому пользователю: +5 бонусных вопросов
+                    cur.execute("""
+                        INSERT INTO referral_invites (referrer_id, invited_id, reward_type, reward_granted)
+                        VALUES (%s, %s, '7_days_premium', TRUE)
+                        ON CONFLICT (invited_id) DO NOTHING
+                    """, (referrer['id'], user_id))
+                    
                     cur.execute("""
                         UPDATE users 
                         SET bonus_questions = COALESCE(bonus_questions, 0) + 5
@@ -394,8 +414,9 @@ def handler(event: dict, context) -> dict:
                         'statusCode': 200,
                         'headers': headers,
                         'body': json.dumps({
-                            'message': 'Реферальный код успешно применен! Вы получили +5 бонусных вопросов',
-                            'bonus_added': 5
+                            'message': 'Код применён! Ты получил +5 бонусных вопросов к ИИ-ассистенту',
+                            'bonus_added': 5,
+                            'referrer_reward': '7 дней Premium'
                         })
                     }
             
