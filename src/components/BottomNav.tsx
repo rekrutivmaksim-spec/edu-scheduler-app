@@ -4,7 +4,7 @@ import Icon from '@/components/ui/icon';
 const tabs = [
   { path: '/', icon: 'Home', label: 'Главная' },
   { path: '/assistant', icon: 'Bot', label: 'ИИ' },
-  { path: '/pomodoro', icon: 'Timer', label: 'Таймер' },
+  { path: '/flashcards', icon: 'Brain', label: 'Карточки' },
   { path: '/achievements', icon: 'Trophy', label: 'Прогресс' },
   { path: '/profile', icon: 'User', label: 'Профиль' },
 ];

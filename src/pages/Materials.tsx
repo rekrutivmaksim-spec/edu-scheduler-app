@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,8 +26,16 @@ interface Material {
   created_at: string;
 }
 
+interface SharedMaterial {
+  title: string;
+  subject?: string;
+  summary?: string;
+  recognized_text?: string;
+}
+
 const Materials = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -36,9 +44,43 @@ const Materials = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSubject, setFilterSubject] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('date');
+  const [sharingId, setSharingId] = useState<number | null>(null);
+  const [sharedMaterial, setSharedMaterial] = useState<SharedMaterial | null>(null);
+  const [loadingShared, setLoadingShared] = useState(false);
 
+  const loadSharedMaterial = useCallback(async (code: string) => {
+    setLoadingShared(true);
+    try {
+      const response = await fetch(`${API_URL}?action=shared&code=${encodeURIComponent(code)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSharedMaterial(data);
+      } else {
+        toast({
+          title: 'Материал не найден',
+          description: 'Ссылка недействительна или материал был удален',
+          variant: 'destructive'
+        });
+        setSearchParams({});
+      }
+    } catch {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось загрузить материал',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoadingShared(false);
+    }
+  }, [toast, setSearchParams]);
 
   useEffect(() => {
+    const sharedCode = searchParams.get('shared');
+    if (sharedCode) {
+      loadSharedMaterial(sharedCode);
+      return;
+    }
+
     const checkAuth = async () => {
       if (!authService.isAuthenticated()) {
         navigate('/login');
@@ -47,7 +89,7 @@ const Materials = () => {
       await loadMaterials();
     };
     checkAuth();
-  }, [navigate]);
+  }, [navigate, searchParams, loadSharedMaterial]);
 
   const loadMaterials = async () => {
     try {
@@ -212,7 +254,44 @@ const Materials = () => {
     }
   };
 
+  const handleShare = async (materialId: number) => {
+    setSharingId(materialId);
+    try {
+      const token = authService.getToken();
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: 'share', material_id: materialId })
+      });
 
+      if (response.ok) {
+        const data = await response.json();
+        const shareUrl = `${window.location.origin}/materials?shared=${data.code}`;
+        await navigator.clipboard.writeText(shareUrl);
+        toast({
+          title: 'Ссылка скопирована!',
+          description: 'Отправьте ссылку другу, чтобы поделиться материалом'
+        });
+      } else {
+        toast({
+          title: 'Ошибка',
+          description: 'Не удалось создать ссылку',
+          variant: 'destructive'
+        });
+      }
+    } catch {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось скопировать ссылку',
+        variant: 'destructive'
+      });
+    } finally {
+      setSharingId(null);
+    }
+  };
 
   const filteredMaterials = materials
     .filter(m => {
@@ -383,17 +462,35 @@ const Materials = () => {
                   )}
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{new Date(material.created_at).toLocaleDateString('ru-RU')}</span>
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(material.id);
-                      }}
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Icon name="Trash2" size={16} />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShare(material.id);
+                        }}
+                        variant="ghost"
+                        size="sm"
+                        disabled={sharingId === material.id}
+                        className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                      >
+                        {sharingId === material.id ? (
+                          <Icon name="Loader2" size={16} className="animate-spin" />
+                        ) : (
+                          <Icon name="Share2" size={16} />
+                        )}
+                      </Button>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(material.id);
+                        }}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Icon name="Trash2" size={16} />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -459,6 +556,19 @@ const Materials = () => {
                   Спросить у ИИ
                 </Button>
                 <Button
+                  onClick={() => handleShare(selectedMaterial.id)}
+                  disabled={sharingId === selectedMaterial.id}
+                  variant="outline"
+                  className="rounded-xl border-purple-200 text-purple-600 hover:bg-purple-50"
+                >
+                  {sharingId === selectedMaterial.id ? (
+                    <Icon name="Loader2" size={20} className="mr-2 animate-spin" />
+                  ) : (
+                    <Icon name="Share2" size={20} className="mr-2" />
+                  )}
+                  Поделиться
+                </Button>
+                <Button
                   onClick={() => handleDelete(selectedMaterial.id)}
                   variant="outline"
                   className="rounded-xl border-red-200 text-red-600 hover:bg-red-50"
@@ -468,6 +578,82 @@ const Materials = () => {
                 </Button>
               </div>
             </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Overlay для просмотра расшаренного материала */}
+      {(sharedMaterial || loadingShared) && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <Card className="max-w-3xl w-full max-h-[85vh] overflow-y-auto bg-white rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            {loadingShared ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Icon name="Loader2" size={32} className="animate-spin text-purple-500 mb-3" />
+                <p className="text-gray-500 text-sm">Загрузка материала...</p>
+              </div>
+            ) : sharedMaterial ? (
+              <>
+                <div className="sticky top-0 bg-white border-b border-gray-200 p-5 sm:p-6 flex items-start justify-between rounded-t-2xl">
+                  <div className="flex-1">
+                    <Badge className="bg-purple-100 text-purple-700 border-none text-xs mb-2">
+                      <Icon name="Share2" size={12} className="mr-1" />
+                      Общий доступ
+                    </Badge>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1">{sharedMaterial.title}</h2>
+                    {sharedMaterial.subject && (
+                      <Badge variant="secondary">{sharedMaterial.subject}</Badge>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setSharedMaterial(null);
+                      setSearchParams({});
+                    }}
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-xl flex-shrink-0"
+                  >
+                    <Icon name="X" size={24} />
+                  </Button>
+                </div>
+                <div className="p-5 sm:p-6">
+                  {sharedMaterial.summary && (
+                    <div className="mb-6 p-4 bg-purple-50 rounded-xl">
+                      <h3 className="font-bold text-purple-900 mb-2 flex items-center gap-2">
+                        <Icon name="Sparkles" size={20} />
+                        Краткое резюме (от ИИ)
+                      </h3>
+                      <p className="text-purple-800 text-sm sm:text-base">{sharedMaterial.summary}</p>
+                    </div>
+                  )}
+                  {sharedMaterial.recognized_text && (
+                    <div>
+                      <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <Icon name="FileText" size={20} />
+                        Текст документа
+                      </h3>
+                      <div className="prose prose-sm max-w-none">
+                        <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-4 rounded-xl">
+                          {sharedMaterial.recognized_text}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                  <div className="mt-6">
+                    <Button
+                      onClick={() => {
+                        setSharedMaterial(null);
+                        setSearchParams({});
+                      }}
+                      variant="outline"
+                      className="w-full rounded-xl border-gray-200 h-11"
+                    >
+                      Закрыть
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : null}
           </Card>
         </div>
       )}

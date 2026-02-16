@@ -27,6 +27,7 @@ import Subscription from "./pages/Subscription";
 import PaymentSetup from "./pages/PaymentSetup";
 import Achievements from "./pages/Achievements";
 import StudyPlan from "./pages/StudyPlan";
+import Flashcards from "./pages/Flashcards";
 import AppStore from "./pages/AppStore";
 import PromoVideo from "./pages/PromoVideo";
 import Referral from "./pages/Referral";
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="/payment-setup" element={<PaymentSetup />} />
               <Route path="/achievements" element={<Achievements />} />
               <Route path="/study-plan" element={<StudyPlan />} />
+              <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/app-store" element={<AppStore />} />
               <Route path="/promo" element={<PromoVideo />} />
               <Route path="/referral" element={<Referral />} />

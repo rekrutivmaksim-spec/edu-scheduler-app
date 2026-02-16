@@ -7,12 +7,14 @@ import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
+import { useTheme } from '@/lib/theme-context';
 
 const NOTIFICATIONS_URL = 'https://functions.poehali.dev/1fef5a49-94ad-4d77-9a17-ee2a10d22e2a';
 
 export default function Settings() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(authService.getUser());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -137,6 +139,43 @@ export default function Settings() {
       <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
 
         <div className="space-y-6">
+          {/* Тема оформления */}
+          <Card className="p-6 border border-purple-200/60 dark:border-purple-800/40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-200/50 dark:shadow-purple-900/30">
+                <Icon name={theme === 'dark' ? 'Moon' : 'Sun'} size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Тема оформления</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Внешний вид приложения</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/40 dark:to-indigo-950/40 border border-purple-100 dark:border-purple-800/50">
+              <div className="flex items-center gap-3">
+                <div className="relative w-10 h-10 rounded-xl bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 flex items-center justify-center overflow-hidden">
+                  <Icon
+                    name={theme === 'dark' ? 'Moon' : 'Sun'}
+                    size={20}
+                    className={theme === 'dark' ? 'text-indigo-400' : 'text-amber-500'}
+                  />
+                </div>
+                <div>
+                  <Label className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                    {theme === 'dark' ? 'Темная тема' : 'Светлая тема'}
+                  </Label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    {theme === 'dark' ? 'Комфортно в темноте' : 'Классический светлый режим'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={theme === 'dark'}
+                onCheckedChange={toggleTheme}
+              />
+            </div>
+          </Card>
+
           {/* Общие настройки */}
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-6">

@@ -61,12 +61,16 @@ def handler(event: dict, context) -> dict:
                 return handle_send_lesson_reminders(conn)
             elif action == 'send_deadline_reminders':
                 return handle_send_deadline_reminders(conn)
+            elif action == 'send_streak_reminders':
+                return handle_send_streak_reminders(conn)
         
         elif method == 'GET':
             action = event.get('queryStringParameters', {}).get('action')
             
             if action == 'status':
                 return get_subscription_status(conn, user_id)
+            elif action == 'streak_check':
+                return handle_streak_check(conn, user_id)
             elif action == 'list':
                 limit = int(event.get('queryStringParameters', {}).get('limit', '10'))
                 return get_notifications_list(conn, user_id, limit)
@@ -386,6 +390,123 @@ def mark_notification_read(conn, user_id: int, notification_id: int, is_read: bo
         'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
         'body': json.dumps({'success': True})
     }
+
+def handle_streak_check(conn, user_id: int) -> dict:
+    """Проверка статуса страйка текущего пользователя"""
+    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+    cursor = conn.cursor()
+
+    cursor.execute(f'''
+        SELECT current_streak, last_activity_date
+        FROM {schema}.user_streaks
+        WHERE user_id = %s
+    ''', (user_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        cursor.close()
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'current_streak': 0,
+                'active_today': False,
+                'at_risk': False
+            })
+        }
+
+    current_streak, last_activity_date = row
+
+    today = datetime.now().date()
+    active_today = last_activity_date == today if last_activity_date else False
+
+    # Also check daily_activity table for today's entry
+    if not active_today:
+        cursor.execute(f'''
+            SELECT COUNT(*) FROM {schema}.daily_activity
+            WHERE user_id = %s AND date = %s
+        ''', (user_id, today))
+        active_today = cursor.fetchone()[0] > 0
+
+    at_risk = current_streak > 0 and not active_today
+
+    cursor.close()
+
+    return {
+        'statusCode': 200,
+        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+        'body': json.dumps({
+            'current_streak': current_streak or 0,
+            'active_today': active_today,
+            'at_risk': at_risk
+        })
+    }
+
+
+def handle_send_streak_reminders(conn) -> dict:
+    """Отправка напоминаний о сгорающих страйках (запускается по расписанию)"""
+    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+    cursor = conn.cursor()
+    today = datetime.now().date()
+
+    # Находим пользователей с активным страйком, у которых нет активности сегодня
+    # и у которых есть push-подписка
+    cursor.execute(f'''
+        SELECT us.user_id, us.current_streak, ps.endpoint, ps.p256dh, ps.auth
+        FROM {schema}.user_streaks us
+        JOIN {schema}.push_subscriptions ps ON ps.user_id = us.user_id
+        WHERE us.current_streak > 0
+        AND ps.endpoint IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1 FROM {schema}.daily_activity da
+            WHERE da.user_id = us.user_id AND da.date = %s
+        )
+    ''', (today,))
+
+    users_at_risk = cursor.fetchall()
+    sent_count = 0
+
+    for user_id, current_streak, endpoint, p256dh, auth in users_at_risk:
+        notification_data = {
+            'title': 'Страйк сгорит!',
+            'body': f'Зайди в Studyfay, чтобы сохранить страйк {current_streak} дней!',
+            'tag': f'streak-risk-{user_id}',
+            'url': '/achievements'
+        }
+
+        try:
+            send_push_notification(endpoint, p256dh, auth, notification_data)
+            sent_count += 1
+        except Exception as e:
+            print(f'Failed to send streak reminder to user {user_id}: {e}')
+
+        # Save in-app notification
+        try:
+            cursor.execute(f'''
+                INSERT INTO {schema}.notifications (user_id, title, message, action_url)
+                VALUES (%s, %s, %s, %s)
+            ''', (
+                user_id,
+                'Страйк сгорит!',
+                f'Зайди в Studyfay, чтобы сохранить страйк {current_streak} дней!',
+                '/achievements'
+            ))
+        except Exception as e:
+            print(f'Failed to save streak notification for user {user_id}: {e}')
+
+    conn.commit()
+    cursor.close()
+
+    return {
+        'statusCode': 200,
+        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+        'body': json.dumps({
+            'success': True,
+            'users_at_risk': len(users_at_risk),
+            'sent': sent_count
+        }, ensure_ascii=False)
+    }
+
 
 def send_push_notification(endpoint: str, p256dh: str, auth: str, data: dict):
     """Отправка push-уведомления через Web Push API"""

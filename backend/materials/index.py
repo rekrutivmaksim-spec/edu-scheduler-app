@@ -2,6 +2,7 @@
 
 import json
 import os
+import hashlib
 import boto3
 from datetime import datetime
 import psycopg2
@@ -230,6 +231,40 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
         return {'summary': 'Документ загружен (анализ недоступен)', 'subject': 'Общее', 'title': filename[:50], 'tasks': []}
 
 
+def generate_share_code(material_id: int, user_id: int) -> str:
+    """Генерирует детерминированный код для шаринга материала"""
+    return hashlib.md5(f"{material_id}:{user_id}".encode()).hexdigest()[:8].upper()
+
+
+def handle_get_shared(code: str, headers: dict) -> dict:
+    """Публичный эндпоинт: получить расшаренный материал по коду"""
+    if not code or len(code) != 8:
+        return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неверный код'}, ensure_ascii=False)}
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT id, user_id, title, subject, summary, recognized_text FROM materials ORDER BY id")
+            for row in cur:
+                expected = generate_share_code(row['id'], row['user_id'])
+                if expected == code.upper():
+                    text = row['recognized_text'] or ''
+                    return {
+                        'statusCode': 200,
+                        'headers': headers,
+                        'body': json.dumps({
+                            'title': row['title'],
+                            'subject': row['subject'],
+                            'summary': row['summary'],
+                            'recognized_text': text[:5000]
+                        }, ensure_ascii=False, default=str)
+                    }
+
+        return {'statusCode': 404, 'headers': headers, 'body': json.dumps({'error': 'Материал не найден'}, ensure_ascii=False)}
+    finally:
+        conn.close()
+
+
 def handler(event: dict, context) -> dict:
     method = event.get('httpMethod', 'GET')
     
@@ -237,6 +272,12 @@ def handler(event: dict, context) -> dict:
         return {'statusCode': 200, 'headers': {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Authorization'}, 'body': ''}
     
     headers = {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}
+    
+    # Публичный эндпоинт: просмотр расшаренного материала (без авторизации)
+    params = event.get('queryStringParameters') or {}
+    if method == 'GET' and params.get('action') == 'shared':
+        return handle_get_shared(params.get('code', ''), headers)
+    
     auth_header = event.get('headers', {}).get('X-Authorization', '')
     token = auth_header.replace('Bearer ', '')
     
@@ -474,6 +515,23 @@ def handler(event: dict, context) -> dict:
                 import traceback
                 traceback.print_exc()
                 return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
+        
+        elif action == 'share':
+            material_id = body.get('material_id')
+            if not material_id:
+                return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Не указан material_id'})}
+            
+            conn = get_db_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT id FROM materials WHERE id = %s AND user_id = %s", (material_id, user_id))
+                    if not cur.fetchone():
+                        return {'statusCode': 404, 'headers': headers, 'body': json.dumps({'error': 'Материал не найден'})}
+                
+                code = generate_share_code(int(material_id), user_id)
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'code': code, 'material_id': material_id}, ensure_ascii=False)}
+            finally:
+                conn.close()
         
         return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неизвестное действие'})}
     

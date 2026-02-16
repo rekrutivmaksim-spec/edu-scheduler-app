@@ -51,6 +51,22 @@
         "success": true
       },
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test unauthorized streak check",
+      "method": "GET",
+      "path": "/?action=streak_check",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
     }
   ]
 }
