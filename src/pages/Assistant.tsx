@@ -150,54 +150,65 @@ const Assistant = () => {
     setIsLoading(true);
     startThinking();
 
-    try {
+    const doFetch = async (): Promise<Response> => {
       const token = authService.getToken();
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
+      const tid = setTimeout(() => controller.abort(), 35000);
       const resp = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ question: q, material_ids: selectedMaterials }),
         signal: controller.signal
       });
+      clearTimeout(tid);
+      return resp;
+    };
 
-      clearTimeout(timeoutId);
-
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.remaining !== undefined) setRemaining(data.remaining);
-        const aiMsg: Message = { role: 'assistant', content: data.answer, timestamp: new Date() };
-        setMessages(prev => [...prev, aiMsg]);
-        try {
-          const gam = await trackActivity('ai_questions_asked', 1);
-          if (gam?.new_achievements?.length) {
-            gam.new_achievements.forEach((a: { title: string; xp_reward: number }) => {
-              toast({ title: `🏆 ${a.title}`, description: `+${a.xp_reward} XP` });
-            });
-          }
-        } catch (e) {
-          console.warn('Gamification:', e);
+    const handleOk = async (resp: Response) => {
+      const data = await resp.json();
+      if (data.remaining !== undefined) setRemaining(data.remaining);
+      const aiMsg: Message = { role: 'assistant', content: data.answer, timestamp: new Date() };
+      setMessages(prev => [...prev, aiMsg]);
+      try {
+        const gam = await trackActivity('ai_questions_asked', 1);
+        if (gam?.new_achievements?.length) {
+          gam.new_achievements.forEach((a: { title: string; xp_reward: number }) => {
+            toast({ title: `🏆 ${a.title}`, description: `+${a.xp_reward} XP` });
+          });
         }
+      } catch (e) {
+        console.warn('Gamification:', e);
+      }
+    };
+
+    try {
+      const resp = await doFetch();
+      if (resp.ok) {
+        await handleOk(resp);
       } else if (resp.status === 403) {
         const data = await resp.json();
-        const aiMsg: Message = {
+        setMessages(prev => [...prev, {
           role: 'assistant',
           content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
           timestamp: new Date()
-        };
-        setMessages(prev => [...prev, aiMsg]);
+        }]);
         setRemaining(0);
+      } else if (resp.status === 504) {
+        const resp2 = await doFetch();
+        if (resp2.ok) {
+          await handleOk(resp2);
+        } else {
+          throw new Error('retry_failed');
+        }
       } else {
         throw new Error('server_error');
       }
     } catch (_) {
-      const aiMsg: Message = {
+      setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Сейчас много запросов — попробуй ещё раз через несколько секунд.',
+        content: 'ИИ сейчас думает дольше обычного. Нажми ➤ ещё раз — скорее всего ответ уже готов.',
         timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMsg]);
+      }]);
     } finally {
       stopThinking();
       setIsLoading(false);

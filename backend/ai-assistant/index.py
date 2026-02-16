@@ -11,23 +11,16 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
-ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
+ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', '')
 
-ds_http = httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0))
-client_deepseek = OpenAI(
-    api_key=DEEPSEEK_API_KEY,
-    base_url='https://api.deepseek.com/v1',
-    timeout=20.0,
-    http_client=ds_http
-) if DEEPSEEK_API_KEY else None
+_http = httpx.Client(timeout=httpx.Timeout(22.0, connect=4.0))
 
-ax_http = httpx.Client(timeout=httpx.Timeout(18.0, connect=5.0))
-client_artemox = OpenAI(
-    api_key=ARTEMOX_API_KEY,
-    base_url='https://api.artemox.com/v1',
-    timeout=18.0,
-    http_client=ax_http
-)
+def get_client():
+    if DEEPSEEK_API_KEY:
+        return OpenAI(api_key=DEEPSEEK_API_KEY, base_url='https://api.deepseek.com/v1', timeout=22.0, http_client=_http)
+    return OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=22.0, http_client=_http)
+
+client = get_client()
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -281,9 +274,9 @@ def extract_title(question, action):
     return question[:100]
 
 def ask_ai(question, context):
-    """Запрос к ИИ — пробует DeepSeek напрямую, потом Artemox, потом fallback"""
+    """Запрос к ИИ через DeepSeek API (прямой или Artemox)"""
     has_context = bool(context and len(context) > 50)
-    ctx_trimmed = context[:3000] if has_context else ""
+    ctx_trimmed = context[:2500] if has_context else ""
 
     if has_context:
         system = f"Ты Studyfay — ИИ-репетитор. Русский. Завершай мысль.\n\nМАТЕРИАЛЫ:\n{ctx_trimmed}\n\nОтвечай по материалам. **Жирный** для терминов."
@@ -292,30 +285,13 @@ def ask_ai(question, context):
 
     messages = [
         {"role": "system", "content": system},
-        {"role": "user", "content": question[:500]}
+        {"role": "user", "content": question[:400]}
     ]
 
-    if client_deepseek:
-        try:
-            print(f"[AI] try DeepSeek direct", flush=True)
-            resp = client_deepseek.chat.completions.create(
-                model="deepseek-chat",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1024,
-            )
-            answer = resp.choices[0].message.content
-            tokens = resp.usage.total_tokens if resp.usage else 0
-            print(f"[AI] DeepSeek OK tokens:{tokens}", flush=True)
-            if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
-                answer = answer.rstrip() + '.'
-            return answer, tokens
-        except Exception as e:
-            print(f"[AI] DeepSeek FAIL: {type(e).__name__}: {e}", flush=True)
-
     try:
-        print(f"[AI] try Artemox", flush=True)
-        resp = client_artemox.chat.completions.create(
+        src = "DeepSeek" if DEEPSEEK_API_KEY else "Artemox"
+        print(f"[AI] request to {src}", flush=True)
+        resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages,
             temperature=0.7,
@@ -323,12 +299,12 @@ def ask_ai(question, context):
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
-        print(f"[AI] Artemox OK tokens:{tokens}", flush=True)
+        print(f"[AI] {src} OK tokens:{tokens}", flush=True)
         if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
             answer = answer.rstrip() + '.'
         return answer, tokens
     except Exception as e:
-        print(f"[AI] Artemox FAIL: {type(e).__name__}: {e}", flush=True)
+        print(f"[AI] FAIL: {type(e).__name__}: {e}", flush=True)
 
     return build_smart_fallback(question, context), 0
 
