@@ -10,14 +10,10 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 
-_http_ds = httpx.Client(timeout=httpx.Timeout(20.0, connect=3.0))
-_http_ax = httpx.Client(timeout=httpx.Timeout(20.0, connect=3.0))
-
-client_ds = OpenAI(api_key=DEEPSEEK_API_KEY, base_url='https://api.deepseek.com/v1', timeout=20.0, http_client=_http_ds) if DEEPSEEK_API_KEY else None
-client_ax = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=20.0, http_client=_http_ax)
+_http = httpx.Client(timeout=httpx.Timeout(22.0, connect=3.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=22.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -270,30 +266,8 @@ def extract_title(question, action):
             return question[idx:].strip()[:200]
     return question[:100]
 
-def _call_llm(cl, name, messages):
-    """Вызов LLM клиента с обработкой ошибок"""
-    try:
-        print(f"[AI] -> {name}", flush=True)
-        resp = cl.chat.completions.create(
-            model="deepseek-chat",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1024,
-        )
-        answer = resp.choices[0].message.content
-        tokens = resp.usage.total_tokens if resp.usage else 0
-        print(f"[AI] {name} OK tokens:{tokens}", flush=True)
-        if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
-            answer = answer.rstrip() + '.'
-        return answer, tokens
-    except Exception as e:
-        err_str = str(e)
-        print(f"[AI] {name} FAIL: {type(e).__name__}: {err_str[:200]}", flush=True)
-        is_balance = '402' in err_str or 'Insufficient' in err_str or 'balance' in err_str.lower()
-        return None, -1 if is_balance else 0
-
 def ask_ai(question, context):
-    """Запрос к ИИ — DeepSeek напрямую, при ошибке баланса — Artemox, потом fallback"""
+    """Запрос к ИИ через Artemox"""
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:2500] if has_context else ""
 
@@ -302,23 +276,26 @@ def ask_ai(question, context):
     else:
         system = "Ты Studyfay — ИИ-репетитор. Русский. Завершай мысль. **Жирный** для терминов. Примеры."
 
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": question[:400]}
-    ]
-
-    if client_ds:
-        answer, tokens = _call_llm(client_ds, "DeepSeek", messages)
-        if answer:
-            return answer, tokens
-        if tokens != -1:
-            return build_smart_fallback(question, context), 0
-
-    answer, tokens = _call_llm(client_ax, "Artemox", messages)
-    if answer:
+    try:
+        print(f"[AI] -> Artemox", flush=True)
+        resp = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": question[:400]}
+            ],
+            temperature=0.7,
+            max_tokens=1024,
+        )
+        answer = resp.choices[0].message.content
+        tokens = resp.usage.total_tokens if resp.usage else 0
+        print(f"[AI] Artemox OK tokens:{tokens}", flush=True)
+        if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
+            answer = answer.rstrip() + '.'
         return answer, tokens
-
-    return build_smart_fallback(question, context), 0
+    except Exception as e:
+        print(f"[AI] Artemox FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
+        return build_smart_fallback(question, context), 0
 
 def build_smart_fallback(question, context):
     """Умный fallback — ВСЕГДА даёт полезный ответ по вопросу и материалам"""
