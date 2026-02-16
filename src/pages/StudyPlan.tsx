@@ -840,8 +840,8 @@ const StudyPlan = () => {
       <UpgradeModal
         open={upgradeModalOpen}
         onClose={() => setUpgradeModalOpen(false)}
-        feature="Study plan"
-        description="AI will create a personalized study plan based on your materials"
+        feature="План подготовки"
+        description="ИИ создаст персональный план на основе твоих материалов"
         trigger="general"
       />
     </div>

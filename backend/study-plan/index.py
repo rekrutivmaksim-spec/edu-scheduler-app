@@ -217,12 +217,12 @@ def handle_detail(conn, user_id: int, params: dict) -> dict:
     """Returns a single plan with all its days."""
     plan_id = params.get('plan_id')
     if not plan_id:
-        return resp(400, {'error': 'plan_id is required'})
+        return resp(400, {'error': 'Не указан ID плана'})
 
     try:
         plan_id = int(plan_id)
     except (ValueError, TypeError):
-        return resp(400, {'error': 'plan_id must be an integer'})
+        return resp(400, {'error': 'ID плана должен быть числом'})
 
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""
@@ -233,7 +233,7 @@ def handle_detail(conn, user_id: int, params: dict) -> dict:
     plan = cur.fetchone()
     if not plan:
         cur.close()
-        return resp(404, {'error': 'Plan not found'})
+        return resp(404, {'error': 'План не найден'})
 
     cur.execute("""
         SELECT id, day_number, title, topics, minutes, is_completed, completed_at
@@ -257,23 +257,23 @@ def handle_generate(conn, user_id: int, body: dict) -> dict:
     notes = (body.get('notes') or '').strip()
 
     if not subject:
-        return resp(400, {'error': 'subject is required'})
+        return resp(400, {'error': 'Укажите предмет'})
     if not exam_date_str:
-        return resp(400, {'error': 'exam_date is required'})
+        return resp(400, {'error': 'Укажите дату экзамена'})
     if difficulty not in ('easy', 'medium', 'hard'):
-        return resp(400, {'error': 'difficulty must be easy, medium, or hard'})
+        return resp(400, {'error': 'Сложность должна быть: easy, medium или hard'})
     if len(subject) > 200:
-        return resp(400, {'error': 'subject too long (max 200 characters)'})
+        return resp(400, {'error': 'Название предмета слишком длинное (макс. 200 символов)'})
 
     try:
         exam_date = datetime.strptime(exam_date_str, '%Y-%m-%d').date()
     except ValueError:
-        return resp(400, {'error': 'exam_date must be in YYYY-MM-DD format'})
+        return resp(400, {'error': 'Дата экзамена должна быть в формате ГГГГ-ММ-ДД'})
 
     today = date.today()
     days_left = (exam_date - today).days
     if days_left < 1:
-        return resp(400, {'error': 'exam_date must be in the future'})
+        return resp(400, {'error': 'Дата экзамена должна быть в будущем'})
 
     # Cap at 30 days for the plan
     capped_days = min(days_left, 30)
@@ -284,7 +284,7 @@ def handle_generate(conn, user_id: int, body: dict) -> dict:
     plan_count = cur.fetchone()[0]
     cur.close()
     if plan_count >= 10:
-        return resp(400, {'error': 'Maximum 10 study plans reached. Delete an existing plan first.'})
+        return resp(400, {'error': 'Достигнут лимит в 10 планов. Удалите существующий план.'})
 
     # Load material context
     context = load_material_context(conn, user_id, subject)
@@ -294,10 +294,10 @@ def handle_generate(conn, user_id: int, body: dict) -> dict:
         ai_days = generate_plan_with_ai(subject, difficulty, capped_days, context)
     except Exception as e:
         print(f"[STUDY-PLAN] AI generation error: {e}", flush=True)
-        return resp(500, {'error': 'Failed to generate plan. Please try again.'})
+        return resp(500, {'error': 'Не удалось сгенерировать план. Попробуйте ещё раз.'})
 
     if not ai_days:
-        return resp(500, {'error': 'AI returned an empty plan. Please try again.'})
+        return resp(500, {'error': 'ИИ вернул пустой план. Попробуйте ещё раз.'})
 
     # Save plan
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -332,13 +332,13 @@ def handle_complete_day(conn, user_id: int, body: dict) -> dict:
     day_id = body.get('day_id')
 
     if not plan_id or not day_id:
-        return resp(400, {'error': 'plan_id and day_id are required'})
+        return resp(400, {'error': 'Не указаны ID плана и дня'})
 
     try:
         plan_id = int(plan_id)
         day_id = int(day_id)
     except (ValueError, TypeError):
-        return resp(400, {'error': 'plan_id and day_id must be integers'})
+        return resp(400, {'error': 'ID плана и дня должны быть числами'})
 
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -346,7 +346,7 @@ def handle_complete_day(conn, user_id: int, body: dict) -> dict:
     cur.execute("SELECT id FROM study_plans WHERE id = %s AND user_id = %s", (plan_id, user_id))
     if not cur.fetchone():
         cur.close()
-        return resp(404, {'error': 'Plan not found'})
+        return resp(404, {'error': 'План не найден'})
 
     # Check the day exists and is not already completed
     cur.execute("""
@@ -356,10 +356,10 @@ def handle_complete_day(conn, user_id: int, body: dict) -> dict:
     day = cur.fetchone()
     if not day:
         cur.close()
-        return resp(404, {'error': 'Day not found'})
+        return resp(404, {'error': 'День не найден'})
     if day['is_completed']:
         cur.close()
-        return resp(400, {'error': 'Day already completed'})
+        return resp(400, {'error': 'День уже выполнен'})
 
     # Mark as completed
     cur.execute("""
@@ -394,12 +394,12 @@ def handle_delete(conn, user_id: int, body: dict) -> dict:
     """Deletes a study plan and all its days (cascade)."""
     plan_id = body.get('plan_id')
     if not plan_id:
-        return resp(400, {'error': 'plan_id is required'})
+        return resp(400, {'error': 'Не указан ID плана'})
 
     try:
         plan_id = int(plan_id)
     except (ValueError, TypeError):
-        return resp(400, {'error': 'plan_id must be an integer'})
+        return resp(400, {'error': 'ID плана должен быть числом'})
 
     cur = conn.cursor()
 
@@ -407,14 +407,14 @@ def handle_delete(conn, user_id: int, body: dict) -> dict:
     cur.execute("SELECT id FROM study_plans WHERE id = %s AND user_id = %s", (plan_id, user_id))
     if not cur.fetchone():
         cur.close()
-        return resp(404, {'error': 'Plan not found'})
+        return resp(404, {'error': 'План не найден'})
 
     cur.execute("DELETE FROM study_plan_days WHERE plan_id = %s", (plan_id,))
     cur.execute("DELETE FROM study_plans WHERE id = %s AND user_id = %s", (plan_id, user_id))
     conn.commit()
     cur.close()
 
-    return resp(200, {'success': True, 'message': 'Plan deleted'})
+    return resp(200, {'success': True, 'message': 'План удалён'})
 
 
 # ---------------------------------------------------------------------------
@@ -434,7 +434,7 @@ def handler(event: dict, context) -> dict:
         return {
             'statusCode': 429,
             'headers': CORS_HEADERS,
-            'body': json.dumps({'error': 'Too many requests', 'retry_after': retry_after}),
+            'body': json.dumps({'error': 'Слишком много запросов', 'retry_after': retry_after}),
         }
 
     # CORS preflight
@@ -449,15 +449,15 @@ def handler(event: dict, context) -> dict:
     auth_header = event.get('headers', {}).get('X-Authorization', '')
     token = auth_header.replace('Bearer ', '')
     if not token:
-        return resp(401, {'error': 'Authorization required'})
+        return resp(401, {'error': 'Требуется авторизация'})
 
     payload = verify_token(token)
     if not payload:
-        return resp(401, {'error': 'Invalid token'})
+        return resp(401, {'error': 'Неверный токен'})
 
     user_id = payload.get('user_id')
     if not user_id:
-        return resp(401, {'error': 'Invalid token payload'})
+        return resp(401, {'error': 'Некорректные данные токена'})
 
     # DB connection
     conn = get_db_connection()
@@ -468,7 +468,7 @@ def handler(event: dict, context) -> dict:
 
         # Premium check for all actions
         if not check_premium(conn, user_id):
-            return resp(403, {'error': 'Plan generation is available for Premium only', 'message': 'Plan podgotovki dostupen tolko dlya Premium'})
+            return resp(403, {'error': 'План подготовки доступен только для Премиум', 'message': 'План подготовки доступен только для Премиум-подписчиков'})
 
         params = event.get('queryStringParameters', {}) or {}
         action = params.get('action', '')
@@ -479,7 +479,7 @@ def handler(event: dict, context) -> dict:
             elif action == 'detail':
                 return handle_detail(conn, user_id, params)
             else:
-                return resp(400, {'error': 'Unknown action. Use: list, detail'})
+                return resp(400, {'error': 'Неизвестное действие. Используйте: list, detail'})
 
         elif method == 'POST':
             body = {}
@@ -487,7 +487,7 @@ def handler(event: dict, context) -> dict:
                 try:
                     body = json.loads(event['body'])
                 except (json.JSONDecodeError, TypeError):
-                    return resp(400, {'error': 'Invalid JSON body'})
+                    return resp(400, {'error': 'Некорректный формат данных'})
 
             post_action = body.get('action', '')
 
@@ -498,13 +498,13 @@ def handler(event: dict, context) -> dict:
             elif post_action == 'delete':
                 return handle_delete(conn, user_id, body)
             else:
-                return resp(400, {'error': 'Unknown action. Use: generate, complete_day, delete'})
+                return resp(400, {'error': 'Неизвестное действие. Используйте: generate, complete_day, delete'})
 
         else:
-            return resp(405, {'error': 'Method not allowed'})
+            return resp(405, {'error': 'Метод не разрешён'})
 
     except Exception as e:
         print(f"[STUDY-PLAN] Unhandled error: {e}", flush=True)
-        return resp(500, {'error': 'Internal server error'})
+        return resp(500, {'error': 'Внутренняя ошибка сервера'})
     finally:
         conn.close()

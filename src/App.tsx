@@ -27,6 +27,8 @@ import Subscription from "./pages/Subscription";
 import PaymentSetup from "./pages/PaymentSetup";
 import Achievements from "./pages/Achievements";
 import StudyPlan from "./pages/StudyPlan";
+import AppStore from "./pages/AppStore";
+import PromoVideo from "./pages/PromoVideo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +63,8 @@ const App = () => (
               <Route path="/payment-setup" element={<PaymentSetup />} />
               <Route path="/achievements" element={<Achievements />} />
               <Route path="/study-plan" element={<StudyPlan />} />
+              <Route path="/app-store" element={<AppStore />} />
+              <Route path="/promo" element={<PromoVideo />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
