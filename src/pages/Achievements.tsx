@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import UpgradeModal from '@/components/UpgradeModal';
+import BottomNav from '@/components/BottomNav';
 
 const API_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
@@ -365,7 +366,7 @@ const Achievements = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button
@@ -377,7 +378,7 @@ const Achievements = () => {
                 <Icon name="ArrowLeft" size={24} className="text-purple-600" />
               </Button>
               <div>
-                <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Достижения
                 </h1>
                 <p className="text-xs text-purple-600/70 font-medium">
@@ -394,7 +395,7 @@ const Achievements = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-20 md:pb-0">
         {/* Streak Widget */}
         {profile && (
           <Card className="overflow-hidden border-0 shadow-lg">
@@ -1024,6 +1025,8 @@ const Achievements = () => {
         description="С Premium подпиской ты можешь заморозить свой стрик 1 раз в неделю и не потерять прогресс"
         trigger={upgradeModalTrigger}
       />
+
+      <BottomNav />
     </div>
   );
 };

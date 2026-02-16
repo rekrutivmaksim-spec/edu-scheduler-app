@@ -329,19 +329,19 @@ const Subscription = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-purple-100/50"
+                className="rounded-xl hover:bg-purple-100/50 h-8 w-8 sm:h-10 sm:w-10"
               >
-                <Icon name="ArrowLeft" size={24} className="text-purple-600" />
+                <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
               </Button>
               <div>
-                <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Подписка
                 </h1>
                 <p className="text-xs text-purple-600/70 font-medium">Доступ к ИИ-ассистенту</p>

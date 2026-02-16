@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import ReferralProgram from '@/components/ReferralProgram';
+import BottomNav from '@/components/BottomNav';
 
 const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
@@ -177,7 +178,7 @@ const Profile = () => {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="max-w-3xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-0">
         <Card className="p-4 sm:p-8 bg-white border-0 shadow-xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
@@ -464,6 +465,8 @@ const Profile = () => {
           </div>
         </Card>
       </main>
+
+      <BottomNav />
     </div>
   );
 };

@@ -104,7 +104,7 @@ export default function Onboarding() {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <Icon name="User" size={64} className="mx-auto text-purple-600 mb-4" />
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Как тебя зовут?</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Как тебя зовут?</h2>
               <p className="text-gray-600">Так мы сможем обращаться к тебе по имени</p>
             </div>
 
@@ -133,7 +133,7 @@ export default function Onboarding() {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <Icon name="GraduationCap" size={64} className="mx-auto text-purple-600 mb-4" />
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Где ты учишься?</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Где ты учишься?</h2>
               <p className="text-gray-600">Университет и факультет (необязательно)</p>
             </div>
 
@@ -180,7 +180,7 @@ export default function Onboarding() {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <Icon name="BookOpen" size={64} className="mx-auto text-purple-600 mb-4" />
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">На каком курсе?</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">На каком курсе?</h2>
               <p className="text-gray-600">Выбери свой курс обучения</p>
             </div>
 

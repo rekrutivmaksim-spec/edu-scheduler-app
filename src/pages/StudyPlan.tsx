@@ -41,24 +41,24 @@ type View = 'list' | 'create' | 'detail';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
 const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; color: string; bg: string; border: string }> = {
-  easy: { label: 'Easy', color: 'text-green-700', bg: 'bg-green-100', border: 'border-green-300' },
-  medium: { label: 'Medium', color: 'text-amber-700', bg: 'bg-amber-100', border: 'border-amber-300' },
-  hard: { label: 'Hard', color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-300' },
+  easy: { label: 'Лёгкий', color: 'text-green-700', bg: 'bg-green-100', border: 'border-green-300' },
+  medium: { label: 'Средний', color: 'text-amber-700', bg: 'bg-amber-100', border: 'border-amber-300' },
+  hard: { label: 'Сложный', color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-300' },
 };
 
 const DIFFICULTY_LABELS: Record<Difficulty, string> = {
-  easy: 'Easy',
-  medium: 'Medium',
-  hard: 'Hard',
+  easy: 'Лёгкий',
+  medium: 'Средний',
+  hard: 'Сложный',
 };
 
 function getDaysWord(n: number): string {
   const abs = Math.abs(n);
-  if (abs % 100 >= 11 && abs % 100 <= 19) return 'days';
+  if (abs % 100 >= 11 && abs % 100 <= 19) return 'дней';
   const last = abs % 10;
-  if (last === 1) return 'day';
-  if (last >= 2 && last <= 4) return 'days';
-  return 'days';
+  if (last === 1) return 'день';
+  if (last >= 2 && last <= 4) return 'дня';
+  return 'дней';
 }
 
 function getDaysUntil(dateStr: string): number {
@@ -144,11 +144,11 @@ const StudyPlan = () => {
         setIsPremium(false);
         setUpgradeModalOpen(true);
       } else {
-        toast({ title: 'Error', description: 'Failed to load plan', variant: 'destructive' });
+        toast({ title: 'Ошибка', description: 'Не удалось загрузить план', variant: 'destructive' });
       }
     } catch (error) {
       console.error('Failed to load plan detail:', error);
-      toast({ title: 'Network error', description: 'Check your connection', variant: 'destructive' });
+      toast({ title: 'Ошибка сети', description: 'Проверьте подключение', variant: 'destructive' });
     }
   }, [authHeaders, toast]);
 
@@ -176,16 +176,16 @@ const StudyPlan = () => {
 
   const handleGenerate = async () => {
     if (!subject.trim()) {
-      toast({ title: 'Error', description: 'Enter a subject', variant: 'destructive' });
+      toast({ title: 'Ошибка', description: 'Введите предмет', variant: 'destructive' });
       return;
     }
     if (!examDate) {
-      toast({ title: 'Error', description: 'Select an exam date', variant: 'destructive' });
+      toast({ title: 'Ошибка', description: 'Выберите дату экзамена', variant: 'destructive' });
       return;
     }
     const daysLeft = getDaysUntil(examDate);
     if (daysLeft < 1) {
-      toast({ title: 'Error', description: 'Exam date must be in the future', variant: 'destructive' });
+      toast({ title: 'Ошибка', description: 'Дата экзамена должна быть в будущем', variant: 'destructive' });
       return;
     }
 
@@ -211,13 +211,13 @@ const StudyPlan = () => {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Generation failed');
+        throw new Error(errData.error || 'Не удалось создать план');
       }
 
       const data = await res.json();
       toast({
-        title: 'Plan created!',
-        description: `Study plan for "${data.plan.subject}" with ${data.plan.total_days} days`,
+        title: 'План создан!',
+        description: `План по "${data.plan.subject}" на ${data.plan.total_days} ${getDaysWord(data.plan.total_days)}`,
       });
 
       // Reset form
@@ -234,8 +234,8 @@ const StudyPlan = () => {
       loadPlans();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to generate plan',
+        title: 'Ошибка',
+        description: error instanceof Error ? error.message : 'Не удалось создать план',
         variant: 'destructive',
       });
     } finally {
@@ -254,10 +254,10 @@ const StudyPlan = () => {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to complete day');
+        throw new Error(errData.error || 'Не удалось завершить день');
       }
 
-      toast({ title: 'Day completed!', description: '+XP for studying!' });
+      toast({ title: 'День выполнен!', description: '+XP за учёбу!' });
 
       // Track gamification
       try {
@@ -265,7 +265,7 @@ const StudyPlan = () => {
         if (result?.new_achievements?.length) {
           result.new_achievements.forEach((ach) => {
             toast({
-              title: `Achievement!`,
+              title: 'Достижение!',
               description: `${ach.title} (+${ach.xp_reward} XP)`,
             });
           });
@@ -291,8 +291,8 @@ const StudyPlan = () => {
       loadPlans();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to complete day',
+        title: 'Ошибка',
+        description: error instanceof Error ? error.message : 'Не удалось завершить день',
         variant: 'destructive',
       });
     } finally {
@@ -313,14 +313,14 @@ const StudyPlan = () => {
         throw new Error('Failed to delete plan');
       }
 
-      toast({ title: 'Plan deleted' });
+      toast({ title: 'План удалён', description: 'Ваши планы подготовки были удалены' });
       setSelectedPlan(null);
       setView('list');
       await loadPlans();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to delete plan',
+        title: 'Ошибка',
+        description: 'Не удалось удалить план',
         variant: 'destructive',
       });
     } finally {
@@ -335,7 +335,7 @@ const StudyPlan = () => {
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Icon name="Loader2" size={48} className="animate-spin text-purple-600" />
-          <p className="text-purple-600 font-medium">Loading study plans...</p>
+          <p className="text-purple-600 font-medium">Загрузка планов...</p>
         </div>
       </div>
     );
@@ -355,7 +355,7 @@ const StudyPlan = () => {
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
         {/* Header */}
         <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+          <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <Button
@@ -371,17 +371,17 @@ const StudyPlan = () => {
                     {selectedPlan.subject}
                   </h1>
                   <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">
-                    Exam: {formatDate(selectedPlan.exam_date)}
+                    Экзамен: {formatDate(selectedPlan.exam_date)}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Badge className={`${diffConf.bg} ${diffConf.color} ${diffConf.border} border text-[10px] sm:text-xs px-2 py-0.5`}>
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                <Badge className={`${diffConf.bg} ${diffConf.color} ${diffConf.border} border text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5`}>
                   {diffConf.label}
                 </Badge>
                 {daysUntilExam > 0 && (
-                  <Badge className="bg-purple-100 text-purple-700 border border-purple-300 text-[10px] sm:text-xs px-2 py-0.5">
-                    {daysUntilExam}d left
+                  <Badge className="bg-purple-100 text-purple-700 border border-purple-300 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                    {daysUntilExam} {getDaysWord(daysUntilExam)}
                   </Badge>
                 )}
               </div>
@@ -389,24 +389,24 @@ const StudyPlan = () => {
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <main className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
           {/* Progress card */}
-          <Card className="p-5 sm:p-6 border-2 border-purple-200/50 shadow-md">
+          <Card className="p-3 sm:p-5 border-2 border-purple-200/50 shadow-md">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg">
-                  <span className="text-2xl">🧠</span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg">
+                  <span className="text-xl sm:text-2xl">🧠</span>
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">Overall progress</h2>
-                  <p className="text-sm text-gray-500">
-                    {selectedPlan.completed_days} of {selectedPlan.total_days} days completed
+                  <h2 className="text-sm sm:text-lg font-bold text-gray-800">Общий прогресс</h2>
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    {selectedPlan.completed_days} из {selectedPlan.total_days} {getDaysWord(selectedPlan.total_days)} выполнено
                   </p>
                 </div>
               </div>
-              <span className="text-2xl font-bold text-purple-600">{progressPercent}%</span>
+              <span className="text-xl sm:text-2xl font-bold text-purple-600">{progressPercent}%</span>
             </div>
-            <div className="relative w-full h-3 rounded-full bg-purple-100 overflow-hidden">
+            <div className="relative w-full h-2.5 sm:h-3 rounded-full bg-purple-100 overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 transition-all duration-700 ease-out"
                 style={{ width: `${progressPercent}%` }}
@@ -415,7 +415,7 @@ const StudyPlan = () => {
           </Card>
 
           {/* Days timeline */}
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {(selectedPlan.days || []).map((day) => {
               const isCompleting = completingDayId === day.id;
               return (
@@ -427,13 +427,13 @@ const StudyPlan = () => {
                       : 'bg-white border-gray-200 hover:border-purple-300'
                   }`}
                 >
-                  <div className="p-4 sm:p-5">
-                    <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="p-3 sm:p-5">
+                    <div className="flex items-start gap-2.5 sm:gap-4">
                       {/* Completion button */}
                       <button
                         onClick={() => !day.is_completed && handleCompleteDay(day.id, selectedPlan.id)}
                         disabled={day.is_completed || isCompleting}
-                        className={`mt-0.5 flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                        className={`mt-0.5 flex-shrink-0 w-7 h-7 sm:w-9 sm:h-9 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
                           day.is_completed
                             ? 'bg-green-500 border-green-500 text-white scale-100'
                             : isCompleting
@@ -442,15 +442,15 @@ const StudyPlan = () => {
                         }`}
                       >
                         {isCompleting ? (
-                          <Icon name="Loader2" size={16} className="animate-spin text-purple-500" />
+                          <Icon name="Loader2" size={14} className="animate-spin text-purple-500 sm:w-4 sm:h-4" />
                         ) : day.is_completed ? (
-                          <Icon name="Check" size={16} className="text-white" />
+                          <Icon name="Check" size={14} className="text-white sm:w-4 sm:h-4" />
                         ) : null}
                       </button>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                           <Badge
                             variant="outline"
                             className={`text-[10px] sm:text-xs px-1.5 py-0 ${
@@ -459,7 +459,7 @@ const StudyPlan = () => {
                                 : 'bg-purple-50 text-purple-600 border-purple-200'
                             }`}
                           >
-                            Day {day.day_number}
+                            День {day.day_number}
                           </Badge>
                           <span className="text-[10px] sm:text-xs text-gray-400">
                             {getDayDate(selectedPlan.created_at, day.day_number)}
@@ -469,12 +469,12 @@ const StudyPlan = () => {
                             className="text-[10px] sm:text-xs px-1.5 py-0 bg-blue-50 text-blue-600 border-blue-200"
                           >
                             <Icon name="Clock" size={10} className="mr-0.5" />
-                            {day.minutes} min
+                            {day.minutes} мин
                           </Badge>
                         </div>
 
                         <h3
-                          className={`text-sm sm:text-base font-bold mt-1.5 ${
+                          className={`text-sm sm:text-base font-bold mt-1 sm:mt-1.5 ${
                             day.is_completed ? 'text-green-700 line-through decoration-2' : 'text-gray-800'
                           }`}
                         >
@@ -490,9 +490,9 @@ const StudyPlan = () => {
                         </p>
 
                         {day.is_completed && day.completed_at && (
-                          <p className="text-[10px] text-green-500 mt-2 flex items-center gap-1">
+                          <p className="text-[10px] text-green-500 mt-1.5 sm:mt-2 flex items-center gap-1">
                             <Icon name="CheckCircle2" size={10} />
-                            Completed {new Date(day.completed_at).toLocaleDateString('ru-RU', {
+                            Выполнено {new Date(day.completed_at).toLocaleDateString('ru-RU', {
                               day: 'numeric',
                               month: 'short',
                               hour: '2-digit',
@@ -509,19 +509,19 @@ const StudyPlan = () => {
           </div>
 
           {/* Delete button */}
-          <div className="pt-4 pb-8">
+          <div className="pt-3 sm:pt-4 pb-6 sm:pb-8">
             <Button
               variant="outline"
               onClick={() => handleDelete(selectedPlan.id)}
               disabled={deleting}
-              className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 h-11"
+              className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 h-10 sm:h-11 text-sm"
             >
               {deleting ? (
                 <Icon name="Loader2" size={18} className="animate-spin mr-2" />
               ) : (
                 <Icon name="Trash2" size={18} className="mr-2" />
               )}
-              Delete plan
+              {deleting ? 'Удаление...' : 'Удалить план'}
             </Button>
           </div>
         </main>
@@ -547,7 +547,7 @@ const StudyPlan = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
         <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+          <div className="max-w-2xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
             <div className="flex items-center gap-2 sm:gap-3">
               <Button
                 variant="ghost"
@@ -559,51 +559,51 @@ const StudyPlan = () => {
               </Button>
               <div>
                 <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  New study plan
+                  Новый план подготовки
                 </h1>
-                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">AI will generate a personalized plan</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">ИИ сгенерирует персональный план</p>
               </div>
             </div>
           </div>
         </header>
 
-        <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <Card className="p-5 sm:p-8 border-2 border-purple-200/50 shadow-lg">
-            <div className="space-y-5 sm:space-y-6">
+        <main className="max-w-2xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
+          <Card className="p-3 sm:p-5 md:p-8 border-2 border-purple-200/50 shadow-lg">
+            <div className="space-y-4 sm:space-y-6">
               {/* Subject */}
               <div>
-                <Label className="text-sm font-semibold text-gray-700">Subject *</Label>
+                <Label className="text-sm font-semibold text-gray-700">Предмет *</Label>
                 <Input
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  placeholder="e.g. Mathematical analysis"
-                  className="mt-2 h-11 text-sm border-2 focus:border-purple-400"
+                  placeholder="Например: Математический анализ"
+                  className="mt-1.5 sm:mt-2 h-10 sm:h-11 text-sm border-2 focus:border-purple-400"
                   maxLength={200}
                 />
               </div>
 
               {/* Exam date */}
               <div>
-                <Label className="text-sm font-semibold text-gray-700">Exam date *</Label>
+                <Label className="text-sm font-semibold text-gray-700">Дата экзамена *</Label>
                 <Input
                   type="date"
                   value={examDate}
                   onChange={(e) => setExamDate(e.target.value)}
                   min={minDateStr}
-                  className="mt-2 h-11 text-sm border-2 focus:border-purple-400"
+                  className="mt-1.5 sm:mt-2 h-10 sm:h-11 text-sm border-2 focus:border-purple-400"
                 />
                 {examDate && getDaysUntil(examDate) > 0 && (
                   <p className="text-xs text-purple-600 mt-1.5 flex items-center gap-1">
                     <Icon name="Calendar" size={12} />
-                    {getDaysUntil(examDate)} {getDaysWord(getDaysUntil(examDate))} until the exam (plan for {Math.min(getDaysUntil(examDate), 30)} days)
+                    {getDaysUntil(examDate)} {getDaysWord(getDaysUntil(examDate))} до экзамена (план на {Math.min(getDaysUntil(examDate), 30)} {getDaysWord(Math.min(getDaysUntil(examDate), 30))})
                   </p>
                 )}
               </div>
 
               {/* Difficulty */}
               <div>
-                <Label className="text-sm font-semibold text-gray-700">Difficulty</Label>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-2">
+                <Label className="text-sm font-semibold text-gray-700">Сложность</Label>
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-1.5 sm:mt-2">
                   {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => {
                     const isActive = difficulty === d;
                     const conf = DIFFICULTY_CONFIG[d];
@@ -612,7 +612,7 @@ const StudyPlan = () => {
                         key={d}
                         type="button"
                         onClick={() => setDifficulty(d)}
-                        className={`py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${
+                        className={`py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl border-2 text-xs sm:text-sm font-semibold transition-all duration-200 ${
                           isActive
                             ? `${conf.bg} ${conf.color} ${conf.border} shadow-md scale-[1.02]`
                             : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
@@ -630,12 +630,12 @@ const StudyPlan = () => {
 
               {/* Notes */}
               <div>
-                <Label className="text-sm font-semibold text-gray-700">Notes (optional)</Label>
+                <Label className="text-sm font-semibold text-gray-700">Заметки (необязательно)</Label>
                 <Textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Focus areas, weak topics, etc."
-                  className="mt-2 min-h-[80px] text-sm border-2 focus:border-purple-400 resize-none"
+                  placeholder="Акцент на темах, слабые места и т.д."
+                  className="mt-1.5 sm:mt-2 min-h-[80px] text-sm border-2 focus:border-purple-400 resize-none"
                   maxLength={1000}
                 />
               </div>
@@ -644,17 +644,17 @@ const StudyPlan = () => {
               <Button
                 onClick={handleGenerate}
                 disabled={generating || !subject.trim() || !examDate}
-                className="w-full h-12 sm:h-14 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30 rounded-xl text-sm sm:text-base font-bold transition-all duration-300 hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-11 sm:h-14 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30 rounded-xl text-sm sm:text-base font-bold transition-all duration-300 hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {generating ? (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <Icon name="Loader2" size={20} className="animate-spin" />
-                    <span>AI is generating the plan...</span>
+                    <span>Генерация...</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
                     <Icon name="Sparkles" size={20} />
-                    <span>Generate with AI</span>
+                    <span>Сгенерировать план</span>
                   </div>
                 )}
               </Button>
@@ -662,7 +662,7 @@ const StudyPlan = () => {
               {generating && (
                 <div className="text-center">
                   <p className="text-xs text-purple-600/70 animate-pulse">
-                    This may take 10-20 seconds. AI is analyzing your materials and building a plan...
+                    Это может занять 10-20 секунд. ИИ анализирует материалы и составляет план...
                   </p>
                 </div>
               )}
@@ -687,7 +687,7 @@ const StudyPlan = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
               <Button
@@ -700,9 +700,9 @@ const StudyPlan = () => {
               </Button>
               <div>
                 <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-2">
-                  <span>🧠</span> Study plan
+                  <span>🧠</span> План подготовки
                 </h1>
-                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">AI-powered exam preparation</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">Подготовка к экзаменам с ИИ</p>
               </div>
             </div>
             <Button
@@ -710,128 +710,130 @@ const StudyPlan = () => {
               className="bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30 rounded-xl text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-5"
             >
               <Icon name="Plus" size={16} className="mr-1 sm:mr-1.5" />
-              Create plan
+              Создать план
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 space-y-3 sm:space-y-4">
         {plans.length === 0 ? (
           /* Empty state */
-          <Card className="p-8 sm:p-16 text-center border-2 border-dashed border-purple-200">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-violet-100 to-fuchsia-100 flex items-center justify-center">
-                <span className="text-4xl sm:text-5xl">🧠</span>
+          <Card className="p-6 sm:p-16 text-center border-2 border-dashed border-purple-200">
+            <div className="flex flex-col items-center gap-3 sm:gap-4">
+              <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-violet-100 to-fuchsia-100 flex items-center justify-center">
+                <span className="text-3xl sm:text-5xl">🧠</span>
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">No study plans yet</h3>
-                <p className="text-sm text-gray-500 max-w-md mx-auto">
-                  Create your first AI-powered exam preparation plan based on your materials
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2">Пока нет планов</h3>
+                <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto">
+                  Создайте свой первый план подготовки к экзамену с помощью ИИ
                 </p>
               </div>
               <Button
                 onClick={() => setView('create')}
-                className="mt-2 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30 rounded-xl h-11 px-6"
+                className="mt-1 sm:mt-2 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30 rounded-xl h-10 sm:h-11 px-5 sm:px-6 text-sm"
               >
                 <Icon name="Sparkles" size={18} className="mr-2" />
-                Create plan
+                Создать план
               </Button>
             </div>
           </Card>
         ) : (
           /* Plans list */
-          plans.map((plan) => {
-            const progressPercent =
-              plan.total_days > 0 ? Math.round((plan.completed_days / plan.total_days) * 100) : 0;
-            const daysUntilExam = getDaysUntil(plan.exam_date);
-            const diffConf = DIFFICULTY_CONFIG[plan.difficulty as Difficulty] || DIFFICULTY_CONFIG.medium;
+          <div className="grid grid-cols-1 gap-3 sm:gap-4">
+            {plans.map((plan) => {
+              const progressPercent =
+                plan.total_days > 0 ? Math.round((plan.completed_days / plan.total_days) * 100) : 0;
+              const daysUntilExam = getDaysUntil(plan.exam_date);
+              const diffConf = DIFFICULTY_CONFIG[plan.difficulty as Difficulty] || DIFFICULTY_CONFIG.medium;
 
-            return (
-              <Card
-                key={plan.id}
-                onClick={() => loadPlanDetail(plan.id)}
-                className="p-4 sm:p-5 cursor-pointer bg-white border-2 border-gray-100 hover:border-purple-300 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 hover:scale-[1.01]"
-              >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  {/* Icon */}
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg flex-shrink-0">
-                    <span className="text-xl sm:text-2xl">🧠</span>
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm sm:text-base font-bold text-gray-800 truncate">
-                        {plan.subject}
-                      </h3>
-                      <Badge
-                        className={`${diffConf.bg} ${diffConf.color} ${diffConf.border} border text-[10px] px-1.5 py-0`}
-                      >
-                        {diffConf.label}
-                      </Badge>
+              return (
+                <Card
+                  key={plan.id}
+                  onClick={() => loadPlanDetail(plan.id)}
+                  className="p-3 sm:p-5 cursor-pointer bg-white border-2 border-gray-100 hover:border-purple-300 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 hover:scale-[1.01]"
+                >
+                  <div className="flex items-start gap-2.5 sm:gap-4">
+                    {/* Icon */}
+                    <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg flex-shrink-0">
+                      <span className="text-lg sm:text-2xl">🧠</span>
                     </div>
 
-                    <p className="text-xs text-gray-500 mt-1">
-                      Exam: {formatDate(plan.exam_date)}
-                    </p>
-
-                    {/* Progress bar */}
-                    <div className="mt-2.5">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] sm:text-xs text-gray-400 font-medium">
-                          {plan.completed_days}/{plan.total_days} days
-                        </span>
-                        <span className="text-[10px] sm:text-xs font-bold text-purple-600">
-                          {progressPercent}%
-                        </span>
-                      </div>
-                      <div className="relative w-full h-2 rounded-full bg-purple-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
-                          style={{ width: `${progressPercent}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Badges */}
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      {daysUntilExam > 0 ? (
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <h3 className="text-sm sm:text-base font-bold text-gray-800 truncate">
+                          {plan.subject}
+                        </h3>
                         <Badge
-                          variant="outline"
-                          className={`text-[10px] px-1.5 py-0 ${
-                            daysUntilExam <= 3
-                              ? 'border-red-300 text-red-600 bg-red-50'
-                              : daysUntilExam <= 7
-                              ? 'border-amber-300 text-amber-600 bg-amber-50'
-                              : 'border-purple-200 text-purple-600 bg-purple-50'
-                          }`}
+                          className={`${diffConf.bg} ${diffConf.color} ${diffConf.border} border text-[10px] px-1.5 py-0`}
                         >
-                          <Icon name="Clock" size={10} className="mr-0.5" />
-                          {daysUntilExam} {getDaysWord(daysUntilExam)} left
+                          {diffConf.label}
                         </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0 border-gray-300 text-gray-500 bg-gray-50"
-                        >
-                          Exam passed
-                        </Badge>
-                      )}
-                      {progressPercent === 100 && (
-                        <Badge className="bg-green-100 text-green-700 border border-green-300 text-[10px] px-1.5 py-0">
-                          Completed!
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+                      </div>
 
-                  {/* Arrow */}
-                  <Icon name="ChevronRight" size={20} className="text-gray-400 flex-shrink-0 mt-1" />
-                </div>
-              </Card>
-            );
-          })
+                      <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">
+                        Экзамен: {formatDate(plan.exam_date)}
+                      </p>
+
+                      {/* Progress bar */}
+                      <div className="mt-2 sm:mt-2.5">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] sm:text-xs text-gray-400 font-medium">
+                            {plan.completed_days}/{plan.total_days} {getDaysWord(plan.total_days)}
+                          </span>
+                          <span className="text-[10px] sm:text-xs font-bold text-purple-600">
+                            {progressPercent}%
+                          </span>
+                        </div>
+                        <div className="relative w-full h-1.5 sm:h-2 rounded-full bg-purple-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Badges */}
+                      <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 flex-wrap">
+                        {daysUntilExam > 0 ? (
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] px-1.5 py-0 ${
+                              daysUntilExam <= 3
+                                ? 'border-red-300 text-red-600 bg-red-50'
+                                : daysUntilExam <= 7
+                                ? 'border-amber-300 text-amber-600 bg-amber-50'
+                                : 'border-purple-200 text-purple-600 bg-purple-50'
+                            }`}
+                          >
+                            <Icon name="Clock" size={10} className="mr-0.5" />
+                            {daysUntilExam} {getDaysWord(daysUntilExam)} осталось
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 border-gray-300 text-gray-500 bg-gray-50"
+                          >
+                            Экзамен прошёл
+                          </Badge>
+                        )}
+                        {progressPercent === 100 && (
+                          <Badge className="bg-green-100 text-green-700 border border-green-300 text-[10px] px-1.5 py-0">
+                            Выполнено!
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Arrow */}
+                    <Icon name="ChevronRight" size={20} className="text-gray-400 flex-shrink-0 mt-1" />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         )}
       </main>
 

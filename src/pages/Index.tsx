@@ -18,6 +18,7 @@ import LimitsIndicator from '@/components/LimitsIndicator';
 import NotificationBell from '@/components/NotificationBell';
 import ScheduleExport from '@/components/ScheduleExport';
 import GoogleCalendarSync from '@/components/GoogleCalendarSync';
+import BottomNav from '@/components/BottomNav';
 
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { trackActivity } from '@/lib/gamification';
@@ -375,7 +376,7 @@ const Index = () => {
                 <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Studyfay
                 </h1>
-                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">ИИ-помощник студента</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">Твой умный помощник в учёбе</p>
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
@@ -425,10 +426,47 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-0">
         <NotificationPrompt />
         
         <LimitsIndicator compact />
+
+        {user && (
+          <Card className="mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 border-0 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <div>
+                  <p className="text-white/80 text-xs sm:text-sm">
+                    {new Date().getHours() < 12 ? 'Доброе утро' : new Date().getHours() < 18 ? 'Добрый день' : 'Добрый вечер'}, {user.name?.split(' ')[0] || 'студент'}!
+                  </p>
+                  <h2 className="text-white font-bold text-base sm:text-lg mt-0.5">
+                    {activeTasks.length > 0
+                      ? `${activeTasks.length} ${activeTasks.length === 1 ? 'задача' : activeTasks.length < 5 ? 'задачи' : 'задач'} на сегодня`
+                      : 'Все задачи выполнены!'}
+                  </h2>
+                </div>
+                <div className="text-3xl sm:text-4xl">
+                  {completionRate >= 80 ? '🔥' : completionRate >= 50 ? '💪' : activeTasks.length === 0 ? '🎉' : '📚'}
+                </div>
+              </div>
+              {tasks.length > 0 && (
+                <div className="bg-white/20 rounded-full h-2 sm:h-2.5 overflow-hidden">
+                  <div
+                    className="bg-white rounded-full h-full transition-all duration-500"
+                    style={{ width: `${completionRate}%` }}
+                  />
+                </div>
+              )}
+              {highPriorityTasks.length > 0 && (
+                <p className="text-white/70 text-[10px] sm:text-xs mt-2">
+                  {highPriorityTasks.length} важн{highPriorityTasks.length === 1 ? 'ая' : 'ых'} • {overdueTasks.length > 0 ? `${overdueTasks.length} просрочен${overdueTasks.length === 1 ? 'а' : 'о'}` : 'всё вовремя'}
+                </p>
+              )}
+            </div>
+          </Card>
+        )}
         
         <Card 
           onClick={() => navigate('/study-plan')}
@@ -1099,6 +1137,8 @@ const Index = () => {
         isOpen={isExamReminderOpen} 
         onClose={() => setIsExamReminderOpen(false)} 
       />
+
+      <BottomNav />
     </div>
   );
 };

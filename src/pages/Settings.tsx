@@ -113,18 +113,28 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            onClick={() => navigate('/profile')}
-            variant="ghost"
-          >
-            <Icon name="ArrowLeft" size={18} className="mr-2" />
-            Назад
-          </Button>
-          <h1 className="text-2xl font-bold text-gray-900">Настройки уведомлений</h1>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/profile')}
+              className="rounded-xl hover:bg-purple-100/50 h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
+            >
+              <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
+            </Button>
+            <div>
+              <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Настройки
+              </h1>
+              <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">Уведомления и предпочтения</p>
+            </div>
+          </div>
         </div>
+      </header>
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
 
         <div className="space-y-6">
           {/* Общие настройки */}
