@@ -14,7 +14,7 @@ ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 client = OpenAI(
     api_key=ARTEMOX_API_KEY,
     base_url='https://api.artemox.com/v1',
-    timeout=25.0
+    timeout=55.0
 )
 
 CORS_HEADERS = {
@@ -210,7 +210,7 @@ def get_context(conn, user_id, material_ids):
                 parts.append(text[:1500])
         cur.close()
         result = "\n\n".join(parts)
-        return result[:3000]
+        return result[:6000]
     except Exception as e:
         print(f"[AI] context error: {e}", flush=True)
         cur.close()
@@ -271,17 +271,28 @@ def extract_title(question, action):
 def ask_ai(question, context):
     """Запрос к ИИ — ВСЕГДА возвращает ответ, никогда None"""
     has_context = bool(context and len(context) > 50)
-    ctx_trimmed = context[:2000] if has_context else ""
+    ctx_trimmed = context[:4000] if has_context else ""
 
     if has_context:
-        system = f"""Ты Studyfay — ИИ-репетитор. Русский язык. Кратко, по делу.
+        system = f"""Ты Studyfay — ИИ-репетитор для студентов. Язык: русский.
 
-МАТЕРИАЛЫ:
+МАТЕРИАЛЫ СТУДЕНТА:
 {ctx_trimmed}
 
-Отвечай по материалам. Если нет ответа — используй знания. **Жирный** для терминов. Списки."""
+Правила:
+- Отвечай подробно и до конца, ВСЕГДА завершай последнее предложение
+- Используй материалы студента как основу, дополняй своими знаниями
+- Используй **жирный** для терминов, нумерованные списки для шагов
+- Если тема сложная — объясни простым языком с примерами
+- Никогда не обрывай ответ на полуслове"""
     else:
-        system = "Ты Studyfay — ИИ-репетитор. Русский. Кратко, по делу, с примерами. **Жирный** для терминов."
+        system = """Ты Studyfay — ИИ-репетитор для студентов. Язык: русский.
+
+Правила:
+- Отвечай подробно и до конца, ВСЕГДА завершай последнее предложение
+- Используй **жирный** для терминов, нумерованные списки для шагов
+- Объясняй простым языком с примерами из жизни
+- Никогда не обрывай ответ на полуслове"""
 
     try:
         print(f"[AI] request to Artemox", flush=True)
@@ -292,12 +303,14 @@ def ask_ai(question, context):
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
-            max_tokens=700,
-            timeout=25.0
+            max_tokens=1500,
+            timeout=55.0
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
         print(f"[AI] OK tokens:{tokens}", flush=True)
+        if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
+            answer = answer.rstrip() + '.'
         return answer, tokens
     except Exception as e:
         print(f"[AI] ERROR: {type(e).__name__}: {e}", flush=True)

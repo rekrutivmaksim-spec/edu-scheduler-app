@@ -24,6 +24,62 @@ interface Message {
   timestamp: Date;
 }
 
+const THINKING_STAGES = [
+  { text: 'Анализирую вопрос...', duration: 2000 },
+  { text: 'Ищу в материалах...', duration: 3000 },
+  { text: 'Формулирую ответ...', duration: 4000 },
+  { text: 'Проверяю точность...', duration: 5000 },
+  { text: 'Дополняю примерами...', duration: 8000 },
+];
+
+const THINKING_STAGES_NO_MATERIALS = [
+  { text: 'Анализирую вопрос...', duration: 2000 },
+  { text: 'Подбираю информацию...', duration: 3000 },
+  { text: 'Формулирую ответ...', duration: 4000 },
+  { text: 'Проверяю точность...', duration: 6000 },
+  { text: 'Финальная проверка...', duration: 8000 },
+];
+
+const ThinkingIndicator = ({ hasMaterials, elapsed }: { hasMaterials: boolean; elapsed: number }) => {
+  const stages = hasMaterials ? THINKING_STAGES : THINKING_STAGES_NO_MATERIALS;
+  let cumulative = 0;
+  let currentStage = stages[0];
+  for (const stage of stages) {
+    cumulative += stage.duration;
+    if (elapsed < cumulative) {
+      currentStage = stage;
+      break;
+    }
+    currentStage = stage;
+  }
+
+  return (
+    <div className="flex gap-2.5 justify-start">
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+        <Icon name="Sparkles" size={16} className="text-white animate-pulse" />
+      </div>
+      <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3 max-w-[85%]">
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className="relative w-4 h-4">
+            <div className="absolute inset-0 rounded-full border-2 border-purple-200" />
+            <div className="absolute inset-0 rounded-full border-2 border-purple-600 border-t-transparent animate-spin" />
+          </div>
+          <span className="text-sm font-medium text-purple-700">{currentStage.text}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-1 flex-1 bg-gray-200 rounded-full overflow-hidden max-w-[180px]">
+            <div 
+              className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `${Math.min(95, (elapsed / 30000) * 100)}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-gray-400 tabular-nums">{Math.floor(elapsed / 1000)}с</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Assistant = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,6 +93,8 @@ const Assistant = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [showMaterialPicker, setShowMaterialPicker] = useState(false);
+  const [thinkingElapsed, setThinkingElapsed] = useState(0);
+  const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -65,6 +123,23 @@ const Assistant = () => {
     }
   };
 
+  const startThinking = () => {
+    setThinkingElapsed(0);
+    if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
+    const start = Date.now();
+    thinkingTimerRef.current = setInterval(() => {
+      setThinkingElapsed(Date.now() - start);
+    }, 200);
+  };
+
+  const stopThinking = () => {
+    if (thinkingTimerRef.current) {
+      clearInterval(thinkingTimerRef.current);
+      thinkingTimerRef.current = null;
+    }
+    setThinkingElapsed(0);
+  };
+
   const sendMessage = useCallback(async (text?: string) => {
     const q = (text || question).trim();
     if (!q || isLoading) return;
@@ -73,72 +148,58 @@ const Assistant = () => {
     setMessages(prev => [...prev, userMsg]);
     setQuestion('');
     setIsLoading(true);
-
-    const doRequest = async (attempt: number): Promise<boolean> => {
-      try {
-        const token = authService.getToken();
-        const controller = new AbortController();
-        const timeoutMs = attempt === 1 ? 28000 : 20000;
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-        const resp = await fetch(AI_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ question: q, material_ids: selectedMaterials }),
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.remaining !== undefined) setRemaining(data.remaining);
-          const aiMsg: Message = { role: 'assistant', content: data.answer, timestamp: new Date() };
-          setMessages(prev => [...prev, aiMsg]);
-          try {
-            const gam = await trackActivity('ai_questions_asked', 1);
-            if (gam?.new_achievements?.length) {
-              gam.new_achievements.forEach((a: { title: string; xp_reward: number }) => {
-                toast({ title: `🏆 ${a.title}`, description: `+${a.xp_reward} XP` });
-              });
-            }
-          } catch (e) {
-            console.warn('Gamification:', e);
-          }
-          return true;
-        } else if (resp.status === 403) {
-          const data = await resp.json();
-          const aiMsg: Message = {
-            role: 'assistant',
-            content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
-            timestamp: new Date()
-          };
-          setMessages(prev => [...prev, aiMsg]);
-          setRemaining(0);
-          return true;
-        }
-        return false;
-      } catch {
-        return false;
-      }
-    };
+    startThinking();
 
     try {
-      const ok = await doRequest(1);
-      if (!ok) {
-        const ok2 = await doRequest(2);
-        if (!ok2) {
-          const aiMsg: Message = {
-            role: 'assistant',
-            content: 'Сервер сейчас загружен — попробуй через пару секунд, я обязательно отвечу!',
-            timestamp: new Date()
-          };
-          setMessages(prev => [...prev, aiMsg]);
+      const token = authService.getToken();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      const resp = await fetch(AI_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ question: q, material_ids: selectedMaterials }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.remaining !== undefined) setRemaining(data.remaining);
+        const aiMsg: Message = { role: 'assistant', content: data.answer, timestamp: new Date() };
+        setMessages(prev => [...prev, aiMsg]);
+        try {
+          const gam = await trackActivity('ai_questions_asked', 1);
+          if (gam?.new_achievements?.length) {
+            gam.new_achievements.forEach((a: { title: string; xp_reward: number }) => {
+              toast({ title: `🏆 ${a.title}`, description: `+${a.xp_reward} XP` });
+            });
+          }
+        } catch (e) {
+          console.warn('Gamification:', e);
         }
+      } else if (resp.status === 403) {
+        const data = await resp.json();
+        const aiMsg: Message = {
+          role: 'assistant',
+          content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiMsg]);
+        setRemaining(0);
+      } else {
+        throw new Error('server_error');
       }
-    } catch {
-      // ignore
+    } catch (_) {
+      const aiMsg: Message = {
+        role: 'assistant',
+        content: 'Сейчас много запросов — попробуй ещё раз через несколько секунд.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMsg]);
     } finally {
+      stopThinking();
       setIsLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
@@ -176,7 +237,12 @@ const Assistant = () => {
             <div>
               <h1 className="text-lg font-bold text-gray-900">Studyfay</h1>
               <p className="text-xs text-gray-500">
-                {isLoading ? 'Думаю...' : remaining !== null ? `Осталось ${remaining} вопросов` : 'ИИ-ассистент'}
+                {isLoading ? (
+                  <span className="text-purple-600 font-medium flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
+                    Думаю... {thinkingElapsed > 0 ? `${Math.floor(thinkingElapsed / 1000)}с` : ''}
+                  </span>
+                ) : remaining !== null ? `Осталось ${remaining} вопросов` : 'ИИ-ассистент'}
               </p>
             </div>
           </div>
@@ -307,18 +373,7 @@ const Assistant = () => {
               ))}
 
               {isLoading && (
-                <div className="flex gap-2.5 justify-start">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                    <Icon name="Sparkles" size={16} className="text-white animate-pulse" />
-                  </div>
-                  <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
-                    <div className="flex gap-1.5 items-center">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
+                <ThinkingIndicator hasMaterials={selectedMaterials.length > 0} elapsed={thinkingElapsed} />
               )}
               <div ref={messagesEndRef} />
             </div>
