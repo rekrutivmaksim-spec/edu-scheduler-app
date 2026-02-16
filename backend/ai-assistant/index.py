@@ -3,18 +3,30 @@ import os
 import jwt
 import psycopg2
 import hashlib
+import httpx
 from datetime import datetime, timedelta
 from openai import OpenAI
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 
-client = OpenAI(
+ds_http = httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0))
+client_deepseek = OpenAI(
+    api_key=DEEPSEEK_API_KEY,
+    base_url='https://api.deepseek.com/v1',
+    timeout=20.0,
+    http_client=ds_http
+) if DEEPSEEK_API_KEY else None
+
+ax_http = httpx.Client(timeout=httpx.Timeout(18.0, connect=5.0))
+client_artemox = OpenAI(
     api_key=ARTEMOX_API_KEY,
     base_url='https://api.artemox.com/v1',
-    timeout=55.0
+    timeout=18.0,
+    http_client=ax_http
 )
 
 CORS_HEADERS = {
@@ -269,52 +281,56 @@ def extract_title(question, action):
     return question[:100]
 
 def ask_ai(question, context):
-    """Запрос к ИИ — ВСЕГДА возвращает ответ, никогда None"""
+    """Запрос к ИИ — пробует DeepSeek напрямую, потом Artemox, потом fallback"""
     has_context = bool(context and len(context) > 50)
-    ctx_trimmed = context[:4000] if has_context else ""
+    ctx_trimmed = context[:3000] if has_context else ""
 
     if has_context:
-        system = f"""Ты Studyfay — ИИ-репетитор для студентов. Язык: русский.
-
-МАТЕРИАЛЫ СТУДЕНТА:
-{ctx_trimmed}
-
-Правила:
-- Отвечай подробно и до конца, ВСЕГДА завершай последнее предложение
-- Используй материалы студента как основу, дополняй своими знаниями
-- Используй **жирный** для терминов, нумерованные списки для шагов
-- Если тема сложная — объясни простым языком с примерами
-- Никогда не обрывай ответ на полуслове"""
+        system = f"Ты Studyfay — ИИ-репетитор. Русский. Завершай мысль.\n\nМАТЕРИАЛЫ:\n{ctx_trimmed}\n\nОтвечай по материалам. **Жирный** для терминов."
     else:
-        system = """Ты Studyfay — ИИ-репетитор для студентов. Язык: русский.
+        system = "Ты Studyfay — ИИ-репетитор. Русский. Завершай мысль. **Жирный** для терминов. Примеры."
 
-Правила:
-- Отвечай подробно и до конца, ВСЕГДА завершай последнее предложение
-- Используй **жирный** для терминов, нумерованные списки для шагов
-- Объясняй простым языком с примерами из жизни
-- Никогда не обрывай ответ на полуслове"""
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": question[:500]}
+    ]
+
+    if client_deepseek:
+        try:
+            print(f"[AI] try DeepSeek direct", flush=True)
+            resp = client_deepseek.chat.completions.create(
+                model="deepseek-chat",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+            )
+            answer = resp.choices[0].message.content
+            tokens = resp.usage.total_tokens if resp.usage else 0
+            print(f"[AI] DeepSeek OK tokens:{tokens}", flush=True)
+            if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
+                answer = answer.rstrip() + '.'
+            return answer, tokens
+        except Exception as e:
+            print(f"[AI] DeepSeek FAIL: {type(e).__name__}: {e}", flush=True)
 
     try:
-        print(f"[AI] request to Artemox", flush=True)
-        resp = client.chat.completions.create(
+        print(f"[AI] try Artemox", flush=True)
+        resp = client_artemox.chat.completions.create(
             model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": question}
-            ],
+            messages=messages,
             temperature=0.7,
-            max_tokens=1500,
-            timeout=55.0
+            max_tokens=1024,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
-        print(f"[AI] OK tokens:{tokens}", flush=True)
+        print(f"[AI] Artemox OK tokens:{tokens}", flush=True)
         if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
             answer = answer.rstrip() + '.'
         return answer, tokens
     except Exception as e:
-        print(f"[AI] ERROR: {type(e).__name__}: {e}", flush=True)
-        return build_smart_fallback(question, context), 0
+        print(f"[AI] Artemox FAIL: {type(e).__name__}: {e}", flush=True)
+
+    return build_smart_fallback(question, context), 0
 
 def build_smart_fallback(question, context):
     """Умный fallback — ВСЕГДА даёт полезный ответ по вопросу и материалам"""
