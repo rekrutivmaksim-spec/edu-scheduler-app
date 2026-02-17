@@ -1,4 +1,4 @@
-"""API для генерации ИИ-планов подготовки к экзаменам (Premium-only)"""
+"""API для генерации ИИ-планов подготовки к экзаменам (Premium)"""
 
 import json
 import os
@@ -18,7 +18,7 @@ ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 ai_client = OpenAI(
     api_key=ARTEMOX_API_KEY,
     base_url='https://api.artemox.com/v1',
-    timeout=30.0
+    timeout=25.0
 )
 
 CORS_HEADERS = {
@@ -136,7 +136,7 @@ def load_material_context(conn, user_id: int, subject: str) -> str:
 
 def generate_plan_with_ai(subject: str, difficulty: str, days_left: int, context: str) -> list:
     """Calls the AI to generate a structured study plan. Returns list of day dicts."""
-    capped_days = min(days_left, 30)
+    capped_days = min(days_left, 14)
 
     difficulty_label = {'easy': 'Лёгкая', 'medium': 'Средняя', 'hard': 'Высокая'}.get(difficulty, 'Средняя')
 
@@ -148,7 +148,7 @@ def generate_plan_with_ai(subject: str, difficulty: str, days_left: int, context
         f"Сложность: {difficulty_label}\n"
         f"Дней до экзамена: {capped_days}\n"
         f"Материалы студента: {context_section}\n\n"
-        f"Создай план на {capped_days} дней (максимум 30). Для каждого дня укажи:\n"
+        f"Создай план на {capped_days} дней (максимум 14). Для каждого дня укажи:\n"
         "- Номер дня\n"
         "- Название темы\n"
         "- Что изучать (2-3 пункта)\n"
@@ -169,7 +169,7 @@ def generate_plan_with_ai(subject: str, difficulty: str, days_left: int, context
             {'role': 'user', 'content': f'Создай план подготовки к экзамену по предмету "{subject}" на {capped_days} дней.'},
         ],
         temperature=0.7,
-        max_tokens=4000,
+        max_tokens=2500,
     )
 
     raw = response.choices[0].message.content.strip()
@@ -445,8 +445,8 @@ def handler(event: dict, context) -> dict:
             'body': '',
         }
 
-    # Auth
-    auth_header = event.get('headers', {}).get('X-Authorization', '')
+    hdrs = event.get('headers', {})
+    auth_header = hdrs.get('X-Authorization') or hdrs.get('x-authorization') or hdrs.get('Authorization') or hdrs.get('authorization') or ''
     token = auth_header.replace('Bearer ', '')
     if not token:
         return resp(401, {'error': 'Требуется авторизация'})

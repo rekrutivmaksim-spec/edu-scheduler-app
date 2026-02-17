@@ -41,7 +41,7 @@ export default function NotificationBell() {
       if (!token) return;
 
       const response = await fetch(`${NOTIFICATIONS_URL}?action=list&limit=10`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
@@ -63,7 +63,7 @@ export default function NotificationBell() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'X-Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ notification_id: notificationId, is_read: true })
       });

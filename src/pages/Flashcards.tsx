@@ -149,7 +149,7 @@ const Flashcards = () => {
       const res = await fetch(`${MATERIALS_URL}?action=list`, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'X-Authorization': `Bearer ${token}`,
         },
       });
       if (res.ok) {
@@ -321,7 +321,7 @@ const Flashcards = () => {
   // --- SETS LIST ---
 
   const renderSetsView = () => (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
         {renderHeader('Флеш-карточки')}
 
@@ -461,7 +461,7 @@ const Flashcards = () => {
   // --- MATERIAL SELECTOR ---
 
   const renderMaterialSelector = () => (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
         {renderHeader('Выбор материалов', true)}
 
@@ -558,7 +558,7 @@ const Flashcards = () => {
   const renderStudyView = () => {
     if (loadingCards) {
       return (
-        <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30 flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
           <div className="flex flex-col items-center">
             <Icon name="Loader2" size={32} className="animate-spin text-purple-500 mb-3" />
             <p className="text-gray-500 text-sm">Загрузка карточек...</p>
@@ -569,7 +569,7 @@ const Flashcards = () => {
 
     if (cards.length === 0) {
       return (
-        <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+        <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
           <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
             {renderHeader(view === 'review' ? 'Повторение' : 'Изучение', true)}
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -590,7 +590,7 @@ const Flashcards = () => {
     const progress = ((currentIndex + 1) / cards.length) * 100;
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
         <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
           {/* Header */}
           <div className="flex items-center gap-3 mb-4">
@@ -738,7 +738,7 @@ const Flashcards = () => {
     const easyPercent = total > 0 ? Math.round((studyResults.easy / total) * 100) : 0;
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
         <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
           <div className="flex flex-col items-center justify-center py-8">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center mb-5">

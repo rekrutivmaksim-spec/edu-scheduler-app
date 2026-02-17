@@ -35,7 +35,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();

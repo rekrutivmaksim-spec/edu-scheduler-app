@@ -1,4 +1,4 @@
-"""API геймификации: стрики, достижения, XP, уровни, квесты, награды за стрик"""
+"""API геймификации: стрики, достижения, XP, уровни, квесты и награды"""
 
 import json
 import os
@@ -674,7 +674,8 @@ def handler(event: dict, context) -> dict:
             finally:
                 conn.close()
 
-    auth_header = event.get('headers', {}).get('X-Authorization', '')
+    hdrs = event.get('headers', {})
+    auth_header = hdrs.get('X-Authorization') or hdrs.get('x-authorization') or hdrs.get('Authorization') or hdrs.get('authorization') or ''
     token = auth_header.replace('Bearer ', '')
     if not token:
         return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': '\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044f \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f'})}

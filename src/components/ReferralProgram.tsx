@@ -35,7 +35,7 @@ const ReferralProgram = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${SUBSCRIPTION_URL}?action=referral`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
       
       if (response.ok) {
@@ -76,7 +76,7 @@ const ReferralProgram = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'X-Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'use_referral',

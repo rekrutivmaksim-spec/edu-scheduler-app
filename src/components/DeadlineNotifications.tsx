@@ -33,7 +33,7 @@ const DeadlineNotifications = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${NOTIFICATIONS_URL}?action=list&limit=5`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {

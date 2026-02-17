@@ -30,7 +30,7 @@ const PaymentSetup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6 pt-6">
           <Button

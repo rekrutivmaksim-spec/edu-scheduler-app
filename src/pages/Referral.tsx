@@ -49,7 +49,7 @@ export default function Referral() {
     try {
       const token = authService.getToken();
       const resp = await fetch(`${SUBSCRIPTION_URL}?action=referral`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
       if (resp.ok) {
         setData(await resp.json());
@@ -90,7 +90,7 @@ export default function Referral() {
       const token = authService.getToken();
       const resp = await fetch(SUBSCRIPTION_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'X-Authorization': `Bearer ${token}` },
         body: JSON.stringify({ action: 'use_referral', referral_code: code.trim().toUpperCase() })
       });
       const result = await resp.json();
@@ -110,7 +110,7 @@ export default function Referral() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
         <Icon name="Loader2" size={32} className="animate-spin text-purple-500" />
       </div>
     );
@@ -118,7 +118,7 @@ export default function Referral() {
 
   if (!data) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
         <Card className="p-8 text-center">
           <p className="text-gray-600">Не удалось загрузить данные</p>
           <Button onClick={() => navigate('/')} className="mt-4">На главную</Button>
@@ -136,7 +136,7 @@ export default function Referral() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 pb-24">
       <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 text-white px-4 pt-12 pb-8">
         <div className="max-w-lg mx-auto">
           <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1 text-white/80 hover:text-white text-sm">

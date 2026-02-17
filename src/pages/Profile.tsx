@@ -59,7 +59,7 @@ const Profile = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${SUBSCRIPTION_URL}?action=status`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -75,9 +75,9 @@ const Profile = () => {
       const token = authService.getToken();
       
       const [materialsRes, tasksRes, scheduleRes] = await Promise.all([
-        fetch(MATERIALS_URL, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${SCHEDULE_URL}?path=tasks`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${SCHEDULE_URL}?path=schedule`, { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch(MATERIALS_URL, { headers: { 'X-Authorization': `Bearer ${token}` } }),
+        fetch(`${SCHEDULE_URL}?path=tasks`, { headers: { 'X-Authorization': `Bearer ${token}` } }),
+        fetch(`${SCHEDULE_URL}?path=schedule`, { headers: { 'X-Authorization': `Bearer ${token}` } })
       ]);
 
       const materials = materialsRes.ok ? await materialsRes.json() : { materials: [] };
@@ -111,7 +111,7 @@ const Profile = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'X-Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(formData)
       });
@@ -155,7 +155,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">

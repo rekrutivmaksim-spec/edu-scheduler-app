@@ -19,7 +19,7 @@ CORS_HEADERS = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Authorization'
 }
 
 def ok(body: dict) -> dict:
@@ -84,7 +84,7 @@ def check_access(conn, user_id: int) -> dict:
         cur2.close()
         daily_used = 0
 
-    total = 3 + bonus
+    total = 2 + min(bonus, 3)
     if daily_used >= total:
         return {'has_access': False, 'reason': 'limit', 'used': daily_used, 'limit': total, 'is_free': True}
     return {'has_access': True, 'is_free': True, 'used': daily_used, 'limit': total, 'remaining': total - daily_used}
@@ -323,7 +323,9 @@ def handler(event: dict, context) -> dict:
     if method == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
 
-    token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
+    hdrs = event.get('headers', {})
+    auth_header = hdrs.get('X-Authorization') or hdrs.get('x-authorization') or hdrs.get('Authorization') or hdrs.get('authorization') or ''
+    token = auth_header.replace('Bearer ', '')
     user_id = get_user_id(token)
     if not user_id:
         return err(401, {'error': 'Unauthorized'})

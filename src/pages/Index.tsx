@@ -93,11 +93,16 @@ const Index = () => {
       const verifiedUser = await authService.verifyToken();
       if (!verifiedUser) {
         navigate('/login');
-      } else {
-        setUser(verifiedUser);
-        loadSchedule();
-        loadTasks();
+        return;
       }
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!storedUser.onboarding_completed) {
+        navigate('/onboarding');
+        return;
+      }
+      setUser(verifiedUser);
+      loadSchedule();
+      loadTasks();
     };
     checkAuth();
   }, [navigate]);
@@ -107,7 +112,7 @@ const Index = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${SCHEDULE_URL}?path=schedule`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -136,7 +141,7 @@ const Index = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${SCHEDULE_URL}?path=tasks`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -176,7 +181,7 @@ const Index = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'X-Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(lessonForm)
       });
@@ -221,7 +226,7 @@ const Index = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'X-Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(taskForm)
       });
@@ -254,7 +259,7 @@ const Index = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'X-Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           ...task,
@@ -291,7 +296,7 @@ const Index = () => {
       const token = authService.getToken();
       const response = await fetch(`${SCHEDULE_URL}?path=tasks&id=${taskId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
@@ -361,7 +366,7 @@ const Index = () => {
   }, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">
@@ -439,7 +444,7 @@ const Index = () => {
               <div className="flex items-center justify-between mb-2 sm:mb-3">
                 <div>
                   <p className="text-white/80 text-xs sm:text-sm">
-                    {new Date().getHours() < 12 ? 'Доброе утро' : new Date().getHours() < 18 ? 'Добрый день' : 'Добрый вечер'}, {(user.full_name || user.name)?.split(' ')[0] || 'студент'}!
+                    {(() => { const h = new Date().getHours(); return h >= 5 && h < 12 ? 'Доброе утро' : h >= 12 && h < 18 ? 'Добрый день' : h >= 18 && h < 23 ? 'Добрый вечер' : 'Доброй ночи'; })()}, {(user.full_name || user.name)?.split(' ')[0] || 'студент'}!
                   </p>
                   <h2 className="text-white font-bold text-base sm:text-lg mt-0.5">
                     {tasks.length === 0

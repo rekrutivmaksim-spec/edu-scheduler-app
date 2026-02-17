@@ -14,7 +14,7 @@ const BottomNav = () => {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/90 backdrop-blur-xl border-t border-purple-200/50 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-t border-purple-200/50 dark:border-purple-800/40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)]">
       <div
         className="flex items-center justify-around h-16"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
@@ -26,7 +26,7 @@ const BottomNav = () => {
               key={tab.path}
               onClick={() => navigate(tab.path)}
               className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors duration-200 ${
-                isActive ? 'text-purple-600' : 'text-gray-400 active:text-purple-400'
+                isActive ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500 active:text-purple-400'
               }`}
             >
               <Icon

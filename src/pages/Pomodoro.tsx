@@ -84,7 +84,7 @@ const Pomodoro = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${SCHEDULE_URL}?path=pomodoro-stats`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'X-Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -147,7 +147,7 @@ const Pomodoro = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'X-Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           subject: selectedSubject,
@@ -271,7 +271,7 @@ const Pomodoro = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-rose-100 p-3 sm:p-4">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-rose-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-3 sm:p-4">
       <audio ref={audioRef} src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGnuTwum0" preload="auto" />
       
       <div className="max-w-6xl mx-auto">

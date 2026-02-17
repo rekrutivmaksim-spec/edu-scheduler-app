@@ -112,7 +112,7 @@ export default function AuthNew() {
           try {
             await fetch(SUBSCRIPTION_URL, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.token}` },
+              headers: { 'Content-Type': 'application/json', 'X-Authorization': `Bearer ${data.token}` },
               body: JSON.stringify({ action: 'use_referral', referral_code: pending.toUpperCase() })
             });
           } catch (_) { /* referral apply failed, ignore */ }
@@ -207,7 +207,7 @@ export default function AuthNew() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-3 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse delay-1000"></div>

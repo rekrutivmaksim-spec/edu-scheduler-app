@@ -54,7 +54,7 @@ export const authService = {
       const response = await fetch(API_URL, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'X-Authorization': `Bearer ${token}`
         }
       });
 
