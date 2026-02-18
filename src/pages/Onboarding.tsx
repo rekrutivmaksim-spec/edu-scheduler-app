@@ -66,7 +66,7 @@ export default function Onboarding() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'update_profile',
@@ -102,7 +102,7 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 dark:from-indigo-950 dark:via-purple-950 dark:to-pink-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl p-8 sm:p-10 bg-white/95 backdrop-blur-xl border-0 shadow-2xl rounded-3xl">
         {/* Progress */}
         <div className="mb-8">

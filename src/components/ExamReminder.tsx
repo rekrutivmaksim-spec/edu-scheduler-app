@@ -75,7 +75,7 @@ const ExamReminder = ({ isOpen, onClose }: ExamReminderProps) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           title: `🎓 Экзамен: ${examName}`,

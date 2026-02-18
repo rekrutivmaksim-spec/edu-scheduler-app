@@ -28,7 +28,7 @@ export async function trackActivity(type: ActivityType, value: number = 1): Prom
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ action: 'track', type, value })
     });
@@ -51,7 +51,7 @@ export async function dailyCheckin(): Promise<TrackResult | null> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ action: 'checkin' })
     });

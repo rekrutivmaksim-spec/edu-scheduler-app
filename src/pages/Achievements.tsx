@@ -160,7 +160,7 @@ const Achievements = () => {
     try {
       const token = authService.getToken();
       const res = await fetch(`${API_URL}?action=profile`, {
-        headers: { 'X-Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {
         const data: GamificationProfile = await res.json();
@@ -175,7 +175,7 @@ const Achievements = () => {
     try {
       const token = authService.getToken();
       const res = await fetch(`${API_URL}?action=leaderboard`, {
-        headers: { 'X-Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -192,7 +192,7 @@ const Achievements = () => {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: {
-          'X-Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ action: 'checkin' }),
@@ -226,7 +226,7 @@ const Achievements = () => {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: {
-          'X-Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ action: 'claim_streak_reward', streak_days: streakDays }),
@@ -264,7 +264,7 @@ const Achievements = () => {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: {
-          'X-Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ action: 'use_freeze' }),
@@ -353,7 +353,7 @@ const Achievements = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Icon name="Loader2" size={48} className="animate-spin text-purple-600" />
           <p className="text-purple-600 font-medium">Загрузка достижений...</p>
@@ -363,7 +363,7 @@ const Achievements = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">

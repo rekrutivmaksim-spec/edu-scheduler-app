@@ -1,4 +1,4 @@
-"""API для работы с учебными материалами: загрузка и шеринг документов"""
+"""API для работы с учебными материалами: загрузка документов через presigned URL"""
 
 import json
 import os
@@ -278,8 +278,7 @@ def handler(event: dict, context) -> dict:
     if method == 'GET' and params.get('action') == 'shared':
         return handle_get_shared(params.get('code', ''), headers)
     
-    evt_headers = event.get('headers', {})
-    auth_header = evt_headers.get('X-Authorization') or evt_headers.get('x-authorization') or evt_headers.get('Authorization') or evt_headers.get('authorization') or ''
+    auth_header = event.get('headers', {}).get('X-Authorization', '')
     token = auth_header.replace('Bearer ', '')
     
     if not token:

@@ -39,7 +39,7 @@ export const notificationService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         action: 'subscribe',
@@ -66,7 +66,7 @@ export const notificationService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         action: 'unsubscribe'

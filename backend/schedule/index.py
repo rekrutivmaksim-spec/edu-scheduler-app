@@ -1,4 +1,4 @@
-"""API для расписания и задач студента"""
+"""API для работы с расписанием и задачами студента"""
 
 import json
 import os
@@ -60,8 +60,7 @@ def handler(event: dict, context) -> dict:
         'Access-Control-Allow-Origin': '*'
     }
     
-    hdrs = event.get('headers', {})
-    auth_header = hdrs.get('X-Authorization') or hdrs.get('x-authorization') or hdrs.get('Authorization') or hdrs.get('authorization') or ''
+    auth_header = event.get('headers', {}).get('X-Authorization', '')
     token = auth_header.replace('Bearer ', '')
     
     if not token:

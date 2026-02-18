@@ -96,7 +96,7 @@ const Subscription = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${PAYMENTS_URL}?action=plans`, {
-        headers: { 'X-Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -111,7 +111,7 @@ const Subscription = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${PAYMENTS_URL}?action=token_packs`, {
-        headers: { 'X-Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -128,7 +128,7 @@ const Subscription = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${SUBSCRIPTION_URL}?action=status`, {
-        headers: { 'X-Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -143,7 +143,7 @@ const Subscription = () => {
     try {
       const token = authService.getToken();
       const response = await fetch(`${PAYMENTS_URL}?action=history`, {
-        headers: { 'X-Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -166,7 +166,7 @@ const Subscription = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'create_payment',
@@ -229,7 +229,7 @@ const Subscription = () => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'X-Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
               action: 'check_payment',
@@ -315,7 +315,7 @@ const Subscription = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <Icon name="Loader2" size={48} className="animate-spin text-purple-600" />
       </div>
     );
@@ -327,7 +327,7 @@ const Subscription = () => {
   const trialEndsAt = subscriptionStatus?.trial_ends_at;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center justify-between">

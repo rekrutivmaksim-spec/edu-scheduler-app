@@ -112,7 +112,7 @@ const Assistant = () => {
     try {
       const token = authService.getToken();
       const resp = await fetch(MATERIALS_URL, {
-        headers: { 'X-Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (resp.ok) {
         const data = await resp.json();
@@ -156,7 +156,7 @@ const Assistant = () => {
       const tid = setTimeout(() => controller.abort(), 35000);
       const resp = await fetch(AI_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ question: q, material_ids: selectedMaterials }),
         signal: controller.signal
       });
@@ -238,7 +238,7 @@ const Assistant = () => {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-white dark:bg-gray-950">
+    <div className="flex flex-col h-[100dvh] bg-white">
       <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-3 safe-top">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">

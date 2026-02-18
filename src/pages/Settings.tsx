@@ -51,7 +51,7 @@ export default function Settings() {
       const token = localStorage.getItem('token');
       const response = await fetch(NOTIFICATIONS_URL, {
         headers: {
-          'X-Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -75,7 +75,7 @@ export default function Settings() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'update_settings',
@@ -115,7 +115,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center gap-2 sm:gap-3">

@@ -1,4 +1,3 @@
-"""API для уведомлений пользователей"""
 import json
 import os
 import jwt
@@ -35,9 +34,7 @@ def handler(event: dict, context) -> dict:
             'body': ''
         }
     
-    hdrs = event.get('headers', {})
-    auth_header = hdrs.get('X-Authorization') or hdrs.get('x-authorization') or hdrs.get('Authorization') or hdrs.get('authorization') or ''
-    token = auth_header.replace('Bearer ', '')
+    token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
     user_id = get_user_id_from_token(token)
     
     if not user_id:
