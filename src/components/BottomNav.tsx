@@ -2,11 +2,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
 
 const tabs = [
-  { path: '/', icon: 'Home', label: 'Главная' },
-  { path: '/assistant', icon: 'Bot', label: 'ИИ' },
-  { path: '/groups', icon: 'Users', label: 'Группа' },
-  { path: '/gradebook', icon: 'BookOpen', label: 'Оценки' },
-  { path: '/profile', icon: 'User', label: 'Профиль' },
+  { path: '/', icon: 'Home', label: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f' },
+  { path: '/dashboard', icon: 'LayoutDashboard', label: '\u0421\u0432\u043e\u0434\u043a\u0430' },
+  { path: '/assistant', icon: 'Bot', label: '\u0418\u0418' },
+  { path: '/gradebook', icon: 'BookOpen', label: '\u041e\u0446\u0435\u043d\u043a\u0438' },
+  { path: '/profile', icon: 'User', label: '\u041f\u0440\u043e\u0444\u0438\u043b\u044c' },
 ];
 
 const BottomNav = () => {

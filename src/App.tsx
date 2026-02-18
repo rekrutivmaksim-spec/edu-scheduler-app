@@ -28,6 +28,7 @@ import GradeBook from "./pages/GradeBook";
 import Referral from "./pages/Referral";
 import StudyGroups from "./pages/StudyGroups";
 import Widget from "./pages/Widget";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/referral" element={<Referral />} />
               <Route path="/groups" element={<StudyGroups />} />
               <Route path="/widget" element={<Widget />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

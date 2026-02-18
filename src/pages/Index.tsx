@@ -19,6 +19,7 @@ import NotificationBell from '@/components/NotificationBell';
 import ScheduleExport from '@/components/ScheduleExport';
 import GoogleCalendarSync from '@/components/GoogleCalendarSync';
 import BottomNav from '@/components/BottomNav';
+import SmartSuggestions from '@/components/SmartSuggestions';
 
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { trackActivity } from '@/lib/gamification';
@@ -482,6 +483,8 @@ const Index = () => {
         <NotificationPrompt />
         
         <LimitsIndicator compact />
+
+        <SmartSuggestions />
 
         {user && (
           <Card className="animate-fade-in-up mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 border-0 overflow-hidden relative">

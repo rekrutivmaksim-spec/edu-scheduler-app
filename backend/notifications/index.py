@@ -63,6 +63,8 @@ def handler(event: dict, context) -> dict:
                 return handle_send_deadline_reminders(conn)
             elif action == 'send_streak_reminders':
                 return handle_send_streak_reminders(conn)
+            elif action == 'send_smart_reminders':
+                return handle_send_smart_reminders(conn)
         
         elif method == 'GET':
             action = event.get('queryStringParameters', {}).get('action')
@@ -508,6 +510,99 @@ def handle_send_streak_reminders(conn) -> dict:
     }
 
 
+def handle_send_smart_reminders(conn) -> dict:
+    """Отправка контекстных умных уведомлений (запускается по расписанию)"""
+    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+    cursor = conn.cursor()
+    now = datetime.now()
+    today = now.date()
+    sent_count = 0
+
+    cursor.execute(f'''
+        SELECT u.id, ps.endpoint, ps.p256dh, ps.auth
+        FROM {schema}.users u
+        JOIN {schema}.push_subscriptions ps ON ps.user_id = u.id
+        WHERE ps.endpoint IS NOT NULL
+    ''')
+    users_with_push = cursor.fetchall()
+
+    for user_id, endpoint, p256dh, auth in users_with_push:
+        cursor.execute(f'''
+            SELECT subject, SUM(duration) as total_min
+            FROM {schema}.pomodoro_sessions
+            WHERE user_id = %s AND completed_at > CURRENT_TIMESTAMP - INTERVAL '14 days'
+            GROUP BY subject
+        ''', (user_id,))
+        studied = set(r[0] for r in cursor.fetchall())
+
+        cursor.execute(f'''
+            SELECT DISTINCT subject FROM {schema}.schedule WHERE user_id = %s
+        ''', (user_id,))
+        all_subjects = set(r[0] for r in cursor.fetchall())
+        neglected = all_subjects - studied
+
+        for subj in list(neglected)[:1]:
+            notification_data = {
+                'title': f'\u0422\u044b \u0434\u0430\u0432\u043d\u043e \u043d\u0435 \u0437\u0430\u043d\u0438\u043c\u0430\u043b\u0441\u044f \u00ab{subj}\u00bb',
+                'body': '\u0417\u0430\u043f\u0443\u0441\u0442\u0438 \u043f\u043e\u043c\u043e\u0434\u043e\u0440\u043a\u0443 \u043f\u043e \u044d\u0442\u043e\u043c\u0443 \u043f\u0440\u0435\u0434\u043c\u0435\u0442\u0443!',
+                'tag': f'neglected-{user_id}-{subj}',
+                'url': '/pomodoro'
+            }
+            try:
+                send_push_notification(endpoint, p256dh, auth, notification_data)
+                sent_count += 1
+            except Exception as e:
+                print(f'Smart notif failed for user {user_id}: {e}')
+
+            try:
+                cursor.execute(f'''
+                    INSERT INTO {schema}.notifications (user_id, title, message, action_url)
+                    VALUES (%s, %s, %s, %s)
+                ''', (user_id, notification_data['title'], notification_data['body'], '/pomodoro'))
+            except Exception:
+                pass
+
+        cursor.execute(f'''
+            SELECT id, title, deadline FROM {schema}.tasks
+            WHERE user_id = %s AND completed = false AND deadline IS NOT NULL
+            AND deadline BETWEEN CURRENT_TIMESTAMP AND CURRENT_TIMESTAMP + INTERVAL '2 days'
+            ORDER BY deadline ASC LIMIT 1
+        ''', (user_id,))
+        urgent_task = cursor.fetchone()
+
+        if urgent_task:
+            task_id, task_title, deadline = urgent_task
+            days_left = (deadline.date() - today).days
+            notification_data = {
+                'title': f'\u0414\u043e \u0434\u0435\u0434\u043b\u0430\u0439\u043d\u0430 {days_left} \u0434\u043d.',
+                'body': f'\u00ab{task_title}\u00bb \u2014 \u043f\u0435\u0440\u0435\u043d\u0435\u0441\u0442\u0438 \u0437\u0430\u0434\u0430\u0447\u0438?',
+                'tag': f'deadline-smart-{user_id}-{task_id}',
+                'url': '/?tab=tasks'
+            }
+            try:
+                send_push_notification(endpoint, p256dh, auth, notification_data)
+                sent_count += 1
+            except Exception as e:
+                print(f'Deadline smart notif failed: {e}')
+
+            try:
+                cursor.execute(f'''
+                    INSERT INTO {schema}.notifications (user_id, title, message, action_url)
+                    VALUES (%s, %s, %s, %s)
+                ''', (user_id, notification_data['title'], notification_data['body'], '/'))
+            except Exception:
+                pass
+
+    conn.commit()
+    cursor.close()
+
+    return {
+        'statusCode': 200,
+        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+        'body': json.dumps({'success': True, 'sent': sent_count})
+    }
+
+
 def send_push_notification(endpoint: str, p256dh: str, auth: str, data: dict):
     """Отправка push-уведомления через Web Push API"""
     subscription_info = {
@@ -517,7 +612,7 @@ def send_push_notification(endpoint: str, p256dh: str, auth: str, data: dict):
             'auth': auth
         }
     }
-    
+
     webpush(
         subscription_info=subscription_info,
         data=json.dumps(data),
