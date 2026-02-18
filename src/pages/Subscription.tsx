@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import { Card } from '@/components/ui/card';
@@ -118,25 +118,25 @@ const Subscription = () => {
   }, []);
 
   /* track which plan section is in view for sticky CTA */
-  const bestPlanRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (!node) return;
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (!entry.isIntersecting && plans.length > 0) {
-            const popular = plans.find((p) => p.id === '3months');
-            setStickyPlanId(popular?.id ?? plans[0]?.id ?? null);
-          } else {
-            setStickyPlanId(null);
-          }
-        },
-        { threshold: 0 }
-      );
-      observer.observe(node);
-      return () => observer.disconnect();
-    },
-    [plans]
-  );
+  const plansNodeRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = plansNodeRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting && plans.length > 0) {
+          const popular = plans.find((p) => p.id === '3months');
+          setStickyPlanId(popular?.id ?? plans[0]?.id ?? null);
+        } else {
+          setStickyPlanId(null);
+        }
+      },
+      { threshold: 0 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [plans]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -516,7 +516,7 @@ const Subscription = () => {
         )}
 
         {/* ─── Subscription plans ─── */}
-        <div className="mb-10" ref={bestPlanRef}>
+        <div className="mb-10" ref={plansNodeRef}>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Выберите подписку</h2>
 
           {/* trust strip */}
