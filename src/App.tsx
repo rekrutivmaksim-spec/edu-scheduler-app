@@ -28,6 +28,7 @@ import GradeBook from "./pages/GradeBook";
 import Referral from "./pages/Referral";
 import StudyGroups from "./pages/StudyGroups";
 import Widget from "./pages/Widget";
+import AppStore from "./pages/AppStore";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/app" element={<AppStore />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/achievements" element={<Achievements />} />
