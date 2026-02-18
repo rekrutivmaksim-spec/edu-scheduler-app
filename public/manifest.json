@@ -1,12 +1,16 @@
 {
   "name": "Studyfay - ИИ помощник студента",
   "short_name": "Studyfay",
-  "description": "Умный помощник для учёбы: расписание, задачи, конспекты и ИИ-ассистент",
+  "description": "Умный помощник для учёбы: расписание, задачи, конспекты, ИИ-ассистент, помодоро и зачётная книжка",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#8b5cf6",
   "orientation": "portrait-primary",
+  "lang": "ru",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
@@ -27,7 +31,8 @@
       "src": "/screenshot-1.png",
       "sizes": "1170x2532",
       "type": "image/png",
-      "form_factor": "narrow"
+      "form_factor": "narrow",
+      "label": "Главный экран с расписанием"
     }
   ],
   "shortcuts": [
@@ -35,22 +40,31 @@
       "name": "Расписание",
       "short_name": "Расписание",
       "description": "Открыть расписание занятий",
-      "url": "/?view=schedule",
+      "url": "/",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Задачи",
-      "short_name": "Задачи",
-      "description": "Открыть список задач",
-      "url": "/?view=tasks",
+      "name": "ИИ-ассистент",
+      "short_name": "ИИ",
+      "description": "Задать вопрос ИИ-репетитору",
+      "url": "/assistant",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Материалы",
-      "short_name": "Материалы",
-      "description": "Открыть материалы и конспекты",
-      "url": "/materials",
+      "name": "Помодоро",
+      "short_name": "Помодоро",
+      "description": "Запустить таймер помодоро",
+      "url": "/pomodoro",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Сводка",
+      "short_name": "Сводка",
+      "description": "Дашборд с прогрессом",
+      "url": "/dashboard",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
-  ]
+  ],
+  "related_applications": [],
+  "iarc_rating_id": ""
 }

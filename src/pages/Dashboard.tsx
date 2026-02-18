@@ -177,10 +177,21 @@ const Dashboard = () => {
     return map[type] || 'from-gray-500 to-gray-600';
   };
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center gap-4 p-4">
+        <Icon name="AlertCircle" size={48} className="text-gray-400" />
+        <p className="text-gray-600 text-center">{'\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0434\u0430\u043d\u043d\u044b\u0435'}</p>
+        <Button onClick={() => window.location.reload()}>{'\u041f\u043e\u043f\u0440\u043e\u0431\u043e\u0432\u0430\u0442\u044c \u0441\u043d\u043e\u0432\u0430'}</Button>
+        <BottomNav />
       </div>
     );
   }

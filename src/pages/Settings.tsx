@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
 
-const NOTIFICATIONS_URL = 'https://functions.poehali.dev/1fef5a49-94ad-4d77-9a17-ee2a10d22e2a';
+const NOTIFICATIONS_URL = 'https://functions.poehali.dev/710399d8-fbc7-4df6-8c6c-200b2828678f';
 
 export default function Settings() {
   const navigate = useNavigate();

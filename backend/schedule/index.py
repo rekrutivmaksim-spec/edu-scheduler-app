@@ -519,12 +519,15 @@ def get_suggestions(conn, user_id, headers):
         """, (user_id,))
         pomodoro_stats = cur.fetchall()
 
-        cur.execute("""
-            SELECT gs.subject_name, g.grade_value
-            FROM grades g JOIN grade_subjects gs ON g.subject_id = gs.id
-            WHERE gs.user_id = %s ORDER BY g.created_at DESC
-        """, (user_id,))
-        grades = cur.fetchall()
+        try:
+            cur.execute("""
+                SELECT gs.name as subject_name, g.grade as grade_value
+                FROM grades g JOIN grade_subjects gs ON g.subject_id = gs.id
+                WHERE gs.user_id = %s ORDER BY g.created_at DESC
+            """, (user_id,))
+            grades = cur.fetchall()
+        except Exception:
+            grades = []
 
         grade_map = {}
         for g in grades:
@@ -686,13 +689,16 @@ def get_dashboard(conn, user_id, headers):
         """, (user_id,))
         recent_achievements = cur.fetchall()
 
-        cur.execute("""
-            SELECT gs.subject_name, AVG(g.grade_value) as avg_grade
-            FROM grades g JOIN grade_subjects gs ON g.subject_id = gs.id
-            WHERE gs.user_id = %s AND g.grade_value IS NOT NULL
-            GROUP BY gs.subject_name
-        """, (user_id,))
-        subject_grades = cur.fetchall()
+        try:
+            cur.execute("""
+                SELECT gs.name as subject_name, AVG(g.grade) as avg_grade
+                FROM grades g JOIN grade_subjects gs ON g.subject_id = gs.id
+                WHERE gs.user_id = %s AND g.grade IS NOT NULL
+                GROUP BY gs.name
+            """, (user_id,))
+            subject_grades = cur.fetchall()
+        except Exception:
+            subject_grades = []
 
         all_grades = [float(g['avg_grade']) for g in subject_grades if g['avg_grade']]
         gpa = sum(all_grades) / len(all_grades) if all_grades else 0
