@@ -1,11 +1,60 @@
+const CACHE_NAME = 'studyfay-v2';
+const OFFLINE_URLS = [
+  '/',
+  '/index.html',
+  '/manifest.json'
+];
+
 self.addEventListener('install', (event) => {
-  console.log('Service Worker установлен');
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(OFFLINE_URLS))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker активирован');
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  if (url.origin === 'https://functions.poehali.dev') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok && event.request.method === 'GET') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, clone);
+            });
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  if (event.request.method === 'GET') {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        const fetched = fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        });
+        return cached || fetched;
+      })
+    );
+  }
 });
 
 self.addEventListener('push', (event) => {
@@ -19,9 +68,8 @@ self.addEventListener('push', (event) => {
     vibrate: [200, 100, 200],
     tag: data.tag || 'notification',
     requireInteraction: false,
-    data: {
-      url: data.url || '/'
-    }
+    data: { url: data.url || '/' },
+    actions: data.actions || []
   };
 
   event.waitUntil(
@@ -31,13 +79,12 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
   const urlToOpen = event.notification.data.url || '/';
-  
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (let client of clientList) {
-        if (client.url === urlToOpen && 'focus' in client) {
+        if (client.url.includes(urlToOpen) && 'focus' in client) {
           return client.focus();
         }
       }

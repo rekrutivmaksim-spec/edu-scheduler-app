@@ -323,7 +323,7 @@ def handle_send_deadline_reminders(conn) -> dict:
     return {
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'success': True, 'sent': len(users)})
+        'body': json.dumps({'success': True, 'sent': sent_count})
     }
 
 def get_notifications_list(conn, user_id: int, limit: int = 10) -> dict:

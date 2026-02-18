@@ -26,6 +26,8 @@ import Subscription from "./pages/Subscription";
 import Achievements from "./pages/Achievements";
 import GradeBook from "./pages/GradeBook";
 import Referral from "./pages/Referral";
+import StudyGroups from "./pages/StudyGroups";
+import Widget from "./pages/Widget";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -59,6 +61,8 @@ const App = () => (
               <Route path="/achievements" element={<Achievements />} />
               <Route path="/gradebook" element={<GradeBook />} />
               <Route path="/referral" element={<Referral />} />
+              <Route path="/groups" element={<StudyGroups />} />
+              <Route path="/widget" element={<Widget />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

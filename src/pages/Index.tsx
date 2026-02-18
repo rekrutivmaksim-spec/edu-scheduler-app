@@ -22,6 +22,7 @@ import BottomNav from '@/components/BottomNav';
 
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { trackActivity } from '@/lib/gamification';
+import { offlineCache } from '@/lib/offline-cache';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 
@@ -35,6 +36,7 @@ interface Lesson {
   room?: string;
   teacher?: string;
   color?: string;
+  week_type?: string;
 }
 
 interface Task {
@@ -45,6 +47,9 @@ interface Task {
   deadline?: string;
   priority: string;
   completed: boolean;
+  recurrence?: string;
+  recurrence_day?: number;
+  parent_task_id?: number;
 }
 
 const Index = () => {
@@ -62,6 +67,20 @@ const Index = () => {
   const [taskSearch, setTaskSearch] = useState('');
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+  const [weekFilter, setWeekFilter] = useState<'all' | 'even' | 'odd'>('all');
+  const [isScheduleCached, setIsScheduleCached] = useState(false);
+  const [isTasksCached, setIsTasksCached] = useState(false);
+
+  const getISOWeekNumber = (date: Date) => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  };
+
+  const currentWeekNumber = getISOWeekNumber(new Date());
+  const currentWeekParity: 'even' | 'odd' = currentWeekNumber % 2 === 0 ? 'even' : 'odd';
 
   const [lessonForm, setLessonForm] = useState({
     subject: '',
@@ -71,7 +90,8 @@ const Index = () => {
     day_of_week: 1,
     room: '',
     teacher: '',
-    color: 'bg-purple-500'
+    color: 'bg-purple-500',
+    week_type: 'every'
   });
 
   const [taskForm, setTaskForm] = useState({
@@ -79,7 +99,8 @@ const Index = () => {
     description: '',
     subject: '',
     deadline: '',
-    priority: 'medium'
+    priority: 'medium',
+    recurrence: ''
   });
 
   const dayNames = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
@@ -104,6 +125,7 @@ const Index = () => {
 
   const loadSchedule = async () => {
     setIsLoadingSchedule(true);
+    setIsScheduleCached(false);
     try {
       const token = authService.getToken();
       const response = await fetch(`${SCHEDULE_URL}?path=schedule`, {
@@ -112,6 +134,7 @@ const Index = () => {
       if (response.ok) {
         const data = await response.json();
         setSchedule(data.schedule);
+        offlineCache.save('schedule', data.schedule);
       } else {
         toast({
           title: "Ошибка загрузки",
@@ -121,11 +144,21 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Failed to load schedule:', error);
-      toast({
-        title: "Ошибка сети",
-        description: "Проверьте подключение к интернету",
-        variant: "destructive",
-      });
+      const cached = offlineCache.load<Lesson[]>('schedule');
+      if (cached) {
+        setSchedule(cached);
+        setIsScheduleCached(true);
+        toast({
+          title: "Офлайн-режим",
+          description: "Показаны данные из кэша",
+        });
+      } else {
+        toast({
+          title: "Ошибка сети",
+          description: "Проверьте подключение к интернету",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoadingSchedule(false);
     }
@@ -133,6 +166,7 @@ const Index = () => {
 
   const loadTasks = async () => {
     setIsLoadingTasks(true);
+    setIsTasksCached(false);
     try {
       const token = authService.getToken();
       const response = await fetch(`${SCHEDULE_URL}?path=tasks`, {
@@ -141,6 +175,7 @@ const Index = () => {
       if (response.ok) {
         const data = await response.json();
         setTasks(data.tasks);
+        offlineCache.save('tasks', data.tasks);
       } else {
         toast({
           title: "Ошибка загрузки",
@@ -150,11 +185,21 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Failed to load tasks:', error);
-      toast({
-        title: "Ошибка сети",
-        description: "Проверьте подключение к интернету",
-        variant: "destructive",
-      });
+      const cached = offlineCache.load<Task[]>('tasks');
+      if (cached) {
+        setTasks(cached);
+        setIsTasksCached(true);
+        toast({
+          title: "Офлайн-режим",
+          description: "Показаны задачи из кэша",
+        });
+      } else {
+        toast({
+          title: "Ошибка сети",
+          description: "Проверьте подключение к интернету",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoadingTasks(false);
     }
@@ -192,7 +237,8 @@ const Index = () => {
           day_of_week: 1,
           room: '',
           teacher: '',
-          color: 'bg-purple-500'
+          color: 'bg-purple-500',
+          week_type: 'every'
         });
         loadSchedule();
       }
@@ -234,7 +280,8 @@ const Index = () => {
           description: '',
           subject: '',
           deadline: '',
-          priority: 'medium'
+          priority: 'medium',
+          recurrence: ''
         });
         loadTasks();
       }
@@ -321,7 +368,12 @@ const Index = () => {
     }
   };
 
-  const todayLessons = schedule.filter(l => l.day_of_week === selectedDay);
+  const todayLessons = schedule.filter(l => {
+    if (l.day_of_week !== selectedDay) return false;
+    if (weekFilter === 'all') return true;
+    if (!l.week_type || l.week_type === 'every') return true;
+    return l.week_type === weekFilter;
+  });
   const activeTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
   const completionRate = tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0;
@@ -633,6 +685,41 @@ const Index = () => {
               ))}
             </div>
 
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <div className="flex gap-1 sm:gap-1.5 bg-white/80 border border-purple-200 rounded-xl p-1">
+                <Button
+                  variant={weekFilter === 'all' ? 'default' : 'ghost'}
+                  onClick={() => setWeekFilter('all')}
+                  className={`text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 rounded-lg ${weekFilter === 'all' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' : ''}`}
+                >
+                  Все
+                </Button>
+                <Button
+                  variant={weekFilter === 'even' ? 'default' : 'ghost'}
+                  onClick={() => setWeekFilter('even')}
+                  className={`text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 rounded-lg ${weekFilter === 'even' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' : ''}`}
+                >
+                  Чётная
+                </Button>
+                <Button
+                  variant={weekFilter === 'odd' ? 'default' : 'ghost'}
+                  onClick={() => setWeekFilter('odd')}
+                  className={`text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 rounded-lg ${weekFilter === 'odd' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' : ''}`}
+                >
+                  Нечётная
+                </Button>
+              </div>
+              <Badge variant="outline" className="text-[10px] sm:text-xs">
+                Сейчас: {currentWeekParity === 'even' ? 'чётная' : 'нечётная'} (нед. {currentWeekNumber})
+              </Badge>
+              {isScheduleCached && (
+                <Badge variant="outline" className="text-[10px] sm:text-xs bg-amber-50 text-amber-700 border-amber-300">
+                  <Icon name="WifiOff" size={10} className="mr-1" />
+                  Кэш
+                </Badge>
+              )}
+            </div>
+
             {isAddingLesson && (
               <Card className="p-4 sm:p-6 bg-white mb-4 sm:mb-6">
                 <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">Новое занятие</h3>
@@ -699,6 +786,19 @@ const Index = () => {
                       className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
                     />
                   </div>
+                  <div>
+                    <Label className="text-xs sm:text-sm">Неделя</Label>
+                    <Select value={lessonForm.week_type} onValueChange={(v) => setLessonForm({...lessonForm, week_type: v})}>
+                      <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="every">Каждую неделю</SelectItem>
+                        <SelectItem value="even">Чётная неделя</SelectItem>
+                        <SelectItem value="odd">Нечётная неделя</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="flex gap-2 mt-3 sm:mt-4">
                   <Button onClick={handleAddLesson} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
@@ -735,7 +835,14 @@ const Index = () => {
                           <p className="text-[10px] sm:text-xs text-gray-500 truncate">{lesson.room} • {lesson.type}</p>
                         </div>
                       </div>
-                      <Badge className="text-[10px] sm:text-xs flex-shrink-0">{lesson.type === 'lecture' ? 'Лекция' : lesson.type === 'practice' ? 'Практика' : 'Лаб'}</Badge>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <Badge className="text-[10px] sm:text-xs">{lesson.type === 'lecture' ? 'Лекция' : lesson.type === 'practice' ? 'Практика' : 'Лаб'}</Badge>
+                        {lesson.week_type && lesson.week_type !== 'every' && (
+                          <Badge variant="outline" className="text-[9px] sm:text-[10px] bg-indigo-50 text-indigo-600 border-indigo-200">
+                            {lesson.week_type === 'even' ? 'Чёт' : 'Нечёт'}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </Card>
                 ))
@@ -746,7 +853,15 @@ const Index = () => {
           <TabsContent value="tasks" className="space-y-4 sm:space-y-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
               <div className="flex-1">
-                <h2 className="text-xl sm:text-3xl font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Задачи</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl sm:text-3xl font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Задачи</h2>
+                  {isTasksCached && (
+                    <Badge variant="outline" className="text-[10px] sm:text-xs bg-amber-50 text-amber-700 border-amber-300">
+                      <Icon name="WifiOff" size={10} className="mr-1" />
+                      Кэш
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-purple-600/70 text-xs sm:text-sm mt-0.5 sm:mt-1">Управление делами</p>
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
@@ -834,7 +949,7 @@ const Index = () => {
                       className="mt-1.5 sm:mt-2 text-sm"
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <Label className="text-xs sm:text-sm">Предмет</Label>
                       <Input
@@ -863,6 +978,21 @@ const Index = () => {
                           <SelectItem value="low">Низкий</SelectItem>
                           <SelectItem value="medium">Средний</SelectItem>
                           <SelectItem value="high">Высокий</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs sm:text-sm">Повтор</Label>
+                      <Select value={taskForm.recurrence} onValueChange={(v) => setTaskForm({...taskForm, recurrence: v})}>
+                        <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
+                          <SelectValue placeholder="Без повтора" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Без повтора</SelectItem>
+                          <SelectItem value="daily">Ежедневно</SelectItem>
+                          <SelectItem value="weekly">Еженедельно</SelectItem>
+                          <SelectItem value="biweekly">Раз в 2 недели</SelectItem>
+                          <SelectItem value="monthly">Ежемесячно</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -928,6 +1058,12 @@ const Index = () => {
                             </Badge>
                           )}
                           <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${getPriorityColor(task.priority)}`}></div>
+                          {task.recurrence && task.recurrence !== 'none' && task.recurrence !== '' && (
+                            <Badge variant="outline" className="text-[10px] sm:text-xs bg-violet-50 text-violet-600 border-violet-200">
+                              <Icon name="Repeat" size={10} className="mr-0.5 sm:mr-1" />
+                              {task.recurrence === 'daily' ? 'Ежедн.' : task.recurrence === 'weekly' ? 'Еженед.' : task.recurrence === 'biweekly' ? '2 нед.' : 'Ежемес.'}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <Button

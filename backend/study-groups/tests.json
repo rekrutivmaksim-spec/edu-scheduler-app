@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "name": "Test unauthorized access",
+      "method": "GET",
+      "path": "/?action=my_groups",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    }
+  ]
+}
