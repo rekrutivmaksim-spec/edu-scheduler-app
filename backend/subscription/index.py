@@ -146,7 +146,7 @@ def get_limits(conn, user_id: int) -> dict:
             }
         }
     elif status['is_trial']:
-        # Триал (24 часа): безлимитный доступ ко всему
+        # Триал (7 дней): безлимитный доступ ко всему
         return {
             **status,
             'limits': {

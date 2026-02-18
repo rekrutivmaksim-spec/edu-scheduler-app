@@ -18,18 +18,13 @@ import Pomodoro from "./pages/Pomodoro";
 import Pricing from "./pages/Pricing";
 import Assistant from "./pages/Assistant";
 import Calendar from "./pages/Calendar";
-import Sharing from "./pages/Sharing";
 import Analytics from "./pages/Analytics";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Settings from "./pages/Settings";
 import Subscription from "./pages/Subscription";
-import PaymentSetup from "./pages/PaymentSetup";
 import Achievements from "./pages/Achievements";
-import StudyPlan from "./pages/StudyPlan";
-import Flashcards from "./pages/Flashcards";
-import AppStore from "./pages/AppStore";
-import PromoVideo from "./pages/PromoVideo";
+import GradeBook from "./pages/GradeBook";
 import Referral from "./pages/Referral";
 import NotFound from "./pages/NotFound";
 
@@ -56,18 +51,13 @@ const App = () => (
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/assistant" element={<Assistant />} />
               <Route path="/calendar" element={<Calendar />} />
-              <Route path="/sharing" element={<Sharing />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/subscription" element={<Subscription />} />
-              <Route path="/payment-setup" element={<PaymentSetup />} />
               <Route path="/achievements" element={<Achievements />} />
-              <Route path="/study-plan" element={<StudyPlan />} />
-              <Route path="/flashcards" element={<Flashcards />} />
-              <Route path="/app-store" element={<AppStore />} />
-              <Route path="/promo" element={<PromoVideo />} />
+              <Route path="/gradebook" element={<GradeBook />} />
               <Route path="/referral" element={<Referral />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

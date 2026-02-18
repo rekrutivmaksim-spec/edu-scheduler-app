@@ -439,7 +439,7 @@ const Index = () => {
               <div className="flex items-center justify-between mb-2 sm:mb-3">
                 <div>
                   <p className="text-white/80 text-xs sm:text-sm">
-                    {new Date().getHours() < 12 ? 'Доброе утро' : new Date().getHours() < 18 ? 'Добрый день' : 'Добрый вечер'}, {(user.full_name || user.name)?.split(' ')[0] || 'студент'}!
+                    {(() => { const h = new Date().getHours(); return h >= 5 && h < 12 ? 'Доброе утро' : h >= 12 && h < 18 ? 'Добрый день' : h >= 18 && h < 23 ? 'Добрый вечер' : 'Доброй ночи'; })()}, {(user.full_name || user.name)?.split(' ')[0] || 'студент'}!
                   </p>
                   <h2 className="text-white font-bold text-base sm:text-lg mt-0.5">
                     {tasks.length === 0
@@ -471,21 +471,18 @@ const Index = () => {
         )}
         
         <Card 
-          onClick={() => navigate('/study-plan')}
-          className="animate-fade-in-up-delay-1 mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-fuchsia-50 border-2 border-violet-300 cursor-pointer hover:shadow-2xl hover:shadow-violet-500/30 transition-all duration-300 hover:scale-[1.02]"
+          onClick={() => navigate('/gradebook')}
+          className="animate-fade-in-up-delay-1 mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-2 border-emerald-300 cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/30 transition-all duration-300 hover:scale-[1.02]"
         >
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-              <span className="text-2xl sm:text-3xl">🧠</span>
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <span className="text-2xl sm:text-3xl">📊</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">План подготовки</h3>
-                <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5">Premium</Badge>
-              </div>
-              <p className="text-xs sm:text-sm text-gray-600">ИИ составит план подготовки к экзамену</p>
+              <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">Зачётная книжка</h3>
+              <p className="text-xs sm:text-sm text-gray-600">Следи за оценками, средним баллом и стипендией</p>
             </div>
-            <Icon name="ArrowRight" size={20} className="text-violet-600 flex-shrink-0 sm:w-6 sm:h-6" />
+            <Icon name="ArrowRight" size={20} className="text-emerald-600 flex-shrink-0 sm:w-6 sm:h-6" />
           </div>
         </Card>
 
@@ -522,22 +519,6 @@ const Index = () => {
             </div>
           </Card>
         </div>
-
-        <Card
-          onClick={() => navigate('/sharing')}
-          className="mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 border-2 border-green-300 cursor-pointer hover:shadow-2xl hover:shadow-green-500/30 transition-all duration-300 hover:scale-[1.02]"
-        >
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-              <Icon name="Share2" size={24} className="text-white sm:w-8 sm:h-8" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1">Расшарить расписание с группой</h3>
-              <p className="text-xs sm:text-sm text-gray-600">Создай код доступа и поделись расписанием с одногруппниками</p>
-            </div>
-            <Icon name="ArrowRight" size={20} className="text-green-600 flex-shrink-0 sm:w-6 sm:h-6" />
-          </div>
-        </Card>
 
         <Card
           onClick={() => navigate('/achievements')}

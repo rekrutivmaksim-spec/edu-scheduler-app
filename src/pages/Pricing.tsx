@@ -108,9 +108,9 @@ const Pricing = () => {
         { text: 'До 10 активных задач', included: true },
         { text: '2 материала в месяц', included: true },
         { text: '3 AI-вопроса в день', included: true },
-        { text: 'Помодоро-таймер', included: false },
-        { text: 'Заморозка стрика', included: false },
-        { text: 'Экспорт в PDF', included: false }
+        { text: '5 предметов в зачётке', included: true },
+        { text: 'Безлимит зачётной книжки', included: false },
+        { text: 'Заморозка стрика', included: false }
       ],
       current: currentPlan === 'free',
       buttonText: 'Текущий тариф',
@@ -125,11 +125,11 @@ const Pricing = () => {
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
-        { text: 'До 40 AI-вопросов / мес', included: true },
+        { text: 'Безлимитные AI-вопросы', included: true },
         { text: 'Безлимитные материалы', included: true },
+        { text: 'Безлимит зачётной книжки', included: true },
         { text: 'Помодоро-таймер с аналитикой', included: true },
-        { text: 'Заморозка стрика (1 раз/нед)', included: true },
-        { text: '5 квестов + бонусный XP', included: true }
+        { text: 'Заморозка стрика (1 раз/нед)', included: true }
       ],
       current: currentPlan === 'premium',
       buttonText: currentPlan === 'premium' ? 'Активен' : 'Получить Премиум',
@@ -146,11 +146,11 @@ const Pricing = () => {
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
-        { text: 'До 40 AI-вопросов / мес', included: true },
+        { text: 'Безлимитные AI-вопросы', included: true },
         { text: 'Безлимитные материалы', included: true },
+        { text: 'Безлимит зачётной книжки', included: true },
         { text: 'Помодоро-таймер с аналитикой', included: true },
-        { text: 'Заморозка стрика (1 раз/нед)', included: true },
-        { text: 'Экспорт в PDF + приоритет', included: true }
+        { text: 'Заморозка стрика + приоритет', included: true }
       ],
       current: currentPlan === 'premium',
       buttonText: currentPlan === 'premium' ? 'Активен' : 'Купить на год',

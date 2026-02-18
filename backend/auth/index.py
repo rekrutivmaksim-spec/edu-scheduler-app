@@ -1,4 +1,4 @@
-"""API для аутентификации пользователей: вход с автоматической регистрацией, сброс пароля"""
+"""API для аутентификации пользователей: вход с автоматической регистрацией, сброс пароля (v2: триал 7 дней)"""
 
 import json
 import os
@@ -204,7 +204,7 @@ def handler(event: dict, context) -> dict:
                             )
                             VALUES (
                                 %s, %s, %s, CURRENT_TIMESTAMP,
-                                CURRENT_TIMESTAMP + INTERVAL '1 day', FALSE,
+                                CURRENT_TIMESTAMP + INTERVAL '7 days', FALSE,
                                 50000, 0, CURRENT_TIMESTAMP + INTERVAL '1 month',
                                 0, CURRENT_TIMESTAMP,
                                 %s
