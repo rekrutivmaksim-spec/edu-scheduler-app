@@ -49,10 +49,11 @@ interface Payment {
 }
 
 const FAQ_ITEMS = [
-  { q: 'Как происходит оплата?', a: 'Через защищённый шлюз Т-Касса (Тинькофф). Данные карты мы не храним.' },
-  { q: 'Подписка продлевается автоматически?', a: 'Нет. После окончания срока вы сами решаете, продлевать или нет.' },
+  { q: 'Как происходит оплата?', a: 'Через защищённый шлюз Т-Касса (Тинькофф). Карта привязывается для автопродления.' },
+  { q: 'Подписка продлевается автоматически?', a: 'Да, подписка продлевается автоматически. Вы можете отключить автопродление в любой момент.' },
+  { q: 'Как отключить автопродление?', a: 'В разделе «Подписка» переключите тумблер «Автопродление». Подписка доработает до конца оплаченного периода.' },
   { q: 'Могу ли я вернуть деньги?', a: '14 дней на возврат, если не использовали платные функции.' },
-  { q: 'Что будет после окончания?', a: 'Базовые функции остаются + 3 бесплатных вопроса ИИ в день.' },
+  { q: 'Что будет после окончания?', a: 'Без автопродления базовые функции остаются + 3 бесплатных вопроса ИИ в день.' },
   { q: 'Какие способы оплаты?', a: 'Карты МИР/Visa/MC, СБП, SberPay.' },
 ];
 
@@ -75,6 +76,14 @@ const Subscription = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [autoRenewInfo, setAutoRenewInfo] = useState<{
+    auto_renew?: boolean;
+    has_card?: boolean;
+    card_last4?: string;
+    next_charge_date?: string;
+    next_charge_amount?: number;
+  } | null>(null);
+  const [togglingAutoRenew, setTogglingAutoRenew] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -94,7 +103,8 @@ const Subscription = () => {
         loadPlans(),
         loadTokenPacks(),
         loadSubscriptionStatus(),
-        loadPaymentHistory()
+        loadPaymentHistory(),
+        loadAutoRenewInfo()
       ]);
     } finally {
       setIsLoading(false);
@@ -160,6 +170,54 @@ const Subscription = () => {
       }
     } catch (error) {
       console.error('Failed to load payment history:', error);
+    }
+  };
+
+  const loadAutoRenewInfo = async () => {
+    try {
+      const token = authService.getToken();
+      const response = await fetch(`${PAYMENTS_URL}?action=auto_renew`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAutoRenewInfo(data);
+      }
+    } catch (error) {
+      console.error('Failed to load auto renew info:', error);
+    }
+  };
+
+  const handleToggleAutoRenew = async () => {
+    setTogglingAutoRenew(true);
+    try {
+      const token = authService.getToken();
+      const newValue = !autoRenewInfo?.auto_renew;
+      const response = await fetch(PAYMENTS_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: 'toggle_auto_renew', enabled: newValue })
+      });
+      if (response.ok) {
+        setAutoRenewInfo(prev => prev ? { ...prev, auto_renew: newValue } : null);
+        toast({
+          title: newValue ? 'Автопродление включено' : 'Автопродление отключено',
+          description: newValue 
+            ? 'Подписка будет продлеваться автоматически' 
+            : 'Подписка доработает до конца оплаченного периода'
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось изменить настройку',
+        variant: 'destructive'
+      });
+    } finally {
+      setTogglingAutoRenew(false);
     }
   };
 
@@ -383,6 +441,43 @@ const Subscription = () => {
           </Card>
         )}
 
+        {/* Управление автопродлением */}
+        {isPremium && autoRenewInfo && (
+          <Card className="p-4 sm:p-5 bg-white border-2 border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Icon name="RefreshCw" size={20} className="text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-800">Автопродление</h3>
+                  {autoRenewInfo.has_card && autoRenewInfo.card_last4 ? (
+                    <p className="text-xs text-gray-500">Карта •••• {autoRenewInfo.card_last4}</p>
+                  ) : (
+                    <p className="text-xs text-gray-500">Карта будет привязана при следующей оплате</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={handleToggleAutoRenew}
+                disabled={togglingAutoRenew}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                  autoRenewInfo.auto_renew ? 'bg-purple-600' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                  autoRenewInfo.auto_renew ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+            {autoRenewInfo.auto_renew && autoRenewInfo.next_charge_date && autoRenewInfo.next_charge_amount && (
+              <p className="text-xs text-gray-400 mt-2 ml-13">
+                Следующее списание {autoRenewInfo.next_charge_amount} ₽ — {new Date(autoRenewInfo.next_charge_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+              </p>
+            )}
+          </Card>
+        )}
+
         {/* Тарифы */}
         {!isPremium && plans.length > 0 && (
           <div className="space-y-3">
@@ -564,7 +659,7 @@ const Subscription = () => {
           </div>
           <div className="flex items-center gap-1.5">
             <Icon name="ShieldCheck" size={14} className="text-gray-400" />
-            <span className="text-[10px] sm:text-xs text-gray-400">Без автопродления</span>
+            <span className="text-[10px] sm:text-xs text-gray-400">Автопродление</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Icon name="RotateCcw" size={14} className="text-gray-400" />

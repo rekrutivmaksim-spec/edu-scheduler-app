@@ -1,4 +1,4 @@
-"""API для обработки платежей и управления подписками"""
+"""API для обработки платежей и управления подписками с автопродлением"""
 
 import json
 import os
@@ -37,7 +37,6 @@ PLANS = {
     }
 }
 
-# Дополнительные пакеты токенов для ИИ
 TOKEN_PACKS = {
     'tokens_50k': {
         'price': 99,
@@ -51,7 +50,6 @@ TOKEN_PACKS = {
     }
 }
 
-# Микро-платежи: пакеты вопросов
 QUESTION_PACKS = {
     'questions_10': {
         'price': 49,
@@ -65,7 +63,6 @@ QUESTION_PACKS = {
     }
 }
 
-# Сезонные тарифы
 SEASONAL_PLANS = {
     'session': {
         'price': 299,
@@ -76,7 +73,6 @@ SEASONAL_PLANS = {
 }
 
 def verify_token(token: str) -> dict:
-    """Проверяет JWT токен и возвращает payload"""
     if token == 'mock-token':
         return {'user_id': 1}
     try:
@@ -85,70 +81,105 @@ def verify_token(token: str) -> dict:
         return None
 
 def generate_token(*args):
-    """Генерирует токен для Tinkoff API"""
     values = ''.join(str(v) for v in args if v is not None)
     return hashlib.sha256(values.encode()).hexdigest()
 
-def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description: str) -> dict:
-    """Создает платеж в Т-кассе"""
+def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description: str, recurrent: bool = False) -> dict:
+    """Создает платеж в Т-кассе. recurrent=True привязывает карту для автосписаний"""
     params = {
         'TerminalKey': TINKOFF_TERMINAL_KEY,
-        'Amount': amount * 100,  # Копейки
+        'Amount': amount * 100,
         'OrderId': order_id,
         'Description': description,
         'SuccessURL': 'https://eduhelper.poehali.dev/subscription?payment=success',
         'FailURL': 'https://eduhelper.poehali.dev/subscription?payment=failed',
-        'PayType': 'O'  # O = одностадийная оплата (включает СБП)
+        'PayType': 'O'
     }
-    
-    print(f"[TINKOFF] Создание платежа для user_id={user_id}, amount={amount}, order_id={order_id}")
-    print(f"[TINKOFF] Terminal Key: {TINKOFF_TERMINAL_KEY}")
-    print(f"[TINKOFF] Password length: {len(TINKOFF_PASSWORD)}")
-    
-    # Генерируем токен
-    token_params = {
-        'Amount': params['Amount'],
-        'Description': params['Description'],
-        'FailURL': params['FailURL'],
-        'OrderId': params['OrderId'],
-        'Password': TINKOFF_PASSWORD,
-        'PayType': params['PayType'],
-        'SuccessURL': params['SuccessURL'],
-        'TerminalKey': params['TerminalKey']
-    }
+
+    if recurrent:
+        params['Recurrent'] = 'Y'
+        params['CustomerKey'] = str(user_id)
+
+    print(f"[TINKOFF] Init user_id={user_id}, amount={amount}, order_id={order_id}, recurrent={recurrent}")
+
+    token_params = {}
+    for k, v in params.items():
+        if k not in ('Recurrent', 'CustomerKey'):
+            token_params[k] = v
+    token_params['Password'] = TINKOFF_PASSWORD
     sorted_values = [token_params[k] for k in sorted(token_params.keys())]
     params['Token'] = generate_token(*sorted_values)
-    
-    print(f"[TINKOFF] Отправка запроса в {TINKOFF_API_URL}Init")
-    print(f"[TINKOFF] Параметры запроса (без Token): {json.dumps({k: v for k, v in params.items() if k != 'Token'}, ensure_ascii=False)}")
-    
+
     try:
         response = requests.post(f'{TINKOFF_API_URL}Init', json=params, timeout=10)
         response_data = response.json()
-        
-        print(f"[TINKOFF] Ответ от API: {json.dumps(response_data, ensure_ascii=False)}")
-        
+        print(f"[TINKOFF] Init response: {json.dumps(response_data, ensure_ascii=False)}")
         if not response_data.get('Success'):
-            error_code = response_data.get('ErrorCode', 'unknown')
-            error_msg = response_data.get('Message', 'Неизвестная ошибка')
-            print(f"[TINKOFF] Ошибка API: {error_code} - {error_msg}")
-            return {'error': error_msg, 'error_code': error_code}
-        
+            return {'error': response_data.get('Message', 'Ошибка'), 'error_code': response_data.get('ErrorCode')}
         return response_data
-    except requests.exceptions.RequestException as e:
-        print(f"[TINKOFF] Сетевая ошибка: {str(e)}")
-        return {'error': f'Сетевая ошибка: {str(e)}'}
     except Exception as e:
-        print(f"[TINKOFF] Неожиданная ошибка: {str(e)}")
-        return {'error': f'Неожиданная ошибка: {str(e)}'}
+        print(f"[TINKOFF] Init error: {str(e)}")
+        return {'error': str(e)}
+
+def charge_recurrent(user_id: int, rebill_id: str, amount: int, order_id: str) -> dict:
+    """Автосписание по сохранённой карте (рекуррентный платёж)"""
+    init_params = {
+        'TerminalKey': TINKOFF_TERMINAL_KEY,
+        'Amount': amount * 100,
+        'OrderId': order_id,
+        'Description': 'Studyfay: автопродление подписки',
+        'PayType': 'O'
+    }
+
+    token_params = dict(init_params)
+    token_params['Password'] = TINKOFF_PASSWORD
+    sorted_values = [token_params[k] for k in sorted(token_params.keys())]
+    init_params['Token'] = generate_token(*sorted_values)
+
+    print(f"[RECURRENT] Init for user_id={user_id}, rebill_id={rebill_id}, amount={amount}")
+
+    try:
+        resp = requests.post(f'{TINKOFF_API_URL}Init', json=init_params, timeout=10)
+        init_data = resp.json()
+        print(f"[RECURRENT] Init response: {json.dumps(init_data, ensure_ascii=False)}")
+
+        if not init_data.get('Success'):
+            return {'error': init_data.get('Message', 'Init failed')}
+
+        payment_id = init_data['PaymentId']
+
+        charge_params = {
+            'TerminalKey': TINKOFF_TERMINAL_KEY,
+            'PaymentId': payment_id,
+            'RebillId': rebill_id
+        }
+        charge_token_params = {
+            'Password': TINKOFF_PASSWORD,
+            'PaymentId': str(payment_id),
+            'RebillId': str(rebill_id),
+            'TerminalKey': TINKOFF_TERMINAL_KEY
+        }
+        sorted_vals = [charge_token_params[k] for k in sorted(charge_token_params.keys())]
+        charge_params['Token'] = generate_token(*sorted_vals)
+
+        print(f"[RECURRENT] Charge PaymentId={payment_id}")
+        charge_resp = requests.post(f'{TINKOFF_API_URL}Charge', json=charge_params, timeout=10)
+        charge_data = charge_resp.json()
+        print(f"[RECURRENT] Charge response: {json.dumps(charge_data, ensure_ascii=False)}")
+
+        if charge_data.get('Success') and charge_data.get('Status') == 'CONFIRMED':
+            return {'success': True, 'payment_id': payment_id}
+        else:
+            return {'error': charge_data.get('Message', 'Charge failed'), 'status': charge_data.get('Status')}
+    except Exception as e:
+        print(f"[RECURRENT] Error: {str(e)}")
+        return {'error': str(e)}
 
 def check_tinkoff_payment(payment_id: str) -> dict:
-    """Проверяет статус платежа в Т-кассе"""
     params = {
         'TerminalKey': TINKOFF_TERMINAL_KEY,
         'PaymentId': payment_id
     }
-    
     token_params = {
         'Password': TINKOFF_PASSWORD,
         'PaymentId': payment_id,
@@ -156,26 +187,23 @@ def check_tinkoff_payment(payment_id: str) -> dict:
     }
     sorted_values = [token_params[k] for k in sorted(token_params.keys())]
     params['Token'] = generate_token(*sorted_values)
-    
     try:
         response = requests.post(f'{TINKOFF_API_URL}GetState', json=params, timeout=10)
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        print(f"[TINKOFF] Ошибка проверки платежа: {str(e)}")
+        print(f"[TINKOFF] GetState error: {str(e)}")
         return None
 
 def create_payment(conn, user_id: int, plan_type: str) -> dict:
-    """Создает запись о платеже и инициирует оплату в Т-кассе"""
-    # Проверяем, что это: подписка, пакет токенов, пакет вопросов или сезонный тариф
     is_token_pack = plan_type in TOKEN_PACKS
     is_subscription = plan_type in PLANS
     is_question_pack = plan_type in QUESTION_PACKS
     is_seasonal = plan_type in SEASONAL_PLANS
-    
+
     if not (is_token_pack or is_subscription or is_question_pack or is_seasonal):
         return None
-    
+
     if is_subscription:
         plan = PLANS[plan_type]
         expires_at = datetime.now() + timedelta(days=plan['duration_days'])
@@ -195,77 +223,67 @@ def create_payment(conn, user_id: int, plan_type: str) -> dict:
         plan = TOKEN_PACKS[plan_type]
         expires_at = None
         description = f"Studyfay доп. токены: {plan['name']}"
-    
+
+    use_recurrent = is_subscription
+
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(f"""
             INSERT INTO {SCHEMA_NAME}.payments 
-            (user_id, amount, plan_type, payment_status, expires_at)
-            VALUES (%s, %s, %s, 'pending', %s)
+            (user_id, amount, plan_type, payment_status, expires_at, is_recurrent)
+            VALUES (%s, %s, %s, 'pending', %s, %s)
             RETURNING id, amount, plan_type, payment_status, created_at, expires_at
-        """, (user_id, plan['price'], plan_type, expires_at))
-        
+        """, (user_id, plan['price'], plan_type, expires_at, use_recurrent))
+
         payment = cur.fetchone()
         conn.commit()
         payment_dict = dict(payment)
-        
-        # Создаем платеж в Т-кассе
+
         order_id = f"studyfay_{payment_dict['id']}"
-        
         tinkoff_response = create_tinkoff_payment(
-            user_id, 
-            plan['price'], 
-            order_id, 
-            description
+            user_id, plan['price'], order_id, description, recurrent=use_recurrent
         )
-        
+
         if tinkoff_response:
             if tinkoff_response.get('Success'):
-                # Сохраняем PaymentId от Тинькофф
                 cur.execute(f"""
                     UPDATE {SCHEMA_NAME}.payments
                     SET payment_id = %s
                     WHERE id = %s
                 """, (tinkoff_response.get('PaymentId'), payment_dict['id']))
                 conn.commit()
-                
                 payment_dict['payment_url'] = tinkoff_response.get('PaymentURL')
                 payment_dict['tinkoff_payment_id'] = tinkoff_response.get('PaymentId')
             else:
-                # Ошибка от Т-кассы
                 payment_dict['error'] = tinkoff_response.get('error', 'Ошибка при создании платежа')
                 payment_dict['error_code'] = tinkoff_response.get('error_code')
         else:
             payment_dict['error'] = 'Не удалось связаться с Т-кассой'
-        
+
         return payment_dict
 
-def complete_payment(conn, payment_id: int, payment_method: str = None, external_payment_id: str = None) -> bool:
-    """Завершает платеж и активирует подписку или добавляет токены"""
+def complete_payment(conn, payment_id: int, payment_method: str = None, external_payment_id: str = None, rebill_id: str = None, card_last4: str = None) -> bool:
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        # ЗАЩИТА: проверяем что платеж еще не обработан (защита от повторной обработки)
         cur.execute(f"""
-            SELECT user_id, plan_type, expires_at, payment_status
+            SELECT user_id, plan_type, expires_at, payment_status, is_recurrent
             FROM {SCHEMA_NAME}.payments
             WHERE id = %s
             FOR UPDATE
         """, (payment_id,))
-        
+
         payment = cur.fetchone()
         if not payment:
             print(f'[PAYMENT] Payment {payment_id} not found')
             return False
-        
-        # КРИТИЧЕСКАЯ ПРОВЕРКА: защита от повторной обработки
+
         if payment['payment_status'] != 'pending':
-            print(f'[PAYMENT] Payment {payment_id} already processed with status {payment["payment_status"]}')
+            print(f'[PAYMENT] Payment {payment_id} already processed: {payment["payment_status"]}')
             return False
-        
+
         plan_type = payment['plan_type']
         is_token_pack = plan_type in TOKEN_PACKS
         is_question_pack = plan_type in QUESTION_PACKS
         is_seasonal = plan_type in SEASONAL_PLANS
-        
-        # Обновляем статус платежа
+
         cur.execute(f"""
             UPDATE {SCHEMA_NAME}.payments
             SET payment_status = 'completed',
@@ -274,9 +292,8 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                 payment_id = %s
             WHERE id = %s
         """, (payment_method, external_payment_id, payment_id))
-        
+
         if is_question_pack:
-            # Добавляем бонусные вопросы
             questions_to_add = QUESTION_PACKS[plan_type]['questions']
             cur.execute(f"""
                 UPDATE {SCHEMA_NAME}.users
@@ -284,16 +301,12 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (questions_to_add, payment['user_id']))
-            
-            # Записываем в таблицу question_packs
             cur.execute(f"""
                 INSERT INTO {SCHEMA_NAME}.question_packs 
                 (user_id, pack_type, questions_count, price_rub, payment_id)
                 VALUES (%s, %s, %s, %s, %s)
             """, (payment['user_id'], plan_type, questions_to_add, QUESTION_PACKS[plan_type]['price'], payment_id))
-            
         elif is_token_pack:
-            # Добавляем токены к текущему лимиту (не сбрасываем)
             tokens_to_add = TOKEN_PACKS[plan_type]['tokens']
             cur.execute(f"""
                 UPDATE {SCHEMA_NAME}.users
@@ -301,9 +314,7 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (tokens_to_add, payment['user_id']))
-            
         elif is_seasonal:
-            # Активируем сезонную подписку
             cur.execute(f"""
                 UPDATE {SCHEMA_NAME}.users
                 SET subscription_type = 'premium',
@@ -312,82 +323,152 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (payment['expires_at'], payment['user_id']))
-            
-            # Записываем в таблицу seasonal_subscriptions
             cur.execute(f"""
                 INSERT INTO {SCHEMA_NAME}.seasonal_subscriptions 
                 (user_id, season_type, expires_at, price_rub, payment_id)
                 VALUES (%s, 'session', %s, %s, %s)
             """, (payment['user_id'], payment['expires_at'], SEASONAL_PLANS['session']['price'], payment_id))
-            
         else:
-            # Активируем подписку и сбрасываем счетчик вопросов
-            plan_limits = {
-                '1month': 100000,
-                '3months': 100000,
-                '6months': 100000,
-                '1year': 100000
-            }
-            questions_limit = plan_limits.get(plan_type, 100000)
-            
+            questions_limit = 100000
+            update_fields = """
+                subscription_type = 'premium',
+                subscription_expires_at = %s,
+                subscription_plan = %s,
+                ai_questions_used = 0,
+                ai_questions_limit = %s,
+                updated_at = CURRENT_TIMESTAMP
+            """
+            update_values = [payment['expires_at'], plan_type, questions_limit]
+
+            if rebill_id:
+                update_fields += ", rebill_id = %s, auto_renew = true"
+                update_values.append(rebill_id)
+            if card_last4:
+                update_fields += ", card_last4 = %s"
+                update_values.append(card_last4)
+
+            update_values.append(payment['user_id'])
             cur.execute(f"""
                 UPDATE {SCHEMA_NAME}.users
-                SET subscription_type = 'premium',
-                    subscription_expires_at = %s,
-                    subscription_plan = %s,
-                    ai_questions_used = 0,
-                    ai_questions_limit = %s,
-                    updated_at = CURRENT_TIMESTAMP
+                SET {update_fields}
                 WHERE id = %s
-            """, (payment['expires_at'], plan_type, questions_limit, payment['user_id']))
-        
+            """, update_values)
+
         conn.commit()
         return True
 
 def get_user_payments(conn, user_id: int) -> list:
-    """Получает историю платежей пользователя"""
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(f"""
             SELECT id, amount, plan_type, payment_status, 
-                   created_at, completed_at, expires_at
+                   created_at, completed_at, expires_at, is_recurrent
             FROM {SCHEMA_NAME}.payments
             WHERE user_id = %s
             ORDER BY created_at DESC
             LIMIT 20
         """, (user_id,))
-        
         return [dict(row) for row in cur.fetchall()]
 
+def get_auto_renew_info(conn, user_id: int) -> dict:
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(f"""
+            SELECT auto_renew, rebill_id, card_last4, subscription_plan, subscription_expires_at
+            FROM {SCHEMA_NAME}.users
+            WHERE id = %s
+        """, (user_id,))
+        user = cur.fetchone()
+        if not user:
+            return {}
+        return {
+            'auto_renew': bool(user['auto_renew']),
+            'has_card': bool(user['rebill_id']),
+            'card_last4': user['card_last4'] or '',
+            'subscription_plan': user['subscription_plan'],
+            'next_charge_date': str(user['subscription_expires_at']) if user['subscription_expires_at'] else None,
+            'next_charge_amount': PLANS.get(user['subscription_plan'], {}).get('price')
+        }
+
+def toggle_auto_renew(conn, user_id: int, enabled: bool) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(f"""
+            UPDATE {SCHEMA_NAME}.users
+            SET auto_renew = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (enabled, user_id))
+        conn.commit()
+        return True
+
+def handle_notification(conn, body: dict) -> dict:
+    """Обработка уведомлений от Тинькофф (webhook)"""
+    status = body.get('Status')
+    payment_id_tinkoff = str(body.get('PaymentId', ''))
+    order_id = body.get('OrderId', '')
+    rebill_id = str(body.get('RebillId', '')) if body.get('RebillId') else None
+    card_id = body.get('CardId')
+    pan = body.get('Pan', '')
+    card_last4 = pan[-4:] if pan and len(pan) >= 4 else None
+
+    print(f"[WEBHOOK] Status={status}, OrderId={order_id}, RebillId={rebill_id}, Pan={pan}")
+
+    if not order_id.startswith('studyfay_'):
+        print(f"[WEBHOOK] Unknown OrderId format: {order_id}")
+        return {'success': True}
+
+    local_payment_id = int(order_id.replace('studyfay_', ''))
+
+    if status == 'CONFIRMED':
+        complete_payment(conn, local_payment_id, 'tinkoff', payment_id_tinkoff,
+                        rebill_id=rebill_id, card_last4=card_last4)
+        print(f"[WEBHOOK] Payment {local_payment_id} completed, rebill_id={rebill_id}")
+
+    return {'success': True}
+
 def handler(event: dict, context) -> dict:
-    """Обработчик запросов для платежей"""
+    """Обработчик запросов для платежей с автопродлением"""
     method = event.get('httpMethod', 'GET')
-    
+
     if method == 'OPTIONS':
         return {
             'statusCode': 200,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Authorization'
             },
             'body': ''
         }
-    
+
     headers = {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
     }
-    
+
+    qs = event.get('queryStringParameters', {}) or {}
+    body_str = event.get('body', '{}') or '{}'
+
+    if method == 'POST' and qs.get('action') == 'notification':
+        conn = psycopg2.connect(DATABASE_URL)
+        try:
+            body = json.loads(body_str)
+            result = handle_notification(conn, body)
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(result)
+            }
+        finally:
+            conn.close()
+
     auth_header = event.get('headers', {}).get('X-Authorization', '')
     token = auth_header.replace('Bearer ', '')
-    
+
     if not token:
         return {
             'statusCode': 401,
             'headers': headers,
             'body': json.dumps({'error': 'Требуется авторизация'})
         }
-    
+
     payload = verify_token(token)
     if not payload:
         return {
@@ -395,66 +476,39 @@ def handler(event: dict, context) -> dict:
             'headers': headers,
             'body': json.dumps({'error': 'Недействительный токен'})
         }
-    
+
     user_id = payload['user_id']
     conn = psycopg2.connect(DATABASE_URL)
-    
+
     try:
         if method == 'GET':
-            action = event.get('queryStringParameters', {}).get('action', 'plans')
-            
+            action = qs.get('action', 'plans')
+
             if action == 'plans':
-                # Возвращаем доступные тарифы
                 plans_list = [
-                    {
-                        'id': key,
-                        'name': plan['name'],
-                        'price': plan['price'],
-                        'duration_days': plan['duration_days']
-                    }
+                    {'id': key, 'name': plan['name'], 'price': plan['price'], 'duration_days': plan['duration_days']}
                     for key, plan in PLANS.items()
                 ]
-                
                 return {
                     'statusCode': 200,
                     'headers': headers,
                     'body': json.dumps({'plans': plans_list})
                 }
-            
+
             elif action == 'token_packs':
-                # Возвращаем доступные пакеты токенов и вопросов
                 token_packs_list = [
-                    {
-                        'id': key,
-                        'name': pack['name'],
-                        'price': pack['price'],
-                        'tokens': pack['tokens']
-                    }
-                    for key, pack in TOKEN_PACKS.items()
+                    {'id': key, 'name': p['name'], 'price': p['price'], 'tokens': p['tokens']}
+                    for key, p in TOKEN_PACKS.items()
                 ]
-                
                 question_packs_list = [
-                    {
-                        'id': key,
-                        'name': pack['name'],
-                        'price': pack['price'],
-                        'questions': pack['questions']
-                    }
-                    for key, pack in QUESTION_PACKS.items()
+                    {'id': key, 'name': p['name'], 'price': p['price'], 'questions': p['questions']}
+                    for key, p in QUESTION_PACKS.items()
                 ]
-                
-                # Проверяем доступность сезонного тарифа
                 current_month = datetime.now().month
                 seasonal_packs_list = []
-                for key, pack in SEASONAL_PLANS.items():
-                    if current_month in pack['available_months']:
-                        seasonal_packs_list.append({
-                            'id': key,
-                            'name': pack['name'],
-                            'price': pack['price'],
-                            'duration_days': pack['duration_days']
-                        })
-                
+                for key, p in SEASONAL_PLANS.items():
+                    if current_month in p['available_months']:
+                        seasonal_packs_list.append({'id': key, 'name': p['name'], 'price': p['price'], 'duration_days': p['duration_days']})
                 return {
                     'statusCode': 200,
                     'headers': headers,
@@ -464,50 +518,43 @@ def handler(event: dict, context) -> dict:
                         'seasonal_packs': seasonal_packs_list
                     })
                 }
-            
+
             elif action == 'history':
-                # Возвращаем историю платежей
                 payments = get_user_payments(conn, user_id)
-                
                 return {
                     'statusCode': 200,
                     'headers': headers,
                     'body': json.dumps({'payments': payments}, default=str)
                 }
-        
+
+            elif action == 'auto_renew':
+                info = get_auto_renew_info(conn, user_id)
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps(info, default=str)
+                }
+
         elif method == 'POST':
-            body = json.loads(event.get('body', '{}'))
+            body = json.loads(body_str)
             action = body.get('action')
-            
+
             if action == 'create_payment':
                 plan_type = body.get('plan_type')
-                
-                print(f"[PAYMENT] Создание платежа: user_id={user_id}, plan_type={plan_type}")
-                
                 if plan_type not in PLANS and plan_type not in TOKEN_PACKS and plan_type not in QUESTION_PACKS and plan_type not in SEASONAL_PLANS:
-                    print(f"[PAYMENT] Ошибка: неверный plan_type={plan_type}")
                     return {
                         'statusCode': 400,
                         'headers': headers,
                         'body': json.dumps({'error': 'Неверный тип подписки'})
                     }
-                
                 payment = create_payment(conn, user_id, plan_type)
-                
                 if not payment:
-                    print(f"[PAYMENT] Ошибка: не удалось создать запись о платеже")
                     return {
                         'statusCode': 500,
                         'headers': headers,
                         'body': json.dumps({'error': 'Не удалось создать платеж'})
                     }
-                
-                print(f"[PAYMENT] Платеж создан: payment_id={payment.get('id')}, payment_url={payment.get('payment_url')}")
-                
-                # Определяем, что возвращать
-                plan_info = PLANS.get(plan_type) or TOKEN_PACKS.get(plan_type)
-                
-                # Возвращаем ссылку на оплату
+                plan_info = PLANS.get(plan_type) or TOKEN_PACKS.get(plan_type) or QUESTION_PACKS.get(plan_type) or SEASONAL_PLANS.get(plan_type)
                 return {
                     'statusCode': 200,
                     'headers': headers,
@@ -518,96 +565,82 @@ def handler(event: dict, context) -> dict:
                         'tinkoff_payment_id': payment.get('tinkoff_payment_id')
                     }, default=str)
                 }
-            
+
             elif action == 'check_payment':
-                # Проверка статуса платежа в Т-кассе
                 payment_id = body.get('payment_id')
                 tinkoff_payment_id = body.get('tinkoff_payment_id')
-                
                 if not payment_id or not tinkoff_payment_id:
                     return {
                         'statusCode': 400,
                         'headers': headers,
                         'body': json.dumps({'error': 'payment_id и tinkoff_payment_id обязательны'})
                     }
-                
-                # Проверяем статус в Т-кассе
                 tinkoff_status = check_tinkoff_payment(tinkoff_payment_id)
-                
                 if tinkoff_status and tinkoff_status.get('Success'):
                     status = tinkoff_status.get('Status')
-                    
-                    # Если платеж подтвержден - активируем подписку
                     if status == 'CONFIRMED':
-                        complete_payment(conn, payment_id, 'tinkoff', tinkoff_payment_id)
-                        
+                        rebill_id = str(tinkoff_status.get('RebillId', '')) if tinkoff_status.get('RebillId') else None
+                        pan = tinkoff_status.get('Pan', '')
+                        card_last4 = pan[-4:] if pan and len(pan) >= 4 else None
+                        complete_payment(conn, payment_id, 'tinkoff', tinkoff_payment_id,
+                                        rebill_id=rebill_id, card_last4=card_last4)
                         return {
                             'statusCode': 200,
                             'headers': headers,
-                            'body': json.dumps({
-                                'status': 'completed',
-                                'message': 'Подписка активирована'
-                            })
+                            'body': json.dumps({'status': 'completed', 'message': 'Подписка активирована'})
                         }
                     elif status in ['NEW', 'AUTHORIZED']:
                         return {
                             'statusCode': 200,
                             'headers': headers,
-                            'body': json.dumps({
-                                'status': 'pending',
-                                'message': 'Платеж в обработке'
-                            })
+                            'body': json.dumps({'status': 'pending', 'message': 'Платеж в обработке'})
                         }
                     else:
                         return {
                             'statusCode': 200,
                             'headers': headers,
-                            'body': json.dumps({
-                                'status': 'failed',
-                                'message': f'Платеж не прошел: {status}'
-                            })
+                            'body': json.dumps({'status': 'failed', 'message': f'Платеж не прошел: {status}'})
                         }
-                
                 return {
                     'statusCode': 500,
                     'headers': headers,
                     'body': json.dumps({'error': 'Не удалось проверить статус платежа'})
                 }
-            
+
+            elif action == 'toggle_auto_renew':
+                enabled = body.get('enabled', True)
+                toggle_auto_renew(conn, user_id, enabled)
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({'success': True, 'auto_renew': enabled})
+                }
+
             elif action == 'complete_payment':
-                # Это для тестового режима - автоматически завершаем платеж
                 payment_id = body.get('payment_id')
-                
                 if not payment_id:
                     return {
                         'statusCode': 400,
                         'headers': headers,
                         'body': json.dumps({'error': 'payment_id обязателен'})
                     }
-                
                 success = complete_payment(conn, payment_id, 'test', f'test_{payment_id}')
-                
                 if success:
                     return {
                         'statusCode': 200,
                         'headers': headers,
-                        'body': json.dumps({
-                            'success': True,
-                            'message': 'Подписка активирована'
-                        })
+                        'body': json.dumps({'success': True, 'message': 'Подписка активирована'})
                     }
-                else:
-                    return {
-                        'statusCode': 400,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'Платеж не найден или уже обработан'})
-                    }
-        
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Платеж не найден или уже обработан'})
+                }
+
         return {
             'statusCode': 404,
             'headers': headers,
             'body': json.dumps({'error': 'Маршрут не найден'})
         }
-        
     finally:
         conn.close()

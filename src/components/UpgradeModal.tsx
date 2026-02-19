@@ -93,7 +93,7 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
             <div className="mt-4 pt-4 border-t border-indigo-200 flex items-end justify-between">
               <div>
                 <p className="text-2xl font-bold text-indigo-600">299 &#8381;/мес</p>
-                <p className="text-xs text-gray-600">7 дней бесплатно</p>
+                <p className="text-xs text-gray-600">7 дней бесплатно, далее автопродление</p>
               </div>
               <p className="text-xs text-gray-500 line-through">10 &#8381;/день</p>
             </div>
@@ -111,7 +111,7 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
             className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-600 hover:via-orange-600 hover:to-red-600 text-white shadow-lg shadow-orange-500/30 text-base py-6"
           >
             <Icon name="Crown" size={20} className="mr-2" />
-            Попробовать бесплатно 7 дней
+            Попробовать 7 дней бесплатно
           </Button>
 
           <Button

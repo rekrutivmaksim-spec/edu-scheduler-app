@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "name": "Get auto-charge status",
+      "method": "GET",
+      "path": "/?action=status",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "status": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -119,7 +119,7 @@ const Pricing = () => {
     {
       name: 'Премиум',
       price: '299₽',
-      period: 'в месяц',
+      period: 'в месяц, автопродление',
       planId: '1month',
       features: [
         { text: 'Безлимитное расписание', included: true },
@@ -137,7 +137,7 @@ const Pricing = () => {
     {
       name: 'Полгода',
       price: '1 999₽',
-      period: 'за 6 месяцев',
+      period: 'за 6 месяцев, автопродление',
       pricePerMonth: '333₽/мес',
       badge: 'Популярный',
       savings: '795₽',
@@ -158,7 +158,7 @@ const Pricing = () => {
     {
       name: 'Год',
       price: '2 699₽',
-      period: 'за год',
+      period: 'за год, автопродление',
       pricePerMonth: '225₽/мес',
       badge: 'Выгода 25%',
       savings: '889₽',
@@ -196,7 +196,7 @@ const Pricing = () => {
                 <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Тарифы
                 </h1>
-                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">Выберите подходящий план</p>
+                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">Подписка с автопродлением</p>
               </div>
             </div>
           </div>

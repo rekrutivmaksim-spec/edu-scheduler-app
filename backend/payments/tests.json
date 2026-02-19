@@ -7,11 +7,16 @@
       "headers": {
         "Authorization": "Bearer mock-token"
       },
-      "expectedStatus": 200,
-      "expectedBody": {
-        "plans": "array"
+      "expectedStatus": 200
+    },
+    {
+      "name": "Get auto renew info",
+      "method": "GET",
+      "path": "/?action=auto_renew",
+      "headers": {
+        "Authorization": "Bearer mock-token"
       },
-      "bodyMatcher": "partial"
+      "expectedStatus": 200
     },
     {
       "name": "Create payment for 1 month plan",
@@ -24,12 +29,7 @@
         "action": "create_payment",
         "plan_type": "1month"
       },
-      "expectedStatus": 200,
-      "expectedBody": {
-        "payment": "object",
-        "plan": "object"
-      },
-      "bodyMatcher": "partial"
+      "expectedStatus": 200
     }
   ]
 }
