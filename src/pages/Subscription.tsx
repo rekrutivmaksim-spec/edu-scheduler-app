@@ -485,8 +485,8 @@ const Subscription = () => {
 
             {plans.map((plan) => {
               const pricePerMonth = Math.round(plan.price / (plan.duration_days / 30));
-              const isPopular = plan.id === '3months';
-              const discount = plan.id === '3months' ? 16 : plan.id === '6months' ? 17 : 0;
+              const isPopular = plan.id === '6months';
+              const discount = plan.id === '6months' ? 16 : plan.id === '1year' ? 33 : 0;
 
               return (
                 <Card

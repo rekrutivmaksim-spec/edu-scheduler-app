@@ -24,13 +24,13 @@ PLANS = {
         'ai_questions': 100000
     },
     '6months': {
-        'price': 1999,
+        'price': 1499,
         'duration_days': 180,
         'name': '6 месяцев',
         'ai_questions': 100000
     },
     '1year': {
-        'price': 2699,
+        'price': 2399,
         'duration_days': 365,
         'name': '1 год',
         'ai_questions': 100000
@@ -93,6 +93,7 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
         'Description': description,
         'SuccessURL': 'https://eduhelper.poehali.dev/subscription?payment=success',
         'FailURL': 'https://eduhelper.poehali.dev/subscription?payment=failed',
+        'NotificationURL': 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b',
         'PayType': 'O'
     }
 
@@ -104,7 +105,7 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
 
     token_params = {}
     for k, v in params.items():
-        if k not in ('Recurrent', 'CustomerKey'):
+        if k not in ('Recurrent', 'CustomerKey', 'NotificationURL', 'SuccessURL', 'FailURL'):
             token_params[k] = v
     token_params['Password'] = TINKOFF_PASSWORD
     sorted_values = [token_params[k] for k in sorted(token_params.keys())]

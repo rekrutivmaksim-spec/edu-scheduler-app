@@ -16,8 +16,8 @@ TINKOFF_API_URL = 'https://securepay.tinkoff.ru/v2/'
 
 PLANS = {
     '1month': {'price': 299, 'duration_days': 30, 'name': '1 месяц'},
-    '6months': {'price': 1999, 'duration_days': 180, 'name': '6 месяцев'},
-    '1year': {'price': 2699, 'duration_days': 365, 'name': '1 год'}
+    '6months': {'price': 1499, 'duration_days': 180, 'name': '6 месяцев'},
+    '1year': {'price': 2399, 'duration_days': 365, 'name': '1 год'}
 }
 
 def generate_token(*args):

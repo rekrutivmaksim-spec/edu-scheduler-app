@@ -254,7 +254,7 @@ const Profile = () => {
                   <p className="text-xs sm:text-sm text-gray-600 break-words line-clamp-2">
                     {subscriptionType === 'premium' 
                       ? 'Доступ к ИИ-ассистенту активен' 
-                      : 'Безлимитный доступ от 299₽/мес с автопродлением'}
+                      : 'Безлимитный доступ от 200₽/мес с автопродлением'}
                   </p>
                 </div>
               </div>

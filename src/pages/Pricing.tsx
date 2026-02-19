@@ -136,11 +136,11 @@ const Pricing = () => {
     },
     {
       name: 'Полгода',
-      price: '1 999₽',
+      price: '1 499₽',
       period: 'за 6 месяцев, автопродление',
-      pricePerMonth: '333₽/мес',
+      pricePerMonth: '250₽/мес',
       badge: 'Популярный',
-      savings: '795₽',
+      savings: '295₽',
       planId: '6months',
       features: [
         { text: 'Безлимитное расписание', included: true },
@@ -157,11 +157,11 @@ const Pricing = () => {
     },
     {
       name: 'Год',
-      price: '2 699₽',
+      price: '2 399₽',
       period: 'за год, автопродление',
-      pricePerMonth: '225₽/мес',
-      badge: 'Выгода 25%',
-      savings: '889₽',
+      pricePerMonth: '200₽/мес',
+      badge: 'Выгода 33%',
+      savings: '1 189₽',
       planId: '1year',
       features: [
         { text: 'Безлимитное расписание', included: true },
