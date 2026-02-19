@@ -93,7 +93,7 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
         'Description': description,
         'SuccessURL': 'https://eduhelper.poehali.dev/subscription?payment=success',
         'FailURL': 'https://eduhelper.poehali.dev/subscription?payment=failed',
-        'NotificationURL': 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b',
+        'NotificationURL': 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b?action=notification',
         'PayType': 'O'
     }
 

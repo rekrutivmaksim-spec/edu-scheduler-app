@@ -387,26 +387,7 @@ const Profile = () => {
           </div>
         </Card>
 
-        <Card className="mt-6 p-5 bg-gradient-to-r from-sky-500 to-blue-600 border-0 shadow-xl cursor-pointer hover:opacity-95 transition-opacity"
-          onClick={() => {
-            const token = authService.getToken();
-            const botUrl = `https://t.me/StudyfayBot?start=link_${token}`;
-            window.open(botUrl, '_blank');
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                <Icon name="Send" size={24} className="text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Telegram-бот</h3>
-                <p className="text-sm text-white/80">Расписание и задачи в Telegram</p>
-              </div>
-            </div>
-            <Icon name="ChevronRight" size={24} className="text-white/60" />
-          </div>
-        </Card>
+
 
         <Card className="p-6 bg-white border-0 shadow-xl mt-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">Быстрые действия</h3>

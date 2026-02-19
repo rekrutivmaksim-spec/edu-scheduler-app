@@ -91,6 +91,14 @@ const Subscription = () => {
         navigate('/login');
         return;
       }
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('payment') === 'success') {
+        toast({ title: 'Оплата прошла успешно!', description: 'Подписка активируется в течение минуты' });
+        window.history.replaceState({}, '', '/subscription');
+      } else if (params.get('payment') === 'failed') {
+        toast({ title: 'Оплата не прошла', description: 'Попробуйте снова или выберите другой способ', variant: 'destructive' });
+        window.history.replaceState({}, '', '/subscription');
+      }
       await loadData();
     };
     checkAuth();

@@ -63,8 +63,8 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.body,
-    icon: '/icon-512.png',
-    badge: '/icon-192.png',
+    icon: 'https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/ac9b225a-aef2-4cf4-b96e-2103e5a5a3b7.jpg',
+    badge: 'https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/ac9b225a-aef2-4cf4-b96e-2103e5a5a3b7.jpg',
     vibrate: [200, 100, 200],
     tag: data.tag || 'notification',
     requireInteraction: false,
