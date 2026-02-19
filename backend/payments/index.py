@@ -18,46 +18,41 @@ TINKOFF_API_URL = 'https://securepay.tinkoff.ru/v2/'
 
 PLANS = {
     '1month': {
-        'price': 249,
+        'price': 149,
         'duration_days': 30,
         'name': '1 месяц',
         'ai_questions': 100000
     },
     '3months': {
-        'price': 649,
+        'price': 349,
         'duration_days': 90,
         'name': '3 месяца',
         'ai_questions': 100000
     },
     '6months': {
-        'price': 1199,
+        'price': 599,
         'duration_days': 180,
         'name': '6 месяцев',
         'ai_questions': 100000
     },
     '1year': {
-        'price': 1990,
+        'price': 999,
         'duration_days': 365,
         'name': '1 год',
         'ai_questions': 100000,
-        'discount': 33
+        'discount': 44
     }
 }
 
 # Дополнительные пакеты токенов для ИИ
 TOKEN_PACKS = {
-    'tokens_25k': {
-        'price': 99,
-        'tokens': 25000,
-        'name': '+25,000 токенов (~32,000 слов)'
-    },
     'tokens_50k': {
-        'price': 179,
+        'price': 99,
         'tokens': 50000,
         'name': '+50,000 токенов (~65,000 слов)'
     },
     'tokens_100k': {
-        'price': 299,
+        'price': 179,
         'tokens': 100000,
         'name': '+100,000 токенов (~130,000 слов)'
     }
@@ -66,19 +61,24 @@ TOKEN_PACKS = {
 # Микро-платежи: пакеты вопросов
 QUESTION_PACKS = {
     'questions_10': {
-        'price': 99,
+        'price': 49,
         'questions': 10,
         'name': '+10 вопросов к ИИ'
+    },
+    'questions_30': {
+        'price': 99,
+        'questions': 30,
+        'name': '+30 вопросов к ИИ'
     }
 }
 
 # Сезонные тарифы
 SEASONAL_PLANS = {
     'session': {
-        'price': 499,
+        'price': 299,
         'duration_days': 30,
-        'name': 'Тариф "Сессия" (30 дней безлимита)',
-        'available_months': [1, 6]  # январь и июнь
+        'name': 'Тариф "Сессия"',
+        'available_months': [1, 6]
     }
 }
 
@@ -330,11 +330,12 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
         else:
             # Активируем подписку и сбрасываем счетчик вопросов
             plan_limits = {
-                '1month': 40,
-                '3months': 120,
-                '6months': 260
+                '1month': 100000,
+                '3months': 100000,
+                '6months': 100000,
+                '1year': 100000
             }
-            questions_limit = plan_limits.get(plan_type, 40)
+            questions_limit = plan_limits.get(plan_type, 100000)
             
             cur.execute(f"""
                 UPDATE {SCHEMA_NAME}.users

@@ -24,6 +24,17 @@ import SmartSuggestions from '@/components/SmartSuggestions';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { trackActivity } from '@/lib/gamification';
 import { offlineCache } from '@/lib/offline-cache';
+import {
+  scheduleClassNotifications,
+  scheduleTaskNotifications,
+  cancelAllNotifications,
+  requestPermission,
+  isPermissionGranted,
+  shouldShowBanner,
+  dismissBanner,
+  type LessonInfo,
+  type TaskInfo,
+} from '@/lib/notifications';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 
@@ -71,6 +82,7 @@ const Index = () => {
   const [weekFilter, setWeekFilter] = useState<'all' | 'even' | 'odd'>('all');
   const [isScheduleCached, setIsScheduleCached] = useState(false);
   const [isTasksCached, setIsTasksCached] = useState(false);
+  const [showNotifBanner, setShowNotifBanner] = useState(false);
 
   const getISOWeekNumber = (date: Date) => {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -123,6 +135,39 @@ const Index = () => {
     };
     checkAuth();
   }, [navigate]);
+
+  // Show notification banner on mount if permission not yet decided
+  useEffect(() => {
+    if (shouldShowBanner()) {
+      setShowNotifBanner(true);
+    }
+  }, []);
+
+  // Schedule notifications whenever schedule or tasks data changes
+  useEffect(() => {
+    if (!isPermissionGranted()) return;
+
+    const lessons: LessonInfo[] = schedule.map((l) => ({
+      subject: l.subject,
+      time: l.start_time,
+      room: l.room,
+      day: l.day_of_week,
+    }));
+    scheduleClassNotifications(lessons);
+
+    const taskInfos: TaskInfo[] = tasks
+      .filter((t) => !t.completed && t.deadline)
+      .map((t) => ({
+        title: t.title,
+        deadline: t.deadline!,
+        priority: t.priority,
+      }));
+    scheduleTaskNotifications(taskInfos);
+
+    return () => {
+      cancelAllNotifications();
+    };
+  }, [schedule, tasks]);
 
   const loadSchedule = async () => {
     setIsLoadingSchedule(true);
@@ -480,6 +525,39 @@ const Index = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-0">
+        {showNotifBanner && (
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3">
+            <Icon name="Bell" size={18} className="text-indigo-600 flex-shrink-0" />
+            <span className="flex-1 text-sm text-gray-700">
+              Включите уведомления, чтобы не пропускать пары
+            </span>
+            <Button
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8 px-3"
+              onClick={async () => {
+                const perm = await requestPermission();
+                setShowNotifBanner(false);
+                if (perm !== 'granted') {
+                  dismissBanner();
+                }
+              }}
+            >
+              Включить
+            </Button>
+            <button
+              type="button"
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Закрыть"
+              onClick={() => {
+                setShowNotifBanner(false);
+                dismissBanner();
+              }}
+            >
+              <Icon name="X" size={16} />
+            </button>
+          </div>
+        )}
+
         <NotificationPrompt />
         
         <LimitsIndicator compact />

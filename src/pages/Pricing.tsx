@@ -109,7 +109,7 @@ const Pricing = () => {
         { text: '2 материала в месяц', included: true },
         { text: '3 AI-вопроса в день', included: true },
         { text: '5 предметов в зачётке', included: true },
-        { text: 'Безлимит зачётной книжки', included: false },
+        { text: 'Безлимит ИИ-вопросов', included: false },
         { text: 'Заморозка стрика', included: false }
       ],
       current: currentPlan === 'free',
@@ -118,7 +118,7 @@ const Pricing = () => {
     },
     {
       name: 'Премиум',
-      price: '249₽',
+      price: '149₽',
       period: 'в месяц',
       badge: 'Популярный',
       planId: '1month',
@@ -137,11 +137,11 @@ const Pricing = () => {
     },
     {
       name: 'Премиум Год',
-      price: '1990₽',
+      price: '999₽',
       period: 'за год',
-      pricePerMonth: '166₽/мес',
-      badge: 'Выгода 33%',
-      savings: '998₽',
+      pricePerMonth: '83₽/мес',
+      badge: 'Выгода 44%',
+      savings: '789₽',
       planId: '1year',
       features: [
         { text: 'Безлимитное расписание', included: true },

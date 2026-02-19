@@ -75,7 +75,7 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Bot" size={16} className="text-purple-600" />
-                До 40 AI-вопросов в месяц
+                Безлимитные AI-вопросы
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Timer" size={16} className="text-purple-600" />
@@ -92,10 +92,10 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
             </ul>
             <div className="mt-4 pt-4 border-t border-indigo-200 flex items-end justify-between">
               <div>
-                <p className="text-2xl font-bold text-indigo-600">249 &#8381;/мес</p>
+                <p className="text-2xl font-bold text-indigo-600">149 &#8381;/мес</p>
                 <p className="text-xs text-gray-600">7 дней бесплатно</p>
               </div>
-              <p className="text-xs text-gray-500 line-through">8 &#8381;/день</p>
+              <p className="text-xs text-gray-500 line-through">5 &#8381;/день</p>
             </div>
           </div>
 
