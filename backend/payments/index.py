@@ -18,29 +18,22 @@ TINKOFF_API_URL = 'https://securepay.tinkoff.ru/v2/'
 
 PLANS = {
     '1month': {
-        'price': 149,
+        'price': 199,
         'duration_days': 30,
         'name': '1 месяц',
         'ai_questions': 100000
     },
-    '3months': {
-        'price': 349,
-        'duration_days': 90,
-        'name': '3 месяца',
-        'ai_questions': 100000
-    },
     '6months': {
-        'price': 599,
+        'price': 799,
         'duration_days': 180,
         'name': '6 месяцев',
         'ai_questions': 100000
     },
     '1year': {
-        'price': 999,
+        'price': 1290,
         'duration_days': 365,
         'name': '1 год',
-        'ai_questions': 100000,
-        'discount': 44
+        'ai_questions': 100000
     }
 }
 

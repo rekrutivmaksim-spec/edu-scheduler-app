@@ -118,9 +118,8 @@ const Pricing = () => {
     },
     {
       name: 'Премиум',
-      price: '149₽',
+      price: '199₽',
       period: 'в месяц',
-      badge: 'Популярный',
       planId: '1month',
       features: [
         { text: 'Безлимитное расписание', included: true },
@@ -136,12 +135,33 @@ const Pricing = () => {
       color: 'gradient'
     },
     {
-      name: 'Премиум Год',
-      price: '999₽',
+      name: 'Полгода',
+      price: '799₽',
+      period: 'за 6 месяцев',
+      pricePerMonth: '133₽/мес',
+      badge: 'Популярный',
+      savings: '395₽',
+      planId: '6months',
+      features: [
+        { text: 'Безлимитное расписание', included: true },
+        { text: 'Безлимитные задачи', included: true },
+        { text: 'Безлимитные AI-вопросы', included: true },
+        { text: 'Безлимитные материалы', included: true },
+        { text: 'Безлимит зачётной книжки', included: true },
+        { text: 'Помодоро-таймер с аналитикой', included: true },
+        { text: 'Заморозка стрика (1 раз/нед)', included: true }
+      ],
+      current: currentPlan === 'premium',
+      buttonText: currentPlan === 'premium' ? 'Активен' : 'Купить на полгода',
+      color: 'gradient'
+    },
+    {
+      name: 'Год',
+      price: '1290₽',
       period: 'за год',
-      pricePerMonth: '83₽/мес',
-      badge: 'Выгода 44%',
-      savings: '789₽',
+      pricePerMonth: '107₽/мес',
+      badge: 'Выгода 46%',
+      savings: '1098₽',
       planId: '1year',
       features: [
         { text: 'Безлимитное расписание', included: true },
