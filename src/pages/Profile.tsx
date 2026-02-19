@@ -254,7 +254,7 @@ const Profile = () => {
                   <p className="text-xs sm:text-sm text-gray-600 break-words line-clamp-2">
                     {subscriptionType === 'premium' 
                       ? 'Доступ к ИИ-ассистенту активен' 
-                      : 'Получи доступ к ИИ-ассистенту от 199₽/месяц'}
+                      : 'Получи доступ к ИИ-ассистенту от 299₽/месяц'}
                   </p>
                 </div>
               </div>
@@ -381,6 +381,27 @@ const Profile = () => {
               <div>
                 <h3 className="text-lg font-bold text-white">Пригласи друга</h3>
                 <p className="text-sm text-white/80">+7 дней Premium за каждого</p>
+              </div>
+            </div>
+            <Icon name="ChevronRight" size={24} className="text-white/60" />
+          </div>
+        </Card>
+
+        <Card className="mt-6 p-5 bg-gradient-to-r from-sky-500 to-blue-600 border-0 shadow-xl cursor-pointer hover:opacity-95 transition-opacity"
+          onClick={() => {
+            const token = authService.getToken();
+            const botUrl = `https://t.me/StudyfayBot?start=link_${token}`;
+            window.open(botUrl, '_blank');
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <Icon name="Send" size={24} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Telegram-бот</h3>
+                <p className="text-sm text-white/80">Расписание и задачи в Telegram</p>
               </div>
             </div>
             <Icon name="ChevronRight" size={24} className="text-white/60" />
