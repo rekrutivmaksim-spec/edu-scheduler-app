@@ -32,7 +32,7 @@ def charge_recurrent(user_id, rebill_id, amount, order_id):
         'Description': 'Studyfay: автопродление подписки',
         'PayType': 'O'
     }
-    token_params = dict(init_params)
+    token_params = {k: str(v) for k, v in init_params.items() if k not in ('Receipt', 'DATA', 'Shops', 'Token')}
     token_params['Password'] = TINKOFF_PASSWORD
     sorted_values = [token_params[k] for k in sorted(token_params.keys())]
     init_params['Token'] = generate_token(*sorted_values)

@@ -105,8 +105,8 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
 
     token_params = {}
     for k, v in params.items():
-        if k not in ('Recurrent', 'CustomerKey', 'NotificationURL', 'SuccessURL', 'FailURL'):
-            token_params[k] = v
+        if k not in ('Receipt', 'DATA', 'Shops', 'Token'):
+            token_params[k] = str(v)
     token_params['Password'] = TINKOFF_PASSWORD
     sorted_values = [token_params[k] for k in sorted(token_params.keys())]
     params['Token'] = generate_token(*sorted_values)
@@ -132,7 +132,7 @@ def charge_recurrent(user_id: int, rebill_id: str, amount: int, order_id: str) -
         'PayType': 'O'
     }
 
-    token_params = dict(init_params)
+    token_params = {k: str(v) for k, v in init_params.items() if k not in ('Receipt', 'DATA', 'Shops', 'Token')}
     token_params['Password'] = TINKOFF_PASSWORD
     sorted_values = [token_params[k] for k in sorted(token_params.keys())]
     init_params['Token'] = generate_token(*sorted_values)
