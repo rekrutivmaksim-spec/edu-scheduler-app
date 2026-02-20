@@ -11,8 +11,10 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
 _http = httpx.Client(timeout=httpx.Timeout(22.0, connect=3.0))
+_http_vision = httpx.Client(timeout=httpx.Timeout(40.0, connect=5.0))
 client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=22.0, http_client=_http)
 
 CORS_HEADERS = {
@@ -335,13 +337,15 @@ def ask_ai(question, context, image_base64=None):
         return build_smart_fallback(question, context), 0
 
 
-def ask_ai_vision(question, system, image_base64):
-    """Отправляем фото в Artemox через raw HTTP (vision)"""
-    text_prompt = question[:400] if question else "Разбери задачу на этом фото пошагово. Объясни решение на русском языке."
+def ocr_image(image_base64):
+    """OCR через DeepSeek Vision API — извлекает текст/условие с фото"""
+    api_key = DEEPSEEK_API_KEY
+    if not api_key:
+        print(f"[AI] no DEEPSEEK_API_KEY", flush=True)
+        return None
     payload = {
-        "model": "deepseek-chat",
+        "model": "deepseek-vl2",
         "messages": [
-            {"role": "system", "content": system},
             {
                 "role": "user",
                 "content": [
@@ -351,72 +355,73 @@ def ask_ai_vision(question, system, image_base64):
                     },
                     {
                         "type": "text",
-                        "text": text_prompt
+                        "text": (
+                            "Это фото с задачей или конспектом студента. "
+                            "Точно распознай и перепиши ВЕСЬ текст с изображения дословно. "
+                            "Если это математическая или физическая задача — перепиши условие полностью. "
+                            "Отвечай только текстом с фото, без пояснений."
+                        )
                     }
                 ]
             }
         ],
-        "temperature": 0.7,
-        "max_tokens": 1500
+        "temperature": 0.1,
+        "max_tokens": 1000
     }
     try:
-        print(f"[AI] -> Artemox vision (raw http)", flush=True)
-        r = _http.post(
-            "https://api.artemox.com/v1/chat/completions",
+        print(f"[AI] -> DeepSeek Vision OCR", flush=True)
+        r = _http_vision.post(
+            "https://api.deepseek.com/v1/chat/completions",
             json=payload,
             headers={
-                "Authorization": f"Bearer {ARTEMOX_API_KEY}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
-            },
-            timeout=40.0
+            }
         )
-        print(f"[AI] vision status:{r.status_code} body:{r.text[:300]}", flush=True)
+        print(f"[AI] OCR status:{r.status_code} body:{r.text[:200]}", flush=True)
         if r.status_code == 200:
             data = r.json()
-            answer = data["choices"][0]["message"]["content"]
-            tokens = data.get("usage", {}).get("total_tokens", 0)
+            text = data["choices"][0]["message"]["content"]
+            print(f"[AI] OCR extracted: {text[:100]}", flush=True)
+            return text.strip()
+        return None
+    except Exception as e:
+        print(f"[AI] OCR FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
+        return None
+
+
+def ask_ai_vision(question, system, image_base64):
+    """OCR фото → передаём распознанный текст в deepseek-chat (та же модель)"""
+    ocr_text = ocr_image(image_base64)
+
+    if ocr_text:
+        user_q = question.strip() if question and question != "Разбери задачу на фото" else ""
+        if user_q:
+            combined = f"{user_q}\n\nТекст с фото:\n{ocr_text}"
+        else:
+            combined = f"Разбери задачу пошагово и объясни решение:\n\n{ocr_text}"
+        print(f"[AI] Vision->text, sending to deepseek-chat: {combined[:80]}", flush=True)
+        try:
+            resp = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": combined[:1200]}
+                ],
+                temperature=0.7,
+                max_tokens=1500,
+            )
+            answer = resp.choices[0].message.content
+            tokens = resp.usage.total_tokens if resp.usage else 0
             answer = sanitize_answer(answer)
             if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
                 answer = answer.rstrip() + '.'
             return answer, tokens
-        else:
-            print(f"[AI] vision not supported: {r.status_code}", flush=True)
-            return ocr_fallback(question, image_base64), 0
-    except Exception as e:
-        print(f"[AI] vision FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
-        return ocr_fallback(question, image_base64), 0
-
-
-def ocr_fallback(question, image_base64):
-    """Если vision не поддерживается — пробуем базовый OCR через Pillow и задаём вопрос текстом"""
-    try:
-        import base64
-        import io
-        from PIL import Image
-        img_bytes = base64.b64decode(image_base64)
-        img = Image.open(io.BytesIO(img_bytes))
-        # Простое улучшение: конвертируем в grayscale и повышаем контраст
-        img = img.convert('L')
-        width, height = img.size
-        print(f"[AI] OCR fallback: image {width}x{height}", flush=True)
-        # Без tesseract просто отправим описание размера и попросим помочь
-        hint = f"Студент прислал фото задачи (размер {width}x{height} пикселей)."
-        if question and question != "Разбери задачу на фото":
-            hint += f" Вопрос студента: {question}"
-        hint += " К сожалению, автоматическое распознавание текста с фото сейчас недоступно. Попроси студента переписать условие задачи текстом."
-        resp = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": "Ты Studyfay — ИИ-репетитор. Отвечай на русском."},
-                {"role": "user", "content": hint}
-            ],
-            temperature=0.5,
-            max_tokens=300,
-        )
-        return resp.choices[0].message.content or "Не могу распознать текст с фото. Перепиши условие задачи текстом — сразу разберём!"
-    except Exception as e:
-        print(f"[AI] OCR fallback FAIL: {e}", flush=True)
-        return "Не удалось распознать фото. Перепиши условие задачи текстом — разберём вместе!"
+        except Exception as e:
+            print(f"[AI] chat after OCR FAIL: {e}", flush=True)
+            return f"Я распознал текст с фото:\n\n{ocr_text}\n\nНо не смог сформировать ответ. Попробуй ещё раз!", 0
+    else:
+        return "Не удалось распознать текст с фото. Попробуй сфотографировать чётче или перепиши условие задачи текстом — разберём вместе!", 0
 
 def build_smart_fallback(question, context):
     """Умный fallback — ВСЕГДА даёт полезный ответ по вопросу и материалам"""
