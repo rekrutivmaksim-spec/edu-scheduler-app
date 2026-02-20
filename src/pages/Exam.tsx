@@ -978,7 +978,7 @@ const Exam = () => {
         />
       )}
 
-      <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-3 safe-bottom">
+      <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-3 pb-[calc(0.75rem+4rem+env(safe-area-inset-bottom,0px))] md:pb-3">
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
