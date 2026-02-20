@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { trackActivity } from '@/lib/gamification';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import BottomNav from '@/components/BottomNav';
 
 const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
@@ -425,6 +426,7 @@ const Assistant = () => {
           </button>
         </div>
       </div>
+      <BottomNav />
     </div>
   );
 };

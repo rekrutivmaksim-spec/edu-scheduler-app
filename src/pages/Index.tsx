@@ -630,10 +630,7 @@ const Index = () => {
               <Icon name="GraduationCap" size={24} className="text-white sm:w-8 sm:h-8" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <h3 className="text-base sm:text-xl font-bold text-gray-800 truncate">Подготовка к ЕГЭ и ОГЭ</h3>
-                <span className="flex-shrink-0 text-[10px] font-semibold bg-violet-600 text-white px-2 py-0.5 rounded-full">Новое</span>
-              </div>
+              <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5">Подготовка к ЕГЭ и ОГЭ</h3>
               <p className="text-xs sm:text-sm text-gray-600">ИИ-репетитор · объяснение тем · тренировка заданий</p>
             </div>
             <Icon name="ArrowRight" size={20} className="text-violet-600 flex-shrink-0" />
@@ -650,8 +647,8 @@ const Index = () => {
                 <Icon name="Bot" size={24} className="text-white sm:w-8 sm:h-8" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">ИИ-Ассистент</h3>
-                <p className="text-xs sm:text-sm text-gray-600">Задай вопрос по своим материалам</p>
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">ИИ-ассистент для вуза</h3>
+                <p className="text-xs sm:text-sm text-gray-600">Задай вопрос по лекциям, конспектам, сессии</p>
               </div>
               <Icon name="ArrowRight" size={20} className="text-indigo-600 flex-shrink-0 sm:w-6 sm:h-6" />
             </div>

@@ -322,35 +322,97 @@ const Pricing = () => {
           ))}
         </div>
 
-        <Card className="p-4 sm:p-8 bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-orange-200">
-          <h3 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2">
-            <Icon name="Zap" size={20} className="text-orange-600 sm:w-6 sm:h-6" />
-            Разовые покупки (скоро)
-          </h3>
-          <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
-            Не готовы к подписке? Покупайте функции по мере необходимости
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-            <div className="p-3 sm:p-4 bg-white rounded-lg border border-orange-200">
-              <p className="text-sm sm:text-base font-semibold text-gray-800">1 AI-прогноз</p>
-              <p className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">99₽</p>
-              <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Один экзамен</p>
+        {/* ЕГЭ / ОГЭ тарифы */}
+        <div className="mt-10 sm:mt-16">
+          <div className="text-center mb-6 sm:mb-10">
+            <div className="inline-flex items-center gap-2 bg-violet-50 border border-violet-200 px-4 py-1.5 rounded-full mb-3">
+              <Icon name="GraduationCap" size={16} className="text-violet-600" />
+              <span className="text-sm font-semibold text-violet-700">Для сдающих ЕГЭ и ОГЭ</span>
             </div>
-            <div className="p-3 sm:p-4 bg-white rounded-lg border border-orange-200">
-              <p className="text-sm sm:text-base font-semibold text-gray-800">5 AI-прогнозов</p>
-              <p className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">399₽</p>
-              <Badge className="mt-1 bg-green-100 text-green-700 text-[10px] sm:text-xs">-20%</Badge>
-            </div>
-            <div className="p-3 sm:p-4 bg-white rounded-lg border border-orange-200">
-              <p className="text-sm sm:text-base font-semibold text-gray-800">10 OCR-сканирований</p>
-              <p className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">29₽</p>
-              <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Пакет материалов</p>
-            </div>
+            <h2 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2">Подготовка к экзаменам</h2>
+            <p className="text-sm sm:text-base text-gray-500">ИИ-репетитор знает структуру всех экзаменов и объясняет каждое задание</p>
           </div>
-          <p className="text-xs sm:text-sm text-gray-500 mt-3 sm:mt-4 text-center">
-            🚀 Функция находится в разработке
-          </p>
-        </Card>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6">
+            {/* Бесплатно */}
+            <Card className="p-5 sm:p-6 border-2 border-gray-200 flex flex-col">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Пробный</p>
+              <div className="flex items-end gap-1 mb-1">
+                <span className="text-3xl font-bold text-gray-900">0₽</span>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">навсегда</p>
+              <ul className="space-y-2 text-sm text-gray-600 flex-1 mb-5">
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-green-500 flex-shrink-0" />5 вопросов к ИИ-репетитору в день</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-green-500 flex-shrink-0" />Объяснение любой темы</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-green-500 flex-shrink-0" />Тренировка заданий</li>
+                <li className="flex items-center gap-2"><Icon name="X" size={15} className="text-gray-300 flex-shrink-0" />Безлимитные тренировки</li>
+                <li className="flex items-center gap-2"><Icon name="X" size={15} className="text-gray-300 flex-shrink-0" />Разбор ошибок по истории</li>
+              </ul>
+              <Button disabled className="w-full bg-gray-100 text-gray-500 cursor-not-allowed text-sm h-10">
+                Текущий тариф
+              </Button>
+            </Card>
+
+            {/* Месяц ЕГЭ */}
+            <Card className="p-5 sm:p-6 border-2 border-violet-400 flex flex-col relative overflow-hidden shadow-lg shadow-violet-100">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
+              <div className="absolute top-3 right-3">
+                <span className="text-[10px] font-bold bg-violet-600 text-white px-2 py-0.5 rounded-full">Популярный</span>
+              </div>
+              <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider mb-1">Месяц подготовки</p>
+              <div className="flex items-end gap-1 mb-1">
+                <span className="text-3xl font-bold text-gray-900">199₽</span>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">за месяц, автопродление</p>
+              <ul className="space-y-2 text-sm text-gray-600 flex-1 mb-5">
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-violet-500 flex-shrink-0" />Безлимитные вопросы к ИИ</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-violet-500 flex-shrink-0" />Тренировка по всем заданиям</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-violet-500 flex-shrink-0" />Все предметы ЕГЭ и ОГЭ</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-violet-500 flex-shrink-0" />Подробный разбор ошибок</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-violet-500 flex-shrink-0" />Все функции для студентов</li>
+              </ul>
+              <Button
+                onClick={handleBuyPremium}
+                className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-sm h-10 shadow-md shadow-violet-200"
+              >
+                Начать подготовку
+              </Button>
+            </Card>
+
+            {/* 3 месяца ЕГЭ */}
+            <Card className="p-5 sm:p-6 border-2 border-amber-300 flex flex-col relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-400" />
+              <div className="absolute top-3 right-3">
+                <span className="text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full">Выгода 25%</span>
+              </div>
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">3 месяца к сессии</p>
+              <div className="flex items-end gap-1 mb-1">
+                <span className="text-3xl font-bold text-gray-900">449₽</span>
+              </div>
+              <p className="text-xs text-gray-400 mb-1">за 3 месяца · 150₽/мес</p>
+              <p className="text-xs text-green-600 font-medium mb-4">Экономия 149₽</p>
+              <ul className="space-y-2 text-sm text-gray-600 flex-1 mb-5">
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-amber-500 flex-shrink-0" />Всё из месячного плана</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-amber-500 flex-shrink-0" />Охватывает весь учебный квартал</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-amber-500 flex-shrink-0" />Идеально для подготовки к ОГЭ</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-amber-500 flex-shrink-0" />Идеально для финального спурта ЕГЭ</li>
+                <li className="flex items-center gap-2"><Icon name="Check" size={15} className="text-amber-500 flex-shrink-0" />Все функции для студентов</li>
+              </ul>
+              <Button
+                onClick={handleBuyPremium}
+                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-sm h-10 shadow-md shadow-amber-100"
+              >
+                Выбрать 3 месяца
+              </Button>
+            </Card>
+          </div>
+
+          <div className="text-center bg-violet-50 rounded-2xl p-4 sm:p-5 border border-violet-100">
+            <p className="text-sm text-gray-600">
+              Все тарифы ЕГЭ/ОГЭ включают полный доступ к приложению для студентов вузов — расписание, задачи, помодоро, зачётная книжка
+            </p>
+          </div>
+        </div>
       </main>
     </div>
   );
