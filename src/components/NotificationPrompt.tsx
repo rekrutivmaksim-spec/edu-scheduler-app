@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { notificationService } from '@/lib/notifications';
 import { authService } from '@/lib/auth';
+
+const PUSH_API_URL = 'https://functions.poehali.dev/b50b1ec6-9826-46f7-a165-ff443df61e2e';
 import { useToast } from '@/hooks/use-toast';
 
 const NotificationPrompt = () => {
@@ -46,6 +48,7 @@ const NotificationPrompt = () => {
         const token = authService.getToken();
         if (!token) throw new Error('Не авторизован');
 
+        localStorage.setItem('studyfay_push_url', PUSH_API_URL);
         await notificationService.subscribe(token);
         setIsSubscribed(true);
         setIsVisible(false);

@@ -135,6 +135,12 @@ const Index = () => {
         navigate('/login');
       } else {
         setUser(verifiedUser);
+        const localUser = authService.getUser();
+        const onboarded = localUser?.onboarding_completed ?? (verifiedUser as typeof verifiedUser & { onboarding_completed?: boolean }).onboarding_completed;
+        if (!onboarded) {
+          navigate('/onboarding');
+          return;
+        }
         loadSchedule();
         loadTasks();
       }

@@ -7,6 +7,8 @@ export interface User {
   university?: string;
   faculty?: string;
   course?: string;
+  onboarding_completed?: boolean;
+  user_type?: 'student' | 'school';
 }
 
 export const authService = {

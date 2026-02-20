@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
@@ -591,6 +591,7 @@ type Step = 'type' | 'subject' | 'mode' | 'chat';
 const Exam = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { examType: paramExamType, subjectId: paramSubjectId } = useParams<{ examType: string; subjectId: string }>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -609,6 +610,18 @@ const Exam = () => {
   useEffect(() => {
     if (!authService.isAuthenticated()) navigate('/login');
   }, [navigate]);
+
+  // Deep link: /exam/ege/math_base → сразу на выбор режима
+  useEffect(() => {
+    if (!paramExamType || !paramSubjectId) return;
+    const subjectList = SUBJECTS[paramExamType] || [];
+    const found = subjectList.find(s => s.id === paramSubjectId);
+    if (found) {
+      setExamType(paramExamType);
+      setSubject({ id: found.id, label: found.label });
+      setStep('mode');
+    }
+  }, [paramExamType, paramSubjectId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -919,12 +932,29 @@ const Exam = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => { setStep('mode'); setMessages([]); }}
-            className="text-xs text-purple-600 hover:text-purple-800 font-medium px-3 py-1.5 rounded-lg hover:bg-purple-50 transition-colors"
-          >
-            Сменить режим
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/exam/${examType}/${subject?.id}`;
+                if (navigator.share) {
+                  navigator.share({ title: `${examLabel} · ${subject?.label} — Studyfay`, url });
+                } else {
+                  navigator.clipboard.writeText(url);
+                  toast({ title: 'Ссылка скопирована!' });
+                }
+              }}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+              title="Поделиться"
+            >
+              <Icon name="Share2" size={18} />
+            </button>
+            <button
+              onClick={() => { setStep('mode'); setMessages([]); }}
+              className="text-xs text-purple-600 hover:text-purple-800 font-medium px-3 py-1.5 rounded-lg hover:bg-purple-50 transition-colors"
+            >
+              Сменить режим
+            </button>
+          </div>
         </div>
       </header>
 

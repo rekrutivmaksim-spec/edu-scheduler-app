@@ -9,7 +9,7 @@ import { courses } from '@/lib/universities';
 
 const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 const FEATURES = [
   {
@@ -40,6 +40,7 @@ export default function Onboarding() {
   const { toast } = useToast();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [userType, setUserType] = useState<'student' | 'school' | ''>('');
   const [formData, setFormData] = useState({
     full_name: '',
     university: '',
@@ -48,10 +49,10 @@ export default function Onboarding() {
   });
 
   const handleSkip = () => {
-    toast({
-      title: 'Готово!',
-      description: 'Можете заполнить профиль позже'
-    });
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const updatedUser = { ...user, user_type: userType || 'student', onboarding_completed: true };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    toast({ title: 'Готово!', description: 'Можете заполнить профиль позже' });
     navigate('/');
   };
 
@@ -70,14 +71,15 @@ export default function Onboarding() {
         },
         body: JSON.stringify({
           action: 'update_profile',
-          ...formData
+          ...formData,
+          user_type: userType || 'student'
         })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        const updatedUser = { ...user, ...formData, onboarding_completed: true };
+        const updatedUser = { ...user, ...formData, user_type: userType || 'student', onboarding_completed: true };
         localStorage.setItem('user', JSON.stringify(updatedUser));
 
         toast({
@@ -108,9 +110,9 @@ export default function Onboarding() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-gray-600">
-              {step < 2 ? '' : `Шаг ${step - 1} из ${TOTAL_STEPS - 2}`}
+              {step < 3 ? '' : `Шаг ${step - 2} из ${TOTAL_STEPS - 3}`}
             </span>
-            {step >= 2 && (
+            {step >= 3 && (
               <Button
                 onClick={handleSkip}
                 variant="ghost"
@@ -171,8 +173,47 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* Step 1: Upload hint */}
+        {/* Step 1: Тип пользователя */}
         {step === 1 && (
+          <div className="space-y-6 animate-fade-in-up">
+            <div className="text-center mb-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Ты студент или школьник?</h2>
+              <p className="text-gray-500 text-sm">Настроим приложение под твои задачи</p>
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={() => { setUserType('student'); setStep(2); }}
+                className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left ${userType === 'student' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50'}`}
+              >
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                  <Icon name="University" size={24} className="text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-base">Студент вуза</p>
+                  <p className="text-sm text-gray-500">Расписание пар, сессия, зачётная книжка, конспекты</p>
+                </div>
+              </button>
+              <button
+                onClick={() => { setUserType('school'); setStep(2); }}
+                className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left ${userType === 'school' ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/50'}`}
+              >
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                  <Icon name="GraduationCap" size={24} className="text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-base">Школьник / сдаю ЕГЭ или ОГЭ</p>
+                  <p className="text-sm text-gray-500">ИИ-репетитор по всем предметам, тренировка заданий</p>
+                </div>
+              </button>
+            </div>
+            <Button variant="ghost" onClick={() => setStep(0)} className="w-full text-gray-500">
+              <Icon name="ArrowLeft" size={16} className="mr-2" />Назад
+            </Button>
+          </div>
+        )}
+
+        {/* Step 2: Upload / intro hint */}
+        {step === 2 && (
           <div className="space-y-6 animate-fade-in-up">
             <div className="text-center mb-4">
               <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl shadow-indigo-300/40">
@@ -225,40 +266,27 @@ export default function Onboarding() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button
-                onClick={() => setStep(0)}
-                variant="outline"
-                className="flex-1 h-12 border-2 rounded-xl"
-              >
-                <Icon name="ArrowLeft" size={18} className="mr-2" />
-                Назад
+              <Button onClick={() => setStep(1)} variant="outline" className="flex-1 h-12 border-2 rounded-xl">
+                <Icon name="ArrowLeft" size={18} className="mr-2" />Назад
               </Button>
-              <Button
-                onClick={() => setStep(2)}
-                className="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl"
-              >
-                Далее
-                <Icon name="ArrowRight" size={18} className="ml-2" />
+              <Button onClick={() => setStep(3)} className="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl">
+                Далее<Icon name="ArrowRight" size={18} className="ml-2" />
               </Button>
             </div>
-            <button
-              onClick={() => setStep(2)}
-              className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors py-1"
-            >
+            <button onClick={() => setStep(3)} className="w-full text-center text-sm text-gray-400 hover:text-gray-600 py-1">
               Пропустить
             </button>
           </div>
         )}
 
-        {/* Step 2: Name */}
-        {step === 2 && (
+        {/* Step 3: Name */}
+        {step === 3 && (
           <div className="space-y-6 animate-fade-in-up">
             <div className="text-center mb-8">
               <Icon name="User" size={64} className="mx-auto text-purple-600 mb-4" />
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Как тебя зовут?</h2>
               <p className="text-gray-600">Так мы сможем обращаться к тебе по имени</p>
             </div>
-
             <Input
               type="text"
               placeholder="Иван Иванов"
@@ -267,37 +295,29 @@ export default function Onboarding() {
               className="h-14 text-lg border-2 border-gray-300 focus:border-purple-500 rounded-xl"
               autoFocus
             />
-
             <div className="flex gap-3">
-              <Button
-                onClick={() => setStep(1)}
-                variant="outline"
-                className="flex-1 h-12 border-2 rounded-xl"
-              >
-                <Icon name="ArrowLeft" size={18} className="mr-2" />
-                Назад
+              <Button onClick={() => setStep(2)} variant="outline" className="flex-1 h-12 border-2 rounded-xl">
+                <Icon name="ArrowLeft" size={18} className="mr-2" />Назад
               </Button>
               <Button
-                onClick={() => setStep(3)}
+                onClick={() => setStep(userType === 'school' ? 5 : 4)}
                 disabled={!formData.full_name.trim()}
-                className="flex-1 h-14 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-base font-semibold shadow-lg rounded-xl disabled:opacity-50"
+                className="flex-1 h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-base font-semibold shadow-lg rounded-xl disabled:opacity-50"
               >
-                Далее
-                <Icon name="ArrowRight" size={20} className="ml-2" />
+                Далее<Icon name="ArrowRight" size={20} className="ml-2" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 3: University */}
-        {step === 3 && (
+        {/* Step 4: University (только для студентов) */}
+        {step === 4 && (
           <div className="space-y-6 animate-fade-in-up">
             <div className="text-center mb-8">
               <Icon name="GraduationCap" size={64} className="mx-auto text-purple-600 mb-4" />
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Где ты учишься?</h2>
               <p className="text-gray-600">Университет и факультет (необязательно)</p>
             </div>
-
             <div className="space-y-4">
               <Input
                 type="text"
@@ -306,7 +326,6 @@ export default function Onboarding() {
                 onChange={(e) => setFormData({ ...formData, university: e.target.value })}
                 className="h-12 text-base border-2 border-gray-300 focus:border-purple-500 rounded-xl"
               />
-
               <Input
                 type="text"
                 placeholder="Факультет / Направление"
@@ -315,36 +334,29 @@ export default function Onboarding() {
                 className="h-12 text-base border-2 border-gray-300 focus:border-purple-500 rounded-xl"
               />
             </div>
-
             <div className="flex gap-3">
-              <Button
-                onClick={() => setStep(2)}
-                variant="outline"
-                className="flex-1 h-12 border-2 rounded-xl"
-              >
-                <Icon name="ArrowLeft" size={18} className="mr-2" />
-                Назад
+              <Button onClick={() => setStep(3)} variant="outline" className="flex-1 h-12 border-2 rounded-xl">
+                <Icon name="ArrowLeft" size={18} className="mr-2" />Назад
               </Button>
-              <Button
-                onClick={() => setStep(4)}
-                className="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl"
-              >
-                Далее
-                <Icon name="ArrowRight" size={18} className="ml-2" />
+              <Button onClick={() => setStep(5)} className="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl">
+                Далее<Icon name="ArrowRight" size={18} className="ml-2" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 4: Course */}
-        {step === 4 && (
+        {/* Step 5: Course */}
+        {step === 5 && (
           <div className="space-y-6 animate-fade-in-up">
             <div className="text-center mb-8">
               <Icon name="BookOpen" size={64} className="mx-auto text-purple-600 mb-4" />
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">На каком курсе?</h2>
-              <p className="text-gray-600">Выбери свой курс обучения</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                {userType === 'school' ? 'В каком классе?' : 'На каком курсе?'}
+              </h2>
+              <p className="text-gray-600">
+                {userType === 'school' ? 'Выбери свой класс' : 'Выбери свой курс обучения'}
+              </p>
             </div>
-
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {courses.map((course) => (
                 <Button
@@ -361,29 +373,16 @@ export default function Onboarding() {
                 </Button>
               ))}
             </div>
-
             <div className="flex gap-3">
-              <Button
-                onClick={() => setStep(3)}
-                variant="outline"
-                className="flex-1 h-12 border-2 rounded-xl"
-              >
-                <Icon name="ArrowLeft" size={18} className="mr-2" />
-                Назад
+              <Button onClick={() => setStep(userType === 'school' ? 3 : 4)} variant="outline" className="flex-1 h-12 border-2 rounded-xl">
+                <Icon name="ArrowLeft" size={18} className="mr-2" />Назад
               </Button>
               <Button
                 onClick={handleComplete}
                 disabled={loading || !formData.course}
-                className="flex-1 h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg rounded-xl disabled:opacity-50"
+                className="flex-1 h-12 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold shadow-lg rounded-xl disabled:opacity-50"
               >
-                {loading ? (
-                  <Icon name="Loader2" size={18} className="animate-spin" />
-                ) : (
-                  <>
-                    <Icon name="Check" size={18} className="mr-2" />
-                    Завершить
-                  </>
-                )}
+                {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : <><Icon name="Check" size={18} className="mr-2" />Завершить</>}
               </Button>
             </div>
           </div>
