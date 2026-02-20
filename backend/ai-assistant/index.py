@@ -289,7 +289,7 @@ def sanitize_answer(text):
     return text.strip()
 
 
-def ask_ai(question, context):
+def ask_ai(question, context, image_base64=None):
     """Запрос к ИИ через Artemox"""
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:2500] if has_context else ""
@@ -308,16 +308,30 @@ def ask_ai(question, context):
     else:
         system = f"{base_rules} Приводи понятные примеры."
 
+    if image_base64:
+        user_content = [
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
+            },
+            {
+                "type": "text",
+                "text": question[:400] if question else "Разбери задачу на фото пошагово. Объясни решение на русском."
+            }
+        ]
+    else:
+        user_content = question[:400]
+
     try:
-        print(f"[AI] -> Artemox", flush=True)
+        print(f"[AI] -> Artemox {'[vision]' if image_base64 else ''}", flush=True)
         resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
                 {"role": "system", "content": system},
-                {"role": "user", "content": question[:400]}
+                {"role": "user", "content": user_content}
             ],
             temperature=0.7,
-            max_tokens=1024,
+            max_tokens=1500 if image_base64 else 1024,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
@@ -328,6 +342,8 @@ def ask_ai(question, context):
         return answer, tokens
     except Exception as e:
         print(f"[AI] Artemox FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
+        if image_base64:
+            return "Не удалось распознать задачу на фото. Попробуй сфотографировать чётче или перепиши условие текстом — разберём вместе!", 0
         return build_smart_fallback(question, context), 0
 
 def build_smart_fallback(question, context):
@@ -392,9 +408,10 @@ def handler(event: dict, context) -> dict:
             body = json.loads(event.get('body', '{}'))
             question = body.get('question', '').strip()
             material_ids = body.get('material_ids', [])
+            image_base64 = body.get('image_base64', None)
 
-            if not question:
-                return err(400, {'error': 'Введи вопрос'})
+            if not question and not image_base64:
+                return err(400, {'error': 'Введи вопрос или прикрепи фото'})
 
             print(f"[AI] User:{user_id} Q:{question[:60]} M:{material_ids}", flush=True)
 
@@ -453,16 +470,17 @@ def handler(event: dict, context) -> dict:
                 except Exception as e:
                     print(f"[AI] schedule error: {e}", flush=True)
 
-            cached = get_cache(conn, question, material_ids)
-            if cached:
-                print(f"[AI] cache hit", flush=True)
-                increment_questions(conn, user_id)
-                acc = check_access(conn, user_id)
-                save_msg(conn, sid, user_id, 'assistant', cached, material_ids, 0, True)
-                return ok({'answer': cached, 'remaining': acc.get('remaining', 0), 'cached': True})
+            if not image_base64:
+                cached = get_cache(conn, question, material_ids)
+                if cached:
+                    print(f"[AI] cache hit", flush=True)
+                    increment_questions(conn, user_id)
+                    acc = check_access(conn, user_id)
+                    save_msg(conn, sid, user_id, 'assistant', cached, material_ids, 0, True)
+                    return ok({'answer': cached, 'remaining': acc.get('remaining', 0), 'cached': True})
 
             ctx = get_context(conn, user_id, material_ids)
-            answer, tokens = ask_ai(question, ctx)
+            answer, tokens = ask_ai(question, ctx, image_base64)
 
             if tokens > 0:
                 set_cache(conn, question, material_ids, answer, tokens)
