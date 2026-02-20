@@ -266,15 +266,47 @@ def extract_title(question, action):
             return question[idx:].strip()[:200]
     return question[:100]
 
+def sanitize_answer(text):
+    """Убирает LaTeX-разметку и иероглифы из ответа ИИ"""
+    import re
+    if not text:
+        return text
+    # Убираем блочный LaTeX: \[...\] и $$...$$
+    text = re.sub(r'\\\[.*?\\\]', lambda m: m.group(0).replace('\\[', '').replace('\\]', '').strip(), text, flags=re.DOTALL)
+    text = re.sub(r'\$\$.*?\$\$', lambda m: m.group(0).replace('$$', '').strip(), text, flags=re.DOTALL)
+    # Убираем инлайн LaTeX: $...$ и \(...\)
+    text = re.sub(r'\\\(.*?\\\)', lambda m: m.group(0).replace('\\(', '').replace('\\)', '').strip(), text, flags=re.DOTALL)
+    text = re.sub(r'(?<!\$)\$(?!\$)([^$]+?)(?<!\$)\$(?!\$)', r'\1', text)
+    # Убираем LaTeX-команды типа \frac, \sqrt, \cdot и т.д.
+    text = re.sub(r'\\(frac|sqrt|cdot|times|div|pm|leq|geq|neq|approx|infty|alpha|beta|gamma|delta|theta|lambda|mu|pi|sigma|omega)\b', '', text)
+    text = re.sub(r'\\[a-zA-Z]+\{([^}]*)\}', r'\1', text)
+    text = re.sub(r'\\[a-zA-Z]+', '', text)
+    # Убираем фигурные скобки LaTeX
+    text = re.sub(r'\{([^}]*)\}', r'\1', text)
+    # Чистим лишние пробелы
+    text = re.sub(r' {2,}', ' ', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 def ask_ai(question, context):
     """Запрос к ИИ через Artemox"""
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:2500] if has_context else ""
 
+    base_rules = (
+        "Ты Studyfay — ИИ-репетитор для студентов. "
+        "СТРОГО отвечай ТОЛЬКО на русском языке. "
+        "Никаких иероглифов, никаких латинских символов без необходимости. "
+        "Формулы пиши словами или в формате: например, E = m·c², a² + b² = c². "
+        "Не используй LaTeX-разметку ($...$ или \\[...\\]), только чистый текст. "
+        "Завершай мысль полностью. **Жирный** для ключевых терминов."
+    )
+
     if has_context:
-        system = f"Ты Studyfay — ИИ-репетитор. Русский. Завершай мысль.\n\nМАТЕРИАЛЫ:\n{ctx_trimmed}\n\nОтвечай по материалам. **Жирный** для терминов."
+        system = f"{base_rules}\n\nМАТЕРИАЛЫ СТУДЕНТА:\n{ctx_trimmed}\n\nОтвечай опираясь на материалы."
     else:
-        system = "Ты Studyfay — ИИ-репетитор. Русский. Завершай мысль. **Жирный** для терминов. Примеры."
+        system = f"{base_rules} Приводи понятные примеры."
 
     try:
         print(f"[AI] -> Artemox", flush=True)
@@ -290,6 +322,7 @@ def ask_ai(question, context):
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
         print(f"[AI] Artemox OK tokens:{tokens}", flush=True)
+        answer = sanitize_answer(answer)
         if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
             answer = answer.rstrip() + '.'
         return answer, tokens
