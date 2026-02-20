@@ -26,8 +26,11 @@ const NotificationPrompt = () => {
 
     if (permission === 'default' && !subscription) {
       const dismissed = localStorage.getItem('notification_prompt_dismissed');
-      if (!dismissed) {
-        setTimeout(() => setIsVisible(true), 3000);
+      if (dismissed) return;
+      const visits = parseInt(localStorage.getItem('studyfay_visit_count') || '0', 10);
+      localStorage.setItem('studyfay_visit_count', String(visits + 1));
+      if (visits >= 2) {
+        setTimeout(() => setIsVisible(true), 5000);
       }
     } else if (permission === 'granted' && subscription) {
       setIsSubscribed(true);
