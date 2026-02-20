@@ -22,7 +22,6 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  imagePreview?: string;
 }
 
 const THINKING_STAGES = [
@@ -96,8 +95,6 @@ const Assistant = () => {
   const [showMaterialPicker, setShowMaterialPicker] = useState(false);
   const [thinkingElapsed, setThinkingElapsed] = useState(0);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [pendingImage, setPendingImage] = useState<{ base64: string; preview: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -143,52 +140,24 @@ const Assistant = () => {
     setThinkingElapsed(0);
   };
 
-  const handleImagePick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ title: 'Фото слишком большое', description: 'Максимум 10 МБ', variant: 'destructive' });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      const base64 = dataUrl.split(',')[1];
-      setPendingImage({ base64, preview: dataUrl });
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-
   const sendMessage = useCallback(async (text?: string) => {
     const q = (text || question).trim();
-    const img = pendingImage;
-    if (!q && !img || isLoading) return;
+    if (!q || isLoading) return;
 
-    const displayText = q || 'Разбери задачу на фото';
-    const userMsg: Message = { role: 'user', content: displayText, timestamp: new Date(), imagePreview: img?.preview };
+    const userMsg: Message = { role: 'user', content: q, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setQuestion('');
-    setPendingImage(null);
     setIsLoading(true);
     startThinking();
 
     const doFetch = async (): Promise<Response> => {
       const token = authService.getToken();
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 45000);
-      const body: Record<string, unknown> = { question: displayText, material_ids: selectedMaterials };
-      if (img) {
-        body.image_base64 = img.base64;
-      }
+      const tid = setTimeout(() => controller.abort(), 35000);
       const resp = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ question: q, material_ids: selectedMaterials }),
         signal: controller.signal
       });
       clearTimeout(tid);
@@ -245,7 +214,7 @@ const Assistant = () => {
       setIsLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [question, pendingImage, isLoading, selectedMaterials, toast]);
+  }, [question, isLoading, selectedMaterials, toast]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -404,16 +373,7 @@ const Assistant = () => {
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                         </div>
                       ) : (
-                        <div>
-                          {msg.imagePreview && (
-                            <img
-                              src={msg.imagePreview}
-                              alt="фото задачи"
-                              className="rounded-xl mb-2 max-h-48 w-full object-cover"
-                            />
-                          )}
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                        </div>
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                       )}
                     </div>
                     <p className={`text-[11px] mt-1 px-1 ${msg.role === 'user' ? 'text-right text-gray-400' : 'text-gray-400'}`}>
@@ -433,65 +393,36 @@ const Assistant = () => {
       </div>
 
       <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-3 safe-bottom">
-        <div className="max-w-2xl mx-auto">
-          {pendingImage && (
-            <div className="mb-2 relative inline-block">
-              <img src={pendingImage.preview} alt="фото" className="h-20 w-20 rounded-xl object-cover border border-purple-200" />
-              <button
-                onClick={() => setPendingImage(null)}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-700 text-white flex items-center justify-center"
-              >
-                <Icon name="X" size={12} />
-              </button>
-            </div>
-          )}
-          <div className="flex items-end gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleImageChange}
-            />
-            <button
-              onClick={handleImagePick}
+        <div className="max-w-2xl mx-auto flex items-end gap-2">
+          <div className="flex-1 relative">
+            <textarea
+              ref={inputRef}
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Задай вопрос..."
+              rows={1}
               disabled={isLoading}
-              className="w-11 h-11 rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-colors flex-shrink-0 disabled:opacity-40"
-              title="Прикрепить фото задачи"
-            >
-              <Icon name="Camera" size={20} className="text-gray-500" />
-            </button>
-            <div className="flex-1 relative">
-              <textarea
-                ref={inputRef}
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={pendingImage ? 'Что нужно решить? (или отправь так)' : 'Задай вопрос...'}
-                rows={1}
-                disabled={isLoading}
-                className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-purple-400 focus:bg-white transition-colors disabled:opacity-50 max-h-32"
-                style={{ minHeight: '44px' }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(target.scrollHeight, 128) + 'px';
-                }}
-              />
-            </div>
-            <button
-              onClick={() => sendMessage()}
-              disabled={(!question.trim() && !pendingImage) || isLoading}
-              className="w-11 h-11 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-200 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
-            >
-              {isLoading ? (
-                <Icon name="Loader2" size={20} className="text-white animate-spin" />
-              ) : (
-                <Icon name="ArrowUp" size={20} className={question.trim() || pendingImage ? 'text-white' : 'text-gray-400'} />
-              )}
-            </button>
+              className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 pr-12 text-sm focus:outline-none focus:border-purple-400 focus:bg-white transition-colors disabled:opacity-50 max-h-32"
+              style={{ minHeight: '44px' }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+              }}
+            />
           </div>
+          <button
+            onClick={() => sendMessage()}
+            disabled={!question.trim() || isLoading}
+            className="w-11 h-11 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-200 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+          >
+            {isLoading ? (
+              <Icon name="Loader2" size={20} className="text-white animate-spin" />
+            ) : (
+              <Icon name="ArrowUp" size={20} className={question.trim() ? 'text-white' : 'text-gray-400'} />
+            )}
+          </button>
         </div>
       </div>
     </div>
