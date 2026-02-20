@@ -9,6 +9,366 @@ import remarkGfm from 'remark-gfm';
 
 const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 
+// ── Структура заданий ЕГЭ/ОГЭ ────────────────────────────────────────────────
+
+type TaskItem = { num: number; topic: string };
+
+const EXAM_TASKS: Record<string, TaskItem[]> = {
+  ege_math_base: [
+    { num: 1,  topic: 'Вычисления, степени, корни' },
+    { num: 2,  topic: 'Округление, запись чисел' },
+    { num: 3,  topic: 'Геометрия: площади и объёмы' },
+    { num: 4,  topic: 'Статистика и теория вероятностей' },
+    { num: 5,  topic: 'Уравнения и неравенства' },
+    { num: 6,  topic: 'Задачи на проценты и смеси' },
+    { num: 7,  topic: 'Функции и графики' },
+    { num: 8,  topic: 'Стереометрия' },
+    { num: 9,  topic: 'Планиметрия' },
+    { num: 10, topic: 'Задача на реальный контекст' },
+    { num: 11, topic: 'Финансовая математика' },
+    { num: 12, topic: 'Текстовая задача' },
+    { num: 13, topic: 'Практическая задача' },
+    { num: 14, topic: 'Числа и их свойства' },
+  ],
+  ege_math_profile: [
+    { num: 1,  topic: 'Вычисления и преобразования' },
+    { num: 2,  topic: 'Геометрия: площади и объёмы' },
+    { num: 3,  topic: 'Теория вероятностей' },
+    { num: 4,  topic: 'Задачи на реальный контекст' },
+    { num: 5,  topic: 'Тригонометрические уравнения' },
+    { num: 6,  topic: 'Планиметрия' },
+    { num: 7,  topic: 'Производная и интеграл' },
+    { num: 8,  topic: 'Стереометрия' },
+    { num: 9,  topic: 'Параметры в уравнениях' },
+    { num: 10, topic: 'Текстовая задача' },
+    { num: 11, topic: 'Неравенства' },
+    { num: 12, topic: 'Логарифмы и показательные функции' },
+    { num: 13, topic: 'Планиметрия (доказательство)' },
+    { num: 14, topic: 'Стереометрия (доказательство)' },
+    { num: 15, topic: 'Уравнения (сложные)' },
+    { num: 16, topic: 'Неравенства (сложные)' },
+    { num: 17, topic: 'Задача с параметром' },
+    { num: 18, topic: 'Теория чисел' },
+    { num: 19, topic: 'Финансовая математика' },
+  ],
+  ege_russian: [
+    { num: 1,  topic: 'Главная информация текста' },
+    { num: 2,  topic: 'Лексическое значение слова' },
+    { num: 3,  topic: 'Средства связи предложений' },
+    { num: 4,  topic: 'Орфоэпия (ударения)' },
+    { num: 5,  topic: 'Паронимы' },
+    { num: 6,  topic: 'Лексические нормы' },
+    { num: 7,  topic: 'Грамматические нормы (морфология)' },
+    { num: 8,  topic: 'Грамматические нормы (синтаксис)' },
+    { num: 9,  topic: 'Правописание корней' },
+    { num: 10, topic: 'Правописание приставок' },
+    { num: 11, topic: 'Правописание суффиксов' },
+    { num: 12, topic: 'Правописание Н и НН' },
+    { num: 13, topic: 'Правописание НЕ и НИ' },
+    { num: 14, topic: 'Слитное, раздельное, дефисное написание' },
+    { num: 15, topic: 'Правописание -Н- и -НН- в причастиях' },
+    { num: 16, topic: 'Знаки препинания при однородных членах' },
+    { num: 17, topic: 'Знаки препинания при обособленных членах' },
+    { num: 18, topic: 'Знаки препинания при вводных словах' },
+    { num: 19, topic: 'Знаки препинания в сложном предложении' },
+    { num: 20, topic: 'Знаки препинания (сложные случаи)' },
+    { num: 21, topic: 'Функционально-смысловые типы речи' },
+    { num: 22, topic: 'Высказывания по тексту' },
+    { num: 23, topic: 'Типы речи и языковые средства' },
+    { num: 24, topic: 'Лексические средства выразительности' },
+    { num: 25, topic: 'Тропы и фигуры речи' },
+    { num: 26, topic: 'Сочинение-рассуждение (эссе)' },
+  ],
+  ege_physics: [
+    { num: 1,  topic: 'Механика: кинематика' },
+    { num: 2,  topic: 'Механика: динамика' },
+    { num: 3,  topic: 'Механика: законы сохранения' },
+    { num: 4,  topic: 'Колебания и волны' },
+    { num: 5,  topic: 'Молекулярная физика и термодинамика' },
+    { num: 6,  topic: 'Электростатика' },
+    { num: 7,  topic: 'Постоянный ток' },
+    { num: 8,  topic: 'Магнитное поле' },
+    { num: 9,  topic: 'Электромагнитная индукция' },
+    { num: 10, topic: 'Оптика' },
+    { num: 11, topic: 'Атомная физика' },
+    { num: 12, topic: 'Ядерная физика' },
+    { num: 13, topic: 'Установление соответствия (графики)' },
+    { num: 14, topic: 'Задача с графиком' },
+    { num: 15, topic: 'Экспериментальная задача' },
+    { num: 16, topic: 'Задача на квантовую физику' },
+    { num: 17, topic: 'Задача на электричество' },
+    { num: 18, topic: 'Расчётная задача (механика)' },
+    { num: 19, topic: 'Расчётная задача (термодинамика)' },
+    { num: 20, topic: 'Сложная расчётная задача' },
+  ],
+  ege_chemistry: [
+    { num: 1,  topic: 'Строение атома и периодичность' },
+    { num: 2,  topic: 'Химическая связь и кристаллические решётки' },
+    { num: 3,  topic: 'Степень окисления и валентность' },
+    { num: 4,  topic: 'Классификация неорганических веществ' },
+    { num: 5,  topic: 'Химические свойства неорганики' },
+    { num: 6,  topic: 'Реакции неорганических веществ' },
+    { num: 7,  topic: 'Классификация органических веществ' },
+    { num: 8,  topic: 'Свойства углеводородов' },
+    { num: 9,  topic: 'Кислородосодержащие органические вещества' },
+    { num: 10, topic: 'Азотосодержащие органические вещества' },
+    { num: 11, topic: 'Биополимеры (белки, нуклеиновые кислоты)' },
+    { num: 12, topic: 'Реакции органических соединений' },
+    { num: 13, topic: 'Скорость реакции и равновесие' },
+    { num: 14, topic: 'Электролитическая диссоциация' },
+    { num: 15, topic: 'Среда растворов (pH)' },
+    { num: 16, topic: 'Ионные уравнения' },
+    { num: 17, topic: 'Окислительно-восстановительные реакции' },
+    { num: 18, topic: 'Электролиз' },
+    { num: 19, topic: 'Цепочка превращений (неорганика)' },
+    { num: 20, topic: 'Цепочка превращений (органика)' },
+    { num: 21, topic: 'Нахождение формулы вещества' },
+    { num: 22, topic: 'Задача на растворы' },
+    { num: 23, topic: 'Задача на выход продукта' },
+  ],
+  ege_biology: [
+    { num: 1,  topic: 'Биология как наука' },
+    { num: 2,  topic: 'Клетка: химический состав' },
+    { num: 3,  topic: 'Клетка: строение и функции' },
+    { num: 4,  topic: 'Обмен веществ (метаболизм)' },
+    { num: 5,  topic: 'Размножение клеток' },
+    { num: 6,  topic: 'Генетика: законы Менделя' },
+    { num: 7,  topic: 'Генетика: сцепленное наследование' },
+    { num: 8,  topic: 'Биотехнологии и ГМО' },
+    { num: 9,  topic: 'Организм: регуляция' },
+    { num: 10, topic: 'Размножение организмов' },
+    { num: 11, topic: 'Онтогенез' },
+    { num: 12, topic: 'Эволюция: движущие силы' },
+    { num: 13, topic: 'Эволюция: доказательства и итоги' },
+    { num: 14, topic: 'Экосистемы' },
+    { num: 15, topic: 'Биосфера' },
+    { num: 16, topic: 'Задача по генетике' },
+    { num: 17, topic: 'Задача на биологические процессы' },
+    { num: 18, topic: 'Анализ текста по биологии' },
+    { num: 19, topic: 'Работа с рисунком/схемой' },
+    { num: 20, topic: 'Развёрнутый ответ' },
+  ],
+  ege_history: [
+    { num: 1,  topic: 'Хронология событий' },
+    { num: 2,  topic: 'Работа с источником' },
+    { num: 3,  topic: 'Термины и понятия' },
+    { num: 4,  topic: 'Причины и следствия' },
+    { num: 5,  topic: 'Исторические деятели' },
+    { num: 6,  topic: 'Карта и схема' },
+    { num: 7,  topic: 'Иллюстрации и артефакты' },
+    { num: 8,  topic: 'Работа с документом' },
+    { num: 9,  topic: 'Задание на установление соответствия' },
+    { num: 10, topic: 'СССР: внутренняя политика' },
+    { num: 11, topic: 'СССР: внешняя политика' },
+    { num: 12, topic: 'Россия в XX веке' },
+    { num: 13, topic: 'Работа с историческим текстом' },
+    { num: 14, topic: 'Аргументы и контраргументы' },
+    { num: 15, topic: 'Историческое эссе' },
+  ],
+  ege_social: [
+    { num: 1,  topic: 'Системный анализ общества' },
+    { num: 2,  topic: 'Понятия и термины' },
+    { num: 3,  topic: 'Соответствие: теория' },
+    { num: 4,  topic: 'Выбор суждений' },
+    { num: 5,  topic: 'Схема и таблица' },
+    { num: 6,  topic: 'Экономика: понятия' },
+    { num: 7,  topic: 'Экономика: задача' },
+    { num: 8,  topic: 'Политика и власть' },
+    { num: 9,  topic: 'Право: отрасли и нормы' },
+    { num: 10, topic: 'Право: конкретная ситуация' },
+    { num: 11, topic: 'Социальные отношения' },
+    { num: 12, topic: 'Духовная жизнь общества' },
+    { num: 13, topic: 'Работа с текстом' },
+    { num: 14, topic: 'Конкретизация с примерами' },
+    { num: 15, topic: 'Развёрнутый план' },
+    { num: 16, topic: 'Эссе' },
+  ],
+  ege_english: [
+    { num: 1,  topic: 'Аудирование: общее понимание' },
+    { num: 2,  topic: 'Аудирование: детальное понимание' },
+    { num: 3,  topic: 'Чтение: соответствие заголовков' },
+    { num: 4,  topic: 'Чтение: детальное понимание' },
+    { num: 5,  topic: 'Чтение: пропущенные фрагменты' },
+    { num: 6,  topic: 'Словообразование' },
+    { num: 7,  topic: 'Грамматика' },
+    { num: 8,  topic: 'Лексика и грамматика' },
+    { num: 9,  topic: 'Письмо: личное письмо' },
+    { num: 10, topic: 'Письмо: развёрнутое высказывание (эссе)' },
+    { num: 11, topic: 'Говорение: описание фото' },
+    { num: 12, topic: 'Говорение: сравнение фотографий' },
+  ],
+  ege_informatics: [
+    { num: 1,  topic: 'Системы счисления' },
+    { num: 2,  topic: 'Кодирование информации' },
+    { num: 3,  topic: 'Логика и логические выражения' },
+    { num: 4,  topic: 'Выражения и таблицы истинности' },
+    { num: 5,  topic: 'Работа с файловой системой' },
+    { num: 6,  topic: 'Работа с электронными таблицами' },
+    { num: 7,  topic: 'Диаграммы' },
+    { num: 8,  topic: 'Алгоритмы и их анализ' },
+    { num: 9,  topic: 'Трассировка алгоритма' },
+    { num: 10, topic: 'Программирование: базовые задачи' },
+    { num: 11, topic: 'Программирование: массивы' },
+    { num: 12, topic: 'Комбинаторика и теория вероятностей' },
+    { num: 13, topic: 'Числовые последовательности' },
+    { num: 14, topic: 'Базы данных' },
+    { num: 15, topic: 'Сети и протоколы' },
+    { num: 16, topic: 'Сложная задача на программирование' },
+    { num: 17, topic: 'Задача по оптимизации' },
+  ],
+  ege_geography: [
+    { num: 1,  topic: 'Источники географической информации' },
+    { num: 2,  topic: 'Природа Земли и человек' },
+    { num: 3,  topic: 'Население мира' },
+    { num: 4,  topic: 'Мировое хозяйство' },
+    { num: 5,  topic: 'Регионы и страны мира' },
+    { num: 6,  topic: 'Природа России' },
+    { num: 7,  topic: 'Население России' },
+    { num: 8,  topic: 'Хозяйство России' },
+    { num: 9,  topic: 'Районы России' },
+    { num: 10, topic: 'Работа с картой' },
+    { num: 11, topic: 'Климатограммы и диаграммы' },
+    { num: 12, topic: 'Задача на часовые пояса' },
+    { num: 13, topic: 'Задача на масштаб и координаты' },
+    { num: 14, topic: 'Развёрнутый ответ' },
+  ],
+  ege_literature: [
+    { num: 1,  topic: 'Анализ лирического произведения' },
+    { num: 2,  topic: 'Средства художественной выразительности' },
+    { num: 3,  topic: 'Сопоставление лирических текстов' },
+    { num: 4,  topic: 'Анализ эпического фрагмента' },
+    { num: 5,  topic: 'Вопросы по фрагменту прозы' },
+    { num: 6,  topic: 'Сравнение с другим произведением' },
+    { num: 7,  topic: 'Сочинение по лирике' },
+    { num: 8,  topic: 'Сочинение по эпосу/драме' },
+    { num: 9,  topic: 'Литературный процесс' },
+    { num: 10, topic: 'Теория литературы' },
+    { num: 11, topic: 'Развёрнутое сочинение' },
+    { num: 12, topic: 'Сочинение-рассуждение' },
+  ],
+  oge_math: [
+    { num: 1,  topic: 'Арифметика и вычисления' },
+    { num: 2,  topic: 'Десятичные дроби' },
+    { num: 3,  topic: 'Проценты' },
+    { num: 4,  topic: 'Степени и корни' },
+    { num: 5,  topic: 'Уравнения' },
+    { num: 6,  topic: 'Неравенства' },
+    { num: 7,  topic: 'Текстовые задачи' },
+    { num: 8,  topic: 'Геометрия: фигуры и их свойства' },
+    { num: 9,  topic: 'Геометрия: площадь и периметр' },
+    { num: 10, topic: 'Теория вероятностей' },
+    { num: 11, topic: 'Статистика' },
+    { num: 12, topic: 'Функции и графики' },
+    { num: 13, topic: 'Алгебра: выражения' },
+    { num: 14, topic: 'Геометрия: доказательство' },
+    { num: 15, topic: 'Задача с развёрнутым решением' },
+    { num: 16, topic: 'Задача повышенной сложности' },
+  ],
+  oge_russian: [
+    { num: 1,  topic: 'Изложение (сжатое)' },
+    { num: 2,  topic: 'Синтаксический анализ' },
+    { num: 3,  topic: 'Пунктуационный анализ' },
+    { num: 4,  topic: 'Синтаксический анализ (2)' },
+    { num: 5,  topic: 'Орфографический анализ' },
+    { num: 6,  topic: 'Анализ содержания текста' },
+    { num: 7,  topic: 'Анализ средств выразительности' },
+    { num: 8,  topic: 'Лексический анализ' },
+    { num: 9,  topic: 'Сочинение-рассуждение' },
+  ],
+  oge_physics: [
+    { num: 1,  topic: 'Механика' },
+    { num: 2,  topic: 'Термодинамика и МКТ' },
+    { num: 3,  topic: 'Электричество' },
+    { num: 4,  topic: 'Оптика и атомная физика' },
+    { num: 5,  topic: 'Работа с графиком' },
+    { num: 6,  topic: 'Экспериментальная задача' },
+    { num: 7,  topic: 'Расчётная задача (механика)' },
+    { num: 8,  topic: 'Расчётная задача (электричество)' },
+  ],
+  oge_chemistry: [
+    { num: 1,  topic: 'Строение атома и вещества' },
+    { num: 2,  topic: 'Периодический закон' },
+    { num: 3,  topic: 'Химическая связь' },
+    { num: 4,  topic: 'Простые и сложные вещества' },
+    { num: 5,  topic: 'Химические реакции' },
+    { num: 6,  topic: 'Электролитическая диссоциация' },
+    { num: 7,  topic: 'Неметаллы и их соединения' },
+    { num: 8,  topic: 'Металлы и их соединения' },
+    { num: 9,  topic: 'Органическая химия' },
+    { num: 10, topic: 'Экспериментальная задача' },
+    { num: 11, topic: 'Задача на расчёты' },
+  ],
+  oge_biology: [
+    { num: 1,  topic: 'Биология как наука' },
+    { num: 2,  topic: 'Клетка' },
+    { num: 3,  topic: 'Организм' },
+    { num: 4,  topic: 'Вид и экосистема' },
+    { num: 5,  topic: 'Человек и его здоровье' },
+    { num: 6,  topic: 'Работа с текстом' },
+    { num: 7,  topic: 'Задание с рисунком' },
+    { num: 8,  topic: 'Развёрнутый ответ' },
+  ],
+  oge_history: [
+    { num: 1,  topic: 'Хронология' },
+    { num: 2,  topic: 'Работа с источником' },
+    { num: 3,  topic: 'Термины и понятия' },
+    { num: 4,  topic: 'Установление соответствия' },
+    { num: 5,  topic: 'Карта' },
+    { num: 6,  topic: 'Иллюстрации' },
+    { num: 7,  topic: 'Работа с документом' },
+    { num: 8,  topic: 'Развёрнутый ответ' },
+  ],
+  oge_social: [
+    { num: 1,  topic: 'Человек и общество' },
+    { num: 2,  topic: 'Экономика' },
+    { num: 3,  topic: 'Социальная сфера' },
+    { num: 4,  topic: 'Политика' },
+    { num: 5,  topic: 'Право' },
+    { num: 6,  topic: 'Работа с текстом' },
+    { num: 7,  topic: 'Эссе' },
+  ],
+  oge_english: [
+    { num: 1,  topic: 'Аудирование' },
+    { num: 2,  topic: 'Чтение' },
+    { num: 3,  topic: 'Грамматика' },
+    { num: 4,  topic: 'Лексика' },
+    { num: 5,  topic: 'Письмо: личное письмо' },
+    { num: 6,  topic: 'Говорение' },
+  ],
+  oge_informatics: [
+    { num: 1,  topic: 'Кодирование и измерение информации' },
+    { num: 2,  topic: 'Логика' },
+    { num: 3,  topic: 'Алгоритмы' },
+    { num: 4,  topic: 'Программирование' },
+    { num: 5,  topic: 'Файловая система' },
+    { num: 6,  topic: 'Электронные таблицы' },
+    { num: 7,  topic: 'Базы данных' },
+    { num: 8,  topic: 'Сети и Интернет' },
+  ],
+  oge_geography: [
+    { num: 1,  topic: 'Карта и координаты' },
+    { num: 2,  topic: 'Природа Земли' },
+    { num: 3,  topic: 'Население и хозяйство' },
+    { num: 4,  topic: 'Регионы России' },
+    { num: 5,  topic: 'Климатограмма' },
+    { num: 6,  topic: 'Работа с картой' },
+    { num: 7,  topic: 'Развёрнутый ответ' },
+  ],
+};
+
+function getTaskList(examType: string, subjectId: string): TaskItem[] {
+  const key = `${examType}_${subjectId}`;
+  return EXAM_TASKS[key] || [];
+}
+
+function buildTaskContext(examType: string, subjectId: string, subjectLabel: string): string {
+  const tasks = getTaskList(examType, subjectId);
+  if (!tasks.length) return '';
+  const examLabel = examType === 'ege' ? 'ЕГЭ' : 'ОГЭ';
+  const lines = tasks.map(t => `  Задание ${t.num}: ${t.topic}`).join('\n');
+  return `\nСТРУКТУРА ${examLabel} по предмету «${subjectLabel}»:\n${lines}\n`;
+}
+
 // ── Данные ───────────────────────────────────────────────────────────────────
 
 const EXAM_TYPES = [
@@ -107,33 +467,98 @@ const ThinkingIndicator = ({ elapsed }: { elapsed: number }) => {
 
 // ── Системный промпт ─────────────────────────────────────────────────────────
 
-const buildSystemPrompt = (examType: string, subjectLabel: string, mode: string): string => {
+const buildSystemPrompt = (examType: string, subjectId: string, subjectLabel: string, mode: string): string => {
   const examLabel = examType === 'ege' ? 'ЕГЭ' : 'ОГЭ';
+  const taskContext = buildTaskContext(examType, subjectId, subjectLabel);
   const base = `Ты Studyfay — опытный репетитор по подготовке к ${examLabel} по предмету «${subjectLabel}».
 СТРОГО отвечай ТОЛЬКО на русском языке. Никаких иероглифов и LaTeX-разметки ($...$ или \\[...\\]).
 Формулы пиши обычным текстом: a² + b² = c², E = mc².
-Ты отлично знаешь структуру ${examLabel}, типичные задания, критерии оценивания и частые ошибки учеников.`;
+Ты отлично знаешь структуру ${examLabel}, типичные задания, критерии оценивания и частые ошибки учеников.
+${taskContext}
+Когда ученик говорит «Задание N» — ты точно знаешь какая это тема по структуре выше и объясняешь именно её.`;
 
   if (mode === 'explain') {
     return `${base}
 
 РЕЖИМ: Объяснение темы.
-Когда ученик называет тему или номер задания ${examLabel}:
-1. Кратко объясни теорию простым языком (без воды)
-2. Покажи 1–2 типичных примера из ${examLabel}
-3. Выдели главные правила и частые ошибки — используй **жирный**
-4. В конце предложи: «Хочешь потренироваться на задании?»`;
+Когда ученик называет тему или номер задания:
+1. Сначала напиши: «**Задание N — [название темы]**»
+2. Кратко объясни теорию простым языком (без воды)
+3. Покажи 1–2 типичных примера из ${examLabel}
+4. Выдели главные правила и частые ошибки — используй **жирный**
+5. В конце предложи: «Хочешь потренироваться на этом задании?»`;
   }
 
   return `${base}
 
 РЕЖИМ: Тренировка заданий.
 Алгоритм строго:
-1. Сгенерируй одно реалистичное задание в стиле ${examLabel} — напиши «**Задание:**» и текст задания
-2. Жди ответа ученика
-3. После ответа — напиши правильный ответ и подробный разбор ошибок
-4. Спроси: «Следующее задание?» или «Хочешь разобрать другую тему?»
+1. Сначала напиши тему: «**Задание N — [название темы]**»
+2. Затем напиши «**Задание:**» и реалистичное задание в стиле ${examLabel}
+3. Жди ответа ученика
+4. После ответа — напиши правильный ответ, подробный разбор и частые ошибки
+5. Спроси: «Следующее задание?» или «Хочешь разобрать другую тему?»
 Начни сразу с задания, без лишних предисловий.`;
+};
+
+// ── Панель заданий ────────────────────────────────────────────────────────────
+
+const TaskPanel = ({
+  examType,
+  subjectId,
+  mode,
+  onSelect,
+}: {
+  examType: string;
+  subjectId: string;
+  mode: string;
+  onSelect: (text: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const tasks = getTaskList(examType, subjectId);
+  const examLabel = examType === 'ege' ? 'ЕГЭ' : 'ОГЭ';
+
+  if (!tasks.length) return null;
+
+  const verb = mode === 'practice' ? 'Тренировать' : 'Объяснить';
+
+  return (
+    <div className="flex-shrink-0 border-t border-gray-100 bg-gray-50">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Icon name="ListOrdered" size={16} className="text-purple-500" />
+          Все задания {examLabel} — выбери тему
+        </span>
+        <Icon name={open ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-gray-400" />
+      </button>
+
+      {open && (
+        <div className="max-h-56 overflow-y-auto px-3 pb-3">
+          <div className="grid grid-cols-1 gap-1">
+            {tasks.map(t => (
+              <button
+                key={t.num}
+                onClick={() => {
+                  onSelect(`Задание ${t.num} — ${t.topic}`);
+                  setOpen(false);
+                }}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm transition-all text-left"
+              >
+                <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center">
+                  {t.num}
+                </span>
+                <span className="text-sm text-gray-700 flex-1">{t.topic}</span>
+                <span className="flex-shrink-0 text-[11px] text-purple-500 font-medium">{verb} →</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 // ── Типы ─────────────────────────────────────────────────────────────────────
@@ -205,7 +630,7 @@ const Exam = () => {
   const makeFetchBody = useCallback((q: string, hist: Message[], selectedMode: string) => ({
     question: q,
     material_ids: [],
-    exam_system_prompt: buildSystemPrompt(examType, subject?.label || '', selectedMode),
+    exam_system_prompt: buildSystemPrompt(examType, subject?.id || '', subject?.label || '', selectedMode),
     history: hist.slice(-6).map(m => ({ role: m.role, content: m.content })),
   }), [examType, subject]);
 
@@ -216,9 +641,10 @@ const Exam = () => {
     setIsLoading(true);
     startThinking();
 
+    const examLbl = examType === 'ege' ? 'ЕГЭ' : 'ОГЭ';
     const initQ = selectedMode === 'practice'
-      ? 'Начинаем тренировку. Дай первое задание.'
-      : `Привет! Я готовлюсь к ${examType === 'ege' ? 'ЕГЭ' : 'ОГЭ'} по ${subject?.label}. С чего начать подготовку?`;
+      ? `Начинаем тренировку по ${examLbl} — ${subject?.label}. Я выберу тему из списка заданий ниже. Напиши короткое приветствие и скажи, что жду выбора задания.`
+      : `Привет! Я готовлюсь к ${examLbl} по ${subject?.label}. Кратко расскажи из каких заданий состоит экзамен и с чего лучше начать подготовку.`;
 
     try {
       const token = authService.getToken();
@@ -524,20 +950,13 @@ const Exam = () => {
         </div>
       </div>
 
-      {mode === 'explain' && messages.length === 1 && !isLoading && (
-        <div className="flex-shrink-0 px-4 pb-2">
-          <div className="max-w-2xl mx-auto flex gap-2 overflow-x-auto pb-1">
-            {['Задание 1', 'Задание 9', 'Задание 19', 'С чего начать?', 'Частые ошибки'].map(hint => (
-              <button
-                key={hint}
-                onClick={() => sendMessage(hint)}
-                className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors"
-              >
-                {hint}
-              </button>
-            ))}
-          </div>
-        </div>
+      {messages.length === 1 && !isLoading && (
+        <TaskPanel
+          examType={examType}
+          subjectId={subject?.id || ''}
+          mode={mode}
+          onSelect={sendMessage}
+        />
       )}
 
       <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-3 safe-bottom">
