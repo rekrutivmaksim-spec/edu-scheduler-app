@@ -619,6 +619,27 @@ const Index = () => {
           </div>
         </Card>
 
+        <Card
+          onClick={() => navigate('/exam')}
+          className="animate-fade-in-up mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 border-2 border-violet-300 cursor-pointer hover:shadow-2xl hover:shadow-violet-500/30 transition-all duration-300 hover:scale-[1.01] relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 bg-violet-100 rounded-full -translate-y-8 translate-x-8 opacity-60" />
+          <div className="absolute bottom-0 right-16 w-16 h-16 bg-purple-100 rounded-full translate-y-6 opacity-40" />
+          <div className="relative flex items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <Icon name="GraduationCap" size={24} className="text-white sm:w-8 sm:h-8" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h3 className="text-base sm:text-xl font-bold text-gray-800 truncate">Подготовка к ЕГЭ и ОГЭ</h3>
+                <span className="flex-shrink-0 text-[10px] font-semibold bg-violet-600 text-white px-2 py-0.5 rounded-full">Новое</span>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-600">ИИ-репетитор · объяснение тем · тренировка заданий</p>
+            </div>
+            <Icon name="ArrowRight" size={20} className="text-violet-600 flex-shrink-0" />
+          </div>
+        </Card>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
           <Card 
             onClick={() => navigate('/assistant')}
