@@ -30,6 +30,7 @@ import StudyGroups from "./pages/StudyGroups";
 import Widget from "./pages/Widget";
 import AppStore from "./pages/AppStore";
 import Dashboard from "./pages/Dashboard";
+import Exam from "./pages/Exam";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,7 @@ const App = () => (
               <Route path="/groups" element={<StudyGroups />} />
               <Route path="/widget" element={<Widget />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/exam" element={<Exam />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

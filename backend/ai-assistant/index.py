@@ -291,7 +291,7 @@ def sanitize_answer(text):
     return text.strip()
 
 
-def ask_ai(question, context, image_base64=None):
+def ask_ai(question, context, image_base64=None, exam_system_prompt=None, history=None):
     """Запрос к ИИ через Artemox"""
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:2500] if has_context else ""
@@ -305,7 +305,9 @@ def ask_ai(question, context, image_base64=None):
         "Завершай мысль полностью. **Жирный** для ключевых терминов."
     )
 
-    if has_context:
+    if exam_system_prompt:
+        system = exam_system_prompt
+    elif has_context:
         system = f"{base_rules}\n\nМАТЕРИАЛЫ СТУДЕНТА:\n{ctx_trimmed}\n\nОтвечай опираясь на материалы."
     else:
         system = f"{base_rules} Приводи понятные примеры."
@@ -314,16 +316,22 @@ def ask_ai(question, context, image_base64=None):
         answer, tokens = ask_ai_vision(question, system, image_base64)
         return answer, tokens
 
+    messages_list = [{"role": "system", "content": system}]
+    if history:
+        for h in history[-6:]:
+            role = h.get('role', 'user')
+            content = h.get('content', '')
+            if role in ('user', 'assistant') and content:
+                messages_list.append({"role": role, "content": content[:600]})
+    messages_list.append({"role": "user", "content": question[:600]})
+
     try:
-        print(f"[AI] -> Artemox text", flush=True)
+        print(f"[AI] -> Artemox text {'[exam]' if exam_system_prompt else ''}", flush=True)
         resp = client.chat.completions.create(
             model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": question[:400]}
-            ],
+            messages=messages_list,
             temperature=0.7,
-            max_tokens=1024,
+            max_tokens=1500 if exam_system_prompt else 1024,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
@@ -486,9 +494,11 @@ def handler(event: dict, context) -> dict:
             question = body.get('question', '').strip()
             material_ids = body.get('material_ids', [])
             image_base64 = body.get('image_base64', None)
+            exam_system_prompt = body.get('exam_system_prompt', None)
+            history = body.get('history', [])
 
             if not question and not image_base64:
-                return err(400, {'error': 'Введи вопрос или прикрепи фото'})
+                return err(400, {'error': 'Введи вопрос'})
 
             print(f"[AI] User:{user_id} Q:{question[:60]} M:{material_ids}", flush=True)
 
@@ -557,7 +567,7 @@ def handler(event: dict, context) -> dict:
                     return ok({'answer': cached, 'remaining': acc.get('remaining', 0), 'cached': True})
 
             ctx = get_context(conn, user_id, material_ids)
-            answer, tokens = ask_ai(question, ctx, image_base64)
+            answer, tokens = ask_ai(question, ctx, image_base64, exam_system_prompt=exam_system_prompt, history=history)
 
             if tokens > 0:
                 set_cache(conn, question, material_ids, answer, tokens)
