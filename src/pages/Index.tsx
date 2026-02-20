@@ -20,8 +20,6 @@ import ScheduleExport from '@/components/ScheduleExport';
 import GoogleCalendarSync from '@/components/GoogleCalendarSync';
 import BottomNav from '@/components/BottomNav';
 import SmartSuggestions from '@/components/SmartSuggestions';
-import AppReviewPrompt from '@/components/AppReviewPrompt';
-import { trackSession } from '@/lib/review';
 
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { trackActivity } from '@/lib/gamification';
@@ -121,10 +119,6 @@ const Index = () => {
   const dayNames = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
 
   useEffect(() => {
-    trackSession();
-  }, []);
-
-  useEffect(() => {
     const checkAuth = async () => {
       if (!authService.isAuthenticated()) {
         navigate('/login');
@@ -135,12 +129,6 @@ const Index = () => {
         navigate('/login');
       } else {
         setUser(verifiedUser);
-        const localUser = authService.getUser();
-        const onboarded = localUser?.onboarding_completed ?? (verifiedUser as typeof verifiedUser & { onboarding_completed?: boolean }).onboarding_completed;
-        if (!onboarded) {
-          navigate('/onboarding');
-          return;
-        }
         loadSchedule();
         loadTasks();
       }
@@ -1368,7 +1356,6 @@ const Index = () => {
         onClose={() => setIsExamReminderOpen(false)} 
       />
 
-      <AppReviewPrompt />
       <BottomNav />
     </div>
   );

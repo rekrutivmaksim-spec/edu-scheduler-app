@@ -277,76 +277,6 @@ export function shouldShowBanner(): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Web Push helpers
-// ---------------------------------------------------------------------------
-
-const PUSH_URL_KEY = 'studyfay_push_url';
-
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
-}
-
-async function subscribeToPush(token: string): Promise<void> {
-  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
-  if (!vapidKey || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
-
-  const pushUrl = localStorage.getItem(PUSH_URL_KEY);
-  if (!pushUrl) return;
-
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) return;
-
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey),
-    });
-
-    const json = sub.toJSON();
-    const keys = json.keys as { p256dh: string; auth: string } | undefined;
-    if (!keys) return;
-
-    await fetch(pushUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        action: 'subscribe',
-        endpoint: sub.endpoint,
-        p256dh: keys.p256dh,
-        auth: keys.auth,
-      }),
-    });
-  } catch (e) {
-    console.warn('[push] subscribe failed:', e);
-  }
-}
-
-async function unsubscribeFromPush(token: string): Promise<void> {
-  const pushUrl = localStorage.getItem(PUSH_URL_KEY);
-  if (!pushUrl || !('serviceWorker' in navigator)) return;
-
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (!sub) return;
-
-    await fetch(pushUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'unsubscribe', endpoint: sub.endpoint }),
-    });
-
-    await sub.unsubscribe();
-  } catch (e) {
-    console.warn('[push] unsubscribe failed:', e);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Legacy compat -- the old service-worker-based notificationService object
 // that other components still import.
 // ---------------------------------------------------------------------------
@@ -361,23 +291,15 @@ export const notificationService = {
     if (!('Notification' in window)) return 'denied';
     return Notification.permission;
   },
-  async getSubscription(): Promise<PushSubscription | null> {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      return reg.pushManager.getSubscription();
-    } catch {
-      return null;
-    }
+  // Stubs for methods that relied on service workers / push subscription.
+  // Kept so existing components (NotificationPrompt, etc.) don't break.
+  async getSubscription(): Promise<null> {
+    return null;
   },
-  async subscribe(token: string): Promise<void> {
-    const perm = await requestPermission();
-    if (perm === 'granted') {
-      await subscribeToPush(token);
-    }
+  async subscribe(_token: string): Promise<void> {
+    await requestPermission();
   },
-  async unsubscribe(token: string): Promise<void> {
-    await unsubscribeFromPush(token);
+  async unsubscribe(_token: string): Promise<void> {
     const settings = loadSettings();
     settings.enabled = false;
     saveSettings(settings);
