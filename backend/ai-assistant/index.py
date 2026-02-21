@@ -436,38 +436,38 @@ def _call_deepseek_direct(messages_list: list, max_tokens: int = 1500) -> tuple:
 
 
 def ask_ai(question, context, image_base64=None, exam_system_prompt=None, history=None):
-    """Запрос к ИИ через Artemox. exam_system_prompt строится на бэкенде — всегда компактный."""
+    """Запрос к ИИ через Artemox."""
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:2500] if has_context else ""
 
-    if exam_system_prompt:
-        system = exam_system_prompt  # уже компактный — построен build_exam_prompt
-    elif has_context:
-        system = (
-            f"{BASE_RULES}\n\n"
-            f"МАТЕРИАЛЫ СТУДЕНТА:\n{ctx_trimmed}\n\n"
-            "Опирайся на материалы, дополняй своими знаниями."
-        )
+    if has_context:
+        system = f"{BASE_RULES}\n\nМАТЕРИАЛЫ СТУДЕНТА:\n{ctx_trimmed}\n\nОпирайся на материалы, дополняй своими знаниями."
     else:
-        system = (
-            f"{BASE_RULES}\n\n"
-            "Материалов нет — отвечай из своих знаний как опытный репетитор."
-        )
+        system = BASE_RULES
 
     if image_base64:
         answer, tokens = ask_ai_vision(question, system, image_base64)
         return answer, tokens
 
+    # Если exam-режим — встраиваем контекст прямо в вопрос пользователя
+    # Это обходит любые ограничения Artemox на system prompt
+    if exam_system_prompt:
+        user_content = f"{exam_system_prompt}\n\n---\nВопрос: {question[:500]}"
+    else:
+        user_content = question[:600]
+
     messages_list = [{"role": "system", "content": system}]
+
     if history:
-        for h in history[-6:]:
+        for h in history[-5:]:
             role = h.get('role', 'user')
             content = h.get('content', '')
             if role in ('user', 'assistant') and content:
-                messages_list.append({"role": role, "content": content[:600]})
-    messages_list.append({"role": "user", "content": question[:600]})
+                messages_list.append({"role": role, "content": content[:500]})
 
-    print(f"[AI] -> Artemox {'[exam]' if exam_system_prompt else ''} prompt_len:{len(system)}", flush=True)
+    messages_list.append({"role": "user", "content": user_content})
+
+    print(f"[AI] -> Artemox {'[exam]' if exam_system_prompt else ''} body_len:{len(user_content)}", flush=True)
 
     try:
         resp = client.chat.completions.create(
@@ -484,7 +484,7 @@ def ask_ai(question, context, image_base64=None, exam_system_prompt=None, histor
             answer = answer.rstrip() + '.'
         return answer, tokens
     except Exception as e:
-        print(f"[AI] Artemox FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
+        print(f"[AI] Artemox FAIL: {type(e).__name__}: {str(e)[:500]}", flush=True)
         return build_smart_fallback(question, context), 0
 
 
