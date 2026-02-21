@@ -569,18 +569,16 @@ def handler(event: dict, context) -> dict:
             image_base64 = body.get('image_base64', None)
             history = body.get('history', [])
 
-            # exam_context от фронта — строим короткий промпт на бэкенде
+            # exam_context — добавляем в сам вопрос пользователя, никакого отдельного поля
             exam_context = body.get('exam_context')
-            exam_system_prompt = None
+            exam_prefix = None
             if exam_context:
                 et = exam_context.get('exam_type', '')
                 sl = exam_context.get('subject_label', '')
                 mode = exam_context.get('mode', 'explain')
                 el = 'ЕГЭ' if et == 'ege' else 'ОГЭ'
-                mt = 'объясняй темы с примерами' if mode == 'explain' else 'давай полные задания и проверяй ответы'
-                exam_system_prompt = f"Репетитор {el} по {sl}. Отвечай по-русски, формулы текстом. {mt}."
-            elif body.get('exam_system_prompt'):
-                exam_system_prompt = body['exam_system_prompt'][:300]
+                mt = 'объясняй тему с примерами' if mode == 'explain' else 'дай полное задание и проверь ответ'
+                exam_prefix = f"[Контекст: готовлюсь к {el} по {sl}, режим — {mt}]\n"
 
             if not question and not image_base64:
                 return err(400, {'error': 'Введи вопрос'})
