@@ -10,12 +10,13 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
+ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', '')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(22.0, connect=3.0))
+_http = httpx.Client(timeout=httpx.Timeout(20.0, connect=3.0))
 _http_vision = httpx.Client(timeout=httpx.Timeout(40.0, connect=5.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=22.0, http_client=_http)
+_http_deepseek = httpx.Client(timeout=httpx.Timeout(25.0, connect=3.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=20.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
