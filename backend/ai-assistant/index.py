@@ -384,63 +384,112 @@ def sanitize_answer(text):
     return text.strip()
 
 
+BASE_RULES = (
+    "Ты Studyfay — личный ИИ-репетитор. Ты умный, дружелюбный и всегда готов помочь разобраться.\n"
+    "СТРОГО отвечай ТОЛЬКО на русском языке. Никаких иероглифов и LaTeX-разметки ($...$ или \\[...\\]).\n"
+    "Формулы пиши обычным текстом: a² + b² = c², E = mc².\n\n"
+    "КАК ОТВЕЧАТЬ:\n"
+    "- Ты репетитор с огромной базой знаний — отвечаешь на любые учебные вопросы БЕЗ материалов\n"
+    "- Объясняй просто, как хороший учитель другу: без занудства, с примерами из жизни\n"
+    "- Если вопрос по школьной/вузовской программе — сразу давай полный ответ\n"
+    "- Никогда не говори «я не знаю» или «загрузи конспект» — объясняй из своих знаний\n"
+    "- После объяснения — предложи закрепить: задай встречный вопрос или мини-задание\n"
+    "- Если человек говорит «привет» — ответь тепло, спроси чем помочь\n\n"
+    "ФОРМАТИРОВАНИЕ (Markdown):\n"
+    "- ## заголовки для длинных ответов\n"
+    "- **жирный** для терминов и главных мыслей\n"
+    "- Списки и нумерация для шагов и правил\n"
+    "- > для определений которые надо запомнить\n"
+    "Завершай мысль полностью. Будь живым и вовлечённым."
+)
+
+
+def _call_deepseek_direct(messages_list: list, max_tokens: int = 1500) -> tuple:
+    """Прямой вызов DeepSeek API — используется для exam-режима (длинные промпты)"""
+    api_key = DEEPSEEK_API_KEY
+    if not api_key:
+        return None, 0
+    payload = {
+        "model": "deepseek-chat",
+        "messages": messages_list,
+        "temperature": 0.7,
+        "max_tokens": max_tokens,
+    }
+    try:
+        print(f"[AI] -> DeepSeek direct [exam] prompt_len:{len(str(messages_list))}", flush=True)
+        r = _http.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            json=payload,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        )
+        print(f"[AI] DeepSeek direct status:{r.status_code}", flush=True)
+        if r.status_code == 200:
+            data = r.json()
+            answer = data["choices"][0]["message"]["content"]
+            tokens = data.get("usage", {}).get("total_tokens", 1)
+            return answer, tokens
+        print(f"[AI] DeepSeek direct error body:{r.text[:300]}", flush=True)
+        return None, 0
+    except Exception as e:
+        print(f"[AI] DeepSeek direct FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
+        return None, 0
+
+
 def ask_ai(question, context, image_base64=None, exam_system_prompt=None, history=None):
-    """Запрос к ИИ через Artemox"""
+    """Запрос к ИИ. Exam-режим — напрямую DeepSeek. Обычный — Artemox."""
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:2500] if has_context else ""
 
-    base_rules = (
-        "Ты Studyfay — личный ИИ-репетитор. Ты умный, дружелюбный и всегда готов помочь разобраться.\n"
-        "СТРОГО отвечай ТОЛЬКО на русском языке. Никаких иероглифов и LaTeX-разметки ($...$ или \\[...\\]).\n"
-        "Формулы пиши обычным текстом: a² + b² = c², E = mc².\n\n"
-        "КАК ОТВЕЧАТЬ:\n"
-        "- Ты репетитор с огромной базой знаний — отвечаешь на любые учебные вопросы БЕЗ материалов\n"
-        "- Объясняй просто, как хороший учитель другу: без занудства, с примерами из жизни\n"
-        "- Если вопрос по школьной/вузовской программе — сразу давай полный ответ\n"
-        "- Никогда не говори 'я не знаю' или 'загрузи конспект' — если нет материалов, объясняй из своих знаний\n"
-        "- После объяснения — предложи закрепить: задай встречный вопрос или мини-задание\n"
-        "- Если человек говорит 'привет' или просто начинает — ответь тепло, спроси чем помочь\n\n"
-        "ФОРМАТИРОВАНИЕ (Markdown):\n"
-        "- ## заголовки для разделения длинных ответов\n"
-        "- **жирный** для ключевых терминов и главных мыслей\n"
-        "- Списки (- или 1.) для правил, шагов, перечислений\n"
-        "- > цитата для определений и правил, которые надо запомнить\n"
-        "- Пустая строка между смысловыми блоками\n"
-        "- Нумерованные шаги если объясняешь процесс\n"
-        "Завершай мысль полностью. Будь живым и вовлечённым."
-    )
-
-    if exam_system_prompt:
-        system = exam_system_prompt
-    elif has_context:
+    if has_context:
         system = (
-            f"{base_rules}\n\n"
-            f"МАТЕРИАЛЫ СТУДЕНТА (используй как основу, но дополняй своими знаниями если нужно):\n"
-            f"{ctx_trimmed}\n\n"
-            "Опирайся на материалы, но не ограничивайся ими — добавляй пояснения и примеры из своих знаний."
+            f"{BASE_RULES}\n\n"
+            f"МАТЕРИАЛЫ СТУДЕНТА:\n{ctx_trimmed}\n\n"
+            "Опирайся на материалы, но дополняй своими знаниями."
         )
     else:
         system = (
-            f"{base_rules}\n\n"
-            "Материалов не загружено — отвечай из своих знаний как опытный репетитор.\n"
-            "Приводи конкретные примеры, формулы, правила. Будь максимально полезным."
+            f"{BASE_RULES}\n\n"
+            "Материалов нет — отвечай из своих знаний как опытный репетитор."
         )
 
     if image_base64:
         answer, tokens = ask_ai_vision(question, system, image_base64)
         return answer, tokens
 
-    messages_list = [{"role": "system", "content": system}]
-    if history:
-        for h in history[-6:]:
-            role = h.get('role', 'user')
-            content = h.get('content', '')
-            if role in ('user', 'assistant') and content:
-                messages_list.append({"role": role, "content": content[:600]})
-    messages_list.append({"role": "user", "content": question[:600]})
+    # Для exam-режима — напрямую DeepSeek (Artemox режет длинные system prompt)
+    if exam_system_prompt:
+        messages_list = [{"role": "system", "content": exam_system_prompt}]
+        if history:
+            for h in history[-6:]:
+                role = h.get('role', 'user')
+                content = h.get('content', '')
+                if role in ('user', 'assistant') and content:
+                    messages_list.append({"role": role, "content": content[:800]})
+        messages_list.append({"role": "user", "content": question[:800]})
+
+        answer, tokens = _call_deepseek_direct(messages_list, max_tokens=1500)
+        if answer:
+            answer = sanitize_answer(answer)
+            if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
+                answer = answer.rstrip() + '.'
+            return answer, tokens
+        # Fallback на Artemox с укороченным промптом
+        print(f"[AI] DeepSeek failed, fallback to Artemox with short prompt", flush=True)
+        short_prompt = exam_system_prompt[:1200]
+        messages_list[0]["content"] = short_prompt
+
+    else:
+        messages_list = [{"role": "system", "content": system}]
+        if history:
+            for h in history[-6:]:
+                role = h.get('role', 'user')
+                content = h.get('content', '')
+                if role in ('user', 'assistant') and content:
+                    messages_list.append({"role": role, "content": content[:600]})
+        messages_list.append({"role": "user", "content": question[:600]})
 
     try:
-        print(f"[AI] -> Artemox text {'[exam]' if exam_system_prompt else ''}", flush=True)
+        print(f"[AI] -> Artemox text", flush=True)
         resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages_list,
