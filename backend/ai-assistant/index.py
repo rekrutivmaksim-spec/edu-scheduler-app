@@ -436,15 +436,17 @@ def _call_deepseek_direct(messages_list: list, max_tokens: int = 1500) -> tuple:
 
 
 def ask_ai(question, context, image_base64=None, exam_system_prompt=None, history=None):
-    """Запрос к ИИ. Exam-режим — напрямую DeepSeek. Обычный — Artemox."""
+    """Запрос к ИИ через Artemox. exam_system_prompt строится на бэкенде — всегда компактный."""
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:2500] if has_context else ""
 
-    if has_context:
+    if exam_system_prompt:
+        system = exam_system_prompt  # уже компактный — построен build_exam_prompt
+    elif has_context:
         system = (
             f"{BASE_RULES}\n\n"
             f"МАТЕРИАЛЫ СТУДЕНТА:\n{ctx_trimmed}\n\n"
-            "Опирайся на материалы, но дополняй своими знаниями."
+            "Опирайся на материалы, дополняй своими знаниями."
         )
     else:
         system = (
@@ -456,40 +458,18 @@ def ask_ai(question, context, image_base64=None, exam_system_prompt=None, histor
         answer, tokens = ask_ai_vision(question, system, image_base64)
         return answer, tokens
 
-    # Для exam-режима — напрямую DeepSeek (Artemox режет длинные system prompt)
-    if exam_system_prompt:
-        messages_list = [{"role": "system", "content": exam_system_prompt}]
-        if history:
-            for h in history[-6:]:
-                role = h.get('role', 'user')
-                content = h.get('content', '')
-                if role in ('user', 'assistant') and content:
-                    messages_list.append({"role": role, "content": content[:800]})
-        messages_list.append({"role": "user", "content": question[:800]})
+    messages_list = [{"role": "system", "content": system}]
+    if history:
+        for h in history[-6:]:
+            role = h.get('role', 'user')
+            content = h.get('content', '')
+            if role in ('user', 'assistant') and content:
+                messages_list.append({"role": role, "content": content[:600]})
+    messages_list.append({"role": "user", "content": question[:600]})
 
-        answer, tokens = _call_deepseek_direct(messages_list, max_tokens=1500)
-        if answer:
-            answer = sanitize_answer(answer)
-            if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
-                answer = answer.rstrip() + '.'
-            return answer, tokens
-        # Fallback на Artemox с укороченным промптом
-        print(f"[AI] DeepSeek failed, fallback to Artemox with short prompt", flush=True)
-        short_prompt = exam_system_prompt[:1200]
-        messages_list[0]["content"] = short_prompt
-
-    else:
-        messages_list = [{"role": "system", "content": system}]
-        if history:
-            for h in history[-6:]:
-                role = h.get('role', 'user')
-                content = h.get('content', '')
-                if role in ('user', 'assistant') and content:
-                    messages_list.append({"role": role, "content": content[:600]})
-        messages_list.append({"role": "user", "content": question[:600]})
+    print(f"[AI] -> Artemox {'[exam]' if exam_system_prompt else ''} prompt_len:{len(system)}", flush=True)
 
     try:
-        print(f"[AI] -> Artemox text", flush=True)
         resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages_list,
@@ -594,6 +574,71 @@ def ask_ai_vision(question, system, image_base64):
     else:
         return "Не удалось распознать текст с фото. Попробуй сфотографировать чётче или перепиши условие задачи текстом — разберём вместе!", 0
 
+EXAM_TASK_LISTS = {
+    'ege': {
+        'math_base': 'Числа и действия,Уравнения,Функции и графики,Геометрия,Текстовые задачи,Статистика и вероятность',
+        'math_profile': 'Числа,Выражения,Уравнения и неравенства,Функции,Геометрия (планиметрия),Геометрия (стереометрия),Вероятность и статистика,Задачи с параметрами',
+        'russian': 'Информация текста,Лексическое значение,Связь предложений,Орфоэпия,Паронимы,Лексические нормы,Морфологические нормы,Синтаксические нормы,Правописание приставок,Правописание суффиксов,Правописание окончаний,НЕ с разными ч/р,Слитно/раздельно/дефис,Н и НН,Знаки в простом предложении,Знаки в СПП,Знаки в ССП и БСП,Знаки при вводных,Текстовые задания (22-26),Сочинение',
+        'chemistry': 'Строение атома,Химическая связь и кристаллические решётки,Классификация веществ,Химические свойства неорганических веществ,Химические реакции,Электролиз,Скорость реакций,Равновесие,Углеводороды,Кислородсодержащие ОС,Азотсодержащие ОС,Качественные реакции,Расчёты',
+        'biology': 'Биология как наука,Клетка,Организм,Генетика,Эволюция,Экосистемы,Человек,Растения,Животные,Задачи по генетике',
+        'physics': 'Механика,Термодинамика,Электростатика,Электрический ток,Магнитное поле,Оптика,Квантовая физика,Астрофизика,Задачи',
+        'history': 'Хронология и периодизация,Восточные славяне,Русь IX-XIII,Монгольское нашествие,XIV-XV вв,XVI в,XVII в,XVIII в,XIX в,Первая половина XX в,Вторая половина XX в,СССР 1985-1991,Россия 1990-е,Россия 2000-е,Источники,Культура,Карты и схемы,Работа с текстом',
+        'social': 'Человек и общество,Духовная сфера,Экономика,Социальные отношения,Политика,Право,Задания с текстом',
+        'english': 'Грамматика и лексика,Чтение,Аудирование,Письмо,Говорение',
+        'geography': 'Источники информации,Природа Земли,Природа России,Население,Мировое хозяйство,Регионы России,Регионы мира',
+        'literature': 'Лирика,Эпос,Драма,Литературные термины,Сравнительный анализ,Сочинение',
+        'informatics': 'Информация,Системы счисления,Логика,Алгоритмы,Программирование,Сети,Базы данных,Файловая система',
+    },
+    'oge': {
+        'math': 'Числа и вычисления,Алгебра,Функции,Уравнения,Неравенства,Геометрия,Статистика,Текстовые задачи',
+        'russian': 'Изложение,Тест (задания 2-8),Синтаксис (9-14),Орфография (15-22),Пунктуация (23-26),Сочинение',
+        'chemistry': 'Строение атома,Периодический закон,Химическая связь,Вещества и их свойства,Реакции,Электролиз,Качественные реакции,Расчётные задачи',
+        'biology': 'Биология как наука,Клетка,Организм,Человек,Растения,Животные,Экология,Генетика',
+        'physics': 'Механика,Тепловые явления,Электричество,Оптика,Задачи',
+        'history': 'Хронология,IX-XIII вв,XIV-XVI вв,XVII-XVIII вв,XIX в,XX в,Культура,Источники,Карты',
+        'social': 'Человек и общество,Экономика,Социальная сфера,Политика,Право',
+        'english': 'Аудирование,Чтение,Грамматика,Письмо',
+        'geography': 'Земля,Природа России,Население,Хозяйство,Регионы',
+        'informatics': 'Информация,Алгоритмы,Программирование,Сети,Задачи',
+    }
+}
+
+def build_exam_prompt(exam_type: str, subject_id: str, subject_label: str, mode: str) -> str:
+    """Строит компактный system prompt для ЕГЭ/ОГЭ — умещается в лимит Artemox"""
+    exam_label = 'ЕГЭ' if exam_type == 'ege' else 'ОГЭ'
+    tasks_str = EXAM_TASK_LISTS.get(exam_type, {}).get(subject_id, '')
+    tasks_hint = f'\nТемы {exam_label} по {subject_label}: {tasks_str}.' if tasks_str else ''
+
+    base = (
+        f"Ты Studyfay — репетитор по {exam_label}, предмет «{subject_label}». "
+        f"Знаешь программу {exam_label} досконально и отвечаешь из своих знаний без конспектов.{tasks_hint}\n"
+        "Отвечай только на русском. Формулы текстом: a²+b²=c². Без LaTeX.\n"
+        "Стиль: живо, по-дружески, как старший товарищ. Хвали за верные ответы, мягко разбирай ошибки.\n"
+        "Формат: **жирный** для терминов, ## заголовки, списки, > для правил."
+    )
+
+    if mode == 'explain':
+        return (
+            base + "\nРЕЖИМ — Объяснение. Когда ученик называет тему или номер задания:\n"
+            "1. Назови тему: **Задание N — [тема]**\n"
+            "2. Объясни что проверяет это задание\n"
+            "3. Теория с примерами из жизни\n"
+            "4. Полный пример задания с разбором (все варианты если нужно)\n"
+            "5. Частые ошибки жирным\n"
+            "6. Предложи: «Хочешь потренироваться?»\n"
+            "Если не знает с чего начать — спроси что даётся труднее."
+        )
+    else:
+        return (
+            base + "\nРЕЖИМ — Тренировка. Алгоритм:\n"
+            "1. **Задание N — [тема]** одной строкой\n"
+            "2. **Задание:** — ПОЛНОЕ реалистичное задание (все варианты/столбцы/пропуски)\n"
+            "3. После ответа: правильный ответ + разбор + частые ошибки\n"
+            "4. «Следующее задание или другая тема?»\n"
+            "Начни сразу с задания. Если тема не указана — выбери самую сложную по статистике."
+        )
+
+
 def build_smart_fallback(question, context):
     """Умный fallback — ВСЕГДА даёт полезный ответ по вопросу и материалам"""
     q = question.lower().strip()
@@ -665,8 +710,21 @@ def handler(event: dict, context) -> dict:
             question = body.get('question', '').strip()
             material_ids = body.get('material_ids', [])
             image_base64 = body.get('image_base64', None)
-            exam_system_prompt = body.get('exam_system_prompt', None)
             history = body.get('history', [])
+
+            # Новый способ: exam_context с параметрами (фронт не шлёт длинный промпт)
+            exam_context = body.get('exam_context', None)
+            exam_system_prompt = None
+            if exam_context:
+                exam_system_prompt = build_exam_prompt(
+                    exam_context.get('exam_type', ''),
+                    exam_context.get('subject_id', ''),
+                    exam_context.get('subject_label', ''),
+                    exam_context.get('mode', 'explain'),
+                )
+            # Обратная совместимость: если фронт всё ещё шлёт exam_system_prompt напрямую — обрезаем до безопасного размера
+            elif body.get('exam_system_prompt'):
+                exam_system_prompt = body['exam_system_prompt'][:800]
 
             if not question and not image_base64:
                 return err(400, {'error': 'Введи вопрос'})
