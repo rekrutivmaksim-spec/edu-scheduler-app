@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { trackActivity } from '@/lib/gamification';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import AIMessage from '@/components/AIMessage';
 import BottomNav from '@/components/BottomNav';
 
 const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
@@ -370,11 +369,9 @@ const Assistant = () => {
                         : 'bg-gray-100 text-gray-800 rounded-bl-md'
                     }`}>
                       {msg.role === 'assistant' ? (
-                        <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:text-gray-900 prose-strong:text-gray-900 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:rounded text-sm">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                        </div>
+                        <AIMessage content={msg.content} />
                       ) : (
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        <p className="text-[15px] leading-[1.7] whitespace-pre-wrap">{msg.content}</p>
                       )}
                     </div>
                     <p className={`text-[11px] mt-1 px-1 ${msg.role === 'user' ? 'text-right text-gray-400' : 'text-gray-400'}`}>
