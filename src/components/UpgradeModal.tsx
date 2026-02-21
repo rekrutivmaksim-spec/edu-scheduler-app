@@ -24,9 +24,9 @@ const SOCIAL_PROOF = [
 ];
 
 const QUESTION_PACKS = [
-  { id: 'questions_30', label: '30 вопросов', price: 150, perQ: '5₽/шт', popular: false },
-  { id: 'questions_60', label: '60 вопросов', price: 299, perQ: '5₽/шт', popular: true },
-  { id: 'questions_90', label: '90 вопросов', price: 499, perQ: '5.5₽/шт', popular: false },
+  { id: 'questions_15', label: '15 вопросов', price: 150, perQ: '10₽/шт', popular: false },
+  { id: 'questions_30', label: '30 вопросов', price: 300, perQ: '10₽/шт', popular: true },
+  { id: 'questions_100', label: '100 вопросов', price: 600, perQ: '6₽/шт', popular: false },
 ];
 
 const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general' }: UpgradeModalProps) => {
