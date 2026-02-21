@@ -13,9 +13,10 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', '')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(27.0, connect=3.0))
+_http = httpx.Client(timeout=httpx.Timeout(20.0, connect=3.0))
 _http_vision = httpx.Client(timeout=httpx.Timeout(40.0, connect=5.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=27.0, http_client=_http)
+_http_deepseek = httpx.Client(timeout=httpx.Timeout(25.0, connect=3.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=20.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
