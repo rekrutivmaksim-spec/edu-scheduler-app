@@ -384,16 +384,20 @@ def ask_ai(question, context, image_base64=None, exam_system_prompt=None, histor
         "Завершай мысль полностью. **Жирный** для ключевых терминов."
     )
 
-    if exam_system_prompt:
-        system = exam_system_prompt
-    elif has_context:
+    if has_context:
         system = f"{base_rules}\n\nМАТЕРИАЛЫ СТУДЕНТА:\n{ctx_trimmed}\n\nОтвечай опираясь на материалы."
     else:
-        system = f"{base_rules} Приводи понятные примеры."
+        system = f"{base_rules} Отвечай из своих знаний, приводи понятные примеры."
 
     if image_base64:
         answer, tokens = ask_ai_vision(question, system, image_base64)
         return answer, tokens
+
+    # Exam-контекст встраиваем в user-сообщение, а не в system — иначе WAF блокирует
+    if exam_system_prompt:
+        user_content = f"{exam_system_prompt}\n\n{question[:500]}"
+    else:
+        user_content = question[:600]
 
     messages_list = [{"role": "system", "content": system}]
     if history:
@@ -401,8 +405,8 @@ def ask_ai(question, context, image_base64=None, exam_system_prompt=None, histor
             role = h.get('role', 'user')
             content = h.get('content', '')
             if role in ('user', 'assistant') and content:
-                messages_list.append({"role": role, "content": content[:600]})
-    messages_list.append({"role": "user", "content": question[:600]})
+                messages_list.append({"role": role, "content": content[:400]})
+    messages_list.append({"role": "user", "content": user_content})
 
     try:
         print(f"[AI] -> Artemox text {'[exam]' if exam_system_prompt else ''}", flush=True)
