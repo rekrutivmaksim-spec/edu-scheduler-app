@@ -4,7 +4,8 @@ import { authService } from '@/lib/auth';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { trackActivity } from '@/lib/gamification';
-import AIMessage from '@/components/AIMessage';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import BottomNav from '@/components/BottomNav';
 
 const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
@@ -465,6 +466,56 @@ const ThinkingIndicator = ({ elapsed }: { elapsed: number }) => {
   );
 };
 
+// ── Системный промпт ─────────────────────────────────────────────────────────
+
+const buildSystemPrompt = (examType: string, subjectId: string, subjectLabel: string, mode: string): string => {
+  const examLabel = examType === 'ege' ? 'ЕГЭ' : 'ОГЭ';
+  const taskContext = buildTaskContext(examType, subjectId, subjectLabel);
+  const base = `Ты Studyfay — опытный репетитор по подготовке к ${examLabel} по предмету «${subjectLabel}».
+СТРОГО отвечай ТОЛЬКО на русском языке. Никаких иероглифов и LaTeX-разметки ($...$ или \\[...\\]).
+Формулы пиши обычным текстом: a² + b² = c², E = mc².
+Ты отлично знаешь структуру ${examLabel}, типичные задания, критерии оценивания и частые ошибки учеников.
+${taskContext}
+Когда ученик говорит «Задание N» — ты точно знаешь какая это тема по структуре выше и объясняешь именно её.
+
+ПРАВИЛА ФОРМАТИРОВАНИЯ ЗАДАНИЙ (обязательно):
+- Если в задании нужно выбрать цифры/варианты из списка — ВСЕГДА приводи ПОЛНЫЙ список вариантов с цифрами
+- Пример правильного задания с выбором: «Выберите верные суждения (запишите цифры):
+  1) Государство — основной институт политической системы
+  2) Право регулирует только экономические отношения
+  3) Конституция — основной закон государства
+  4) Все нормы права являются нормами морали
+  5) Депутаты избираются народом»
+- Если задание на соответствие — ВСЕГДА приводи ОБА столбца полностью
+- Если нужно вставить слова в текст — ВСЕГДА приводи сам текст с пропусками И список слов для вставки
+- Никогда не пиши «выберите из предложенных» без того, чтобы не привести сами варианты
+- Задание должно быть полным и самодостаточным — ученик должен иметь всё необходимое для ответа`;
+
+  if (mode === 'explain') {
+    return `${base}
+
+РЕЖИМ: Объяснение темы.
+Когда ученик называет тему или номер задания:
+1. Сначала напиши: «**Задание N — [название темы]**»
+2. Объясни что именно проверяет это задание на экзамене
+3. Объясни теорию простым языком с конкретными примерами
+4. Покажи типичный пример задания (ПОЛНЫЙ, со всеми вариантами если нужно) и разбери его
+5. Выдели главные правила и частые ошибки — используй **жирный**
+6. В конце предложи: «Хочешь потренироваться на этом задании?»`;
+  }
+
+  return `${base}
+
+РЕЖИМ: Тренировка заданий.
+Алгоритм строго:
+1. Сначала напиши тему: «**Задание N — [название темы]**»
+2. Затем напиши «**Задание:**» и ПОЛНОЕ реалистичное задание — со всеми вариантами, текстами, таблицами, списками которые нужны для ответа
+3. Жди ответа ученика
+4. После ответа — напиши правильный ответ, подробный разбор каждого пункта и частые ошибки
+5. Спроси: «Следующее задание?» или «Хочешь разобрать другую тему?»
+Начни сразу с задания. Задание должно быть полным — ученик должен мочь ответить без дополнительных вопросов.`;
+};
+
 // ── Панель заданий ────────────────────────────────────────────────────────────
 
 const TaskPanel = ({
@@ -594,12 +645,7 @@ const Exam = () => {
   const makeFetchBody = useCallback((q: string, hist: Message[], selectedMode: string) => ({
     question: q,
     material_ids: [],
-    exam_context: {
-      exam_type: examType,
-      subject_id: subject?.id || '',
-      subject_label: subject?.label || '',
-      mode: selectedMode,
-    },
+    exam_system_prompt: buildSystemPrompt(examType, subject?.id || '', subject?.label || '', selectedMode),
     history: hist.slice(-6).map(m => ({ role: m.role, content: m.content })),
   }), [examType, subject]);
 
@@ -904,9 +950,11 @@ const Exam = () => {
                     : 'bg-gray-100 text-gray-800 rounded-bl-md'
                 }`}>
                   {msg.role === 'assistant' ? (
-                    <AIMessage content={msg.content} />
+                    <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:text-gray-900 prose-strong:text-gray-900 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:rounded text-sm">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                    </div>
                   ) : (
-                    <p className="text-[15px] leading-[1.7] whitespace-pre-wrap">{msg.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                   )}
                 </div>
                 <p className={`text-[11px] mt-1 px-1 text-gray-400 ${msg.role === 'user' ? 'text-right' : ''}`}>
