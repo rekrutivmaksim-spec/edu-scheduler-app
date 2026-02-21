@@ -9,6 +9,7 @@ import remarkGfm from 'remark-gfm';
 import BottomNav from '@/components/BottomNav';
 
 const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
+const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
 // ── Структура заданий ЕГЭ/ОГЭ ────────────────────────────────────────────────
 
@@ -556,15 +557,37 @@ const Exam = () => {
   const [question, setQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [aiUsed, setAiUsed] = useState<number | null>(null);
+  const [aiMax, setAiMax] = useState<number | null>(null);
   const [thinkingElapsed, setThinkingElapsed] = useState(0);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) navigate('/login');
+    else loadAiLimits();
   }, [navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  const loadAiLimits = async () => {
+    try {
+      const token = authService.getToken();
+      const resp = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const ai = data.limits?.ai_questions;
+        if (ai && ai.max && ai.max < 999) {
+          setAiUsed(ai.used);
+          setAiMax(ai.max);
+        }
+      }
+    } catch (e) {
+      console.warn('AI limits load:', e);
+    }
+  };
 
   const startThinking = () => {
     setThinkingElapsed(0);
@@ -580,7 +603,10 @@ const Exam = () => {
 
   const handleOk = useCallback(async (resp: Response) => {
     const data = await resp.json();
-    if (data.remaining !== undefined) setRemaining(data.remaining);
+    if (data.remaining !== undefined) {
+      setRemaining(data.remaining);
+      setAiUsed(prev => (prev !== null && aiMax !== null) ? aiMax - data.remaining : prev);
+    }
     setMessages(prev => [...prev, { role: 'assistant', content: data.answer, timestamp: new Date() }]);
     try {
       const gam = await trackActivity('ai_questions_asked', 1);
@@ -879,6 +905,23 @@ const Exam = () => {
           </button>
         </div>
       </header>
+
+      {aiMax !== null && aiUsed !== null && (
+        <div className="flex-shrink-0 px-4 py-2 bg-white border-b border-gray-100">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <Icon name="Bot" size={14} className="text-purple-500 flex-shrink-0" />
+            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${aiUsed / aiMax >= 0.9 ? 'bg-red-500' : aiUsed / aiMax >= 0.7 ? 'bg-orange-500' : 'bg-purple-500'}`}
+                style={{ width: `${Math.min((aiUsed / aiMax) * 100, 100)}%` }}
+              />
+            </div>
+            <span className="text-xs text-gray-500 flex-shrink-0">
+              {aiUsed} / {aiMax} вопросов
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="max-w-2xl mx-auto space-y-4">

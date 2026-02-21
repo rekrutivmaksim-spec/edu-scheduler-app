@@ -60,7 +60,8 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
   };
 
   if (loading || !limits) return null;
-  if (isPremium && !showUpgradeButton) return null;
+  if (compact && isPremium && !limits.ai_questions?.max) return null;
+  if (!compact && isPremium && !showUpgradeButton) return null;
 
   const getPercentage = (used: number, max: number | null) => {
     if (!max) return 0;
@@ -74,41 +75,70 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
   };
 
   if (compact) {
-    const items = [
+    const freeItems = [
       { icon: 'Calendar', used: limits.schedule.used, max: limits.schedule.max, label: 'Занятия' },
       { icon: 'CheckSquare', used: limits.tasks.used, max: limits.tasks.max, label: 'Задачи' },
-      { icon: 'FileText', used: limits.materials.used, max: limits.materials.max, label: 'Материалы' }
+      { icon: 'FileText', used: limits.materials.used, max: limits.materials.max, label: 'Материалы' },
     ];
-
-    if (limits.ai_questions && limits.ai_questions.max) {
-      items.push({ icon: 'Bot', used: limits.ai_questions.used, max: limits.ai_questions.max, label: 'AI' });
+    if (limits.ai_questions?.max) {
+      freeItems.push({ icon: 'Bot', used: limits.ai_questions.used, max: limits.ai_questions.max, label: 'AI' });
     }
 
+    const items = isPremium && limits.ai_questions?.max
+      ? [{ icon: 'Bot', used: limits.ai_questions.used, max: limits.ai_questions.max, label: 'AI-вопросы сегодня' }]
+      : freeItems;
+
+    const aiPct = limits.ai_questions?.max ? getPercentage(limits.ai_questions.used, limits.ai_questions.max) : 0;
+
     return (
-      <div className="flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
-        {items.map((item, idx) => {
-          const percentage = getPercentage(item.used, item.max);
-          const isNearLimit = percentage >= 70;
-          
-          return (
-            <div key={idx} className="flex items-center gap-2">
-              <Icon name={item.icon} size={16} className={isNearLimit ? getColor(percentage) : 'text-gray-600'} />
-              <span className={`text-sm font-medium ${isNearLimit ? getColor(percentage) : 'text-gray-700'}`}>
-                {item.used}/{item.max}
-              </span>
+      <div className="flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200 mb-3">
+        {isPremium && limits.ai_questions?.max ? (
+          <div className="flex flex-1 items-center gap-3">
+            <Icon name="Bot" size={16} className={getColor(aiPct)} />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-600">AI-вопросы сегодня</span>
+                <span className={`text-xs font-semibold ${getColor(aiPct)}`}>
+                  {limits.ai_questions!.used} / {limits.ai_questions!.max}
+                </span>
+              </div>
+              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${aiPct >= 90 ? 'bg-red-500' : aiPct >= 70 ? 'bg-orange-500' : 'bg-purple-500'}`}
+                  style={{ width: `${aiPct}%` }}
+                />
+              </div>
             </div>
-          );
-        })}
-        {showUpgradeButton && (
-          <Button
-            size="sm"
-            variant="default"
-            onClick={() => navigate('/subscription')}
-            className="ml-auto text-xs bg-gradient-to-r from-purple-600 to-indigo-600 text-white animate-pulse"
-          >
-            <Icon name="Crown" size={14} className="mr-1" />
-            Premium
-          </Button>
+            <Button size="sm" variant="ghost" onClick={() => navigate('/subscription')} className="text-xs text-purple-600 h-7 px-2">
+              Докупить
+            </Button>
+          </div>
+        ) : (
+          <>
+            {items.map((item, idx) => {
+              const percentage = getPercentage(item.used, item.max);
+              const isNearLimit = percentage >= 70;
+              return (
+                <div key={idx} className="flex items-center gap-1.5">
+                  <Icon name={item.icon} size={15} className={isNearLimit ? getColor(percentage) : 'text-gray-500'} />
+                  <span className={`text-xs font-medium ${isNearLimit ? getColor(percentage) : 'text-gray-700'}`}>
+                    {item.used}/{item.max}
+                  </span>
+                </div>
+              );
+            })}
+            {showUpgradeButton && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => navigate('/subscription')}
+                className="ml-auto text-xs bg-gradient-to-r from-purple-600 to-indigo-600 text-white animate-pulse h-7"
+              >
+                <Icon name="Crown" size={13} className="mr-1" />
+                Premium
+              </Button>
+            )}
+          </>
         )}
       </div>
     );
