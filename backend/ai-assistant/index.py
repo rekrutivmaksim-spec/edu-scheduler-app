@@ -10,8 +10,25 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
+ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', '')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+
+# IP rate limiting: max запросов за окно времени (защита от пика нагрузки)
+_ip_requests: dict = {}
+IP_WINDOW_SECONDS = 60
+IP_MAX_REQUESTS = 15  # не более 15 запросов с одного IP в минуту
+
+def check_ip_rate_limit(ip: str) -> bool:
+    """Возвращает True если запрос разрешён, False если превышен лимит"""
+    now = datetime.now().timestamp()
+    if ip not in _ip_requests:
+        _ip_requests[ip] = []
+    # Убираем старые записи за пределами окна
+    _ip_requests[ip] = [t for t in _ip_requests[ip] if now - t < IP_WINDOW_SECONDS]
+    if len(_ip_requests[ip]) >= IP_MAX_REQUESTS:
+        return False
+    _ip_requests[ip].append(now)
+    return True
 
 _http = httpx.Client(timeout=httpx.Timeout(22.0, connect=3.0))
 _http_vision = httpx.Client(timeout=httpx.Timeout(40.0, connect=5.0))
@@ -31,8 +48,6 @@ def err(status: int, body: dict) -> dict:
     return {'statusCode': status, 'headers': CORS_HEADERS, 'body': json.dumps(body, ensure_ascii=False)}
 
 def get_user_id(token: str):
-    if token in ('mock-token', 'guest_token'):
-        return 1
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
         return payload['user_id']
@@ -542,6 +557,12 @@ def handler(event: dict, context) -> dict:
 
     if method == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
+
+    # IP rate limiting — защита от пиков нагрузки (май/июнь)
+    ip = (event.get('requestContext', {}) or {}).get('identity', {}) or {}
+    client_ip = ip.get('sourceIp', 'unknown') if isinstance(ip, dict) else 'unknown'
+    if method == 'POST' and not check_ip_rate_limit(client_ip):
+        return err(429, {'error': 'Слишком много запросов. Подожди минуту и попробуй снова.'})
 
     token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
     user_id = get_user_id(token)
