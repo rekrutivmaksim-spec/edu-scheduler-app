@@ -40,20 +40,20 @@ PLANS = {
 TOKEN_PACKS = {}
 
 QUESTION_PACKS = {
-    'questions_30': {
+    'questions_15': {
         'price': 150,
+        'questions': 15,
+        'name': '+15 вопросов'
+    },
+    'questions_30': {
+        'price': 300,
         'questions': 30,
         'name': '+30 вопросов'
     },
-    'questions_60': {
-        'price': 299,
-        'questions': 60,
-        'name': '+60 вопросов'
-    },
-    'questions_90': {
-        'price': 499,
-        'questions': 90,
-        'name': '+90 вопросов'
+    'questions_100': {
+        'price': 600,
+        'questions': 100,
+        'name': '+100 вопросов'
     }
 }
 
@@ -336,6 +336,14 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                 SET {update_fields}
                 WHERE id = %s
             """, update_values)
+
+            # +15 бонусных вопросов при покупке любой подписки
+            cur.execute(f"""
+                UPDATE {SCHEMA_NAME}.users
+                SET bonus_questions = COALESCE(bonus_questions, 0) + 15
+                WHERE id = %s
+            """, (payment['user_id'],))
+            print(f"[PAYMENT] +15 bonus questions for user {payment['user_id']}", flush=True)
 
         conn.commit()
         return True

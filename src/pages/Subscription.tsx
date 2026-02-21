@@ -563,17 +563,17 @@ const Subscription = () => {
         {questionPacks.length > 0 && (
           <div className="space-y-3">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-800">Пакеты вопросов</h2>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800">Дополнительные вопросы</h2>
               <p className="text-xs text-gray-500 mt-0.5">
                 {isPremium
-                  ? 'Для использования сверх 20 в день — не сгорают, накапливаются'
-                  : 'Мгновенная активация, вопросы не сгорают'}
+                  ? 'Сверх 20 вопросов в день — не сгорают, накапливаются'
+                  : 'Не сгорают, накапливаются. При покупке подписки +15 бонусных вопросов'}
               </p>
             </div>
 
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {questionPacks.map((pack) => {
-                const isPopularPack = pack.id === 'questions_60';
+                const isPopularPack = pack.id === 'questions_30';
                 return (
                   <Card
                     key={pack.id}
@@ -585,7 +585,7 @@ const Subscription = () => {
                   >
                     {isPopularPack && (
                       <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] px-2 py-0">
-                        Выгоднее
+                        Популярный
                       </Badge>
                     )}
                     <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-2 ${

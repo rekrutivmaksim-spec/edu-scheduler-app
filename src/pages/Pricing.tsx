@@ -109,7 +109,7 @@ const Pricing = () => {
         { text: '2 материала в месяц', included: true },
         { text: '3 AI-вопроса в день', included: true },
         { text: '5 предметов в зачётке', included: true },
-        { text: 'Безлимит ИИ-вопросов', included: false },
+        { text: '20 AI-вопросов/день', included: false },
         { text: 'Заморозка стрика', included: false }
       ],
       current: currentPlan === 'free',
@@ -124,9 +124,9 @@ const Pricing = () => {
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
-        { text: 'Безлимитные AI-вопросы', included: true },
+        { text: '20 AI-вопросов в день', included: true },
+        { text: '+15 бонусных вопросов при покупке', included: true },
         { text: 'Безлимитные материалы', included: true },
-        { text: 'Безлимит зачётной книжки', included: true },
         { text: 'Помодоро-таймер с аналитикой', included: true },
         { text: 'Заморозка стрика (1 раз/нед)', included: true }
       ],
@@ -145,9 +145,9 @@ const Pricing = () => {
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
-        { text: 'Безлимитные AI-вопросы', included: true },
+        { text: '20 AI-вопросов в день', included: true },
+        { text: '+15 бонусных вопросов при покупке', included: true },
         { text: 'Безлимитные материалы', included: true },
-        { text: 'Безлимит зачётной книжки', included: true },
         { text: 'Помодоро-таймер с аналитикой', included: true },
         { text: 'Заморозка стрика (1 раз/нед)', included: true }
       ],
@@ -166,9 +166,9 @@ const Pricing = () => {
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
-        { text: 'Безлимитные AI-вопросы', included: true },
+        { text: '20 AI-вопросов в день', included: true },
+        { text: '+15 бонусных вопросов при покупке', included: true },
         { text: 'Безлимитные материалы', included: true },
-        { text: 'Безлимит зачётной книжки', included: true },
         { text: 'Помодоро-таймер с аналитикой', included: true },
         { text: 'Заморозка стрика + приоритет', included: true }
       ],

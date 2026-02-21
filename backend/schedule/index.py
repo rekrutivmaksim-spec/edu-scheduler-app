@@ -379,8 +379,9 @@ def get_pomodoro_stats(conn, user_id, headers):
 
 def save_pomodoro_session(conn, user_id, body, headers):
     subject = body.get('subject', '')
-    duration = body.get('duration', 25)
+    duration = int(body.get('duration', 25))
     task_id = body.get('task_id')
+    today = datetime.now().date()
 
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
@@ -389,11 +390,26 @@ def save_pomodoro_session(conn, user_id, body, headers):
             RETURNING id
         """, (user_id, subject, duration, task_id))
         session = cur.fetchone()
+
+        # Обновляем daily_activity — нужно для достижений по помодорро
+        cur.execute("""
+            INSERT INTO daily_activity (user_id, activity_date, pomodoro_minutes)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (user_id, activity_date)
+            DO UPDATE SET pomodoro_minutes = daily_activity.pomodoro_minutes + %s
+        """, (user_id, today, duration, duration))
+
+        # XP: 1 XP за минуту помодорро
+        xp = duration
+        cur.execute("""
+            UPDATE users SET xp_total = COALESCE(xp_total, 0) + %s WHERE id = %s
+        """, (xp, user_id))
+
         conn.commit()
         return {
             'statusCode': 201,
             'headers': headers,
-            'body': json.dumps({'message': 'Сессия сохранена', 'session_id': session['id']})
+            'body': json.dumps({'message': 'Сессия сохранена', 'session_id': session['id'], 'xp_gained': xp})
         }
 
 
