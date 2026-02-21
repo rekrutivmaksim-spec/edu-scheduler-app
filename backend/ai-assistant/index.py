@@ -474,7 +474,7 @@ def ask_ai(question, context, image_base64=None, exam_system_prompt=None, histor
             model="deepseek-chat",
             messages=messages_list,
             temperature=0.7,
-            max_tokens=1500 if exam_system_prompt else 1024,
+            max_tokens=1024,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
