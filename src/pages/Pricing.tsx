@@ -124,7 +124,7 @@ const Pricing = () => {
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
-        { text: 'Безлимитные AI-вопросы', included: true },
+        { text: '20 AI-вопросов в день', included: true },
         { text: 'Безлимитные материалы', included: true },
         { text: 'Безлимит зачётной книжки', included: true },
         { text: 'Помодоро-таймер с аналитикой', included: true },
@@ -145,7 +145,7 @@ const Pricing = () => {
       features: [
         { text: 'Безлимитное расписание', included: true },
         { text: 'Безлимитные задачи', included: true },
-        { text: 'Безлимитные AI-вопросы', included: true },
+        { text: '20 AI-вопросов в день', included: true },
         { text: 'Безлимитные материалы', included: true },
         { text: 'Безлимит зачётной книжки', included: true },
         { text: 'Помодоро-таймер с аналитикой', included: true },
