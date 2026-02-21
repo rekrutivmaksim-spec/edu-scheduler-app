@@ -254,7 +254,7 @@ const Assistant = () => {
                     <span className="inline-block w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
                     Думаю... {thinkingElapsed > 0 ? `${Math.floor(thinkingElapsed / 1000)}с` : ''}
                   </span>
-                ) : remaining !== null ? `Осталось ${remaining} вопросов` : 'ИИ-ассистент'}
+                ) : remaining !== null && remaining < 999 ? `Осталось ${remaining} вопросов` : 'ИИ-ассистент'}
               </p>
             </div>
           </div>
