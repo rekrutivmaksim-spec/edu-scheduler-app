@@ -10,6 +10,15 @@
       "expectedStatus": 200
     },
     {
+      "name": "Get question packs",
+      "method": "GET",
+      "path": "/?action=token_packs",
+      "headers": {
+        "Authorization": "Bearer mock-token"
+      },
+      "expectedStatus": 200
+    },
+    {
       "name": "Get auto renew info",
       "method": "GET",
       "path": "/?action=auto_renew",

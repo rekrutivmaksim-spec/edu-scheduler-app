@@ -39,14 +39,17 @@ def get_user_id(token: str):
     except Exception:
         return None
 
+PREMIUM_DAILY_LIMIT = 20
+FREE_DAILY_LIMIT = 3
+
 def check_access(conn, user_id: int) -> dict:
     """Проверка доступа с учетом подписки/триала/free"""
     cur = conn.cursor()
     cur.execute(f'''
         SELECT subscription_type, subscription_expires_at, subscription_plan,
-               ai_questions_used, ai_questions_limit,
                trial_ends_at, is_trial_used,
-               daily_questions_used, daily_questions_reset_at, bonus_questions
+               daily_questions_used, daily_questions_reset_at, bonus_questions,
+               daily_premium_questions_used, daily_premium_questions_reset_at
         FROM {SCHEMA_NAME}.users WHERE id = %s
     ''', (user_id,))
     row = cur.fetchone()
@@ -54,30 +57,58 @@ def check_access(conn, user_id: int) -> dict:
     if not row:
         return {'has_access': False, 'reason': 'user_not_found'}
 
-    (sub_type, expires_at, sub_plan, q_used, q_limit,
-     trial_ends, trial_used, daily_used, daily_reset, bonus) = row
+    (sub_type, expires_at, sub_plan,
+     trial_ends, trial_used,
+     daily_used, daily_reset, bonus,
+     prem_daily_used, prem_daily_reset) = row
+
     now = datetime.now()
-    q_used = q_used or 0
     daily_used = daily_used or 0
     bonus = bonus or 0
+    prem_daily_used = prem_daily_used or 0
 
-    limits = {'1month': 40, '3months': 120, '6months': 260}
-    expected = limits.get(sub_plan, 40)
-    if q_limit != expected:
-        cur2 = conn.cursor()
-        cur2.execute(f'UPDATE {SCHEMA_NAME}.users SET ai_questions_limit=%s WHERE id=%s', (expected, user_id))
-        conn.commit()
-        cur2.close()
-        q_limit = expected
-
-    if sub_type == 'premium' and expires_at and expires_at > now:
-        if q_used >= q_limit:
-            return {'has_access': False, 'reason': 'limit', 'used': q_used, 'limit': q_limit}
-        return {'has_access': True, 'is_premium': True, 'used': q_used, 'limit': q_limit, 'remaining': q_limit - q_used}
-
+    # --- ТРИАЛ: безлимит ---
     if trial_ends and not trial_used and trial_ends > now:
-        return {'has_access': True, 'is_trial': True, 'used': q_used, 'limit': 999, 'remaining': 999}
+        return {'has_access': True, 'is_trial': True, 'used': 0, 'limit': 999, 'remaining': 999}
 
+    # --- ПРЕМИУМ ---
+    if sub_type == 'premium' and expires_at and expires_at > now:
+        # Сброс дневного счётчика
+        if prem_daily_reset and prem_daily_reset < now:
+            cur2 = conn.cursor()
+            cur2.execute(f'''UPDATE {SCHEMA_NAME}.users
+                SET daily_premium_questions_used=0,
+                    daily_premium_questions_reset_at=%s
+                WHERE id=%s''', (now + timedelta(days=1), user_id))
+            conn.commit()
+            cur2.close()
+            prem_daily_used = 0
+
+        remaining_daily = max(0, PREMIUM_DAILY_LIMIT - prem_daily_used)
+        remaining_bonus = bonus
+
+        if remaining_daily > 0:
+            return {
+                'has_access': True, 'is_premium': True,
+                'used': prem_daily_used, 'limit': PREMIUM_DAILY_LIMIT,
+                'remaining': remaining_daily, 'bonus_remaining': remaining_bonus,
+                'source': 'daily'
+            }
+        elif remaining_bonus > 0:
+            return {
+                'has_access': True, 'is_premium': True,
+                'used': prem_daily_used, 'limit': PREMIUM_DAILY_LIMIT,
+                'remaining': remaining_bonus, 'bonus_remaining': remaining_bonus,
+                'source': 'bonus', 'daily_exhausted': True
+            }
+        else:
+            return {
+                'has_access': False, 'reason': 'daily_limit',
+                'used': prem_daily_used, 'limit': PREMIUM_DAILY_LIMIT,
+                'is_premium': True, 'bonus_remaining': 0
+            }
+
+    # --- БЕСПЛАТНЫЙ ---
     if daily_reset and daily_reset < now:
         cur2 = conn.cursor()
         cur2.execute(f'UPDATE {SCHEMA_NAME}.users SET daily_questions_used=0, daily_questions_reset_at=%s WHERE id=%s',
@@ -86,34 +117,81 @@ def check_access(conn, user_id: int) -> dict:
         cur2.close()
         daily_used = 0
 
-    total = 3 + bonus
+    total = FREE_DAILY_LIMIT + bonus
     if daily_used >= total:
-        return {'has_access': False, 'reason': 'limit', 'used': daily_used, 'limit': total, 'is_free': True}
-    return {'has_access': True, 'is_free': True, 'used': daily_used, 'limit': total, 'remaining': total - daily_used}
+        return {'has_access': False, 'reason': 'limit', 'used': daily_used, 'limit': FREE_DAILY_LIMIT, 'is_free': True}
+    return {'has_access': True, 'is_free': True, 'used': daily_used, 'limit': FREE_DAILY_LIMIT, 'remaining': total - daily_used}
 
-def increment_questions(conn, user_id: int):
-    cur = conn.cursor()
-    cur.execute(f'''
-        SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used,
-               daily_questions_used, bonus_questions
-        FROM {SCHEMA_NAME}.users WHERE id=%s
-    ''', (user_id,))
-    u = cur.fetchone()
+def increment_questions(conn, user_id: int, access_info: dict = None):
+    """Списываем вопрос после успешного ответа ИИ.
+    access_info передаётся из check_access чтобы не делать лишний SELECT."""
     now = datetime.now()
-    if u:
-        sub_type, expires, trial_ends, trial_used, daily_used, bonus = u
-        daily_used = daily_used or 0
-        bonus = bonus or 0
+    cur = conn.cursor()
+
+    if not access_info:
+        cur.execute(f'''
+            SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used,
+                   daily_questions_used, bonus_questions,
+                   daily_premium_questions_used
+            FROM {SCHEMA_NAME}.users WHERE id=%s
+        ''', (user_id,))
+        u = cur.fetchone()
+        if not u:
+            cur.close()
+            return
+        sub_type, expires, trial_ends, trial_used, daily_used, bonus, prem_daily = u
         is_premium = sub_type == 'premium' and expires and expires > now
         is_trial = trial_ends and not trial_used and trial_ends > now
-        if is_premium or is_trial:
-            cur.execute(f'UPDATE {SCHEMA_NAME}.users SET ai_questions_used=COALESCE(ai_questions_used,0)+1 WHERE id=%s', (user_id,))
-        elif daily_used < 3:
-            cur.execute(f'UPDATE {SCHEMA_NAME}.users SET daily_questions_used=COALESCE(daily_questions_used,0)+1, daily_questions_reset_at=COALESCE(daily_questions_reset_at,%s) WHERE id=%s',
-                        (now + timedelta(days=1), user_id))
-        elif bonus > 0:
-            cur.execute(f'UPDATE {SCHEMA_NAME}.users SET daily_questions_used=COALESCE(daily_questions_used,0)+1, bonus_questions=bonus_questions-1, daily_questions_reset_at=COALESCE(daily_questions_reset_at,%s) WHERE id=%s AND bonus_questions>0',
-                        (now + timedelta(days=1), user_id))
+        source = 'daily' if is_premium else 'free'
+        prem_daily = prem_daily or 0
+        bonus = bonus or 0
+        if is_premium and prem_daily >= PREMIUM_DAILY_LIMIT and bonus > 0:
+            source = 'bonus'
+    else:
+        is_premium = access_info.get('is_premium', False)
+        is_trial = access_info.get('is_trial', False)
+        source = access_info.get('source', 'daily')
+
+    if is_trial:
+        # триал не тратит реальные счётчики
+        cur.close()
+        return
+
+    if is_premium:
+        if source == 'bonus':
+            # Списываем из пакета
+            cur.execute(f'''UPDATE {SCHEMA_NAME}.users
+                SET bonus_questions = GREATEST(0, bonus_questions - 1),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id=%s AND bonus_questions > 0''', (user_id,))
+        else:
+            # Списываем дневной лимит
+            cur.execute(f'''UPDATE {SCHEMA_NAME}.users
+                SET daily_premium_questions_used = COALESCE(daily_premium_questions_used,0) + 1,
+                    daily_premium_questions_reset_at = COALESCE(
+                        NULLIF(daily_premium_questions_reset_at, NULL),
+                        %s
+                    ),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id=%s''', (now + timedelta(days=1), user_id))
+    else:
+        # Бесплатный: сначала базовые 3, потом бонусные
+        cur.execute(f'''SELECT daily_questions_used, bonus_questions FROM {SCHEMA_NAME}.users WHERE id=%s''', (user_id,))
+        row = cur.fetchone()
+        if row:
+            daily_used, bonus = row[0] or 0, row[1] or 0
+            if daily_used < FREE_DAILY_LIMIT:
+                cur.execute(f'''UPDATE {SCHEMA_NAME}.users
+                    SET daily_questions_used = COALESCE(daily_questions_used,0) + 1,
+                        daily_questions_reset_at = COALESCE(daily_questions_reset_at, %s),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id=%s''', (now + timedelta(days=1), user_id))
+            elif bonus > 0:
+                cur.execute(f'''UPDATE {SCHEMA_NAME}.users
+                    SET bonus_questions = GREATEST(0, bonus_questions - 1),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id=%s AND bonus_questions > 0''', (user_id,))
+
     conn.commit()
     cur.close()
 
@@ -504,8 +582,21 @@ def handler(event: dict, context) -> dict:
 
             access = check_access(conn, user_id)
             if not access.get('has_access'):
-                msg = 'Лимит вопросов исчерпан. Оформи подписку или подожди до завтра!' if access.get('reason') == 'limit' else 'Для доступа к ИИ нужна подписка.'
-                return err(403, {'error': 'limit', 'message': msg, 'used': access.get('used', 0), 'limit': access.get('limit', 0)})
+                reason = access.get('reason', 'limit')
+                if reason == 'daily_limit':
+                    msg = 'Дневной лимит 20 вопросов исчерпан. Купи пакет вопросов или подожди до завтра!'
+                elif access.get('is_free'):
+                    msg = 'Бесплатный лимит (3 вопроса в день) исчерпан. Оформи подписку или купи пакет!'
+                else:
+                    msg = 'Для доступа к ИИ нужна подписка.'
+                return err(403, {
+                    'error': 'limit',
+                    'message': msg,
+                    'used': access.get('used', 0),
+                    'limit': access.get('limit', 0),
+                    'is_premium': access.get('is_premium', False),
+                    'daily_exhausted': access.get('is_premium', False)
+                })
 
             sid = get_session(conn, user_id)
             save_msg(conn, sid, user_id, 'user', question, material_ids)
@@ -523,7 +614,7 @@ def handler(event: dict, context) -> dict:
                     task = cur.fetchone()
                     conn.commit()
                     cur.close()
-                    increment_questions(conn, user_id)
+                    increment_questions(conn, user_id, access)
                     acc = check_access(conn, user_id)
                     ans = f"✅ **Задача создана!**\n\n📋 **{task[1]}**" + (f"\n📚 Предмет: {subj}" if subj else "") + "\n\nНайдёшь её в разделе **Планировщик**."
                     save_msg(conn, sid, user_id, 'assistant', ans)
@@ -544,7 +635,7 @@ def handler(event: dict, context) -> dict:
                     lesson = cur.fetchone()
                     conn.commit()
                     cur.close()
-                    increment_questions(conn, user_id)
+                    increment_questions(conn, user_id, access)
                     acc = check_access(conn, user_id)
                     days_names = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье']
                     dn = days_names[lesson[2]] if lesson[2] is not None else 'не указан'
@@ -561,7 +652,7 @@ def handler(event: dict, context) -> dict:
                 cached = get_cache(conn, question, material_ids)
                 if cached:
                     print(f"[AI] cache hit", flush=True)
-                    increment_questions(conn, user_id)
+                    increment_questions(conn, user_id, access)
                     acc = check_access(conn, user_id)
                     save_msg(conn, sid, user_id, 'assistant', cached, material_ids, 0, True)
                     return ok({'answer': cached, 'remaining': acc.get('remaining', 0), 'cached': True})
@@ -569,13 +660,16 @@ def handler(event: dict, context) -> dict:
             ctx = get_context(conn, user_id, material_ids)
             answer, tokens = ask_ai(question, ctx, image_base64, exam_system_prompt=exam_system_prompt, history=history)
 
-            if tokens > 0:
-                set_cache(conn, question, material_ids, answer, tokens)
+            # Если ИИ вернул ошибку (tokens==0 = fallback), вопрос НЕ сгорает
+            ai_error = (tokens == 0)
+            if not ai_error:
+                if tokens > 0:
+                    set_cache(conn, question, material_ids, answer, tokens)
+                increment_questions(conn, user_id, access)
 
-            save_msg(conn, sid, user_id, 'assistant', answer, material_ids, tokens, False)
-            increment_questions(conn, user_id)
             acc = check_access(conn, user_id)
-            return ok({'answer': answer, 'remaining': acc.get('remaining', 0)})
+            save_msg(conn, sid, user_id, 'assistant', answer, material_ids, tokens, False)
+            return ok({'answer': answer, 'remaining': acc.get('remaining', 0), 'ai_error': ai_error})
 
         return err(405, {'error': 'Method not allowed'})
 

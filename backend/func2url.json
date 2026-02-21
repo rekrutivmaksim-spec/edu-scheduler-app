@@ -1,4 +1,5 @@
 {
+  "push-notifications": "https://functions.poehali.dev/b50b1ec6-9826-46f7-a165-ff443df61e2e",
   "scheduler": "https://functions.poehali.dev/5e97383d-54c2-4d20-ad5d-532cdc0e674b",
   "auto-charge": "https://functions.poehali.dev/3648aa29-eff1-418c-ae47-50de549cb47d",
   "study-groups": "https://functions.poehali.dev/d92d1f53-826f-4a85-bc2e-dec19a2ee674",

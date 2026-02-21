@@ -100,6 +100,12 @@ const Subscription = () => {
         window.history.replaceState({}, '', '/subscription');
       }
       await loadData();
+      // Автооткрытие покупки пакета из deep link (?buy=questions_60)
+      const buyPack = params.get('buy');
+      if (buyPack) {
+        window.history.replaceState({}, '', '/subscription');
+        setTimeout(() => handleBuySubscription(buyPack), 500);
+      }
     };
     checkAuth();
   }, [navigate]);
@@ -521,7 +527,7 @@ const Subscription = () => {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{pricePerMonth} ₽/мес</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{pricePerMonth} ₽/мес · 20 ИИ-вопросов/день</p>
                     </div>
 
                     <div className="text-right flex-shrink-0 mr-2">
@@ -553,37 +559,61 @@ const Subscription = () => {
           </div>
         )}
 
-        {/* Пакеты вопросов */}
-        {!isPremium && questionPacks.length > 0 && (
+        {/* Пакеты вопросов — для всех */}
+        {questionPacks.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-800">Пакеты вопросов</h2>
-            <p className="text-xs text-gray-500 -mt-2">Без подписки — мгновенная активация</p>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800">Пакеты вопросов</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {isPremium
+                  ? 'Для использования сверх 20 в день — не сгорают, накапливаются'
+                  : 'Мгновенная активация, вопросы не сгорают'}
+              </p>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {questionPacks.map((pack) => (
-                <Card key={pack.id} className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Icon name="MessageCircle" size={20} className="text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-bold text-gray-800">{pack.name}</h3>
-                      <p className="text-xs text-gray-500">{pack.questions} вопросов, не сгорают</p>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => handleBuySubscription(pack.id)}
-                    disabled={isProcessing}
-                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-sm h-9"
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {questionPacks.map((pack) => {
+                const isPopularPack = pack.id === 'questions_60';
+                return (
+                  <Card
+                    key={pack.id}
+                    className={`p-3 sm:p-4 relative flex flex-col items-center text-center transition-all ${
+                      isPopularPack
+                        ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-400 shadow-md shadow-indigo-100'
+                        : 'bg-white border-2 border-gray-200'
+                    }`}
                   >
-                    {isProcessing && selectedPlan === pack.id ? (
-                      <Icon name="Loader2" size={16} className="animate-spin" />
-                    ) : (
-                      <>{pack.price} ₽</>
+                    {isPopularPack && (
+                      <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] px-2 py-0">
+                        Выгоднее
+                      </Badge>
                     )}
-                  </Button>
-                </Card>
-              ))}
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-2 ${
+                      isPopularPack ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-amber-400 to-orange-500'
+                    }`}>
+                      <Icon name="MessageCircle" size={16} className="text-white" />
+                    </div>
+                    <p className="text-lg sm:text-xl font-bold text-gray-800">{pack.questions}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 mb-2">вопросов</p>
+                    <Button
+                      onClick={() => handleBuySubscription(pack.id)}
+                      disabled={isProcessing}
+                      size="sm"
+                      className={`w-full text-xs sm:text-sm h-8 sm:h-9 rounded-lg ${
+                        isPopularPack
+                          ? 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+                      }`}
+                    >
+                      {isProcessing && selectedPlan === pack.id ? (
+                        <Icon name="Loader2" size={14} className="animate-spin" />
+                      ) : (
+                        `${pack.price} ₽`
+                      )}
+                    </Button>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}

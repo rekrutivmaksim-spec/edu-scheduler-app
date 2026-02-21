@@ -21,45 +21,39 @@ PLANS = {
         'price': 299,
         'duration_days': 30,
         'name': '1 месяц',
-        'ai_questions': 100000
+        'daily_ai_questions': 20
     },
     '6months': {
         'price': 1499,
         'duration_days': 180,
         'name': '6 месяцев',
-        'ai_questions': 100000
+        'daily_ai_questions': 20
     },
     '1year': {
         'price': 2399,
         'duration_days': 365,
         'name': '1 год',
-        'ai_questions': 100000
+        'daily_ai_questions': 20
     }
 }
 
-TOKEN_PACKS = {
-    'tokens_50k': {
-        'price': 99,
-        'tokens': 50000,
-        'name': '+50,000 токенов (~65,000 слов)'
-    },
-    'tokens_100k': {
-        'price': 179,
-        'tokens': 100000,
-        'name': '+100,000 токенов (~130,000 слов)'
-    }
-}
+TOKEN_PACKS = {}
 
 QUESTION_PACKS = {
-    'questions_10': {
-        'price': 49,
-        'questions': 10,
-        'name': '+10 вопросов к ИИ'
-    },
     'questions_30': {
-        'price': 99,
+        'price': 150,
         'questions': 30,
-        'name': '+30 вопросов к ИИ'
+        'name': '+30 вопросов'
+    },
+    'questions_60': {
+        'price': 299,
+        'questions': 60,
+        'name': '+60 вопросов'
+    },
+    'questions_90': {
+        'price': 499,
+        'questions': 90,
+        'name': '+90 вопросов'
     }
 }
 
@@ -197,12 +191,11 @@ def check_tinkoff_payment(payment_id: str) -> dict:
         return None
 
 def create_payment(conn, user_id: int, plan_type: str) -> dict:
-    is_token_pack = plan_type in TOKEN_PACKS
     is_subscription = plan_type in PLANS
     is_question_pack = plan_type in QUESTION_PACKS
     is_seasonal = plan_type in SEASONAL_PLANS
 
-    if not (is_token_pack or is_subscription or is_question_pack or is_seasonal):
+    if not (is_subscription or is_question_pack or is_seasonal):
         return None
 
     if is_subscription:
@@ -216,14 +209,10 @@ def create_payment(conn, user_id: int, plan_type: str) -> dict:
             return {'error': 'Сезонный тариф доступен только в январе и июне'}
         expires_at = datetime.now() + timedelta(days=plan['duration_days'])
         description = f"Studyfay {plan['name']}"
-    elif is_question_pack:
+    else:
         plan = QUESTION_PACKS[plan_type]
         expires_at = None
         description = f"Studyfay {plan['name']}"
-    else:
-        plan = TOKEN_PACKS[plan_type]
-        expires_at = None
-        description = f"Studyfay доп. токены: {plan['name']}"
 
     use_recurrent = is_subscription
 
@@ -307,20 +296,14 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                 (user_id, pack_type, questions_count, price_rub, payment_id)
                 VALUES (%s, %s, %s, %s, %s)
             """, (payment['user_id'], plan_type, questions_to_add, QUESTION_PACKS[plan_type]['price'], payment_id))
-        elif is_token_pack:
-            tokens_to_add = TOKEN_PACKS[plan_type]['tokens']
-            cur.execute(f"""
-                UPDATE {SCHEMA_NAME}.users
-                SET ai_tokens_limit = COALESCE(ai_tokens_limit, 50000) + %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
-            """, (tokens_to_add, payment['user_id']))
         elif is_seasonal:
             cur.execute(f"""
                 UPDATE {SCHEMA_NAME}.users
                 SET subscription_type = 'premium',
                     subscription_expires_at = %s,
                     subscription_plan = 'session',
+                    daily_premium_questions_used = 0,
+                    daily_premium_questions_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 day',
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (payment['expires_at'], payment['user_id']))
@@ -330,16 +313,15 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                 VALUES (%s, 'session', %s, %s, %s)
             """, (payment['user_id'], payment['expires_at'], SEASONAL_PLANS['session']['price'], payment_id))
         else:
-            questions_limit = 100000
             update_fields = """
                 subscription_type = 'premium',
                 subscription_expires_at = %s,
                 subscription_plan = %s,
-                ai_questions_used = 0,
-                ai_questions_limit = %s,
+                daily_premium_questions_used = 0,
+                daily_premium_questions_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 day',
                 updated_at = CURRENT_TIMESTAMP
             """
-            update_values = [payment['expires_at'], plan_type, questions_limit]
+            update_values = [payment['expires_at'], plan_type]
 
             if rebill_id:
                 update_fields += ", rebill_id = %s, auto_renew = true"
@@ -487,7 +469,7 @@ def handler(event: dict, context) -> dict:
 
             if action == 'plans':
                 plans_list = [
-                    {'id': key, 'name': plan['name'], 'price': plan['price'], 'duration_days': plan['duration_days']}
+                    {'id': key, 'name': plan['name'], 'price': plan['price'], 'duration_days': plan['duration_days'], 'daily_ai_questions': plan['daily_ai_questions']}
                     for key, plan in PLANS.items()
                 ]
                 return {
@@ -497,10 +479,6 @@ def handler(event: dict, context) -> dict:
                 }
 
             elif action == 'token_packs':
-                token_packs_list = [
-                    {'id': key, 'name': p['name'], 'price': p['price'], 'tokens': p['tokens']}
-                    for key, p in TOKEN_PACKS.items()
-                ]
                 question_packs_list = [
                     {'id': key, 'name': p['name'], 'price': p['price'], 'questions': p['questions']}
                     for key, p in QUESTION_PACKS.items()
@@ -514,7 +492,7 @@ def handler(event: dict, context) -> dict:
                     'statusCode': 200,
                     'headers': headers,
                     'body': json.dumps({
-                        'token_packs': token_packs_list,
+                        'token_packs': [],
                         'question_packs': question_packs_list,
                         'seasonal_packs': seasonal_packs_list
                     })
