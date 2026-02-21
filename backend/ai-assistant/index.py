@@ -10,13 +10,12 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', '')
+ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(20.0, connect=3.0))
+_http = httpx.Client(timeout=httpx.Timeout(22.0, connect=3.0))
 _http_vision = httpx.Client(timeout=httpx.Timeout(40.0, connect=5.0))
-_http_deepseek = httpx.Client(timeout=httpx.Timeout(25.0, connect=3.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=20.0, http_client=_http)
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=22.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -384,20 +383,16 @@ def ask_ai(question, context, image_base64=None, exam_system_prompt=None, histor
         "Завершай мысль полностью. **Жирный** для ключевых терминов."
     )
 
-    if has_context:
+    if exam_system_prompt:
+        system = exam_system_prompt
+    elif has_context:
         system = f"{base_rules}\n\nМАТЕРИАЛЫ СТУДЕНТА:\n{ctx_trimmed}\n\nОтвечай опираясь на материалы."
     else:
-        system = f"{base_rules} Отвечай из своих знаний, приводи понятные примеры."
+        system = f"{base_rules} Приводи понятные примеры."
 
     if image_base64:
         answer, tokens = ask_ai_vision(question, system, image_base64)
         return answer, tokens
-
-    # Exam-контекст встраиваем в user-сообщение, а не в system — иначе WAF блокирует
-    if exam_system_prompt:
-        user_content = f"{exam_system_prompt}\n\n{question[:500]}"
-    else:
-        user_content = question[:600]
 
     messages_list = [{"role": "system", "content": system}]
     if history:
@@ -405,8 +400,8 @@ def ask_ai(question, context, image_base64=None, exam_system_prompt=None, histor
             role = h.get('role', 'user')
             content = h.get('content', '')
             if role in ('user', 'assistant') and content:
-                messages_list.append({"role": role, "content": content[:400]})
-    messages_list.append({"role": "user", "content": user_content})
+                messages_list.append({"role": role, "content": content[:600]})
+    messages_list.append({"role": "user", "content": question[:600]})
 
     try:
         print(f"[AI] -> Artemox text {'[exam]' if exam_system_prompt else ''}", flush=True)
@@ -414,7 +409,7 @@ def ask_ai(question, context, image_base64=None, exam_system_prompt=None, histor
             model="deepseek-chat",
             messages=messages_list,
             temperature=0.7,
-            max_tokens=1024,
+            max_tokens=1500 if exam_system_prompt else 1024,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
@@ -515,13 +510,23 @@ def ask_ai_vision(question, system, image_base64):
         return "Не удалось распознать текст с фото. Попробуй сфотографировать чётче или перепиши условие задачи текстом — разберём вместе!", 0
 
 def build_smart_fallback(question, context):
-    """Fallback когда ИИ недоступен — не отсылаем к материалам"""
+    """Умный fallback — ВСЕГДА даёт полезный ответ по вопросу и материалам"""
     q = question.lower().strip()
-    if any(w in q for w in ['привет', 'здравствуй', 'хай']):
-        return "Привет! Я Studyfay — твой репетитор. Задавай любой вопрос по предмету — отвечу из своих знаний!"
-    if any(w in q for w in ['задание', 'номер', 'тема', 'егэ', 'огэ', 'объясни', 'разбери']):
-        return "Секунду, сервер перегружен. Попробуй отправить вопрос ещё раз — отвечу сразу!"
-    return "Сервер сейчас перегружен. Попробуй задать вопрос ещё раз через несколько секунд!"
+    has_ctx = bool(context and len(context) > 100)
+
+    if has_ctx:
+        snippet = context[:1200].strip()
+        if any(w in q for w in ['конспект', 'тезис', 'главн', 'основн', 'о чём', 'о чем', 'суть', 'содержани']):
+            return f"Вот краткое содержание из твоих материалов:\n\n{snippet}\n\n---\n💡 Это ключевые моменты из загруженных документов."
+        if any(w in q for w in ['формул', 'определени', 'термин', 'понят']):
+            return f"Вот что нашлось по твоему запросу в материалах:\n\n{snippet}\n\n---\n💡 Обрати внимание на выделенные термины и формулы."
+        if any(w in q for w in ['экзамен', 'подготов', 'билет', 'зачёт', 'зачет']):
+            return f"Для подготовки обрати внимание на эти ключевые моменты:\n\n{snippet}\n\n---\n💡 Рекомендую составить план повторения по этим пунктам."
+        return f"По твоему вопросу нашлось в материалах:\n\n{snippet}\n\n---\n💡 Задай более конкретный вопрос — смогу ответить точнее!"
+    else:
+        if any(w in q for w in ['привет', 'здравствуй', 'хай', 'йо']):
+            return "Привет! 👋 Я Studyfay — твой ИИ-помощник. Загрузи конспекты в разделе **Материалы**, и я помогу разобраться в любой теме!"
+        return "Загрузи свои конспекты в раздел **Материалы** — тогда я смогу отвечать на вопросы по ним. А пока можешь задать любой учебный вопрос — постараюсь помочь!"
 
 def handler(event: dict, context) -> dict:
     """ИИ-ассистент Studyfay: отвечает на вопросы студентов"""
@@ -567,18 +572,8 @@ def handler(event: dict, context) -> dict:
             question = body.get('question', '').strip()
             material_ids = body.get('material_ids', [])
             image_base64 = body.get('image_base64', None)
+            exam_system_prompt = body.get('exam_system_prompt', None)
             history = body.get('history', [])
-
-            # exam_context — добавляем в сам вопрос пользователя, никакого отдельного поля
-            exam_context = body.get('exam_context')
-            exam_prefix = None
-            if exam_context:
-                et = exam_context.get('exam_type', '')
-                sl = exam_context.get('subject_label', '')
-                mode = exam_context.get('mode', 'explain')
-                el = 'ЕГЭ' if et == 'ege' else 'ОГЭ'
-                mt = 'объясняй тему с примерами' if mode == 'explain' else 'дай полное задание и проверь ответ'
-                exam_prefix = f"[Контекст: готовлюсь к {el} по {sl}, режим — {mt}]\n"
 
             if not question and not image_base64:
                 return err(400, {'error': 'Введи вопрос'})
