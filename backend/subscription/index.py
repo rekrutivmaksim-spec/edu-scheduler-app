@@ -124,6 +124,9 @@ def check_subscription_status(user_id: int, conn) -> dict:
         }
 
 
+SOFT_LANDING_DAYS = 3
+SOFT_LANDING_LIMIT = 10
+
 def get_limits(conn, user_id: int) -> dict:
     """Получает текущие лимиты пользователя"""
     status = check_subscription_status(user_id, conn)
@@ -134,21 +137,38 @@ def get_limits(conn, user_id: int) -> dict:
         
         cur.execute("SELECT COUNT(*) as count FROM tasks WHERE user_id = %s AND completed = false", (user_id,))
         tasks_count = cur.fetchone()['count']
+
+        # Проверяем soft landing (дни 8-10 после окончания триала)
+        cur.execute("SELECT trial_ends_at, daily_questions_used, bonus_questions FROM users WHERE id = %s", (user_id,))
+        u = cur.fetchone()
     
+    is_soft_landing = False
+    soft_landing_days_left = 0
+    if not status['is_premium'] and not status['is_trial'] and u and u['trial_ends_at']:
+        now = datetime.now()
+        trial_ends = u['trial_ends_at'].replace(tzinfo=None) if u['trial_ends_at'].tzinfo else u['trial_ends_at']
+        if trial_ends <= now:
+            days_since = (now - trial_ends).days
+            if 0 <= days_since < SOFT_LANDING_DAYS:
+                is_soft_landing = True
+                soft_landing_days_left = SOFT_LANDING_DAYS - days_since
+
     if status['is_premium']:
         return {
             **status,
+            'is_soft_landing': False,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
                 'materials': {'used': status['materials_quota_used'], 'max': None, 'unlimited': True},
+                'ai_questions': {'used': status.get('daily_questions_used', 0), 'max': 20, 'unlimited': False},
                 'exam_predictions': {'unlimited': True}
             }
         }
     elif status['is_trial']:
-        # Триал (7 дней): безлимитный доступ ко всему
         return {
             **status,
+            'is_soft_landing': False,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
@@ -157,22 +177,43 @@ def get_limits(conn, user_id: int) -> dict:
                 'exam_predictions': {'unlimited': True, 'available': True}
             }
         }
-    else:
-        # Free: 3 бесплатных вопроса в день + бонусные вопросы
-        daily_used = status.get('daily_questions_used', 0)
-        bonus = status.get('bonus_questions', 0)
-        total_available = 3 + bonus
-        total_used = daily_used
-        
+    elif is_soft_landing:
+        daily_used = u['daily_questions_used'] or 0
+        bonus = u['bonus_questions'] or 0
         return {
             **status,
+            'is_soft_landing': True,
+            'soft_landing_days_left': soft_landing_days_left,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
                 'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
                 'materials': {'used': status['materials_quota_used'], 'max': 2, 'unlimited': False},
                 'ai_questions': {
-                    'used': total_used, 
-                    'max': total_available, 
+                    'used': daily_used,
+                    'max': SOFT_LANDING_LIMIT + bonus,
+                    'unlimited': False,
+                    'daily_limit': SOFT_LANDING_LIMIT,
+                    'bonus_available': bonus
+                },
+                'exam_predictions': {'unlimited': False, 'available': False}
+            }
+        }
+    else:
+        # Free: 3 вопроса в день + бонус
+        daily_used = status.get('daily_questions_used', 0)
+        bonus = status.get('bonus_questions', 0)
+        total_available = 3 + bonus
+        
+        return {
+            **status,
+            'is_soft_landing': False,
+            'limits': {
+                'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
+                'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
+                'materials': {'used': status['materials_quota_used'], 'max': 2, 'unlimited': False},
+                'ai_questions': {
+                    'used': daily_used,
+                    'max': total_available,
                     'unlimited': False,
                     'daily_used': daily_used,
                     'daily_limit': 3,

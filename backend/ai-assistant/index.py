@@ -14,9 +14,9 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(50.0, connect=5.0))
-_http_vision = httpx.Client(timeout=httpx.Timeout(35.0, connect=5.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=50.0, http_client=_http)
+_http = httpx.Client(timeout=httpx.Timeout(24.0, connect=5.0))
+_http_vision = httpx.Client(timeout=httpx.Timeout(24.0, connect=5.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=24.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -712,9 +712,10 @@ def handler(event: dict, context) -> dict:
                     c2 = psycopg2.connect(DATABASE_URL)
                     c2.autocommit = True
                     if not is_err:
+                        # Списываем вопрос всегда при успешном ответе (tok может быть 0 из-за proxy)
+                        increment_questions(c2, uid, acc_info)
                         if tok > 0:
                             set_cache(c2, q, mids, ans, tok)
-                        increment_questions(c2, uid, acc_info)
                     save_msg(c2, session_id, uid, 'assistant', ans, mids, tok, False)
                     c2.close()
                 except Exception as ex:
