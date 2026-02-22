@@ -1,0 +1,35 @@
+{
+  "tests": [
+    {
+      "name": "Get subscription plans",
+      "method": "GET",
+      "path": "/?action=plans",
+      "headers": {
+        "Authorization": "Bearer mock-token"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "plans": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create payment for 1 month plan",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "Authorization": "Bearer mock-token"
+      },
+      "body": {
+        "action": "create_payment",
+        "plan_type": "1month"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "payment": "object",
+        "plan": "object"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

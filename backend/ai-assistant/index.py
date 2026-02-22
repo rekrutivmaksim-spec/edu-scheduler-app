@@ -13,9 +13,9 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0))
-_http_vision = httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=30.0, http_client=_http)
+_http = httpx.Client(timeout=httpx.Timeout(18.0, connect=3.0))
+_http_vision = httpx.Client(timeout=httpx.Timeout(25.0, connect=5.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=18.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ def get_user_id(token: str):
         return None
 
 PREMIUM_DAILY_LIMIT = 20
-FREE_DAILY_LIMIT = 10
+FREE_DAILY_LIMIT = 3
 
 def check_access(conn, user_id: int) -> dict:
     """Проверка доступа с учетом подписки/триала/free"""
