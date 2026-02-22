@@ -1,18 +1,17 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 const PAGES = [
-  { path: '/', label: 'Главная — Расписание и задачи' },
+  { path: '/', label: 'Главная' },
   { path: '/dashboard', label: 'Дашборд' },
   { path: '/calendar', label: 'Календарь' },
   { path: '/gradebook', label: 'Зачётная книжка' },
   { path: '/analytics', label: 'Аналитика' },
   { path: '/assistant', label: 'ИИ-ассистент' },
   { path: '/materials', label: 'Материалы' },
-  { path: '/pomodoro', label: 'Помодоро-таймер' },
+  { path: '/pomodoro', label: 'Помодоро' },
   { path: '/achievements', label: 'Достижения' },
-  { path: '/groups', label: 'Учебные группы' },
-  { path: '/referral', label: 'Реферальная программа' },
+  { path: '/groups', label: 'Группы' },
+  { path: '/referral', label: 'Реферальная' },
   { path: '/pricing', label: 'Тарифы' },
   { path: '/subscription', label: 'Подписка' },
   { path: '/profile', label: 'Профиль' },
@@ -26,271 +25,257 @@ const BACKGROUNDS = [
   'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
   'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
   'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
-  'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
-  'linear-gradient(135deg, #96fbc4 0%, #f9f586 100%)',
-  'linear-gradient(135deg, #fddb92 0%, #d1fdff 100%)',
+  'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+  'linear-gradient(135deg, #f7971e 0%, #ffd200 100%)',
   'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+  'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
+];
+
+// Реальные размеры экранов популярных телефонов в России
+const DEVICES = [
+  { label: 'iPhone 14 Pro', w: 393, h: 852, scale: 0.73, frameW: 320, frameH: 693, radius: 48, hasDynamicIsland: true },
+  { label: 'Samsung S24', w: 360, h: 780, scale: 0.76, frameW: 300, frameH: 650, radius: 40, hasDynamicIsland: false },
+  { label: 'Xiaomi 13', w: 393, h: 851, scale: 0.72, frameW: 318, frameH: 690, radius: 44, hasDynamicIsland: false },
+  { label: 'Realme / Poco', w: 360, h: 800, scale: 0.74, frameW: 300, frameH: 660, radius: 36, hasDynamicIsland: false },
 ];
 
 export default function Screenshots() {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
   const [bgIndex, setBgIndex] = useState(0);
-  const navigate = useNavigate();
+  const [deviceIndex, setDeviceIndex] = useState(0);
 
-  const current = PAGES[currentIndex];
+  const page = PAGES[pageIndex];
   const bg = BACKGROUNDS[bgIndex];
+  const device = DEVICES[deviceIndex];
+
+  const screenW = device.frameW - 24;
+  const screenH = device.frameH - 24;
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
-      style={{ background: bg, transition: 'background 0.5s ease' }}
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: bg,
+        transition: 'background 0.5s ease',
+        padding: '24px 16px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
     >
-      {/* Декоративные круги на фоне */}
-      <div style={{
-        position: 'absolute', top: '-10%', left: '-10%',
-        width: '50vw', height: '50vw', borderRadius: '50%',
-        background: 'rgba(255,255,255,0.08)', pointerEvents: 'none'
-      }} />
-      <div style={{
-        position: 'absolute', bottom: '-10%', right: '-10%',
-        width: '60vw', height: '60vw', borderRadius: '50%',
-        background: 'rgba(255,255,255,0.06)', pointerEvents: 'none'
-      }} />
-      <div style={{
-        position: 'absolute', top: '30%', right: '-5%',
-        width: '30vw', height: '30vw', borderRadius: '50%',
-        background: 'rgba(255,255,255,0.05)', pointerEvents: 'none'
-      }} />
+      {/* Фоновые круги */}
+      <div style={{ position: 'absolute', top: '-15%', left: '-10%', width: '55vw', height: '55vw', borderRadius: '50%', background: 'rgba(255,255,255,0.07)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: '-15%', right: '-10%', width: '65vw', height: '65vw', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: '40%', right: '5%', width: '25vw', height: '25vw', borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
 
-      {/* Название экрана сверху */}
-      <div style={{ marginBottom: 24, textAlign: 'center', position: 'relative', zIndex: 10 }}>
+      {/* Шапка */}
+      <div style={{ marginBottom: 20, textAlign: 'center', position: 'relative', zIndex: 10 }}>
         <div style={{
-          background: 'rgba(255,255,255,0.2)',
-          backdropFilter: 'blur(10px)',
+          background: 'rgba(255,255,255,0.18)',
+          backdropFilter: 'blur(12px)',
           borderRadius: 20,
           padding: '8px 24px',
           color: '#fff',
           fontWeight: 700,
           fontSize: 15,
-          letterSpacing: 0.3,
           border: '1px solid rgba(255,255,255,0.3)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+          display: 'inline-block',
         }}>
-          {currentIndex + 1} / {PAGES.length} — {current.label}
+          {pageIndex + 1} / {PAGES.length} — {page.label}
         </div>
       </div>
 
       {/* Рамка телефона */}
       <div style={{
         position: 'relative',
-        width: 320,
-        height: 653,
+        width: device.frameW,
+        height: device.frameH,
         zIndex: 10,
-        filter: 'drop-shadow(0 30px 60px rgba(0,0,0,0.4))',
+        filter: 'drop-shadow(0 30px 60px rgba(0,0,0,0.45))',
+        transition: 'all 0.3s ease',
       }}>
-        {/* Корпус телефона */}
+        {/* Корпус */}
         <div style={{
           position: 'absolute', inset: 0,
-          borderRadius: 48,
-          background: 'linear-gradient(145deg, #2a2a2a, #111)',
-          boxShadow: `
-            inset 0 0 0 1.5px rgba(255,255,255,0.12),
-            0 0 0 2px #000,
-            0 40px 80px rgba(0,0,0,0.5)
-          `,
+          borderRadius: device.radius,
+          background: 'linear-gradient(145deg, #2d2d2d, #0e0e0e)',
+          boxShadow: 'inset 0 0 0 1.5px rgba(255,255,255,0.13), 0 0 0 2px #000',
         }} />
 
-        {/* Боковые кнопки */}
-        <div style={{
-          position: 'absolute', right: -3, top: 100, width: 4, height: 32,
-          background: '#333', borderRadius: '0 3px 3px 0',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)'
-        }} />
-        <div style={{
-          position: 'absolute', left: -3, top: 90, width: 4, height: 24,
-          background: '#333', borderRadius: '3px 0 0 3px',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)'
-        }} />
-        <div style={{
-          position: 'absolute', left: -3, top: 125, width: 4, height: 52,
-          background: '#333', borderRadius: '3px 0 0 3px',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)'
-        }} />
-        <div style={{
-          position: 'absolute', left: -3, top: 190, width: 4, height: 52,
-          background: '#333', borderRadius: '3px 0 0 3px',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)'
-        }} />
+        {/* Кнопки справа (power) */}
+        <div style={{ position: 'absolute', right: -3, top: 110, width: 4, height: 36, background: '#2a2a2a', borderRadius: '0 3px 3px 0' }} />
 
-        {/* Экранная зона */}
+        {/* Кнопки слева (volume) */}
+        <div style={{ position: 'absolute', left: -3, top: 85, width: 4, height: 22, background: '#2a2a2a', borderRadius: '3px 0 0 3px' }} />
+        <div style={{ position: 'absolute', left: -3, top: 118, width: 4, height: 48, background: '#2a2a2a', borderRadius: '3px 0 0 3px' }} />
+        <div style={{ position: 'absolute', left: -3, top: 178, width: 4, height: 48, background: '#2a2a2a', borderRadius: '3px 0 0 3px' }} />
+
+        {/* Экран */}
         <div style={{
           position: 'absolute',
           top: 12, left: 12, right: 12, bottom: 12,
-          borderRadius: 38,
+          borderRadius: device.radius - 8,
           overflow: 'hidden',
           background: '#fff',
         }}>
-          {/* Dynamic Island */}
-          <div style={{
-            position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
-            width: 110, height: 30,
-            background: '#000',
-            borderRadius: 20,
-            zIndex: 100,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 16px',
-          }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#1a1a1a', border: '1px solid #333' }} />
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1a1a1a' }} />
-          </div>
+          {/* Dynamic Island (iPhone) или Notch (Android) */}
+          {device.hasDynamicIsland ? (
+            <div style={{
+              position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)',
+              width: 100, height: 28,
+              background: '#000', borderRadius: 20, zIndex: 100,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0 14px',
+            }}>
+              <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#111', border: '1px solid #2a2a2a' }} />
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#111' }} />
+            </div>
+          ) : (
+            <div style={{
+              position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+              width: 80, height: 22,
+              background: '#000', borderRadius: '0 0 14px 14px', zIndex: 100,
+            }} />
+          )}
 
           {/* Status bar */}
           <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 50,
-            zIndex: 99,
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-            padding: '0 20px 6px',
-            background: 'transparent',
+            position: 'absolute', top: 0, left: 0, right: 0, height: 44,
+            zIndex: 99, display: 'flex', alignItems: 'flex-end',
+            justifyContent: 'space-between', padding: '0 18px 5px',
           }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#000', fontFamily: 'system-ui' }}>9:41</span>
-            <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-              {/* Signal */}
-              <svg width="16" height="11" viewBox="0 0 16 11" fill="none">
-                <rect x="0" y="5" width="3" height="6" rx="0.5" fill="#000" />
-                <rect x="4.5" y="3" width="3" height="8" rx="0.5" fill="#000" />
-                <rect x="9" y="1" width="3" height="10" rx="0.5" fill="#000" />
-                <rect x="13.5" y="0" width="2.5" height="11" rx="0.5" fill="#000" opacity="0.3" />
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <svg width="15" height="10" viewBox="0 0 15 10" fill="none">
+                <rect x="0" y="4" width="2.5" height="6" rx="0.5" fill="#000" />
+                <rect x="4" y="2.5" width="2.5" height="7.5" rx="0.5" fill="#000" />
+                <rect x="8" y="1" width="2.5" height="9" rx="0.5" fill="#000" />
+                <rect x="12" y="0" width="2.5" height="10" rx="0.5" fill="#000" opacity="0.3" />
               </svg>
-              {/* WiFi */}
-              <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
-                <path d="M7.5 8.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" fill="#000"/>
-                <path d="M4.2 6.3a4.7 4.7 0 0 1 6.6 0" stroke="#000" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M1.5 3.5a8.5 8.5 0 0 1 12 0" stroke="#000" strokeWidth="1.5" strokeLinecap="round"/>
+              <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+                <path d="M7 7.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" fill="#000"/>
+                <path d="M3.9 5.6a4.4 4.4 0 0 1 6.2 0" stroke="#000" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M1.2 3a8 8 0 0 1 11.6 0" stroke="#000" strokeWidth="1.4" strokeLinecap="round"/>
               </svg>
-              {/* Battery */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <div style={{
-                  width: 22, height: 11, border: '1.5px solid #000', borderRadius: 3,
-                  display: 'flex', alignItems: 'center', padding: '1.5px',
-                }}>
-                  <div style={{ width: '80%', height: '100%', background: '#000', borderRadius: 1.5 }} />
+                <div style={{ width: 20, height: 10, border: '1.5px solid #000', borderRadius: 3, padding: '1.5px', display: 'flex', alignItems: 'center' }}>
+                  <div style={{ width: '80%', height: '100%', background: '#000', borderRadius: 1 }} />
                 </div>
                 <div style={{ width: 2, height: 5, background: '#000', borderRadius: '0 1px 1px 0' }} />
               </div>
             </div>
           </div>
 
-          {/* iframe с приложением */}
+          {/* iframe */}
           <iframe
-            key={current.path}
-            src={current.path}
+            key={`${page.path}-${deviceIndex}`}
+            src={page.path}
             style={{
               position: 'absolute',
               top: 0, left: 0,
-              width: '390px',
-              height: '844px',
+              width: `${device.w}px`,
+              height: `${device.h}px`,
               border: 'none',
               transformOrigin: 'top left',
-              transform: 'scale(0.752)',
+              transform: `scale(${screenW / device.w})`,
               pointerEvents: 'none',
             }}
-            title={current.label}
+            title={page.label}
           />
 
           {/* Home indicator */}
           <div style={{
-            position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
-            width: 100, height: 4, background: '#000', borderRadius: 4, opacity: 0.25,
-            zIndex: 100,
+            position: 'absolute', bottom: 7, left: '50%', transform: 'translateX(-50%)',
+            width: 90, height: 4, background: '#000', borderRadius: 4, opacity: 0.2, zIndex: 100,
           }} />
         </div>
       </div>
 
-      {/* Управление */}
-      <div style={{
-        marginTop: 32, display: 'flex', gap: 12, alignItems: 'center',
-        position: 'relative', zIndex: 10, flexWrap: 'wrap', justifyContent: 'center'
-      }}>
-        <button
-          onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
-          disabled={currentIndex === 0}
-          style={{
-            background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.4)',
-            borderRadius: 14, padding: '10px 20px', color: '#fff', fontWeight: 700,
-            cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
-            opacity: currentIndex === 0 ? 0.4 : 1,
-            backdropFilter: 'blur(10px)', fontSize: 14,
+      {/* Выбор устройства */}
+      <div style={{ marginTop: 24, display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', position: 'relative', zIndex: 10 }}>
+        {DEVICES.map((d, i) => (
+          <button key={d.label} onClick={() => setDeviceIndex(i)} style={{
+            background: i === deviceIndex ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.15)',
+            border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: 12, padding: '6px 14px',
+            color: '#fff', fontWeight: i === deviceIndex ? 700 : 500,
+            cursor: 'pointer', fontSize: 12, backdropFilter: 'blur(10px)',
             transition: 'all 0.2s',
-          }}
-        >
-          ← Назад
-        </button>
-
-        <button
-          onClick={() => setBgIndex(i => (i + 1) % BACKGROUNDS.length)}
-          style={{
-            background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.4)',
-            borderRadius: 14, padding: '10px 20px', color: '#fff', fontWeight: 700,
-            cursor: 'pointer', backdropFilter: 'blur(10px)', fontSize: 14,
-            transition: 'all 0.2s',
-          }}
-        >
-          🎨 Сменить фон
-        </button>
-
-        <button
-          onClick={() => setCurrentIndex(i => Math.min(PAGES.length - 1, i + 1))}
-          disabled={currentIndex === PAGES.length - 1}
-          style={{
-            background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.4)',
-            borderRadius: 14, padding: '10px 20px', color: '#fff', fontWeight: 700,
-            cursor: currentIndex === PAGES.length - 1 ? 'not-allowed' : 'pointer',
-            opacity: currentIndex === PAGES.length - 1 ? 0.4 : 1,
-            backdropFilter: 'blur(10px)', fontSize: 14,
-            transition: 'all 0.2s',
-          }}
-        >
-          Вперёд →
-        </button>
-      </div>
-
-      {/* Список страниц */}
-      <div style={{
-        marginTop: 20, display: 'flex', gap: 8, flexWrap: 'wrap',
-        justifyContent: 'center', maxWidth: 700,
-        position: 'relative', zIndex: 10,
-      }}>
-        {PAGES.map((p, i) => (
-          <button
-            key={p.path}
-            onClick={() => setCurrentIndex(i)}
-            style={{
-              background: i === currentIndex ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.15)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: 10, padding: '5px 12px',
-              color: '#fff', fontWeight: i === currentIndex ? 700 : 400,
-              cursor: 'pointer', fontSize: 12,
-              backdropFilter: 'blur(10px)',
-              transition: 'all 0.2s',
-            }}
-          >
-            {i + 1}. {p.label.split('—')[0].trim()}
+          }}>
+            {d.label}
           </button>
         ))}
       </div>
 
-      {/* Инструкция */}
+      {/* Навигация по страницам */}
+      <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', position: 'relative', zIndex: 10 }}>
+        <button
+          onClick={() => setPageIndex(i => Math.max(0, i - 1))}
+          disabled={pageIndex === 0}
+          style={{
+            background: 'rgba(255,255,255,0.22)', border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: 14, padding: '10px 22px', color: '#fff', fontWeight: 700,
+            cursor: pageIndex === 0 ? 'not-allowed' : 'pointer',
+            opacity: pageIndex === 0 ? 0.35 : 1,
+            backdropFilter: 'blur(10px)', fontSize: 14, transition: 'all 0.2s',
+          }}
+        >← Назад</button>
+
+        <button
+          onClick={() => setBgIndex(i => (i + 1) % BACKGROUNDS.length)}
+          style={{
+            background: 'rgba(255,255,255,0.22)', border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: 14, padding: '10px 18px', color: '#fff', fontWeight: 700,
+            cursor: 'pointer', backdropFilter: 'blur(10px)', fontSize: 14, transition: 'all 0.2s',
+          }}
+        >🎨 Фон</button>
+
+        <button
+          onClick={() => setPageIndex(i => Math.min(PAGES.length - 1, i + 1))}
+          disabled={pageIndex === PAGES.length - 1}
+          style={{
+            background: 'rgba(255,255,255,0.22)', border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: 14, padding: '10px 22px', color: '#fff', fontWeight: 700,
+            cursor: pageIndex === PAGES.length - 1 ? 'not-allowed' : 'pointer',
+            opacity: pageIndex === PAGES.length - 1 ? 0.35 : 1,
+            backdropFilter: 'blur(10px)', fontSize: 14, transition: 'all 0.2s',
+          }}
+        >Вперёд →</button>
+      </div>
+
+      {/* Быстрый выбор страниц */}
       <div style={{
-        position: 'fixed', bottom: 16, right: 16,
-        background: 'rgba(0,0,0,0.5)', borderRadius: 14, padding: '10px 16px',
-        color: '#fff', fontSize: 12, zIndex: 200, backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.15)', maxWidth: 220,
-        lineHeight: 1.5,
+        marginTop: 14, display: 'flex', gap: 6, flexWrap: 'wrap',
+        justifyContent: 'center', maxWidth: 680, position: 'relative', zIndex: 10,
       }}>
-        💡 Для скриншота нажми<br />
-        <strong>F11</strong> (полный экран)<br />
-        затем <strong>Win+Shift+S</strong> / <strong>Cmd+Shift+4</strong>
+        {PAGES.map((p, i) => (
+          <button key={p.path} onClick={() => setPageIndex(i)} style={{
+            background: i === pageIndex ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.12)',
+            border: '1px solid rgba(255,255,255,0.25)',
+            borderRadius: 10, padding: '4px 11px',
+            color: '#fff', fontWeight: i === pageIndex ? 700 : 400,
+            cursor: 'pointer', fontSize: 11, backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s',
+          }}>
+            {i + 1}. {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Подсказка */}
+      <div style={{
+        position: 'fixed', bottom: 14, right: 14,
+        background: 'rgba(0,0,0,0.55)', borderRadius: 12, padding: '8px 14px',
+        color: '#fff', fontSize: 11, zIndex: 200, backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.12)', lineHeight: 1.6,
+      }}>
+        💡 <strong>F11</strong> полный экран<br />
+        Win+Shift+S / Cmd+Shift+4
       </div>
     </div>
   );
