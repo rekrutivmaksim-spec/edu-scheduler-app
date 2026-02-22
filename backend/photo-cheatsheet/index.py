@@ -146,6 +146,23 @@ def handler(event: dict, context) -> dict:
     except Exception:
         return err(400, {'error': 'Неверный формат запроса'})
 
+    # Режим проверки соединения
+    if body.get('mode') == 'ping':
+        print('[ping] testing Artemox connection...', flush=True)
+        try:
+            with httpx.Client(timeout=15.0) as client:
+                r = client.post(
+                    'https://api.artemox.com/v1/chat/completions',
+                    headers={'Authorization': f'Bearer {OPENAI_API_KEY}', 'Content-Type': 'application/json'},
+                    json={'model': 'gpt-4o-mini', 'messages': [{'role': 'user', 'content': 'Say: OK'}], 'max_tokens': 10}
+                )
+            print(f'[ping] status={r.status_code} body={r.text[:300]}', flush=True)
+            data = r.json() if r.status_code == 200 else {}
+            reply = (data.get('choices', [{}])[0].get('message') or {}).get('content') or ''
+            return ok({'ping': 'ok', 'status': r.status_code, 'reply': reply, 'raw': r.text[:200]})
+        except Exception as e:
+            return ok({'ping': 'error', 'error': str(e)})
+
     image_data = body.get('image_data', '')
     mode = body.get('mode', 'solve')
 
