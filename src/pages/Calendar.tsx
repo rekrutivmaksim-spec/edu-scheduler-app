@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import NetworkError from '@/components/NetworkError';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 
@@ -44,46 +45,34 @@ const Calendar = () => {
   const [schedule, setSchedule] = useState<Lesson[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      if (!authService.isAuthenticated()) {
-        navigate('/login');
-        return;
-      }
-      await loadSchedule();
-      await loadTasks();
-    };
-    checkAuth();
+    if (!authService.isAuthenticated()) {
+      navigate('/auth');
+      return;
+    }
+    loadAll();
   }, [navigate]);
 
-  const loadSchedule = async () => {
+  const loadAll = async () => {
+    setLoading(true);
+    setError(false);
     try {
       const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=schedule`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSchedule(data.schedule);
-      }
-    } catch (error) {
-      console.error('Failed to load schedule:', error);
-    }
-  };
-
-  const loadTasks = async () => {
-    try {
-      const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=tasks`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setTasks(data.tasks);
-      }
-    } catch (error) {
-      console.error('Failed to load tasks:', error);
+      const headers = { 'Authorization': `Bearer ${token}` };
+      const [scheduleRes, tasksRes] = await Promise.all([
+        fetch(`${SCHEDULE_URL}?path=schedule`, { headers }),
+        fetch(`${SCHEDULE_URL}?path=tasks`, { headers }),
+      ]);
+      if (scheduleRes.ok) setSchedule((await scheduleRes.json()).schedule || []);
+      if (tasksRes.ok) setTasks((await tasksRes.json()).tasks || []);
+    } catch {
+      setError(true);
+      toast({ title: 'Ошибка сети', description: 'Не удалось загрузить данные', variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -166,6 +155,22 @@ const Calendar = () => {
 
   const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
   const calendarDays = generateCalendarDays();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <NetworkError onRetry={loadAll} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">

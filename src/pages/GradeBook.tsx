@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
+import NetworkError from '@/components/NetworkError';
 
 const API_URL = 'https://functions.poehali.dev/cb70f006-6ec2-4603-a46d-92eb7a854230';
 
@@ -67,6 +68,7 @@ const GradeBook = () => {
   const [subjects, setSubjects] = useState<Record<number, Subject[]>>({});
   const [stats, setStats] = useState<Stats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selectedSemester, setSelectedSemester] = useState<number>(1);
   const [isAddingSubject, setIsAddingSubject] = useState(false);
   const [isAddingGrade, setIsAddingGrade] = useState<number | null>(null);
@@ -108,6 +110,7 @@ const GradeBook = () => {
 
   const loadData = async () => {
     setIsLoading(true);
+    setLoadError(false);
     try {
       const [subjectsRes, statsRes] = await Promise.all([
         apiCall('?action=subjects'),
@@ -129,8 +132,8 @@ const GradeBook = () => {
         const data = await statsRes.json();
         setStats(data);
       }
-    } catch (error) {
-      toast({ title: 'Ошибка загрузки', description: 'Проверьте подключение', variant: 'destructive' });
+    } catch {
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -232,6 +235,14 @@ const GradeBook = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <NetworkError onRetry={loadData} />
       </div>
     );
   }
