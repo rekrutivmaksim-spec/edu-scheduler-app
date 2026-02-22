@@ -191,8 +191,8 @@ def handler(event: dict, context) -> dict:
                         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                         full_name = email.split('@')[0]  # Используем часть email как имя
                         
-                        import hashlib
-                        referral_code = hashlib.md5((email + str(datetime.utcnow().timestamp())).encode()).hexdigest()[:8].upper()
+                        import secrets as _sec
+                        referral_code = _sec.token_hex(4).upper()
                         
                         cur.execute("""
                             INSERT INTO users (
@@ -241,101 +241,76 @@ def handler(event: dict, context) -> dict:
             finally:
                 conn.close()
         
-        # POST /reset_password - Сброс пароля (создание нового если пользователя нет)
+        # POST /reset_password - Смена пароля (только для существующих аккаунтов)
         elif action == 'reset_password':
             email = body.get('email', '').strip().lower()
             new_password = body.get('new_password', '')
-            
+
+            # Rate limit: 3 попытки в 10 минут на IP
+            is_rp_allowed, _, rp_retry = check_rate_limit(f"{client_ip}_reset", max_requests=3, window_seconds=600)
+            if not is_rp_allowed:
+                return {
+                    'statusCode': 429,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Слишком много попыток. Подождите несколько минут', 'retry_after': rp_retry})
+                }
+
+            import re as _re
             if not email or not new_password:
-                return {
-                    'statusCode': 400,
-                    'headers': headers,
-                    'body': json.dumps({'error': 'Email и новый пароль обязательны'})
-                }
-            
+                return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Email и новый пароль обязательны'})}
+
+            if not _re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+                return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Некорректный формат email'})}
+
             if len(new_password) < 6:
-                return {
-                    'statusCode': 400,
-                    'headers': headers,
-                    'body': json.dumps({'error': 'Пароль должен быть минимум 6 символов'})
-                }
-            
+                return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Пароль должен быть минимум 6 символов'})}
+
+            if len(new_password) > 100:
+                return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Пароль слишком длинный'})}
+
             password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            
+
             conn = get_db_connection()
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    # Проверяем существует ли пользователь
-                    cur.execute("SELECT id, email, full_name FROM users WHERE email = %s", (email,))
+                    cur.execute("SELECT id, email, full_name, university, faculty, course FROM users WHERE email = %s", (email,))
                     user = cur.fetchone()
-                    
-                    if user:
-                        # Обновляем пароль существующего пользователя
-                        cur.execute("""
-                            UPDATE users 
-                            SET password_hash = %s, last_login_at = CURRENT_TIMESTAMP
-                            WHERE email = %s
-                            RETURNING id, email, full_name, university, faculty, course
-                        """, (password_hash, email))
-                        
-                        updated_user = cur.fetchone()
-                        conn.commit()
-                        
-                        token = generate_token(updated_user['id'], updated_user['email'])
-                        
+
+                    if not user:
+                        # Не создаём новый аккаунт — пользователь должен сначала зарегистрироваться через login
+                        # Возвращаем 200 (не 404) чтобы не раскрывать наличие email в базе
                         return {
                             'statusCode': 200,
                             'headers': headers,
-                            'body': json.dumps({
-                                'token': token,
-                                'user': {
-                                    'id': updated_user['id'],
-                                    'email': updated_user['email'],
-                                    'full_name': updated_user['full_name'],
-                                    'university': updated_user['university'],
-                                    'faculty': updated_user['faculty'],
-                                    'course': updated_user['course']
-                                },
-                                'message': 'Пароль успешно обновлен'
-                            })
+                            'body': json.dumps({'message': 'Если аккаунт с таким email существует — пароль обновлён'})
                         }
-                    else:
-                        # Создаем нового пользователя если не существует
-                        full_name = email.split('@')[0]
-                        import hashlib as _hl
-                        _rc = _hl.md5(email.encode()).hexdigest()[:8].upper()
-                        cur.execute("""
-                            INSERT INTO users (email, password_hash, full_name, last_login_at,
-                                trial_ends_at, is_trial_used,
-                                daily_questions_used, daily_questions_reset_at, referral_code)
-                            VALUES (%s, %s, %s, CURRENT_TIMESTAMP,
-                                CURRENT_TIMESTAMP + INTERVAL '7 days', FALSE,
-                                0, CURRENT_TIMESTAMP, %s)
-                            RETURNING id, email, full_name, university, faculty, course
-                        """, (email, password_hash, full_name, _rc))
-                        
-                        new_user = cur.fetchone()
-                        conn.commit()
-                        
-                        token = generate_token(new_user['id'], new_user['email'])
-                        
-                        return {
-                            'statusCode': 201,
-                            'headers': headers,
-                            'body': json.dumps({
-                                'token': token,
-                                'user': {
-                                    'id': new_user['id'],
-                                    'email': new_user['email'],
-                                    'full_name': new_user['full_name'],
-                                    'university': new_user['university'],
-                                    'faculty': new_user['faculty'],
-                                    'course': new_user['course']
-                                },
-                                'is_new_user': True,
-                                'message': 'Аккаунт создан с новым паролем'
-                            })
-                        }
+
+                    cur.execute(
+                        "UPDATE users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE email = %s RETURNING id, email, full_name, university, faculty, course",
+                        (password_hash, email)
+                    )
+                    updated_user = cur.fetchone()
+                    conn.commit()
+
+                    token = generate_token(updated_user['id'], updated_user['email'])
+                    print(f"[AUTH] Пароль сменён для {email} с IP {client_ip}")
+
+                    return {
+                        'statusCode': 200,
+                        'headers': headers,
+                        'body': json.dumps({
+                            'token': token,
+                            'user': {
+                                'id': updated_user['id'],
+                                'email': updated_user['email'],
+                                'full_name': updated_user['full_name'],
+                                'university': updated_user['university'],
+                                'faculty': updated_user['faculty'],
+                                'course': updated_user['course']
+                            },
+                            'message': 'Пароль успешно обновлён'
+                        })
+                    }
             finally:
                 conn.close()
         

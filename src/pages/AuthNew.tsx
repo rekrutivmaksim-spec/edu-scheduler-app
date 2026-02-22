@@ -177,13 +177,12 @@ export default function AuthNew() {
       if (response.ok && data.token) {
         authService.setToken(data.token);
         authService.setUser(data.user);
-
-        toast({
-          title: '✅ Пароль обновлен!',
-          description: 'Вход выполнен с новым паролем'
-        });
-
+        toast({ title: '✅ Пароль обновлён!', description: 'Вход выполнен с новым паролем' });
         navigate('/');
+      } else if (response.ok && data.message) {
+        // Email не найден — показываем нейтральное сообщение
+        toast({ title: 'Готово', description: data.message });
+        setMode('login');
       } else {
         toast({
           variant: 'destructive',
