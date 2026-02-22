@@ -2,6 +2,9 @@ import json
 import os
 import jwt
 import httpx
+import boto3
+import base64
+import uuid
 from datetime import datetime
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
@@ -56,64 +59,73 @@ PROMPTS = {
     )
 }
 
-VISION_MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo']
+VISION_MODEL = 'gpt-4o'
+AWS_KEY = os.environ.get('AWS_ACCESS_KEY_ID', '')
+AWS_SECRET = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+
+def upload_to_s3(image_data: str, mime: str) -> str:
+    """Загружает base64-изображение в S3 и возвращает публичный URL"""
+    s3 = boto3.client(
+        's3',
+        endpoint_url='https://bucket.poehali.dev',
+        aws_access_key_id=AWS_KEY,
+        aws_secret_access_key=AWS_SECRET
+    )
+    ext = mime.split('/')[-1].replace('jpeg', 'jpg')
+    key = f'photo-cheatsheet/{uuid.uuid4()}.{ext}'
+    img_bytes = base64.b64decode(image_data)
+    s3.put_object(Bucket='files', Key=key, Body=img_bytes, ContentType=mime)
+    return f"https://cdn.poehali.dev/projects/{AWS_KEY}/bucket/{key}"
 
 def try_vision_request(image_data: str, mime: str, prompt: str) -> tuple[str, str]:
-    """Пробует vision-запрос по списку моделей, возвращает (text, model_used)"""
-    key_hint = OPENAI_API_KEY[:8] + '...' if OPENAI_API_KEY else 'MISSING'
+    """Загружает фото в S3, отправляет URL в gpt-4o, возвращает (text, model_used)"""
+    print(f"[vision] uploading to S3, img_len={len(image_data)}", flush=True)
+    image_url = upload_to_s3(image_data, mime)
+    print(f"[vision] S3 url={image_url}", flush=True)
 
-    for model in VISION_MODELS:
-        payload = {
-            'model': model,
-            'messages': [
-                {
-                    'role': 'system',
-                    'content': 'Ты — помощник студента. Отвечай ТОЛЬКО на русском языке.'
-                },
-                {
-                    'role': 'user',
-                    'content': [
-                        {
-                            'type': 'image_url',
-                            'image_url': {'url': f'data:{mime};base64,{image_data}'}
-                        },
-                        {
-                            'type': 'text',
-                            'text': prompt
-                        }
-                    ]
-                }
-            ],
-            'temperature': 0.3,
-            'max_tokens': 2048
-        }
+    payload = {
+        'model': VISION_MODEL,
+        'messages': [
+            {
+                'role': 'system',
+                'content': 'Ты — помощник студента. Отвечай ТОЛЬКО на русском языке.'
+            },
+            {
+                'role': 'user',
+                'content': [
+                    {
+                        'type': 'image_url',
+                        'image_url': {'url': image_url}
+                    },
+                    {
+                        'type': 'text',
+                        'text': prompt
+                    }
+                ]
+            }
+        ],
+        'temperature': 0.3,
+        'max_tokens': 2048
+    }
 
-        print(f"[vision] trying model={model}, key={key_hint}, img_len={len(image_data)}", flush=True)
+    print(f"[vision] sending to Artemox model={VISION_MODEL}", flush=True)
 
-        with httpx.Client(timeout=25.0) as client:
-            response = client.post(
-                'https://api.artemox.com/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {OPENAI_API_KEY}',
-                    'Content-Type': 'application/json'
-                },
-                json=payload
-            )
+    with httpx.Client(timeout=25.0) as client:
+        response = client.post(
+            'https://api.artemox.com/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {OPENAI_API_KEY}',
+                'Content-Type': 'application/json'
+            },
+            json=payload
+        )
 
-        print(f"[vision] model={model} status={response.status_code} body={response.text[:300]}", flush=True)
+    print(f"[vision] status={response.status_code} body={response.text[:400]}", flush=True)
 
-        if response.status_code == 200:
-            data = response.json()
-            content = data.get('choices', [{}])[0].get('message', {}) or {}
-            text = content.get('content') or ''
-            if text:
-                return text, model
-            print(f"[vision] model={model} returned empty content, trying next", flush=True)
-            continue
-
-        # модель не поддерживается — пробуем следующую
-        if response.status_code in (400, 401, 403, 404, 422):
-            continue
+    if response.status_code == 200:
+        data = response.json()
+        content = (data.get('choices', [{}])[0].get('message') or {}).get('content') or ''
+        return content, VISION_MODEL
 
     return '', ''
 
