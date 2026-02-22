@@ -1,12 +1,10 @@
 {
-  "id": "/",
-  "name": "Studyfay — ИИ-помощник студента",
+  "name": "Studyfay",
   "short_name": "Studyfay",
-  "description": "Расписание пар, ИИ-репетитор 24/7, трекер задач, помодоро-таймер и зачётная книжка для студентов вузов и колледжей. Геймификация учёбы и достижения.",
-  "start_url": "/?source=pwa",
+  "description": "Расписание пар, ИИ-репетитор, трекер задач и помодоро-таймер для студентов вузов и колледжей. Геймификация учёбы, зачётная книжка, сканирование конспектов.",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#ffffff",
   "theme_color": "#8b5cf6",
   "orientation": "portrait-primary",
@@ -55,7 +53,7 @@
       "name": "Расписание пар",
       "short_name": "Расписание",
       "description": "Расписание занятий на сегодня и неделю",
-      "url": "/?tab=schedule"
+      "url": "/"
     },
     {
       "name": "ИИ-репетитор",
@@ -66,16 +64,16 @@
     {
       "name": "Помодоро-таймер",
       "short_name": "Помодоро",
-      "description": "Таймер продуктивной учёбы по методу помодоро",
+      "description": "Таймер продуктивной учёбы",
       "url": "/pomodoro"
     },
     {
       "name": "Прогресс учёбы",
       "short_name": "Сводка",
-      "description": "Статистика, достижения и прогресс учёбы",
+      "description": "Статистика и прогресс учёбы",
       "url": "/dashboard"
     }
   ],
   "related_applications": [],
-  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7"
+  "iarc_rating_id": ""
 }

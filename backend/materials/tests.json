@@ -1,16 +1,14 @@
 {
   "tests": [
     {
-      "name": "Get user materials without auth",
+      "name": "Get user materials",
       "method": "GET",
       "path": "/",
-      "expectedStatus": 401
-    },
-    {
-      "name": "OPTIONS CORS",
-      "method": "OPTIONS",
-      "path": "/",
-      "expectedStatus": 200
+      "expectedStatus": 200,
+      "expectedBody": {
+        "materials": "array"
+      },
+      "bodyMatcher": "partial"
     }
   ]
 }

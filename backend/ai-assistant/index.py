@@ -10,12 +10,12 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(90.0, connect=10.0))
-_http_vision = httpx.Client(timeout=httpx.Timeout(60.0, connect=10.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=90.0, http_client=_http)
+_http = httpx.Client(timeout=httpx.Timeout(18.0, connect=3.0))
+_http_vision = httpx.Client(timeout=httpx.Timeout(25.0, connect=5.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=18.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ def get_user_id(token: str):
         return None
 
 PREMIUM_DAILY_LIMIT = 20
-FREE_DAILY_LIMIT = 10
+FREE_DAILY_LIMIT = 3
 
 def check_access(conn, user_id: int) -> dict:
     """Проверка доступа с учетом подписки/триала/free"""
@@ -370,7 +370,7 @@ def sanitize_answer(text):
 
 
 def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
-    """Запрос к ИИ через DeepSeek. exam_meta — строка 'тип|предмет_id|предмет|режим'"""
+    """Запрос к ИИ через Artemox. exam_meta — строка 'тип|предмет_id|предмет|режим'"""
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:2000] if has_context else ""
 
@@ -513,7 +513,7 @@ def ask_ai_vision(question, system, image_base64):
         return "Не удалось распознать текст с фото. Попробуй сфотографировать чётче или перепиши условие задачи текстом — разберём вместе!", 0
 
 def build_smart_fallback(question, context):
-    """Fallback когда DeepSeek недоступен — честно говорим и просим повторить"""
+    """Fallback когда Artemox недоступен — честно говорим и просим повторить"""
     q = question.lower().strip()
     if any(w in q for w in ['привет', 'здравствуй', 'хай']):
         return "Привет! Я Studyfay — твой репетитор. Задавай любой вопрос — разберём вместе!"

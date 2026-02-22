@@ -72,7 +72,7 @@ const ThinkingIndicator = ({ hasMaterials, elapsed }: { hasMaterials: boolean; e
           <div className="h-1 flex-1 bg-gray-200 rounded-full overflow-hidden max-w-[180px]">
             <div 
               className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${Math.min(95, (elapsed / 90000) * 100)}%` }}
+              style={{ width: `${Math.min(95, (elapsed / 30000) * 100)}%` }}
             />
           </div>
           <span className="text-[10px] text-gray-400 tabular-nums">{Math.floor(elapsed / 1000)}с</span>
@@ -177,7 +177,7 @@ const Assistant = () => {
     const doFetch = async (): Promise<Response> => {
       const token = authService.getToken();
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 110000);
+      const tid = setTimeout(() => controller.abort(), 35000);
       const resp = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -208,44 +208,34 @@ const Assistant = () => {
       }
     };
 
-    // Пробуем до 3 раз — ИИ всегда должен ответить
-    const tryFetch = async (): Promise<boolean> => {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          const resp = await doFetch();
-          if (resp.ok) {
-            await handleOk(resp);
-            return true;
-          } else if (resp.status === 403) {
-            const data = await resp.json();
-            setMessages(prev => [...prev, {
-              role: 'assistant',
-              content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
-              timestamp: new Date()
-            }]);
-            setRemaining(0);
-            return true;
-          }
-          // 504 или другой статус — пробуем ещё раз
-        } catch (_) {
-          // Сеть упала или таймаут — пробуем ещё раз
-        }
-        // Небольшая пауза перед следующей попыткой
-        if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
-      }
-      return false;
-    };
-
     try {
-      const success = await tryFetch();
-      if (!success) {
-        // Все 3 попытки провалились — просим попробовать снова
+      const resp = await doFetch();
+      if (resp.ok) {
+        await handleOk(resp);
+      } else if (resp.status === 403) {
+        const data = await resp.json();
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: 'Не удалось получить ответ. Попробуй отправить вопрос ещё раз.',
+          content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
           timestamp: new Date()
         }]);
+        setRemaining(0);
+      } else if (resp.status === 504) {
+        const resp2 = await doFetch();
+        if (resp2.ok) {
+          await handleOk(resp2);
+        } else {
+          throw new Error('retry_failed');
+        }
+      } else {
+        throw new Error('server_error');
       }
+    } catch (_) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'ИИ сейчас думает дольше обычного. Нажми ➤ ещё раз — скорее всего ответ уже готов.',
+        timestamp: new Date()
+      }]);
     } finally {
       stopThinking();
       setIsLoading(false);
@@ -382,13 +372,9 @@ const Assistant = () => {
                 <Icon name="Sparkles" size={32} className="text-white" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">Привет! Я Studyfay</h2>
-              <p className="text-gray-500 text-center mb-3 max-w-sm text-sm leading-relaxed">
+              <p className="text-gray-500 text-center mb-8 max-w-sm text-sm leading-relaxed">
                 Задай любой вопрос — помогу разобраться с учёбой, объясню тему или составлю конспект
               </p>
-              <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-5 max-w-xs">
-                <Icon name="Clock" size={13} className="flex-shrink-0" />
-                <span>ИИ формирует качественный ответ — иногда до 2 минут</span>
-              </div>
               <div className="w-full space-y-2">
                 {quickActions.map((qa, i) => (
                   <button
@@ -450,7 +436,7 @@ const Assistant = () => {
         </div>
       </div>
 
-      <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(0.75rem+4rem+env(safe-area-inset-bottom,0px))] md:pb-3">
+      <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-3 pb-[calc(0.75rem+4rem+env(safe-area-inset-bottom,0px))] md:pb-3">
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
@@ -482,9 +468,6 @@ const Assistant = () => {
             )}
           </button>
         </div>
-        <p className="max-w-2xl mx-auto text-center text-[11px] text-gray-400 mt-2">
-          ИИ может обдумывать ответ до 2 минут — это нормально, мы готовим качественный ответ
-        </p>
       </div>
       <BottomNav />
     </div>

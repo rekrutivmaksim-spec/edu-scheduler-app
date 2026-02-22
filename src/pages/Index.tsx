@@ -735,14 +735,26 @@ const Index = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-2 h-12 sm:h-14 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-1.5">
-            <TabsTrigger value="schedule" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-sm font-semibold">
-              <Icon name="Calendar" size={18} className="mr-2" />
-              Расписание
+          <TabsList className="grid w-full grid-cols-5 h-12 sm:h-16 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-2">
+            <TabsTrigger value="schedule" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
+              <Icon name="Calendar" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline font-semibold">Расписание</span>
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-sm font-semibold">
-              <Icon name="CheckSquare" size={18} className="mr-2" />
-              Задачи
+            <TabsTrigger value="tasks" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
+              <Icon name="CheckSquare" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline font-semibold">Задачи</span>
+            </TabsTrigger>
+            <TabsTrigger value="scanner" onClick={() => navigate('/materials')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-pink-600 data-[state=active]:to-rose-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-pink-500/30 transition-all text-xs sm:text-base">
+              <Icon name="FileUp" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline font-semibold">Загрузка файлов</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" onClick={() => navigate('/analytics')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 transition-all text-xs sm:text-base">
+              <Icon name="BarChart3" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline font-semibold">Аналитика</span>
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
+              <Icon name="User" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline font-semibold">Профиль</span>
             </TabsTrigger>
           </TabsList>
 
@@ -912,15 +924,7 @@ const Index = () => {
               ) : todayLessons.length === 0 ? (
                 <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
                   <Icon name="CalendarOff" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
-                  <p className="text-sm sm:text-base font-semibold text-gray-700 mb-1">Пар нет — свободный день!</p>
-                  <p className="text-xs text-gray-400 mb-4">Или добавь занятие если расписание ещё не заполнено</p>
-                  <Button
-                    onClick={() => setIsAddingLesson(true)}
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm h-9"
-                  >
-                    <Icon name="Plus" size={16} className="mr-1.5" />
-                    Добавить занятие
-                  </Button>
+                  <p className="text-sm sm:text-base text-gray-600">Нет занятий на этот день</p>
                 </Card>
               ) : (
                 todayLessons.map((lesson) => (
@@ -1118,15 +1122,7 @@ const Index = () => {
               ) : tasks.length === 0 ? (
                 <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
                   <Icon name="ListTodo" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
-                  <p className="text-sm sm:text-base font-semibold text-gray-700 mb-1">Задач пока нет</p>
-                  <p className="text-xs text-gray-400 mb-4">Добавь первую задачу — и начни учёбу с чистого листа</p>
-                  <Button
-                    onClick={() => setIsAddingTask(true)}
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm h-9"
-                  >
-                    <Icon name="Plus" size={16} className="mr-1.5" />
-                    Добавить задачу
-                  </Button>
+                  <p className="text-sm sm:text-base text-gray-600">Нет задач</p>
                 </Card>
               ) : (
                 tasks

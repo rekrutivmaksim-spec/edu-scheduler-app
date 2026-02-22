@@ -10,7 +10,6 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { trackActivity } from '@/lib/gamification';
 import ReactMarkdown from 'react-markdown';
-import ReviewPrompt from '@/components/ReviewPrompt';
 
 const API_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
 
@@ -48,7 +47,6 @@ const Materials = () => {
   const [sharingId, setSharingId] = useState<number | null>(null);
   const [sharedMaterial, setSharedMaterial] = useState<SharedMaterial | null>(null);
   const [loadingShared, setLoadingShared] = useState(false);
-  const [reviewTrigger, setReviewTrigger] = useState<'streak_7' | 'streak_30' | 'first_material' | 'first_flashcard' | null>(null);
 
   const loadSharedMaterial = useCallback(async (code: string) => {
     setLoadingShared(true);
@@ -213,9 +211,6 @@ const Materials = () => {
 
         trackActivity('materials_uploaded', 1);
         await loadMaterials();
-        if (!localStorage.getItem('review_shown_first_material')) {
-          setReviewTrigger('first_material');
-        }
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Ошибка обработки файла');
@@ -662,7 +657,6 @@ const Materials = () => {
           </Card>
         </div>
       )}
-      <ReviewPrompt trigger={reviewTrigger} onClose={() => setReviewTrigger(null)} />
     </div>
   );
 };

@@ -639,37 +639,35 @@ const Exam = () => {
       ? `Начинаем тренировку по ${examLbl} — ${subject?.label}. Я выберу тему из списка заданий ниже. Напиши короткое приветствие и скажи, что жду выбора задания.`
       : `Привет! Я готовлюсь к ${examLbl} по ${subject?.label}. Кратко расскажи из каких заданий состоит экзамен и с чего лучше начать подготовку.`;
 
-    // Пробуем до 3 раз — ИИ должен ответить
-    let started = false;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const token = authService.getToken();
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 40000);
-        const resp = await fetch(AI_URL, {
+    try {
+      const token = authService.getToken();
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 35000);
+      const resp = await fetch(AI_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(makeFetchBody(initQ, [], selectedMode)),
+        signal: controller.signal,
+      });
+      clearTimeout(tid);
+      if (resp.ok) {
+        await handleOk(resp);
+      } else if (resp.status === 504) {
+        const token2 = authService.getToken();
+        const resp2 = await fetch(AI_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token2}` },
           body: JSON.stringify(makeFetchBody(initQ, [], selectedMode)),
-          signal: controller.signal,
         });
-        clearTimeout(tid);
-        if (resp.ok) {
-          await handleOk(resp);
-          started = true;
-          break;
-        }
-        // Любой не-ok статус — пробуем ещё раз
-      } catch (_) {
-        // Таймаут или сеть — пробуем ещё раз
+        if (resp2.ok) await handleOk(resp2);
       }
-      if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
-    }
-    if (!started) {
+    } catch (_) {
       setMessages([{ role: 'assistant', content: 'Не удалось подключиться. Попробуй ещё раз.', timestamp: new Date() }]);
+    } finally {
+      stopThinking();
+      setIsLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
-    stopThinking();
-    setIsLoading(false);
-    setTimeout(() => inputRef.current?.focus(), 100);
   }, [examType, subject, handleOk, makeFetchBody]);
 
   const sendMessage = useCallback(async (text?: string) => {
@@ -685,7 +683,7 @@ const Exam = () => {
     const doFetch = async (): Promise<Response> => {
       const token = authService.getToken();
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 40000);
+      const tid = setTimeout(() => controller.abort(), 35000);
       const resp = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -696,42 +694,31 @@ const Exam = () => {
       return resp;
     };
 
-    // Пробуем до 3 раз — ИИ всегда должен ответить
-    const tryFetch = async (): Promise<boolean> => {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          const resp = await doFetch();
-          if (resp.ok) {
-            await handleOk(resp);
-            return true;
-          } else if (resp.status === 403) {
-            const data = await resp.json();
-            setMessages(prev => [...prev, {
-              role: 'assistant',
-              content: data.message || 'Лимит вопросов исчерпан. Оформи подписку или подожди до завтра!',
-              timestamp: new Date(),
-            }]);
-            setRemaining(0);
-            return true;
-          }
-          // Любой другой статус — пробуем ещё раз
-        } catch (_) {
-          // Таймаут или сеть — пробуем ещё раз
-        }
-        if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
-      }
-      return false;
-    };
-
     try {
-      const success = await tryFetch();
-      if (!success) {
+      const resp = await doFetch();
+      if (resp.ok) {
+        await handleOk(resp);
+      } else if (resp.status === 403) {
+        const data = await resp.json();
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: 'Не удалось получить ответ. Попробуй отправить вопрос ещё раз.',
+          content: data.message || 'Лимит вопросов исчерпан. Оформи подписку или подожди до завтра!',
           timestamp: new Date(),
         }]);
+        setRemaining(0);
+      } else if (resp.status === 504) {
+        const resp2 = await doFetch();
+        if (resp2.ok) await handleOk(resp2);
+        else throw new Error('retry_failed');
+      } else {
+        throw new Error('server_error');
       }
+    } catch (_) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'ИИ думает дольше обычного. Нажми ➤ ещё раз — скорее всего ответ уже готов.',
+        timestamp: new Date(),
+      }]);
     } finally {
       stopThinking();
       setIsLoading(false);
