@@ -302,12 +302,17 @@ def handler(event: dict, context) -> dict:
                     else:
                         # Создаем нового пользователя если не существует
                         full_name = email.split('@')[0]
-                        
+                        import hashlib as _hl
+                        _rc = _hl.md5(email.encode()).hexdigest()[:8].upper()
                         cur.execute("""
-                            INSERT INTO users (email, password_hash, full_name, last_login_at)
-                            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                            INSERT INTO users (email, password_hash, full_name, last_login_at,
+                                trial_ends_at, is_trial_used,
+                                daily_questions_used, daily_questions_reset_at, referral_code)
+                            VALUES (%s, %s, %s, CURRENT_TIMESTAMP,
+                                CURRENT_TIMESTAMP + INTERVAL '7 days', FALSE,
+                                0, CURRENT_TIMESTAMP, %s)
                             RETURNING id, email, full_name, university, faculty, course
-                        """, (email, password_hash, full_name))
+                        """, (email, password_hash, full_name, _rc))
                         
                         new_user = cur.fetchone()
                         conn.commit()

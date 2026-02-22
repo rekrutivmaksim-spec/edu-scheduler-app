@@ -462,11 +462,30 @@ def handler(event: dict, context) -> dict:
                     }
             
             elif action == 'upgrade_demo':
-                with conn.cursor() as cur:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute("SELECT is_trial_used, trial_ends_at, subscription_type, subscription_expires_at FROM users WHERE id = %s", (user_id,))
+                    u = cur.fetchone()
+                    
+                    if not u:
+                        return {'statusCode': 404, 'headers': headers, 'body': json.dumps({'error': 'Пользователь не найден'})}
+                    
+                    # Если триал уже был использован через is_trial_used — не даём повторно
+                    if u.get('is_trial_used'):
+                        return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Пробный период уже был использован'})}
+                    
+                    # Если trial_ends_at есть и не истёк — значит триал ещё идёт (через обычный флоу при регистрации)
+                    now = datetime.now()
+                    if u.get('trial_ends_at'):
+                        te = u['trial_ends_at'].replace(tzinfo=None) if u['trial_ends_at'].tzinfo else u['trial_ends_at']
+                        if te > now:
+                            return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Пробный период уже активен'})}
+                    
+                    # Активируем триал: выставляем trial_ends_at и is_trial_used=false (триал активен, но не "использован")
                     cur.execute("""
                         UPDATE users 
-                        SET subscription_type = 'premium',
-                            subscription_expires_at = CURRENT_TIMESTAMP + INTERVAL '7 days'
+                        SET trial_ends_at = CURRENT_TIMESTAMP + INTERVAL '7 days',
+                            is_trial_used = FALSE,
+                            updated_at = CURRENT_TIMESTAMP
                         WHERE id = %s
                     """, (user_id,))
                     conn.commit()
@@ -475,9 +494,8 @@ def handler(event: dict, context) -> dict:
                     'statusCode': 200,
                     'headers': headers,
                     'body': json.dumps({
-                        'message': 'Премиум активирован на 7 дней (демо)',
-                        'subscription_type': 'premium',
-                        'expires_at': (datetime.now().timestamp() + 7*24*60*60)
+                        'message': 'Пробный период активирован на 7 дней!',
+                        'trial_ends_at': (datetime.now().timestamp() + 7*24*60*60)
                     })
                 }
         

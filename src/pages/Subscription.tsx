@@ -374,6 +374,29 @@ const Subscription = () => {
     }
   };
 
+  const handleActivateTrial = async () => {
+    setIsProcessing(true);
+    try {
+      const token = authService.getToken();
+      const response = await fetch(SUBSCRIPTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'upgrade_demo' })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast({ title: '🎉 Пробный период активирован!', description: '7 дней безлимитного доступа — пользуйся на полную!' });
+        await loadSubscriptionStatus();
+      } else {
+        toast({ title: 'Не удалось активировать', description: data.error || 'Пробный период уже был использован', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Ошибка', description: 'Попробуй снова', variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     if (status === 'completed') return { text: 'Оплачен', color: 'bg-green-500' };
     if (status === 'pending') return { text: 'Ожидает', color: 'bg-yellow-500' };
@@ -418,6 +441,28 @@ const Subscription = () => {
       </header>
 
       <main className="max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-24 md:pb-8 space-y-4 sm:space-y-6">
+
+        {/* Кнопка активации пробного периода */}
+        {!isPremium && !isTrial && (
+          <Card className="p-5 bg-gradient-to-br from-violet-600 to-purple-700 border-0 shadow-xl shadow-purple-500/30">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <Icon name="Gift" size={24} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-white">7 дней бесплатно</h3>
+                <p className="text-sm text-purple-200 mt-0.5">Попробуй всё без ограничений — ИИ-ассистент, материалы, расписание</p>
+              </div>
+              <Button
+                onClick={handleActivateTrial}
+                disabled={isProcessing}
+                className="flex-shrink-0 bg-white text-purple-700 hover:bg-purple-50 font-bold rounded-xl px-6 h-10 shadow-lg"
+              >
+                {isProcessing ? <Icon name="Loader2" size={16} className="animate-spin" /> : 'Активировать'}
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {/* Статус: Триал */}
         {!isPremium && isTrial && trialEndsAt && (

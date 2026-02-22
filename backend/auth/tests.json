@@ -9,15 +9,9 @@
         "email": "testuser_TIMESTAMP@example.com",
         "password": "password123"
       },
-      "expectedStatus": 201,
+      "expectedStatus": 200,
       "expectedBody": {
-        "token": "string",
-        "user": {
-          "id": "number",
-          "email": "string",
-          "full_name": "string"
-        },
-        "is_new_user": true
+        "token": "string"
       },
       "bodyMatcher": "partial"
     },

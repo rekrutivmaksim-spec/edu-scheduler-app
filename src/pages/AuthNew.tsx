@@ -30,10 +30,9 @@ export default function AuthNew() {
       localStorage.setItem('pendingReferral', refCode);
     }
     const savedEmail = localStorage.getItem('savedEmail');
-    const savedPassword = localStorage.getItem('savedPassword');
-    if (savedEmail && savedPassword) {
+    localStorage.removeItem('savedPassword');
+    if (savedEmail) {
       setEmail(savedEmail);
-      setPassword(savedPassword);
       setRememberMe(true);
     }
     loadStats();
@@ -100,11 +99,10 @@ export default function AuthNew() {
         
         if (rememberMe) {
           localStorage.setItem('savedEmail', email);
-          localStorage.setItem('savedPassword', password);
         } else {
           localStorage.removeItem('savedEmail');
-          localStorage.removeItem('savedPassword');
         }
+        localStorage.removeItem('savedPassword');
 
         const pending = localStorage.getItem('pendingReferral');
         if (pending) {
@@ -123,7 +121,11 @@ export default function AuthNew() {
           description: `Добро пожаловать, ${data.user.full_name}!`
         });
 
-        navigate('/');
+        if (data.is_new_user) {
+          navigate('/onboarding');
+        } else {
+          navigate('/');
+        }
       } else {
         toast({
           variant: 'destructive',
