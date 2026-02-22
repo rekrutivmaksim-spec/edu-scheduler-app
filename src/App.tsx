@@ -32,6 +32,7 @@ import AppStore from "./pages/AppStore";
 import Dashboard from "./pages/Dashboard";
 import Exam from "./pages/Exam";
 import NotFound from "./pages/NotFound";
+import Screenshots from "./pages/Screenshots";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/widget" element={<Widget />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/exam" element={<Exam />} />
+              <Route path="/screenshots" element={<Screenshots />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
