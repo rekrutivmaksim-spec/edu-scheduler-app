@@ -405,38 +405,38 @@ def sanitize_answer(text):
 def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
     """Запрос к ИИ через Artemox. exam_meta — строка 'тип|предмет_id|предмет|режим'"""
     has_context = bool(context and len(context) > 50)
-    ctx_trimmed = context[:2000] if has_context else ""
+    ctx_trimmed = context[:1200] if has_context else ""
 
     system = (
-        "You are Studyfay, a helpful tutor. "
-        "Always respond in Russian. No LaTeX. Plain text formulas only."
+        "You are Studyfay, a student tutor. "
+        "Respond in Russian. Be concise — 3-5 sentences max unless a longer answer is truly needed. "
+        "No LaTeX. Plain text only. No lengthy introductions."
     )
     if has_context:
-        system += f"\n\nStudent materials:\n{ctx_trimmed}"
+        system += f"\n\nMaterials:\n{ctx_trimmed}"
 
     if image_base64:
         answer, tokens = ask_ai_vision(question, system, image_base64)
         return answer, tokens
 
-    # exam_meta встраиваем прямо в вопрос — WAF не блокирует user-сообщения с нейтральным system
     if exam_meta:
         parts = exam_meta.split('|')
         et = parts[0] if len(parts) > 0 else ''
         sl = parts[2] if len(parts) > 2 else ''
         mode = parts[3] if len(parts) > 3 else 'explain'
         el = 'EGE' if et == 'ege' else 'OGE'
-        mt = 'explain topic with examples' if mode == 'explain' else 'give full exam task then check answer'
-        user_content = f"[tutor:{el},{sl},{mt}] {question[:550]}"
+        mt = 'explain briefly with 1 example' if mode == 'explain' else 'give exam task then check answer'
+        user_content = f"[{el},{sl},{mt}] {question[:400]}"
     else:
-        user_content = question[:600]
+        user_content = question[:400]
 
     messages_list = [{"role": "system", "content": system}]
     if history:
-        for h in history[-5:]:
+        for h in history[-3:]:
             role = h.get('role', 'user')
             content = h.get('content', '')
             if role in ('user', 'assistant') and content:
-                messages_list.append({"role": role, "content": content[:400]})
+                messages_list.append({"role": role, "content": content[:200]})
     messages_list.append({"role": "user", "content": user_content})
 
     try:
@@ -444,8 +444,8 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
         resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages_list,
-            temperature=0.3,
-            max_tokens=700,
+            temperature=0.1,
+            max_tokens=500,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
