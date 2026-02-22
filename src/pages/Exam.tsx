@@ -440,27 +440,26 @@ const ThinkingIndicator = ({ elapsed }: { elapsed: number }) => {
     if (elapsed < cumulative) { currentStage = stage; break; }
     currentStage = stage;
   }
+  const dot = 'w-2 h-2 rounded-full bg-violet-400';
   return (
     <div className="flex gap-2.5 justify-start">
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-        <Icon name="GraduationCap" size={15} className="text-white animate-pulse" />
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+        <Icon name="GraduationCap" size={15} className="text-white" />
       </div>
-      <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3 max-w-[85%]">
-        <div className="flex items-center gap-2 mb-1.5">
-          <div className="relative w-4 h-4">
-            <div className="absolute inset-0 rounded-full border-2 border-purple-200" />
-            <div className="absolute inset-0 rounded-full border-2 border-purple-600 border-t-transparent animate-spin" />
+      <div className="bg-white border border-violet-100 shadow-sm rounded-2xl rounded-bl-md px-4 py-3 max-w-[85%]">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex gap-1 items-end">
+            <div className={`${dot} animate-bounce`} style={{ animationDelay: '0ms' }} />
+            <div className={`${dot} animate-bounce`} style={{ animationDelay: '150ms' }} />
+            <div className={`${dot} animate-bounce`} style={{ animationDelay: '300ms' }} />
           </div>
-          <span className="text-sm font-medium text-purple-700">{currentStage.text}</span>
+          <span className="text-sm text-violet-700 font-medium">{currentStage.text}</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-1 flex-1 bg-gray-200 rounded-full overflow-hidden max-w-[180px]">
-            <div
-              className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${Math.min(95, (elapsed / 90000) * 100)}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-gray-400 tabular-nums">{Math.floor(elapsed / 1000)}с</span>
+        <div className="h-1.5 w-36 bg-violet-50 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-violet-400 via-purple-400 to-violet-500 transition-all duration-1000 ease-out"
+            style={{ width: `${Math.min(90, (elapsed / 30000) * 100)}%` }}
+          />
         </div>
       </div>
     </div>
@@ -708,31 +707,32 @@ const Exam = () => {
       return resp;
     };
 
-    try {
-      const resp = await doFetch();
-      if (resp.ok) {
-        await handleOk(resp);
-      } else if (resp.status === 403) {
-        const data = await resp.json();
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: data.message || 'Лимит вопросов исчерпан. Оформи подписку или подожди до завтра!',
-          timestamp: new Date(),
-        }]);
-        setRemaining(0);
-      } else if (resp.status === 504) {
-        const resp2 = await doFetch();
-        if (resp2.ok) await handleOk(resp2);
-        else throw new Error('retry_failed');
-      } else {
-        throw new Error('server_error');
+    const tryFetch = async (attempt: number): Promise<void> => {
+      try {
+        const resp = await doFetch();
+        if (resp.ok) {
+          await handleOk(resp);
+        } else if (resp.status === 403) {
+          const data = await resp.json();
+          setMessages(prev => [...prev, { role: 'assistant', content: data.message || 'Лимит вопросов исчерпан. Оформи подписку или подожди до завтра!', timestamp: new Date() }]);
+          setRemaining(0);
+        } else if ((resp.status === 504 || resp.status >= 500) && attempt < 2) {
+          await tryFetch(attempt + 1);
+        } else {
+          throw new Error('server_error');
+        }
+      } catch (e: unknown) {
+        const name = (e instanceof Error) ? e.name : '';
+        if ((name === 'AbortError' || name === 'TypeError') && attempt < 2) {
+          await tryFetch(attempt + 1);
+        } else {
+          setMessages(prev => [...prev, { role: 'assistant', content: 'Произошла временная ошибка сети. Попробуй задать вопрос ещё раз.', timestamp: new Date() }]);
+        }
       }
-    } catch (_) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'ИИ думает дольше обычного. Нажми ➤ ещё раз — скорее всего ответ уже готов.',
-        timestamp: new Date(),
-      }]);
+    };
+
+    try {
+      await tryFetch(0);
     } finally {
       stopThinking();
       setIsLoading(false);
