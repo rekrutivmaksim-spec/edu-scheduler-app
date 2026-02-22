@@ -34,7 +34,7 @@ def get_user_id(token: str):
 def get_gigachat_token() -> str:
     """Получает access token через Client Credentials"""
     rq_uid = str(uuid.uuid4())
-    with httpx.Client(timeout=15.0, verify=False) as client:
+    with httpx.Client(timeout=8.0, verify=False) as client:
         response = client.post(
             'https://ngw.devices.sberbank.ru:9443/api/v2/oauth',
             headers={
