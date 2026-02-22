@@ -177,7 +177,7 @@ const Assistant = () => {
     const doFetch = async (): Promise<Response> => {
       const token = authService.getToken();
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 35000);
+      const tid = setTimeout(() => controller.abort(), 40000);
       const resp = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -208,34 +208,44 @@ const Assistant = () => {
       }
     };
 
+    // Пробуем до 3 раз — ИИ всегда должен ответить
+    const tryFetch = async (): Promise<boolean> => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const resp = await doFetch();
+          if (resp.ok) {
+            await handleOk(resp);
+            return true;
+          } else if (resp.status === 403) {
+            const data = await resp.json();
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
+              timestamp: new Date()
+            }]);
+            setRemaining(0);
+            return true;
+          }
+          // 504 или другой статус — пробуем ещё раз
+        } catch (_) {
+          // Сеть упала или таймаут — пробуем ещё раз
+        }
+        // Небольшая пауза перед следующей попыткой
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
+      }
+      return false;
+    };
+
     try {
-      const resp = await doFetch();
-      if (resp.ok) {
-        await handleOk(resp);
-      } else if (resp.status === 403) {
-        const data = await resp.json();
+      const success = await tryFetch();
+      if (!success) {
+        // Все 3 попытки провалились — просим попробовать снова
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: data.message || 'Лимит исчерпан. Оформи подписку или подожди до завтра!',
+          content: 'Не удалось получить ответ. Попробуй отправить вопрос ещё раз.',
           timestamp: new Date()
         }]);
-        setRemaining(0);
-      } else if (resp.status === 504) {
-        const resp2 = await doFetch();
-        if (resp2.ok) {
-          await handleOk(resp2);
-        } else {
-          throw new Error('retry_failed');
-        }
-      } else {
-        throw new Error('server_error');
       }
-    } catch (_) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'ИИ сейчас думает дольше обычного. Нажми ➤ ещё раз — скорее всего ответ уже готов.',
-        timestamp: new Date()
-      }]);
     } finally {
       stopThinking();
       setIsLoading(false);
