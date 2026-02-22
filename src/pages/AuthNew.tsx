@@ -9,7 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
 
 const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
-const STATS_URL = 'https://functions.poehali.dev/81b3aaba-9af0-426e-8f14-e7420a9f4ecc';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
 export default function AuthNew() {
@@ -22,7 +21,6 @@ export default function AuthNew() {
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [totalUsers, setTotalUsers] = useState<number>(0);
   const refCode = searchParams.get('ref') || '';
 
   useEffect(() => {
@@ -35,20 +33,7 @@ export default function AuthNew() {
       setEmail(savedEmail);
       setRememberMe(true);
     }
-    loadStats();
   }, []);
-
-  const loadStats = async () => {
-    try {
-      const response = await fetch(STATS_URL);
-      if (response.ok) {
-        const data = await response.json();
-        setTotalUsers(data.total_users || 0);
-      }
-    } catch (error) {
-      console.error('Failed to load stats:', error);
-    }
-  };
 
   const handleEmailLogin = async () => {
     if (!agreedToTerms) {
@@ -221,17 +206,7 @@ export default function AuthNew() {
           <p className="text-sm sm:text-base text-gray-600 mb-2 sm:mb-3">
             {mode === 'login' ? 'Войдите в аккаунт' : 'Сброс пароля'}
           </p>
-          {totalUsers > 0 && (
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-indigo-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full">
-              <div className="flex -space-x-1 sm:-space-x-1.5">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 border-2 border-white"></div>
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white"></div>
-              </div>
-              <span className="text-[10px] sm:text-xs font-medium text-gray-700">
-                <span className="text-purple-600 font-bold">{totalUsers}</span> {totalUsers === 1 ? 'студент' : totalUsers < 5 ? 'студента' : 'студентов'} уже с нами
-              </span>
-            </div>
-          )}
+
         </div>
 
         <div className="space-y-4 sm:space-y-6">
