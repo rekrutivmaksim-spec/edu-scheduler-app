@@ -697,31 +697,64 @@ def handler(event: dict, context) -> dict:
                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps(profile, default=str)}
 
             elif action == 'leaderboard':
+                period = (event.get('queryStringParameters') or {}).get('period', 'all')
                 cur = conn.cursor(cursor_factory=RealDictCursor)
-                cur.execute("""
-                    SELECT u.id, u.full_name, u.university, u.level, u.xp_total,
-                           u.subscription_type,
-                           COALESCE(us.current_streak, 0) as streak
-                    FROM users u
-                    LEFT JOIN user_streaks us ON us.user_id = u.id
-                    WHERE u.is_guest = false
-                    ORDER BY u.xp_total DESC
-                    LIMIT 50
-                """)
+
+                if period == 'today':
+                    cur.execute("""
+                        SELECT u.id, u.full_name, u.university, u.level, u.xp_total,
+                               u.subscription_type,
+                               COALESCE(us.current_streak, 0) as streak,
+                               COALESCE(da.xp_earned, 0) as xp_period
+                        FROM users u
+                        LEFT JOIN user_streaks us ON us.user_id = u.id
+                        LEFT JOIN daily_activity da ON da.user_id = u.id AND da.activity_date = CURRENT_DATE
+                        WHERE u.is_guest = false AND COALESCE(da.xp_earned, 0) > 0
+                        ORDER BY xp_period DESC
+                        LIMIT 50
+                    """)
+                elif period == 'week':
+                    cur.execute("""
+                        SELECT u.id, u.full_name, u.university, u.level, u.xp_total,
+                               u.subscription_type,
+                               COALESCE(us.current_streak, 0) as streak,
+                               COALESCE(SUM(da.xp_earned), 0) as xp_period
+                        FROM users u
+                        LEFT JOIN user_streaks us ON us.user_id = u.id
+                        LEFT JOIN daily_activity da ON da.user_id = u.id
+                            AND da.activity_date >= DATE_TRUNC('week', CURRENT_DATE)
+                        WHERE u.is_guest = false
+                        GROUP BY u.id, u.full_name, u.university, u.level, u.xp_total,
+                                 u.subscription_type, us.current_streak
+                        HAVING COALESCE(SUM(da.xp_earned), 0) > 0
+                        ORDER BY xp_period DESC
+                        LIMIT 50
+                    """)
+                else:
+                    cur.execute("""
+                        SELECT u.id, u.full_name, u.university, u.level, u.xp_total,
+                               u.subscription_type,
+                               COALESCE(us.current_streak, 0) as streak,
+                               u.xp_total as xp_period
+                        FROM users u
+                        LEFT JOIN user_streaks us ON us.user_id = u.id
+                        WHERE u.is_guest = false
+                        ORDER BY u.xp_total DESC
+                        LIMIT 50
+                    """)
+
                 leaders = cur.fetchall()
                 cur.close()
 
                 result = []
                 for i, l in enumerate(leaders):
-                    is_leader_premium = False
-                    if l.get('subscription_type') == 'premium':
-                        is_leader_premium = True
                     result.append({
                         'rank': i + 1,
                         'name': l['full_name'],
                         'university': l['university'],
                         'level': l['level'],
-                        'xp': l['xp_total'],
+                        'xp': int(l['xp_period']),
+                        'xp_total': l['xp_total'],
                         'streak': l['streak'],
                         'is_me': l['id'] == user_id,
                         'subscription_type': l.get('subscription_type', 'free')

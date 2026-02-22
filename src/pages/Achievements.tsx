@@ -148,6 +148,9 @@ const Achievements = () => {
   const { toast } = useToast();
   const [profile, setProfile] = useState<GamificationProfile | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderItem[]>([]);
+  const [leaderPeriod, setLeaderPeriod] = useState<'today' | 'week' | 'all'>('today');
+  const [leaderLoading, setLeaderLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeSection, setActiveSection] = useState('achievements');
@@ -171,18 +174,22 @@ const Achievements = () => {
     }
   }, []);
 
-  const loadLeaderboard = useCallback(async () => {
+  const loadLeaderboard = useCallback(async (period: 'today' | 'week' | 'all' = 'today', silent = false) => {
+    if (!silent) setLeaderLoading(true);
     try {
       const token = authService.getToken();
-      const res = await fetch(`${API_URL}?action=leaderboard`, {
+      const res = await fetch(`${API_URL}?action=leaderboard&period=${period}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setLeaderboard(Array.isArray(data) ? data : data.leaderboard || []);
+        setLastUpdated(new Date());
       }
     } catch (error) {
       console.error('Failed to load leaderboard:', error);
+    } finally {
+      if (!silent) setLeaderLoading(false);
     }
   }, []);
 
@@ -331,12 +338,28 @@ const Achievements = () => {
         return;
       }
       setLoading(true);
-      await Promise.all([loadProfile(), loadLeaderboard(), performCheckin()]);
+      await Promise.all([loadProfile(), loadLeaderboard('today'), performCheckin()]);
       await loadProfile();
       setLoading(false);
     };
     init();
   }, [navigate, loadProfile, loadLeaderboard, performCheckin]);
+
+  // Авто-обновление рейтинга каждые 30 сек когда открыт таб
+  useEffect(() => {
+    if (activeSection !== 'leaderboard') return;
+    const interval = setInterval(() => {
+      loadLeaderboard(leaderPeriod, true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [activeSection, leaderPeriod, loadLeaderboard]);
+
+  // При смене периода — перезагружаем
+  useEffect(() => {
+    if (activeSection === 'leaderboard') {
+      loadLeaderboard(leaderPeriod);
+    }
+  }, [leaderPeriod, activeSection, loadLeaderboard]);
 
   const filteredAchievements =
     profile?.achievements.filter(
@@ -930,11 +953,61 @@ const Achievements = () => {
 
           {/* Leaderboard Tab */}
           <TabsContent value="leaderboard">
-            <div className="mt-4 space-y-2">
-              {leaderboard.length === 0 && (
+            {/* Период + индикатор обновления */}
+            <div className="mt-4 mb-3 flex items-center justify-between gap-2">
+              <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+                {([
+                  { key: 'today', label: '📅 Сегодня' },
+                  { key: 'week', label: '📆 Неделя' },
+                  { key: 'all', label: '🏆 Всё время' },
+                ] as { key: 'today' | 'week' | 'all'; label: string }[]).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setLeaderPeriod(key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      leaderPeriod === key
+                        ? 'bg-white shadow text-purple-700'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                {leaderLoading ? (
+                  <Icon name="Loader2" size={12} className="animate-spin text-purple-400" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-green-400 inline-block animate-pulse" />
+                )}
+                {lastUpdated && !leaderLoading && (
+                  <span>{lastUpdated.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Описание периода */}
+            <div className="mb-3 px-1">
+              <p className="text-xs text-gray-500">
+                {leaderPeriod === 'today' && '⚡ XP, заработанные сегодня. Обновляется каждые 30 сек'}
+                {leaderPeriod === 'week' && '📆 XP за текущую неделю (с понедельника)'}
+                {leaderPeriod === 'all' && '🏆 Общий рейтинг за всё время'}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {leaderLoading && leaderboard.length === 0 && (
+                <div className="text-center py-12 text-gray-400">
+                  <Icon name="Loader2" size={36} className="mx-auto mb-3 animate-spin opacity-40" />
+                  <p className="font-medium">Загружаем рейтинг...</p>
+                </div>
+              )}
+              {!leaderLoading && leaderboard.length === 0 && (
                 <div className="text-center py-12 text-gray-400">
                   <Icon name="Users" size={48} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">Рейтинг пока пуст</p>
+                  <p className="font-medium">
+                    {leaderPeriod === 'today' ? 'Пока никто не набрал XP сегодня — будь первым!' : 'Рейтинг пока пуст'}
+                  </p>
                 </div>
               )}
               {leaderboard.map((item) => (
@@ -998,9 +1071,11 @@ const Achievements = () => {
                         </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-gray-400">XP</p>
+                        <p className="text-xs text-gray-400">
+                          {leaderPeriod === 'today' ? 'XP сег.' : leaderPeriod === 'week' ? 'XP нед.' : 'XP'}
+                        </p>
                         <p className="text-sm font-bold text-purple-600">
-                          {formatNumber(item.xp)}
+                          +{formatNumber(item.xp)}
                         </p>
                       </div>
                       <div className="text-center">
