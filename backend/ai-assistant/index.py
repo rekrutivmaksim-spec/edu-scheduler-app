@@ -4,6 +4,7 @@ import jwt
 import psycopg2
 import hashlib
 import httpx
+import threading
 from datetime import datetime, timedelta
 from openai import OpenAI
 
@@ -443,8 +444,8 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
         resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages_list,
-            temperature=0.7,
-            max_tokens=1024,
+            temperature=0.3,
+            max_tokens=700,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
@@ -625,10 +626,32 @@ def handler(event: dict, context) -> dict:
                     'daily_exhausted': access.get('is_premium', False)
                 })
 
+            action_type = detect_action(question)
+
+            # --- КЭША ПРОВЕРЯЕМ ПЕРВОЙ (до get_context и get_session) ---
+            if not image_base64 and action_type not in ('task', 'schedule'):
+                cached = get_cache(conn, question, material_ids)
+                if cached:
+                    print(f"[AI] cache hit — fast return", flush=True)
+                    # Фоновая запись: не блокируем ответ
+                    def _bg_cache(uid, q, mids, ans, acc_info):
+                        try:
+                            c2 = psycopg2.connect(DATABASE_URL)
+                            c2.autocommit = True
+                            sid2 = get_session(c2, uid)
+                            save_msg(c2, sid2, uid, 'user', q, mids)
+                            increment_questions(c2, uid, acc_info)
+                            save_msg(c2, sid2, uid, 'assistant', ans, mids, 0, True)
+                            c2.close()
+                        except Exception as ex:
+                            print(f"[AI] bg_cache err: {ex}", flush=True)
+                    threading.Thread(target=_bg_cache, args=(user_id, question, material_ids, cached, access), daemon=True).start()
+                    remaining_now = access.get('remaining', 1)
+                    return ok({'answer': cached, 'remaining': max(0, remaining_now - 1), 'cached': True})
+
+            # --- СЕССИЯ И СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ ---
             sid = get_session(conn, user_id)
             save_msg(conn, sid, user_id, 'user', question, material_ids)
-
-            action_type = detect_action(question)
 
             if action_type == 'task':
                 try:
@@ -642,10 +665,10 @@ def handler(event: dict, context) -> dict:
                     conn.commit()
                     cur.close()
                     increment_questions(conn, user_id, access)
-                    acc = check_access(conn, user_id)
+                    remaining_now = max(0, access.get('remaining', 1) - 1)
                     ans = f"✅ **Задача создана!**\n\n📋 **{task[1]}**" + (f"\n📚 Предмет: {subj}" if subj else "") + "\n\nНайдёшь её в разделе **Планировщик**."
                     save_msg(conn, sid, user_id, 'assistant', ans)
-                    return ok({'answer': ans, 'remaining': acc.get('remaining', 0), 'action': 'task_created'})
+                    return ok({'answer': ans, 'remaining': remaining_now, 'action': 'task_created'})
                 except Exception as e:
                     print(f"[AI] task error: {e}", flush=True)
 
@@ -663,7 +686,7 @@ def handler(event: dict, context) -> dict:
                     conn.commit()
                     cur.close()
                     increment_questions(conn, user_id, access)
-                    acc = check_access(conn, user_id)
+                    remaining_now = max(0, access.get('remaining', 1) - 1)
                     days_names = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье']
                     dn = days_names[lesson[2]] if lesson[2] is not None else 'не указан'
                     ans = f"✅ **Занятие добавлено!**\n\n📚 **{lesson[1]}** — {parsed['type']}\n📅 {dn}"
@@ -671,32 +694,33 @@ def handler(event: dict, context) -> dict:
                         ans += f" в {parsed['start_time']}"
                     ans += "\n\nСмотри в **Расписании**."
                     save_msg(conn, sid, user_id, 'assistant', ans)
-                    return ok({'answer': ans, 'remaining': acc.get('remaining', 0), 'action': 'schedule_created'})
+                    return ok({'answer': ans, 'remaining': remaining_now, 'action': 'schedule_created'})
                 except Exception as e:
                     print(f"[AI] schedule error: {e}", flush=True)
 
-            if not image_base64:
-                cached = get_cache(conn, question, material_ids)
-                if cached:
-                    print(f"[AI] cache hit", flush=True)
-                    increment_questions(conn, user_id, access)
-                    acc = check_access(conn, user_id)
-                    save_msg(conn, sid, user_id, 'assistant', cached, material_ids, 0, True)
-                    return ok({'answer': cached, 'remaining': acc.get('remaining', 0), 'cached': True})
-
+            # --- КОНТЕКСТ + ИИ ---
             ctx = get_context(conn, user_id, material_ids)
             answer, tokens = ask_ai(question, ctx, image_base64, exam_meta=exam_meta, history=history)
 
-            # Если ИИ вернул ошибку (tokens==0 = fallback), вопрос НЕ сгорает
             ai_error = (tokens == 0)
-            if not ai_error:
-                if tokens > 0:
-                    set_cache(conn, question, material_ids, answer, tokens)
-                increment_questions(conn, user_id, access)
+            remaining_now = max(0, access.get('remaining', 1) - 1) if not ai_error else access.get('remaining', 0)
 
-            acc = check_access(conn, user_id)
-            save_msg(conn, sid, user_id, 'assistant', answer, material_ids, tokens, False)
-            return ok({'answer': answer, 'remaining': acc.get('remaining', 0), 'ai_error': ai_error})
+            # --- POST-ОБРАБОТКА В ФОНЕ: не блокируем ответ ---
+            def _bg_post(uid, q, mids, ans, tok, acc_info, session_id, is_err):
+                try:
+                    c2 = psycopg2.connect(DATABASE_URL)
+                    c2.autocommit = True
+                    if not is_err:
+                        if tok > 0:
+                            set_cache(c2, q, mids, ans, tok)
+                        increment_questions(c2, uid, acc_info)
+                    save_msg(c2, session_id, uid, 'assistant', ans, mids, tok, False)
+                    c2.close()
+                except Exception as ex:
+                    print(f"[AI] bg_post err: {ex}", flush=True)
+            threading.Thread(target=_bg_post, args=(user_id, question, material_ids, answer, tokens, access, sid, ai_error), daemon=True).start()
+
+            return ok({'answer': answer, 'remaining': remaining_now, 'ai_error': ai_error})
 
         return err(405, {'error': 'Method not allowed'})
 
