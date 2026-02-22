@@ -5,7 +5,7 @@ import httpx
 from datetime import datetime
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -52,60 +52,49 @@ PROMPTS = {
     )
 }
 
-# Модели для проверки — пробуем по приоритету
-VISION_MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-vision-preview']
+VISION_MODEL = 'gpt-4o-mini'
 
 def try_vision_request(image_data: str, mime: str, prompt: str) -> tuple[str, str]:
-    """Пробует vision-запрос через доступные модели. Возвращает (text, model_used)"""
-    for model in VISION_MODELS:
-        payload = {
-            'model': model,
-            'messages': [
-                {
-                    'role': 'user',
-                    'content': [
-                        {
-                            'type': 'image_url',
-                            'image_url': {'url': f'data:{mime};base64,{image_data}'}
-                        },
-                        {
-                            'type': 'text',
-                            'text': prompt
-                        }
-                    ]
-                }
-            ],
-            'temperature': 0.3,
-            'max_tokens': 2048
-        }
+    """Отправляет фото в gpt-4o-mini через Artemox и возвращает (text, model_used)"""
+    payload = {
+        'model': VISION_MODEL,
+        'messages': [
+            {
+                'role': 'user',
+                'content': [
+                    {
+                        'type': 'image_url',
+                        'image_url': {'url': f'data:{mime};base64,{image_data}'}
+                    },
+                    {
+                        'type': 'text',
+                        'text': prompt
+                    }
+                ]
+            }
+        ],
+        'temperature': 0.3,
+        'max_tokens': 2048
+    }
 
-        with httpx.Client(timeout=45.0) as client:
-            response = client.post(
-                'https://api.artemox.com/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {ARTEMOX_API_KEY}',
-                    'Content-Type': 'application/json'
-                },
-                json=payload
-            )
+    with httpx.Client(timeout=60.0) as client:
+        response = client.post(
+            'https://api.artemox.com/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {OPENAI_API_KEY}',
+                'Content-Type': 'application/json'
+            },
+            json=payload
+        )
 
-        print(f"[vision] model={model} status={response.status_code}", flush=True)
+    print(f"[vision] model={VISION_MODEL} status={response.status_code}", flush=True)
 
-        if response.status_code == 200:
-            data = response.json()
-            text = data.get('choices', [{}])[0].get('message', {}).get('content', '')
-            if text:
-                return text, model
+    if response.status_code == 200:
+        data = response.json()
+        text = data.get('choices', [{}])[0].get('message', {}).get('content', '')
+        return text, VISION_MODEL
 
-        # 400/404 — модель не поддерживается, пробуем следующую
-        if response.status_code in (400, 404, 422):
-            print(f"[vision] model={model} not supported: {response.text[:200]}", flush=True)
-            continue
-
-        # Другие ошибки — стоп
-        print(f"[vision] model={model} error: {response.text[:300]}", flush=True)
-        break
-
+    print(f"[vision] error: {response.text[:300]}", flush=True)
     return '', ''
 
 def handler(event: dict, context) -> dict:
