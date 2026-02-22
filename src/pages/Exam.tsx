@@ -562,10 +562,14 @@ const Exam = () => {
   const [isSoftLanding, setIsSoftLanding] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [thinkingElapsed, setThinkingElapsed] = useState(0);
+  const [sessions, setSessions] = useState<{ id: number; title: string; updated_at: string; message_count: number }[]>([]);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+  const [loadingSession, setLoadingSession] = useState(false);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) navigate('/login');
-    else loadAiLimits();
+    else { loadAiLimits(); loadSessions(); }
   }, [navigate]);
 
   useEffect(() => {
@@ -600,6 +604,42 @@ const Exam = () => {
     } catch (e) {
       console.warn('AI limits load:', e);
     }
+  };
+
+  const loadSessions = async () => {
+    try {
+      const token = authService.getToken();
+      const resp = await fetch(`${AI_URL}?action=sessions`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (resp.ok) { const data = await resp.json(); setSessions(data.sessions || []); }
+    } catch (e) { console.warn('Sessions load:', e); }
+  };
+
+  const loadSessionMessages = async (sessionId: number) => {
+    setLoadingSession(true);
+    try {
+      const token = authService.getToken();
+      const resp = await fetch(`${AI_URL}?action=messages&session_id=${sessionId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (resp.ok) {
+        const data = await resp.json();
+        const msgs: Message[] = (data.messages || []).map((m: { role: 'user' | 'assistant'; content: string; timestamp: string }) => ({
+          role: m.role, content: m.content, timestamp: new Date(m.timestamp)
+        }));
+        setMessages(msgs);
+        setCurrentSessionId(sessionId);
+        setShowSidebar(false);
+        setStep('chat');
+      }
+    } catch (e) { console.warn('Session messages load:', e); }
+    finally { setLoadingSession(false); }
+  };
+
+  const formatSessionDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    if (diff < 86400000) return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    if (diff < 604800000) return d.toLocaleDateString('ru-RU', { weekday: 'short' });
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
   };
 
   const startThinking = () => {
@@ -749,19 +789,70 @@ const Exam = () => {
   const examLabel = examType === 'ege' ? 'ЕГЭ' : 'ОГЭ';
   const modeLabel = MODES.find(m => m.id === mode)?.label || '';
 
+  // ── САЙДБАР ────────────────────────────────────────────────────────────────
+
+  const Sidebar = () => (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="w-72 bg-white h-full flex flex-col shadow-2xl border-r border-gray-100">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+          <h2 className="font-bold text-gray-900">История чатов</h2>
+          <button onClick={() => setShowSidebar(false)} className="p-1.5 rounded-lg hover:bg-gray-100">
+            <Icon name="X" size={18} className="text-gray-600" />
+          </button>
+        </div>
+        <button
+          onClick={() => { setStep('type'); setMessages([]); setCurrentSessionId(null); setShowSidebar(false); }}
+          className="mx-3 mt-3 mb-2 flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-medium transition-colors"
+        >
+          <Icon name="Plus" size={16} />
+          Новый чат
+        </button>
+        <div className="flex-1 overflow-y-auto px-3 pb-4">
+          {sessions.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center mt-8">Чатов пока нет</p>
+          ) : (
+            <div className="space-y-1">
+              {sessions.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => loadSessionMessages(s.id)}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors ${currentSessionId === s.id ? 'bg-purple-50 border border-purple-200' : 'hover:bg-gray-50'}`}
+                >
+                  <p className="text-sm font-medium text-gray-800 truncate">{s.title || 'Новый чат'}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[11px] text-gray-400">{formatSessionDate(s.updated_at)}</span>
+                    <span className="text-[11px] text-gray-300">·</span>
+                    <span className="text-[11px] text-gray-400">{s.message_count} сообщ.</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 bg-black/40" onClick={() => setShowSidebar(false)} />
+    </div>
+  );
+
   // ── ШАГ 1: Выбор типа ────────────────────────────────────────────────────
 
   if (step === 'type') return (
-    <div className="flex flex-col h-[100dvh] bg-white">
+    <div className="flex flex-col h-[100dvh] bg-white relative">
+      {showSidebar && <Sidebar />}
       <header className="flex-shrink-0 px-4 py-4 safe-top border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/')} className="p-1.5 -ml-1 rounded-lg hover:bg-gray-100 transition-colors">
-            <Icon name="ArrowLeft" size={22} className="text-gray-700" />
-          </button>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">Подготовка к экзамену</h1>
-            <p className="text-xs text-gray-500">ИИ-репетитор · ЕГЭ и ОГЭ</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/')} className="p-1.5 -ml-1 rounded-lg hover:bg-gray-100 transition-colors">
+              <Icon name="ArrowLeft" size={22} className="text-gray-700" />
+            </button>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">Подготовка к экзамену</h1>
+              <p className="text-xs text-gray-500">ИИ-репетитор · ЕГЭ и ОГЭ</p>
+            </div>
           </div>
+          <button onClick={() => { setShowSidebar(true); loadSessions(); }} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors">
+            <Icon name="Clock" size={20} />
+          </button>
         </div>
       </header>
 
@@ -892,7 +983,8 @@ const Exam = () => {
   // ── ШАГ 4: Чат ───────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-white">
+    <div className="flex flex-col h-[100dvh] bg-white relative">
+      {showSidebar && <Sidebar />}
       <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-3 safe-top">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -900,23 +992,28 @@ const Exam = () => {
               <Icon name="ArrowLeft" size={22} className="text-gray-700" />
             </button>
             <div>
-              <h1 className="text-base font-bold text-gray-900">{examLabel} · {subject?.label}</h1>
+              <h1 className="text-base font-bold text-gray-900">{examLabel}{subject ? ` · ${subject.label}` : ' · Экзамен'}</h1>
               <p className="text-xs text-gray-500">
                 {isLoading ? (
                   <span className="text-purple-600 font-medium flex items-center gap-1">
                     <span className="inline-block w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
-                    Думаю... {thinkingElapsed > 0 ? `${Math.floor(thinkingElapsed / 1000)}с` : ''}
+                    Думаю...
                   </span>
-                ) : remaining !== null && remaining < 999 ? `Осталось ${remaining} вопросов` : modeLabel}
+                ) : modeLabel || 'ИИ-репетитор'}
               </p>
             </div>
           </div>
-          <button
-            onClick={() => { setStep('mode'); setMessages([]); }}
-            className="text-xs text-purple-600 hover:text-purple-800 font-medium px-3 py-1.5 rounded-lg hover:bg-purple-50 transition-colors"
-          >
-            Сменить режим
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => { setShowSidebar(true); loadSessions(); }} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors">
+              <Icon name="Clock" size={18} />
+            </button>
+            <button
+              onClick={() => { setStep('mode'); setMessages([]); }}
+              className="text-xs text-purple-600 hover:text-purple-800 font-medium px-3 py-1.5 rounded-lg hover:bg-purple-50 transition-colors"
+            >
+              Сменить
+            </button>
+          </div>
         </div>
       </header>
 

@@ -408,8 +408,9 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
     ctx_trimmed = context[:1200] if has_context else ""
 
     system = (
-        "You are Studyfay, a student tutor. "
-        "Respond in Russian. Be concise — 3-5 sentences max unless a longer answer is truly needed. "
+        "You are Studyfay, a friendly student tutor. "
+        "Respond in Russian. Be concise — 3-5 sentences max unless more is truly needed. "
+        "Use relevant emojis naturally (1-3 per response) to make answers friendly and clear. "
         "No LaTeX. Plain text only. No lengthy introductions."
     )
     if has_context:

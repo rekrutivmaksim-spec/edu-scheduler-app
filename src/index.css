@@ -13,6 +13,31 @@
   }
 }
 
+@keyframes ai-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.ai-shimmer-bar {
+  background: linear-gradient(
+    90deg,
+    #a855f7,
+    #6366f1,
+    #ec4899,
+    #8b5cf6,
+    #a855f7
+  );
+  background-size: 300% 100%;
+  animation: ai-shimmer 2s linear infinite;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
