@@ -96,6 +96,9 @@ const Assistant = () => {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [aiUsed, setAiUsed] = useState<number | null>(null);
   const [aiMax, setAiMax] = useState<number | null>(null);
+  const [isTrial, setIsTrial] = useState(false);
+  const [isSoftLanding, setIsSoftLanding] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const [showMaterialPicker, setShowMaterialPicker] = useState(false);
   const [thinkingElapsed, setThinkingElapsed] = useState(0);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -137,9 +140,20 @@ const Assistant = () => {
       if (resp.ok) {
         const data = await resp.json();
         const ai = data.limits?.ai_questions;
-        if (ai && ai.max && ai.max < 999) {
-          setAiUsed(ai.used);
-          setAiMax(ai.max);
+        const sub = data.subscription_type;
+        const trial = data.is_trial;
+        const softLanding = data.is_soft_landing;
+        setIsPremium(sub === 'premium');
+        setIsTrial(!!trial);
+        setIsSoftLanding(!!softLanding);
+        if (ai) {
+          if (ai.max && ai.max < 999) {
+            setAiUsed(ai.used ?? 0);
+            setAiMax(ai.max);
+          } else if (trial || sub === 'premium') {
+            setAiUsed(ai.used ?? 0);
+            setAiMax(ai.max ?? null);
+          }
         }
       }
     } catch (e) {
@@ -309,22 +323,44 @@ const Assistant = () => {
         </div>
       </header>
 
-      {aiMax !== null && aiUsed !== null && (
-        <div className="flex-shrink-0 px-4 py-2 bg-white border-b border-gray-100">
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <Icon name="Bot" size={14} className="text-purple-500 flex-shrink-0" />
-            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${aiUsed / aiMax >= 0.9 ? 'bg-red-500' : aiUsed / aiMax >= 0.7 ? 'bg-orange-500' : 'bg-purple-500'}`}
-                style={{ width: `${Math.min((aiUsed / aiMax) * 100, 100)}%` }}
-              />
-            </div>
-            <span className="text-xs text-gray-500 flex-shrink-0">
-              {aiUsed} / {aiMax} вопросов
+      <div className="flex-shrink-0 px-4 py-2 bg-white border-b border-gray-100">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+          {isTrial ? (
+            <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+              <Icon name="Zap" size={12} className="text-emerald-500" />
+              Пробный период — безлимит
             </span>
-          </div>
+          ) : isPremium ? (
+            <span className="text-xs text-purple-600 font-medium flex items-center gap-1">
+              <Icon name="Crown" size={12} className="text-purple-500" />
+              Premium
+            </span>
+          ) : isSoftLanding ? (
+            <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
+              <Icon name="Clock" size={12} className="text-amber-500" />
+              Расширенный доступ
+            </span>
+          ) : (
+            <span className="text-xs text-gray-500 flex items-center gap-1">
+              <Icon name="Bot" size={12} className="text-gray-400" />
+              Бесплатный план
+            </span>
+          )}
+          {aiMax !== null && aiUsed !== null && !isTrial && (
+            <div className="flex items-center gap-2 flex-1 max-w-[180px]">
+              <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${aiUsed / aiMax >= 0.9 ? 'bg-red-500' : aiUsed / aiMax >= 0.7 ? 'bg-orange-400' : isSoftLanding ? 'bg-amber-500' : isPremium ? 'bg-purple-500' : 'bg-blue-500'}`}
+                  style={{ width: `${Math.min((aiUsed / aiMax) * 100, 100)}%` }}
+                />
+              </div>
+              <span className={`text-xs flex-shrink-0 font-medium ${aiUsed / aiMax >= 0.9 ? 'text-red-500' : 'text-gray-500'}`}>
+                {aiMax - aiUsed} / {aiMax}
+              </span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {showMaterialPicker && (
         <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50 px-4 py-3">

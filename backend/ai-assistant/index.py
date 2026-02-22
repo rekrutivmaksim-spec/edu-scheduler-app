@@ -42,6 +42,10 @@ def get_user_id(token: str):
 PREMIUM_DAILY_LIMIT = 20
 FREE_DAILY_LIMIT = 3
 
+SOFT_LANDING_LIMIT = 10  # вопросов/день в переходный период (дни 8-10 после регистрации)
+SOFT_LANDING_DAYS = 3   # сколько дней длится переходный период
+
+
 def check_access(conn, user_id: int) -> dict:
     """Проверка доступа с учетом подписки/триала/free"""
     cur = conn.cursor()
@@ -49,7 +53,8 @@ def check_access(conn, user_id: int) -> dict:
         SELECT subscription_type, subscription_expires_at, subscription_plan,
                trial_ends_at, is_trial_used,
                daily_questions_used, daily_questions_reset_at, bonus_questions,
-               daily_premium_questions_used, daily_premium_questions_reset_at
+               daily_premium_questions_used, daily_premium_questions_reset_at,
+               created_at
         FROM {SCHEMA_NAME}.users WHERE id = %s
     ''', (user_id,))
     row = cur.fetchone()
@@ -60,7 +65,8 @@ def check_access(conn, user_id: int) -> dict:
     (sub_type, expires_at, sub_plan,
      trial_ends, trial_used,
      daily_used, daily_reset, bonus,
-     prem_daily_used, prem_daily_reset) = row
+     prem_daily_used, prem_daily_reset,
+     created_at) = row
 
     now = datetime.now()
     daily_used = daily_used or 0
@@ -70,6 +76,32 @@ def check_access(conn, user_id: int) -> dict:
     # --- ТРИАЛ: безлимит ---
     if trial_ends and not trial_used and trial_ends > now:
         return {'has_access': True, 'is_trial': True, 'used': 0, 'limit': 999, 'remaining': 999}
+
+    # --- ПЕРЕХОДНЫЙ ПЕРИОД (дни 8-10 после окончания триала): 10 вопросов/день ---
+    if trial_ends and trial_ends <= now:
+        days_since_trial_end = (now - trial_ends).days
+        if 0 <= days_since_trial_end < SOFT_LANDING_DAYS and sub_type != 'premium':
+            if daily_reset and daily_reset < now:
+                cur2 = conn.cursor()
+                cur2.execute(f'UPDATE {SCHEMA_NAME}.users SET daily_questions_used=0, daily_questions_reset_at=%s WHERE id=%s',
+                             (now + timedelta(days=1), user_id))
+                conn.commit()
+                cur2.close()
+                daily_used = 0
+            total_sl = SOFT_LANDING_LIMIT + bonus
+            days_left_sl = SOFT_LANDING_DAYS - days_since_trial_end
+            if daily_used >= total_sl:
+                return {
+                    'has_access': False, 'reason': 'limit', 'is_soft_landing': True,
+                    'used': daily_used, 'limit': SOFT_LANDING_LIMIT,
+                    'soft_landing_days_left': days_left_sl
+                }
+            return {
+                'has_access': True, 'is_soft_landing': True,
+                'used': daily_used, 'limit': SOFT_LANDING_LIMIT,
+                'remaining': total_sl - daily_used,
+                'soft_landing_days_left': days_left_sl
+            }
 
     # --- ПРЕМИУМ ---
     if sub_type == 'premium' and expires_at and expires_at > now:
@@ -576,6 +608,9 @@ def handler(event: dict, context) -> dict:
                 reason = access.get('reason', 'limit')
                 if reason == 'daily_limit':
                     msg = 'Дневной лимит 20 вопросов исчерпан. Купи пакет вопросов или подожди до завтра!'
+                elif access.get('is_soft_landing'):
+                    days_left = access.get('soft_landing_days_left', 1)
+                    msg = f'Сегодняшний лимит {SOFT_LANDING_LIMIT} вопросов исчерпан. Ещё {days_left} д. расширенного доступа — потом 3 вопроса/день. Оформи подписку!'
                 elif access.get('is_free'):
                     msg = 'Бесплатный лимит (3 вопроса в день) исчерпан. Оформи подписку или купи пакет!'
                 else:
@@ -586,6 +621,7 @@ def handler(event: dict, context) -> dict:
                     'used': access.get('used', 0),
                     'limit': access.get('limit', 0),
                     'is_premium': access.get('is_premium', False),
+                    'is_soft_landing': access.get('is_soft_landing', False),
                     'daily_exhausted': access.get('is_premium', False)
                 })
 
