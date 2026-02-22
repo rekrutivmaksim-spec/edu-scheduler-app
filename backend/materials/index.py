@@ -188,15 +188,15 @@ def split_text_into_chunks(text: str) -> list:
 
 
 def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
-    deepseek_key = os.environ.get('DEEPSEEK_API_KEY')
+    artemox_key = os.environ.get('OPENAI_API_KEY', '')
     
-    if not deepseek_key or not full_text or len(full_text) < 10:
+    if not artemox_key or not full_text or len(full_text) < 10:
         return {'summary': 'Документ загружен', 'subject': 'Общее', 'title': filename[:50], 'tasks': []}
     
-    print(f"[MATERIALS] DeepSeek анализ начат, длина текста={len(full_text)}")
+    print(f"[MATERIALS] Artemox анализ начат, длина текста={len(full_text)}")
     
     try:
-        client = OpenAI(api_key=deepseek_key, base_url="https://api.deepseek.com", timeout=30.0)
+        client = OpenAI(api_key=artemox_key, base_url="https://api.artemox.com/v1", timeout=30.0)
         # Берём больше текста для анализа (начало + середина + конец)
         text_start = full_text[:2500]
         text_middle = full_text[len(full_text)//2:len(full_text)//2+2500] if len(full_text) > 5000 else ""
