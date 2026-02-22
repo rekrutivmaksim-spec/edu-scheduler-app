@@ -158,6 +158,9 @@ def handler(event: dict, context) -> dict:
         })
 
     except httpx.HTTPStatusError as e:
-        return err(502, {'error': f'HTTP ошибка: {e.response.status_code}', 'detail': e.response.text[:200]})
+        print(f"[HTTP ERROR] status={e.response.status_code} body={e.response.text[:500]}")
+        return err(502, {'error': f'HTTP ошибка: {e.response.status_code}', 'detail': e.response.text[:300]})
     except Exception as e:
-        return err(500, {'error': str(e)[:200]})
+        import traceback
+        print(f"[EXCEPTION] {traceback.format_exc()}")
+        return err(500, {'error': str(e)[:300]})
