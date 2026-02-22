@@ -734,42 +734,15 @@ const Index = () => {
           </Card>
         </div>
 
-        {/* Killer Feature Banner */}
-        <button
-          onClick={() => navigate('/photo-cheatsheet')}
-          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-purple-200 hover:shadow-xl hover:scale-[1.01] transition-all"
-        >
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl">📸</span>
-          </div>
-          <div className="flex-1 text-left">
-            <p className="font-bold text-white text-sm">Фото → Шпаргалка за 10 сек</p>
-            <p className="text-white/70 text-xs mt-0.5">Сфотографируй билеты — ИИ даст ответы на каждый</p>
-          </div>
-          <Icon name="ChevronRight" size={20} className="text-white/70 flex-shrink-0" />
-        </button>
-
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-5 h-12 sm:h-16 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-2">
-            <TabsTrigger value="schedule" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
-              <Icon name="Calendar" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline font-semibold">Расписание</span>
+          <TabsList className="grid w-full grid-cols-2 h-12 sm:h-14 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-1.5">
+            <TabsTrigger value="schedule" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-sm font-semibold">
+              <Icon name="Calendar" size={18} className="mr-2" />
+              Расписание
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
-              <Icon name="CheckSquare" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline font-semibold">Задачи</span>
-            </TabsTrigger>
-            <TabsTrigger value="scanner" onClick={() => navigate('/materials')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-pink-600 data-[state=active]:to-rose-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-pink-500/30 transition-all text-xs sm:text-base">
-              <Icon name="FileUp" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline font-semibold">Загрузка файлов</span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" onClick={() => navigate('/analytics')} className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 transition-all text-xs sm:text-base">
-              <Icon name="BarChart3" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline font-semibold">Аналитика</span>
-            </TabsTrigger>
-            <TabsTrigger value="profile" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
-              <Icon name="User" size={18} className="sm:mr-2 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline font-semibold">Профиль</span>
+            <TabsTrigger value="tasks" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-sm font-semibold">
+              <Icon name="CheckSquare" size={18} className="mr-2" />
+              Задачи
             </TabsTrigger>
           </TabsList>
 

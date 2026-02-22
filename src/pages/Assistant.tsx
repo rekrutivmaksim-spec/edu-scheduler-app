@@ -451,12 +451,6 @@ const Assistant = () => {
       </div>
 
       <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(0.75rem+4rem+env(safe-area-inset-bottom,0px))] md:pb-3">
-        {isLoading && (
-          <div className="max-w-2xl mx-auto mb-2 flex items-center gap-1.5 text-xs text-amber-600">
-            <Icon name="Clock" size={12} className="flex-shrink-0" />
-            <span>Формирую качественный ответ — иногда до 2 минут, пожалуйста подожди</span>
-          </div>
-        )}
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
@@ -488,6 +482,9 @@ const Assistant = () => {
             )}
           </button>
         </div>
+        <p className="max-w-2xl mx-auto text-center text-[11px] text-gray-400 mt-2">
+          ИИ может обдумывать ответ до 2 минут — это нормально, мы готовим качественный ответ
+        </p>
       </div>
       <BottomNav />
     </div>
