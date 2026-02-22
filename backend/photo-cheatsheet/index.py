@@ -77,7 +77,10 @@ def try_vision_request(image_data: str, mime: str, prompt: str) -> tuple[str, st
         'max_tokens': 2048
     }
 
-    with httpx.Client(timeout=60.0) as client:
+    key_hint = OPENAI_API_KEY[:8] + '...' if OPENAI_API_KEY else 'MISSING'
+    print(f"[vision] sending to Artemox, model={VISION_MODEL}, key={key_hint}, img_len={len(image_data)}", flush=True)
+
+    with httpx.Client(timeout=25.0) as client:
         response = client.post(
             'https://api.artemox.com/v1/chat/completions',
             headers={
@@ -87,14 +90,13 @@ def try_vision_request(image_data: str, mime: str, prompt: str) -> tuple[str, st
             json=payload
         )
 
-    print(f"[vision] model={VISION_MODEL} status={response.status_code}", flush=True)
+    print(f"[vision] status={response.status_code} body={response.text[:400]}", flush=True)
 
     if response.status_code == 200:
         data = response.json()
         text = data.get('choices', [{}])[0].get('message', {}).get('content', '')
         return text, VISION_MODEL
 
-    print(f"[vision] error: {response.text[:300]}", flush=True)
     return '', ''
 
 def handler(event: dict, context) -> dict:
