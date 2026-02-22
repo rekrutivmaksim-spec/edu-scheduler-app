@@ -734,7 +734,20 @@ const Index = () => {
           </Card>
         </div>
 
-
+        {/* Killer Feature Banner */}
+        <button
+          onClick={() => navigate('/photo-cheatsheet')}
+          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-purple-200 hover:shadow-xl hover:scale-[1.01] transition-all"
+        >
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <span className="text-2xl">📸</span>
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-bold text-white text-sm">Фото → Шпаргалка за 10 сек</p>
+            <p className="text-white/70 text-xs mt-0.5">Сфотографируй билеты — ИИ даст ответы на каждый</p>
+          </div>
+          <Icon name="ChevronRight" size={20} className="text-white/70 flex-shrink-0" />
+        </button>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
           <TabsList className="grid w-full grid-cols-5 h-12 sm:h-16 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-2">
