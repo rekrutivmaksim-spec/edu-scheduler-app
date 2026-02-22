@@ -14,9 +14,9 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(24.0, connect=5.0))
-_http_vision = httpx.Client(timeout=httpx.Timeout(24.0, connect=5.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=24.0, http_client=_http)
+_http = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
+_http_vision = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=20.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -446,7 +446,7 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
             model="deepseek-chat",
             messages=messages_list,
             temperature=0.1,
-            max_tokens=500,
+            max_tokens=400,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
@@ -703,7 +703,8 @@ def handler(event: dict, context) -> dict:
             ctx = get_context(conn, user_id, material_ids)
             answer, tokens = ask_ai(question, ctx, image_base64, exam_meta=exam_meta, history=history)
 
-            ai_error = (tokens == 0)
+            # ai_error — только если вернулся fallback (сервер перегружен / сеть)
+            ai_error = (answer == build_smart_fallback(question, ctx))
             remaining_now = max(0, access.get('remaining', 1) - 1) if not ai_error else access.get('remaining', 0)
 
             # --- POST-ОБРАБОТКА В ФОНЕ: не блокируем ответ ---

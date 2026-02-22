@@ -48,7 +48,7 @@ export default function Settings() {
 
   const loadSettings = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = authService.getToken();
       const response = await fetch(NOTIFICATIONS_URL, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -70,7 +70,7 @@ export default function Settings() {
     setSaving(true);
     
     try {
-      const token = localStorage.getItem('token');
+      const token = authService.getToken();
       const response = await fetch(NOTIFICATIONS_URL, {
         method: 'POST',
         headers: {
@@ -91,7 +91,7 @@ export default function Settings() {
       } else {
         throw new Error('Не удалось сохранить настройки');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: 'destructive',
         title: 'Ошибка',

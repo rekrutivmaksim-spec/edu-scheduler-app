@@ -121,11 +121,7 @@ export default function AuthNew() {
           description: `Добро пожаловать, ${data.user.full_name}!`
         });
 
-        if (data.is_new_user) {
-          navigate('/onboarding');
-        } else {
-          navigate('/');
-        }
+        navigate('/');
       } else {
         toast({
           variant: 'destructive',
