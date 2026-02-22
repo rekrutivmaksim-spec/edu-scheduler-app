@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import { Card } from '@/components/ui/card';
@@ -30,6 +30,9 @@ const Profile = () => {
     faculty: user?.faculty || '',
     course: user?.course || ''
   });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -152,6 +155,34 @@ const Profile = () => {
       course: user?.course || ''
     });
     setIsEditing(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      toast({ title: 'Введите пароль', variant: 'destructive' });
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const token = authService.getToken();
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'delete_account', password: deletePassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        authService.logout();
+        toast({ title: 'Аккаунт удалён', description: 'Все ваши данные удалены' });
+        navigate('/auth');
+      } else {
+        toast({ title: 'Ошибка', description: data.error || 'Не удалось удалить аккаунт', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Ошибка сети', variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -445,17 +476,12 @@ const Profile = () => {
             <div>
               <h3 className="font-bold text-red-800 mb-1">Удаление аккаунта</h3>
               <p className="text-sm text-red-700 mb-3">
-                Это действие необратимо. Все ваши данные будут удалены.
+                Это действие необратимо. Все ваши данные, расписание и оценки будут удалены навсегда.
               </p>
               <Button
                 variant="destructive"
                 className="rounded-xl"
-                onClick={() => {
-                  toast({
-                    title: "В разработке",
-                    description: "Функция удаления аккаунта скоро будет доступна",
-                  });
-                }}
+                onClick={() => setShowDeleteModal(true)}
               >
                 <Icon name="Trash2" size={18} className="mr-2" />
                 Удалить аккаунт
@@ -466,6 +492,59 @@ const Profile = () => {
       </main>
 
       <BottomNav />
+
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <Icon name="Trash2" size={22} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">Удалить аккаунт?</h3>
+                <p className="text-sm text-gray-500">Это действие нельзя отменить</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4 bg-red-50 rounded-xl p-3 border border-red-100">
+              Будут удалены: профиль, расписание, задачи, оценки, материалы и вся история.
+            </p>
+
+            <div className="mb-4">
+              <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                Введите пароль для подтверждения
+              </Label>
+              <Input
+                type="password"
+                placeholder="Ваш пароль"
+                value={deletePassword}
+                onChange={e => setDeletePassword(e.target.value)}
+                className="rounded-xl border-2 border-gray-200 focus:border-red-400"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => { setShowDeleteModal(false); setDeletePassword(''); }}
+                disabled={isDeleting}
+              >
+                Отмена
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 rounded-xl"
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Удаляем...' : 'Удалить'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

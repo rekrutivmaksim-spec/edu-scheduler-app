@@ -347,6 +347,45 @@ def handler(event: dict, context) -> dict:
             finally:
                 conn.close()
         
+        # POST /delete_account - Удаление аккаунта
+        elif action == 'delete_account':
+            auth_header = event.get('headers', {}).get('X-Authorization', '') or event.get('headers', {}).get('Authorization', '')
+            token = auth_header.replace('Bearer ', '')
+
+            if not token:
+                return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': 'Токен не предоставлен'})}
+
+            payload = verify_token(token)
+            if not payload:
+                return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': 'Недействительный токен'})}
+
+            password = body.get('password', '')
+            if not password:
+                return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Введите пароль для подтверждения'})}
+
+            conn = get_db_connection()
+            try:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute("SELECT id, email, password_hash FROM users WHERE id = %s", (payload['user_id'],))
+                    user = cur.fetchone()
+
+                    if not user:
+                        return {'statusCode': 404, 'headers': headers, 'body': json.dumps({'error': 'Пользователь не найден'})}
+
+                    if user['password_hash'] and not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+                        return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': 'Неверный пароль'})}
+
+                    # Удаляем все данные пользователя
+                    cur.execute("DELETE FROM schedule WHERE user_id = %s", (user['id'],))
+                    cur.execute("DELETE FROM tasks WHERE user_id = %s", (user['id'],))
+                    cur.execute("DELETE FROM users WHERE id = %s", (user['id'],))
+                    conn.commit()
+
+                    print(f"[AUTH] Аккаунт удалён: {user['email']}, id={user['id']}")
+                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Аккаунт успешно удалён'})}
+            finally:
+                conn.close()
+
         # POST /update_profile - Обновление профиля
         elif action == 'update_profile':
             auth_header = event.get('headers', {}).get('X-Authorization', '') or event.get('headers', {}).get('Authorization', '')

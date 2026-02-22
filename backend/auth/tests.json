@@ -33,6 +33,20 @@
         "message": "string"
       },
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Delete account - missing token",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "delete_account",
+        "password": "somepassword"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
     }
   ]
 }

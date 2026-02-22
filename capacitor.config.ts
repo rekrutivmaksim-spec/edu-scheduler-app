@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'dev.poehali.studyfay',
+  appId: 'ru.studyfay.app',
   appName: 'Studyfay',
   webDir: 'dist',
   server: {
