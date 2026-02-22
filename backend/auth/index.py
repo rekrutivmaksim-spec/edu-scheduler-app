@@ -188,36 +188,68 @@ def handler(event: dict, context) -> dict:
                     
                     # Если пользователя нет - создаем автоматически
                     else:
+                        device_id = body.get('device_id', '').strip()
+                        
+                        # ЗАЩИТА: если device_id передан — проверяем, был ли триал на этом устройстве
+                        trial_allowed = True
+                        if device_id:
+                            cur.execute("""
+                                SELECT id FROM users
+                                WHERE device_id = %s AND is_trial_used = TRUE
+                                LIMIT 1
+                            """, (device_id,))
+                            if cur.fetchone():
+                                trial_allowed = False
+                                print(f"[AUTH] device_id {device_id} уже использовал триал — новый аккаунт без триала")
+                        
                         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                        full_name = email.split('@')[0]  # Используем часть email как имя
+                        full_name = email.split('@')[0]
                         
                         import secrets as _sec
                         referral_code = _sec.token_hex(4).upper()
                         
-                        cur.execute("""
-                            INSERT INTO users (
-                                email, password_hash, full_name, last_login_at,
-                                trial_ends_at, is_trial_used,
-                                ai_tokens_limit, ai_tokens_used, ai_tokens_reset_at,
-                                daily_questions_used, daily_questions_reset_at,
-                                referral_code
-                            )
-                            VALUES (
-                                %s, %s, %s, CURRENT_TIMESTAMP,
-                                CURRENT_TIMESTAMP + INTERVAL '7 days', FALSE,
-                                50000, 0, CURRENT_TIMESTAMP + INTERVAL '1 month',
-                                0, CURRENT_TIMESTAMP,
-                                %s
-                            )
-                            RETURNING id, email, full_name, university, faculty, course, trial_ends_at
-                        """, (email, password_hash, full_name, referral_code))
+                        if trial_allowed:
+                            cur.execute("""
+                                INSERT INTO users (
+                                    email, password_hash, full_name, last_login_at,
+                                    trial_ends_at, is_trial_used,
+                                    ai_tokens_limit, ai_tokens_used, ai_tokens_reset_at,
+                                    daily_questions_used, daily_questions_reset_at,
+                                    referral_code, device_id
+                                )
+                                VALUES (
+                                    %s, %s, %s, CURRENT_TIMESTAMP,
+                                    CURRENT_TIMESTAMP + INTERVAL '7 days', FALSE,
+                                    50000, 0, CURRENT_TIMESTAMP + INTERVAL '1 month',
+                                    0, CURRENT_TIMESTAMP,
+                                    %s, %s
+                                )
+                                RETURNING id, email, full_name, university, faculty, course, trial_ends_at
+                            """, (email, password_hash, full_name, referral_code, device_id or None))
+                        else:
+                            cur.execute("""
+                                INSERT INTO users (
+                                    email, password_hash, full_name, last_login_at,
+                                    trial_ends_at, is_trial_used,
+                                    ai_tokens_limit, ai_tokens_used, ai_tokens_reset_at,
+                                    daily_questions_used, daily_questions_reset_at,
+                                    referral_code, device_id
+                                )
+                                VALUES (
+                                    %s, %s, %s, CURRENT_TIMESTAMP,
+                                    NULL, TRUE,
+                                    0, 0, CURRENT_TIMESTAMP + INTERVAL '1 month',
+                                    0, CURRENT_TIMESTAMP,
+                                    %s, %s
+                                )
+                                RETURNING id, email, full_name, university, faculty, course, trial_ends_at
+                            """, (email, password_hash, full_name, referral_code, device_id or None))
                         
                         new_user = cur.fetchone()
                         conn.commit()
                         
-                        # ЗАЩИТА: сбрасываем счетчик при успешной регистрации
                         reset_failed_login(client_ip)
-                        print(f"[AUTH] Новый пользователь {email} с IP {client_ip}")
+                        print(f"[AUTH] Новый пользователь {email} с IP {client_ip}, device_id={device_id}, trial={trial_allowed}")
                         
                         token = generate_token(new_user['id'], new_user['email'])
                         
@@ -235,7 +267,8 @@ def handler(event: dict, context) -> dict:
                                     'course': new_user['course']
                                 },
                                 'is_new_user': True,
-                                'trial_ends_at': str(new_user['trial_ends_at'])
+                                'trial_ends_at': str(new_user['trial_ends_at']) if new_user['trial_ends_at'] else None,
+                                'trial_available': trial_allowed
                             }, default=str)
                         }
             finally:

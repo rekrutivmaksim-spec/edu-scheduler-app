@@ -7,6 +7,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
+import { Device } from '@capacitor/device';
+
+async function getDeviceId(): Promise<string> {
+  try {
+    const info = await Device.getId();
+    return info.identifier || '';
+  } catch {
+    return '';
+  }
+}
 
 const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
@@ -66,13 +76,16 @@ export default function AuthNew() {
     setLoading(true);
 
     try {
+      const device_id = await getDeviceId();
+
       const response = await fetch(AUTH_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'login',
           email,
-          password
+          password,
+          device_id
         })
       });
 
