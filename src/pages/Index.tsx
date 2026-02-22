@@ -743,8 +743,8 @@ const Index = () => {
             <span className="text-2xl">📸</span>
           </div>
           <div className="flex-1 text-left">
-            <p className="font-bold text-white text-sm">Фото → Шпаргалка за 10 сек</p>
-            <p className="text-white/70 text-xs mt-0.5">Сфотографируй билеты — ИИ даст ответы на каждый</p>
+            <p className="font-bold text-white text-sm">Фото → Решение задачи пошагово</p>
+            <p className="text-white/70 text-xs mt-0.5">Математика, физика, химия — GigaChat объяснит каждый шаг</p>
           </div>
           <Icon name="ChevronRight" size={20} className="text-white/70 flex-shrink-0" />
         </button>

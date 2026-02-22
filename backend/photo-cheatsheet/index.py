@@ -3,12 +3,11 @@ import os
 import jwt
 import base64
 import httpx
+import uuid
 from datetime import datetime
 
-DATABASE_URL = os.environ.get('DATABASE_URL')
-SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+GIGACHAT_API_KEY = os.environ.get('GIGACHAT_API_KEY', '')
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -32,8 +31,37 @@ def get_user_id(token: str):
     except Exception:
         return None
 
+def get_gigachat_token() -> str:
+    """Получает access token через Client Credentials"""
+    rq_uid = str(uuid.uuid4())
+    with httpx.Client(timeout=15.0, verify=False) as client:
+        response = client.post(
+            'https://ngw.devices.sberbank.ru:9443/api/v2/oauth',
+            headers={
+                'Authorization': f'Basic {GIGACHAT_API_KEY}',
+                'RqUID': rq_uid,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            data={'scope': 'GIGACHAT_API_PERS'}
+        )
+    response.raise_for_status()
+    return response.json()['access_token']
+
+def upload_image_to_gigachat(access_token: str, image_data: str) -> str:
+    """Загружает изображение в GigaChat и возвращает file_id"""
+    img_bytes = base64.b64decode(image_data)
+    with httpx.Client(timeout=20.0, verify=False) as client:
+        response = client.post(
+            'https://gigachat.devices.sberbank.ru/api/v1/files',
+            headers={'Authorization': f'Bearer {access_token}'},
+            files={'file': ('image.jpg', img_bytes, 'image/jpeg')},
+            data={'purpose': 'general'}
+        )
+    response.raise_for_status()
+    return response.json()['id']
+
 def handler(event: dict, context) -> dict:
-    """Распознаёт фото билетов/учебников и генерирует шпаргалку через Gemini Flash"""
+    """Распознаёт фото задач/билетов и генерирует шпаргалку через GigaChat Vision"""
 
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
@@ -44,8 +72,8 @@ def handler(event: dict, context) -> dict:
     if not user_id:
         return err(401, {'error': 'Необходима авторизация'})
 
-    if not GEMINI_API_KEY:
-        return err(503, {'error': 'Gemini API не настроен'})
+    if not GIGACHAT_API_KEY:
+        return err(503, {'error': 'GigaChat API не настроен'})
 
     try:
         body = json.loads(event.get('body') or '{}')
@@ -64,63 +92,72 @@ def handler(event: dict, context) -> dict:
     PROMPTS = {
         'cheatsheet': (
             'Ты — помощник студента. На фото — экзаменационные билеты или вопросы к экзамену. '
-            'Твоя задача: дай краткий, чёткий ответ на КАЖДЫЙ вопрос. '
-            'Формат:\n## Билет/Вопрос N\n**Краткий ответ:** ...\n\n'
-            'Пиши по-русски. Отвечай только по содержимому фото. '
-            'Если вопросов нет — сделай краткий конспект того, что видишь.'
+            'Твоя задача: дай краткий, чёткий ответ на КАЖДЫЙ вопрос с фото. '
+            'Формат:\n## Вопрос N\n**Ответ:** ...\n\n'
+            'Пиши по-русски. Если вопросов нет — сделай краткий конспект того, что видишь на фото.'
         ),
         'summary': (
             'Ты — помощник студента. На фото — страница учебника или конспект лекции. '
             'Сделай структурированный конспект: выдели ключевые понятия, определения, формулы. '
-            'Формат: заголовки с ##, ключевые термины жирным, определения с тире. '
-            'Пиши кратко и по делу, по-русски.'
+            'Формат: заголовки с ##, ключевые термины жирным. Пиши кратко, по-русски.'
         ),
         'flashcards': (
             'Ты — помощник студента. На фото — учебный материал. '
-            'Создай набор флэшкарточек для запоминания. '
-            'Формат каждой карточки:\n**Вопрос:** ...\n**Ответ:** ...\n\n'
-            'Сделай 5-10 карточек по самым важным понятиям. Пиши по-русски.'
+            'Создай 5-10 флэшкарточек для запоминания по материалу с фото.\n'
+            'Формат каждой:\n**Вопрос:** ...\n**Ответ:** ...\n\nПиши по-русски.'
+        ),
+        'solve': (
+            'Ты — репетитор. На фото — задача или упражнение. '
+            'Реши её пошагово, объясняя каждый шаг простым языком. '
+            'Формат:\n**Решение:**\nШаг 1: ...\nШаг 2: ...\n\n**Ответ:** ...\nПиши по-русски.'
         )
     }
 
     prompt = PROMPTS.get(mode, PROMPTS['cheatsheet'])
 
-    payload = {
-        'contents': [{
-            'parts': [
-                {'text': prompt},
+    try:
+        access_token = get_gigachat_token()
+        file_id = upload_image_to_gigachat(access_token, image_data)
+
+        payload = {
+            'model': 'GigaChat-Pro',
+            'messages': [
                 {
-                    'inline_data': {
-                        'mime_type': 'image/jpeg',
-                        'data': image_data
-                    }
+                    'role': 'user',
+                    'content': prompt,
+                    'attachments': [file_id]
                 }
-            ]
-        }],
-        'generationConfig': {
+            ],
             'temperature': 0.3,
-            'maxOutputTokens': 2048
+            'max_tokens': 2048
         }
-    }
 
-    with httpx.Client(timeout=30.0) as client:
-        response = client.post(
-            f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}',
-            json=payload,
-            headers={'Content-Type': 'application/json'}
-        )
+        with httpx.Client(timeout=40.0, verify=False) as client:
+            response = client.post(
+                'https://gigachat.devices.sberbank.ru/api/v1/chat/completions',
+                headers={
+                    'Authorization': f'Bearer {access_token}',
+                    'Content-Type': 'application/json'
+                },
+                json=payload
+            )
 
-    if response.status_code != 200:
-        return err(502, {'error': 'Ошибка Gemini API', 'detail': response.text[:200]})
+        if response.status_code != 200:
+            return err(502, {'error': 'Ошибка GigaChat API', 'detail': response.text[:300]})
 
-    data = response.json()
-    text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
+        data = response.json()
+        text = data.get('choices', [{}])[0].get('message', {}).get('content', '')
 
-    if not text:
-        return err(502, {'error': 'Gemini не вернул ответ'})
+        if not text:
+            return err(502, {'error': 'GigaChat не вернул ответ'})
 
-    return ok({
-        'result': text,
-        'mode': mode,
-        'generated_at': datetime.utcnow().isoformat()
-    })
+        return ok({
+            'result': text,
+            'mode': mode,
+            'generated_at': datetime.utcnow().isoformat()
+        })
+
+    except httpx.HTTPStatusError as e:
+        return err(502, {'error': f'HTTP ошибка: {e.response.status_code}', 'detail': e.response.text[:200]})
+    except Exception as e:
+        return err(500, {'error': str(e)[:200]})

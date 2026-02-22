@@ -11,9 +11,10 @@ import BottomNav from '@/components/BottomNav';
 const API_URL = 'https://functions.poehali.dev/5d453e78-6a8d-4a09-b840-9557b58f6ca0';
 
 const MODES = [
-  { id: 'cheatsheet', label: 'Шпаргалка', icon: 'FileText', desc: 'Ответы на каждый вопрос/билет' },
-  { id: 'summary', label: 'Конспект', icon: 'BookOpen', desc: 'Структурированный конспект страницы' },
-  { id: 'flashcards', label: 'Карточки', icon: 'Layers', desc: 'Флэшкарточки для запоминания' },
+  { id: 'solve', label: 'Решить', icon: 'Calculator', desc: 'Пошаговое решение задачи' },
+  { id: 'cheatsheet', label: 'Шпаргалка', icon: 'FileText', desc: 'Ответы на билеты/вопросы' },
+  { id: 'summary', label: 'Конспект', icon: 'BookOpen', desc: 'Конспект страницы учебника' },
+  { id: 'flashcards', label: 'Карточки', icon: 'Layers', desc: 'Флэшкарточки для повторения' },
 ];
 
 const PhotoCheatsheet = () => {
@@ -22,7 +23,7 @@ const PhotoCheatsheet = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [image, setImage] = useState<string | null>(null);
-  const [mode, setMode] = useState('cheatsheet');
+  const [mode, setMode] = useState('solve');
   const [result, setResult] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -97,13 +98,13 @@ const PhotoCheatsheet = () => {
         </button>
         <div>
           <h1 className="font-bold text-gray-900 text-lg leading-tight">Фото → Шпаргалка</h1>
-          <p className="text-xs text-purple-500">Сфотографируй билеты — ИИ сделает ответы</p>
+          <p className="text-xs text-purple-500">Сфотографируй задачу — ИИ решит пошагово</p>
         </div>
       </header>
 
       <main className="max-w-xl mx-auto px-4 pt-5 space-y-4">
         {/* Mode selector */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {MODES.map((m) => (
             <button
               key={m.id}
@@ -229,9 +230,9 @@ const PhotoCheatsheet = () => {
             </p>
             <div className="space-y-2">
               {[
-                { icon: '📸', text: 'Сфотографируй листок с билетами или страницу учебника' },
-                { icon: '🤖', text: 'ИИ читает текст и генерирует шпаргалку за 5-10 секунд' },
-                { icon: '✅', text: 'Готово к ночи перед экзаменом' },
+                { icon: '📸', text: 'Сфотографируй задачу, билет или страницу учебника' },
+                { icon: '🤖', text: 'GigaChat решит задачу пошагово или сделает шпаргалку за секунды' },
+                { icon: '✅', text: 'Математика, физика, химия, история, языки — любой предмет' },
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <span className="text-base">{item.icon}</span>
