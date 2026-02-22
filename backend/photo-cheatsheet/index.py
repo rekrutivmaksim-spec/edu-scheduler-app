@@ -1,12 +1,11 @@
 import json
 import os
 import jwt
-import base64
 import httpx
 from datetime import datetime
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -32,30 +31,85 @@ def get_user_id(token: str):
 
 PROMPTS = {
     'solve': (
-        'Ты — репетитор. На фото — задача или упражнение. '
+        'Ты — репетитор. На изображении — задача или упражнение. '
         'Реши её пошагово, объясняя каждый шаг простым языком. '
         'Формат:\n**Решение:**\nШаг 1: ...\nШаг 2: ...\n\n**Ответ:** ...\n\nПиши по-русски.'
     ),
     'cheatsheet': (
-        'Ты — помощник студента. На фото — экзаменационные билеты или вопросы к экзамену. '
-        'Дай краткий чёткий ответ на КАЖДЫЙ вопрос с фото. '
-        'Формат:\n## Вопрос N\n**Ответ:** ...\n\nПиши по-русски. '
-        'Если вопросов нет — сделай краткий конспект того, что видишь на фото.'
+        'Ты — помощник студента. На изображении — экзаменационные билеты или вопросы. '
+        'Дай краткий чёткий ответ на КАЖДЫЙ вопрос. '
+        'Формат:\n## Вопрос N\n**Ответ:** ...\n\nПиши по-русски.'
     ),
     'summary': (
-        'Ты — помощник студента. На фото — страница учебника или конспект лекции. '
-        'Сделай структурированный конспект: выдели ключевые понятия, определения, формулы. '
-        'Формат: заголовки ##, ключевые термины жирным. Пиши кратко, по-русски.'
+        'Ты — помощник студента. На изображении — страница учебника или конспект. '
+        'Сделай структурированный конспект: ключевые понятия, определения, формулы. '
+        'Формат: заголовки ##, термины жирным. Пиши кратко, по-русски.'
     ),
     'flashcards': (
-        'Ты — помощник студента. На фото — учебный материал. '
-        'Создай 5-10 флэшкарточек для запоминания по материалу с фото.\n'
-        'Формат каждой:\n**Вопрос:** ...\n**Ответ:** ...\n\nПиши по-русски.'
+        'Ты — помощник студента. На изображении — учебный материал. '
+        'Создай 5-10 флэшкарточек по материалу.\n'
+        'Формат:\n**Вопрос:** ...\n**Ответ:** ...\n\nПиши по-русски.'
     )
 }
 
+# Модели для проверки — пробуем по приоритету
+VISION_MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-vision-preview']
+
+def try_vision_request(image_data: str, mime: str, prompt: str) -> tuple[str, str]:
+    """Пробует vision-запрос через доступные модели. Возвращает (text, model_used)"""
+    for model in VISION_MODELS:
+        payload = {
+            'model': model,
+            'messages': [
+                {
+                    'role': 'user',
+                    'content': [
+                        {
+                            'type': 'image_url',
+                            'image_url': {'url': f'data:{mime};base64,{image_data}'}
+                        },
+                        {
+                            'type': 'text',
+                            'text': prompt
+                        }
+                    ]
+                }
+            ],
+            'temperature': 0.3,
+            'max_tokens': 2048
+        }
+
+        with httpx.Client(timeout=45.0) as client:
+            response = client.post(
+                'https://api.artemox.com/v1/chat/completions',
+                headers={
+                    'Authorization': f'Bearer {ARTEMOX_API_KEY}',
+                    'Content-Type': 'application/json'
+                },
+                json=payload
+            )
+
+        print(f"[vision] model={model} status={response.status_code}", flush=True)
+
+        if response.status_code == 200:
+            data = response.json()
+            text = data.get('choices', [{}])[0].get('message', {}).get('content', '')
+            if text:
+                return text, model
+
+        # 400/404 — модель не поддерживается, пробуем следующую
+        if response.status_code in (400, 404, 422):
+            print(f"[vision] model={model} not supported: {response.text[:200]}", flush=True)
+            continue
+
+        # Другие ошибки — стоп
+        print(f"[vision] model={model} error: {response.text[:300]}", flush=True)
+        break
+
+    return '', ''
+
 def handler(event: dict, context) -> dict:
-    """Распознаёт фото задач/билетов и генерирует шпаргалку через DeepSeek-VL"""
+    """Распознаёт фото задач/билетов через vision-модель и генерирует решение/шпаргалку"""
 
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
@@ -65,9 +119,6 @@ def handler(event: dict, context) -> dict:
     user_id = get_user_id(token)
     if not user_id:
         return err(401, {'error': 'Необходима авторизация'})
-
-    if not DEEPSEEK_API_KEY:
-        return err(503, {'error': 'DeepSeek API не настроен'})
 
     try:
         body = json.loads(event.get('body') or '{}')
@@ -80,7 +131,6 @@ def handler(event: dict, context) -> dict:
     if not image_data:
         return err(400, {'error': 'Нет изображения'})
 
-    # Нормализуем base64 — убираем data:... префикс если есть
     if image_data.startswith('data:'):
         mime = image_data.split(';')[0].replace('data:', '')
         image_data = image_data.split(',', 1)[1]
@@ -89,53 +139,16 @@ def handler(event: dict, context) -> dict:
 
     prompt = PROMPTS.get(mode, PROMPTS['solve'])
 
-    payload = {
-        'model': 'deepseek-vl2',
-        'messages': [
-            {
-                'role': 'user',
-                'content': [
-                    {
-                        'type': 'image_url',
-                        'image_url': {
-                            'url': f'data:{mime};base64,{image_data}'
-                        }
-                    },
-                    {
-                        'type': 'text',
-                        'text': prompt
-                    }
-                ]
-            }
-        ],
-        'temperature': 0.3,
-        'max_tokens': 2048
-    }
-
     try:
-        with httpx.Client(timeout=45.0) as client:
-            response = client.post(
-                'https://api.deepseek.com/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
-                    'Content-Type': 'application/json'
-                },
-                json=payload
-            )
-
-        if response.status_code != 200:
-            print(f"[DeepSeek ERROR] status={response.status_code} body={response.text[:500]}")
-            return err(502, {'error': 'Ошибка DeepSeek API', 'detail': response.text[:300]})
-
-        data = response.json()
-        text = data.get('choices', [{}])[0].get('message', {}).get('content', '')
+        text, model_used = try_vision_request(image_data, mime, prompt)
 
         if not text:
-            return err(502, {'error': 'DeepSeek не вернул ответ'})
+            return err(502, {'error': 'Функция распознавания фото временно недоступна. Попробуй ввести задачу текстом в ИИ-ассистенте.'})
 
         return ok({
             'result': text,
             'mode': mode,
+            'model': model_used,
             'generated_at': datetime.utcnow().isoformat()
         })
 
@@ -143,5 +156,5 @@ def handler(event: dict, context) -> dict:
         return err(504, {'error': 'Превышено время ожидания. Попробуй ещё раз.'})
     except Exception as e:
         import traceback
-        print(f"[EXCEPTION] {traceback.format_exc()}")
+        print(f"[EXCEPTION] {traceback.format_exc()}", flush=True)
         return err(500, {'error': str(e)[:300]})
