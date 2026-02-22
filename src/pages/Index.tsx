@@ -734,6 +734,21 @@ const Index = () => {
           </Card>
         </div>
 
+        {/* Killer Feature Banner */}
+        <button
+          onClick={() => navigate('/photo-cheatsheet')}
+          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-purple-200 hover:shadow-xl hover:scale-[1.01] transition-all"
+        >
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <span className="text-2xl">📸</span>
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-bold text-white text-sm">Фото → Шпаргалка за 10 сек</p>
+            <p className="text-white/70 text-xs mt-0.5">Сфотографируй билеты — ИИ даст ответы на каждый</p>
+          </div>
+          <Icon name="ChevronRight" size={20} className="text-white/70 flex-shrink-0" />
+        </button>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
           <TabsList className="grid w-full grid-cols-5 h-12 sm:h-16 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-2">
             <TabsTrigger value="schedule" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-xs sm:text-base">
@@ -924,7 +939,15 @@ const Index = () => {
               ) : todayLessons.length === 0 ? (
                 <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
                   <Icon name="CalendarOff" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
-                  <p className="text-sm sm:text-base text-gray-600">Нет занятий на этот день</p>
+                  <p className="text-sm sm:text-base font-semibold text-gray-700 mb-1">Пар нет — свободный день!</p>
+                  <p className="text-xs text-gray-400 mb-4">Или добавь занятие если расписание ещё не заполнено</p>
+                  <Button
+                    onClick={() => setIsAddingLesson(true)}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm h-9"
+                  >
+                    <Icon name="Plus" size={16} className="mr-1.5" />
+                    Добавить занятие
+                  </Button>
                 </Card>
               ) : (
                 todayLessons.map((lesson) => (
@@ -1122,7 +1145,15 @@ const Index = () => {
               ) : tasks.length === 0 ? (
                 <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
                   <Icon name="ListTodo" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
-                  <p className="text-sm sm:text-base text-gray-600">Нет задач</p>
+                  <p className="text-sm sm:text-base font-semibold text-gray-700 mb-1">Задач пока нет</p>
+                  <p className="text-xs text-gray-400 mb-4">Добавь первую задачу — и начни учёбу с чистого листа</p>
+                  <Button
+                    onClick={() => setIsAddingTask(true)}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm h-9"
+                  >
+                    <Icon name="Plus" size={16} className="mr-1.5" />
+                    Добавить задачу
+                  </Button>
                 </Card>
               ) : (
                 tasks

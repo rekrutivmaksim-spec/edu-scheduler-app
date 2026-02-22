@@ -40,7 +40,7 @@ def get_user_id(token: str):
         return None
 
 PREMIUM_DAILY_LIMIT = 20
-FREE_DAILY_LIMIT = 3
+FREE_DAILY_LIMIT = 10
 
 def check_access(conn, user_id: int) -> dict:
     """Проверка доступа с учетом подписки/триала/free"""

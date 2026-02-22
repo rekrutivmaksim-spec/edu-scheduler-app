@@ -5,7 +5,7 @@ const tabs = [
   { path: '/', icon: 'Home', label: 'Главная' },
   { path: '/dashboard', icon: 'LayoutDashboard', label: 'Сводка' },
   { path: '/assistant', icon: 'Bot', label: 'ИИ' },
-  { path: '/exam', icon: 'GraduationCap', label: 'ЕГЭ/ОГЭ' },
+  { path: '/flashcards', icon: 'BookOpen', label: 'Карточки' },
   { path: '/profile', icon: 'User', label: 'Профиль' },
 ];
 
