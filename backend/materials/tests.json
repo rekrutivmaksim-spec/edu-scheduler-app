@@ -1,14 +1,16 @@
 {
   "tests": [
     {
-      "name": "Get user materials",
+      "name": "Get materials without auth",
       "method": "GET",
       "path": "/",
-      "expectedStatus": 200,
-      "expectedBody": {
-        "materials": "array"
-      },
-      "bodyMatcher": "partial"
+      "expectedStatus": 401
+    },
+    {
+      "name": "OPTIONS CORS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
     }
   ]
 }

@@ -256,7 +256,7 @@ def handle_generate(conn, user_id, body):
 
     try:
         response = ai_client.chat.completions.create(
-            model='gpt-4o-mini',
+            model='deepseek-chat',
             messages=[{'role': 'user', 'content': prompt}],
             max_tokens=2000,
             temperature=0.7
