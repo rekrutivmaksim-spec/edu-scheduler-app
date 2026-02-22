@@ -10,12 +10,11 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0))
-_http_vision = httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=30.0, http_client=_http)
+_http = httpx.Client(timeout=httpx.Timeout(90.0, connect=10.0))
+_http_vision = httpx.Client(timeout=httpx.Timeout(60.0, connect=10.0))
+client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url='https://api.deepseek.com/v1', timeout=90.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -370,7 +369,7 @@ def sanitize_answer(text):
 
 
 def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
-    """Запрос к ИИ через Artemox. exam_meta — строка 'тип|предмет_id|предмет|режим'"""
+    """Запрос к ИИ через DeepSeek. exam_meta — строка 'тип|предмет_id|предмет|режим'"""
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:2000] if has_context else ""
 
@@ -407,7 +406,7 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
     messages_list.append({"role": "user", "content": user_content})
 
     try:
-        print(f"[AI] -> Artemox {'[exam]' if exam_meta else ''} q_len:{len(user_content)}", flush=True)
+        print(f"[AI] -> DeepSeek {'[exam]' if exam_meta else ''} q_len:{len(user_content)}", flush=True)
         resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages_list,
@@ -416,13 +415,13 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
-        print(f"[AI] Artemox OK tokens:{tokens}", flush=True)
+        print(f"[AI] DeepSeek OK tokens:{tokens}", flush=True)
         answer = sanitize_answer(answer)
         if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
             answer = answer.rstrip() + '.'
         return answer, tokens
     except Exception as e:
-        print(f"[AI] Artemox FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
+        print(f"[AI] DeepSeek FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
         return build_smart_fallback(question, context), 0
 
 
@@ -513,7 +512,7 @@ def ask_ai_vision(question, system, image_base64):
         return "Не удалось распознать текст с фото. Попробуй сфотографировать чётче или перепиши условие задачи текстом — разберём вместе!", 0
 
 def build_smart_fallback(question, context):
-    """Fallback когда Artemox недоступен — честно говорим и просим повторить"""
+    """Fallback когда DeepSeek недоступен — честно говорим и просим повторить"""
     q = question.lower().strip()
     if any(w in q for w in ['привет', 'здравствуй', 'хай']):
         return "Привет! Я Studyfay — твой репетитор. Задавай любой вопрос — разберём вместе!"

@@ -72,7 +72,7 @@ const ThinkingIndicator = ({ hasMaterials, elapsed }: { hasMaterials: boolean; e
           <div className="h-1 flex-1 bg-gray-200 rounded-full overflow-hidden max-w-[180px]">
             <div 
               className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${Math.min(95, (elapsed / 30000) * 100)}%` }}
+              style={{ width: `${Math.min(95, (elapsed / 90000) * 100)}%` }}
             />
           </div>
           <span className="text-[10px] text-gray-400 tabular-nums">{Math.floor(elapsed / 1000)}с</span>
@@ -177,7 +177,7 @@ const Assistant = () => {
     const doFetch = async (): Promise<Response> => {
       const token = authService.getToken();
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 40000);
+      const tid = setTimeout(() => controller.abort(), 110000);
       const resp = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -382,9 +382,13 @@ const Assistant = () => {
                 <Icon name="Sparkles" size={32} className="text-white" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">Привет! Я Studyfay</h2>
-              <p className="text-gray-500 text-center mb-8 max-w-sm text-sm leading-relaxed">
+              <p className="text-gray-500 text-center mb-3 max-w-sm text-sm leading-relaxed">
                 Задай любой вопрос — помогу разобраться с учёбой, объясню тему или составлю конспект
               </p>
+              <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-5 max-w-xs">
+                <Icon name="Clock" size={13} className="flex-shrink-0" />
+                <span>ИИ формирует качественный ответ — иногда до 2 минут</span>
+              </div>
               <div className="w-full space-y-2">
                 {quickActions.map((qa, i) => (
                   <button
@@ -446,7 +450,13 @@ const Assistant = () => {
         </div>
       </div>
 
-      <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-3 pb-[calc(0.75rem+4rem+env(safe-area-inset-bottom,0px))] md:pb-3">
+      <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(0.75rem+4rem+env(safe-area-inset-bottom,0px))] md:pb-3">
+        {isLoading && (
+          <div className="max-w-2xl mx-auto mb-2 flex items-center gap-1.5 text-xs text-amber-600">
+            <Icon name="Clock" size={12} className="flex-shrink-0" />
+            <span>Формирую качественный ответ — иногда до 2 минут, пожалуйста подожди</span>
+          </div>
+        )}
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea

@@ -107,7 +107,7 @@ const Pricing = () => {
         { text: 'До 7 занятий в расписании', included: true },
         { text: 'До 10 активных задач', included: true },
         { text: '2 материала в месяц', included: true },
-        { text: '3 AI-вопроса в день', included: true },
+        { text: '10 AI-вопросов в день', included: true },
         { text: '5 предметов в зачётке', included: true },
         { text: '20 AI-вопросов/день', included: false },
         { text: 'Заморозка стрика', included: false }

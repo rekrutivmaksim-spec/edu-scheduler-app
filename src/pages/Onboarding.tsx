@@ -29,7 +29,7 @@ const FEATURES = [
   {
     icon: 'Trophy',
     title: 'Достижения и стрики',
-    description: '60+ ачивок, квесты, рейтинг среди студентов',
+    description: '60+ ачивок, ежедневные квесты и стрики',
     gradient: 'from-amber-500 to-orange-500',
     bg: 'bg-amber-50',
   },
