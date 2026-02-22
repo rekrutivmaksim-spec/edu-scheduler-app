@@ -508,26 +508,21 @@ const Assistant = () => {
                         </p>
                       </div>
                     </div>
-                    {isLastAssistant && assistantCount > 1 && (
-                      <div className="flex gap-2 mt-2 ml-10 flex-wrap">
-                        {assistantCount % 5 === 0 ? (
-                          <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700">
-                            <span>🔥</span>
-                            <span className="font-medium">{assistantCount} вопросов в этом чате — ты молодец!</span>
-                          </div>
-                        ) : !isPremium && remaining !== null && remaining <= 1 ? (
-                          <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl px-3 py-2 text-xs">
-                            <span>💎</span>
-                            <span className="text-gray-700">Заканчиваются вопросы. </span>
-                            <button onClick={() => window.location.href = '/subscription'} className="text-purple-600 font-semibold hover:text-purple-800 whitespace-nowrap">Получить Premium →</button>
-                          </div>
-                        ) : !isPremium && assistantCount === 2 ? (
-                          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600">
-                            <span>✨</span>
-                            <span>С Premium — безлимит вопросов + план подготовки </span>
-                            <button onClick={() => window.location.href = '/subscription'} className="text-purple-600 font-semibold hover:text-purple-800">Подробнее</button>
-                          </div>
-                        ) : null}
+                    {isLastAssistant && assistantCount > 0 && assistantCount % 7 === 0 && (
+                      <div className="flex gap-2 mt-2 ml-10">
+                        <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700">
+                          <span>🔥</span>
+                          <span className="font-medium">{assistantCount} вопросов — отличный прогресс!</span>
+                        </div>
+                      </div>
+                    )}
+                    {isLastAssistant && !isPremium && remaining !== null && remaining <= 1 && (
+                      <div className="flex gap-2 mt-2 ml-10">
+                        <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl px-3 py-2 text-xs">
+                          <span>💎</span>
+                          <span className="text-gray-700">Заканчиваются вопросы — </span>
+                          <button onClick={() => window.location.href = '/subscription'} className="text-purple-600 font-semibold hover:text-purple-800 whitespace-nowrap">оформи Premium →</button>
+                        </div>
                       </div>
                     )}
                   </div>

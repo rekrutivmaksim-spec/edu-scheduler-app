@@ -593,6 +593,7 @@ const Exam = () => {
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
   const [loadingSession, setLoadingSession] = useState(false);
   const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set());
+  const pendingTaskNumRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) navigate('/login');
@@ -688,6 +689,10 @@ const Exam = () => {
       setAiUsed(prev => (prev !== null && aiMax !== null) ? aiMax - data.remaining : prev);
     }
     setMessages(prev => [...prev, { role: 'assistant', content: data.answer, timestamp: new Date() }]);
+    if (pendingTaskNumRef.current !== null) {
+      setCompletedTasks(prev => new Set(prev).add(pendingTaskNumRef.current!));
+      pendingTaskNumRef.current = null;
+    }
     try {
       const gam = await trackActivity('ai_questions_asked', 1);
       if (gam?.new_achievements?.length) {
@@ -698,7 +703,7 @@ const Exam = () => {
     } catch (e) {
       console.warn('Gamification:', e);
     }
-  }, [toast]);
+  }, [toast, aiMax]);
 
   const makeFetchBody = useCallback((q: string, hist: Message[], selectedMode: string) => ({
     question: q,
@@ -1121,25 +1126,21 @@ const Exam = () => {
                     </p>
                   </div>
                 </div>
-                {isLastAssistant && assistantCount > 1 && (
-                  <div className="flex gap-2 mt-3 ml-10 flex-wrap">
-                    {assistantCount % 3 === 0 ? (
-                      <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700">
-                        <span>🔥</span>
-                        <span className="font-medium">Серия {assistantCount} ответов! Ты на волне подготовки</span>
-                      </div>
-                    ) : isPremium ? (
-                      <div className="flex items-center gap-2 bg-purple-50 border border-purple-100 rounded-xl px-3 py-2 text-xs text-purple-700">
-                        <span>👑</span>
-                        <span>Выбери следующее задание ниже ↓</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-xl px-3 py-2 text-xs">
-                        <span>💡</span>
-                        <span className="text-gray-600">Разбирай все задания без ограничений с </span>
-                        <button onClick={() => window.location.href = '/subscription'} className="text-purple-600 font-semibold hover:text-purple-800">Premium →</button>
-                      </div>
-                    )}
+                {isLastAssistant && assistantCount > 0 && assistantCount % 5 === 0 && (
+                  <div className="flex gap-2 mt-3 ml-10">
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700">
+                      <span>🔥</span>
+                      <span className="font-medium">Уже {assistantCount} разборов — ты молодец!</span>
+                    </div>
+                  </div>
+                )}
+                {isLastAssistant && !isPremium && remaining !== null && remaining <= 1 && (
+                  <div className="flex gap-2 mt-3 ml-10">
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl px-3 py-2 text-xs">
+                      <span>💎</span>
+                      <span className="text-gray-700">Заканчиваются вопросы — </span>
+                      <button onClick={() => window.location.href = '/subscription'} className="text-purple-600 font-semibold hover:text-purple-800 whitespace-nowrap">оформи Premium →</button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1157,7 +1158,7 @@ const Exam = () => {
           subjectId={subject?.id || ''}
           mode={mode}
           onSelect={(text, taskNum) => {
-            setCompletedTasks(prev => new Set(prev).add(taskNum));
+            pendingTaskNumRef.current = taskNum;
             sendMessage(text);
           }}
           completedTasks={completedTasks}
