@@ -1,0 +1,19 @@
+{
+  "tests": [
+    {
+      "name": "Test OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Test without auth",
+      "method": "POST",
+      "path": "/",
+      "body": {"image_data": "test", "mode": "cheatsheet"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "Необходима авторизация"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

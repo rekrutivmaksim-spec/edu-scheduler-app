@@ -9,6 +9,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import BottomNav from '@/components/BottomNav';
+import ReviewPrompt from '@/components/ReviewPrompt';
 
 const API_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
@@ -155,6 +156,7 @@ const Achievements = () => {
   const [freezingStreak, setFreezingStreak] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeModalTrigger, setUpgradeModalTrigger] = useState<'streak_freeze' | 'daily_quest' | 'general'>('general');
+  const [reviewTrigger, setReviewTrigger] = useState<'streak_7' | 'streak_30' | 'first_material' | 'first_flashcard' | null>(null);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -165,6 +167,12 @@ const Achievements = () => {
       if (res.ok) {
         const data: GamificationProfile = await res.json();
         setProfile(data);
+        const streak = data.streak?.current ?? 0;
+        if (streak >= 30 && !localStorage.getItem('review_shown_streak_30')) {
+          setReviewTrigger('streak_30');
+        } else if (streak >= 7 && !localStorage.getItem('review_shown_streak_7')) {
+          setReviewTrigger('streak_7');
+        }
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -1026,6 +1034,7 @@ const Achievements = () => {
         trigger={upgradeModalTrigger}
       />
 
+      <ReviewPrompt trigger={reviewTrigger} onClose={() => setReviewTrigger(null)} />
       <BottomNav />
     </div>
   );
