@@ -475,11 +475,13 @@ const TaskPanel = ({
   subjectId,
   mode,
   onSelect,
+  completedTasks,
 }: {
   examType: string;
   subjectId: string;
   mode: string;
-  onSelect: (text: string) => void;
+  onSelect: (text: string, taskNum: number) => void;
+  completedTasks: Set<number>;
 }) => {
   const [open, setOpen] = useState(false);
   const tasks = getTaskList(examType, subjectId);
@@ -488,6 +490,7 @@ const TaskPanel = ({
   if (!tasks.length) return null;
 
   const verb = mode === 'practice' ? 'Тренировать' : 'Объяснить';
+  const doneCount = tasks.filter(t => completedTasks.has(t.num)).length;
 
   return (
     <div className="flex-shrink-0 border-t border-gray-100 bg-gray-50">
@@ -497,30 +500,53 @@ const TaskPanel = ({
       >
         <span className="flex items-center gap-2">
           <Icon name="ListOrdered" size={16} className="text-purple-500" />
-          Все задания {examLabel} — выбери тему
+          <span>Задания {examLabel}</span>
+          {doneCount > 0 && (
+            <span className="text-[11px] bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">
+              ✓ {doneCount}/{tasks.length}
+            </span>
+          )}
         </span>
         <Icon name={open ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-gray-400" />
       </button>
 
       {open && (
-        <div className="max-h-56 overflow-y-auto px-3 pb-3">
+        <div className="max-h-64 overflow-y-auto px-3 pb-3">
+          {doneCount > 0 && (
+            <p className="text-[11px] text-green-600 px-1 pb-2">
+              🎉 Выполнено {doneCount} из {tasks.length} — отличный прогресс!
+            </p>
+          )}
           <div className="grid grid-cols-1 gap-1">
-            {tasks.map(t => (
-              <button
-                key={t.num}
-                onClick={() => {
-                  onSelect(`Задание ${t.num} — ${t.topic}`);
-                  setOpen(false);
-                }}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white hover:shadow-sm transition-all text-left"
-              >
-                <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center">
-                  {t.num}
-                </span>
-                <span className="text-sm text-gray-700 flex-1">{t.topic}</span>
-                <span className="flex-shrink-0 text-[11px] text-purple-500 font-medium">{verb} →</span>
-              </button>
-            ))}
+            {tasks.map(t => {
+              const done = completedTasks.has(t.num);
+              return (
+                <button
+                  key={t.num}
+                  onClick={() => {
+                    onSelect(`Задание ${t.num} — ${t.topic}`, t.num);
+                    setOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-left ${
+                    done
+                      ? 'bg-green-50 border border-green-100 opacity-75 hover:opacity-100 hover:bg-green-100'
+                      : 'hover:bg-white hover:shadow-sm'
+                  }`}
+                >
+                  <span className={`flex-shrink-0 w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center ${
+                    done ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-700'
+                  }`}>
+                    {done ? '✓' : t.num}
+                  </span>
+                  <span className={`text-sm flex-1 ${done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                    {t.topic}
+                  </span>
+                  {!done && (
+                    <span className="flex-shrink-0 text-[11px] text-purple-500 font-medium">{verb} →</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -566,6 +592,7 @@ const Exam = () => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
   const [loadingSession, setLoadingSession] = useState(false);
+  const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!authService.isAuthenticated()) navigate('/login');
@@ -1064,45 +1091,76 @@ const Exam = () => {
             </span>
           </div>
 
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Icon name="GraduationCap" size={15} className="text-white" />
-                </div>
-              )}
-              <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-first' : ''}`}>
-                <div className={`px-4 py-3 rounded-2xl ${
-                  msg.role === 'user'
-                    ? 'bg-purple-600 text-white rounded-br-md'
-                    : 'bg-gray-100 text-gray-800 rounded-bl-md'
-                }`}>
-                  {msg.role === 'assistant' ? (
-                    <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:text-gray-900 prose-strong:text-gray-900 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:rounded text-sm">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+          {messages.map((msg, i) => {
+            const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1 && !isLoading;
+            const assistantCount = messages.filter((m, idx) => m.role === 'assistant' && idx <= i).length;
+            return (
+              <div key={i}>
+                <div className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {msg.role === 'assistant' && (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Icon name="GraduationCap" size={15} className="text-white" />
                     </div>
-                  ) : (
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                   )}
+                  <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-first' : ''}`}>
+                    <div className={`px-4 py-3 rounded-2xl ${
+                      msg.role === 'user'
+                        ? 'bg-purple-600 text-white rounded-br-md'
+                        : 'bg-gray-100 text-gray-800 rounded-bl-md'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:text-gray-900 prose-strong:text-gray-900 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:rounded text-sm">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      )}
+                    </div>
+                    <p className={`text-[11px] mt-1 px-1 text-gray-400 ${msg.role === 'user' ? 'text-right' : ''}`}>
+                      {msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
                 </div>
-                <p className={`text-[11px] mt-1 px-1 text-gray-400 ${msg.role === 'user' ? 'text-right' : ''}`}>
-                  {msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                </p>
+                {isLastAssistant && assistantCount > 1 && (
+                  <div className="flex gap-2 mt-3 ml-10 flex-wrap">
+                    {assistantCount % 3 === 0 ? (
+                      <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700">
+                        <span>🔥</span>
+                        <span className="font-medium">Серия {assistantCount} ответов! Ты на волне подготовки</span>
+                      </div>
+                    ) : isPremium ? (
+                      <div className="flex items-center gap-2 bg-purple-50 border border-purple-100 rounded-xl px-3 py-2 text-xs text-purple-700">
+                        <span>👑</span>
+                        <span>Выбери следующее задание ниже ↓</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-xl px-3 py-2 text-xs">
+                        <span>💡</span>
+                        <span className="text-gray-600">Разбирай все задания без ограничений с </span>
+                        <button onClick={() => window.location.href = '/subscription'} className="text-purple-600 font-semibold hover:text-purple-800">Premium →</button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {isLoading && <ThinkingIndicator elapsed={thinkingElapsed} />}
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {messages.length === 1 && !isLoading && (
+      {messages.length >= 1 && (
         <TaskPanel
           examType={examType}
           subjectId={subject?.id || ''}
           mode={mode}
-          onSelect={sendMessage}
+          onSelect={(text, taskNum) => {
+            setCompletedTasks(prev => new Set(prev).add(taskNum));
+            sendMessage(text);
+          }}
+          completedTasks={completedTasks}
         />
       )}
 

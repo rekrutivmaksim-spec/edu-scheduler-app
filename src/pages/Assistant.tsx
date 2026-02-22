@@ -482,29 +482,57 @@ const Assistant = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  {msg.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Icon name="Sparkles" size={16} className="text-white" />
-                    </div>
-                  )}
-                  <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-first' : ''}`}>
-                    <div className={`px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-md' : 'bg-gray-50 border border-gray-100 text-gray-800 rounded-bl-md'}`}>
-                      {msg.role === 'assistant' ? (
-                        <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:text-gray-900 prose-strong:text-gray-900 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:rounded text-sm">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+              {messages.map((msg, i) => {
+                const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1 && !isLoading;
+                const assistantCount = messages.filter((m, idx) => m.role === 'assistant' && idx <= i).length;
+                return (
+                  <div key={i}>
+                    <div className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      {msg.role === 'assistant' && (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Icon name="Sparkles" size={16} className="text-white" />
                         </div>
-                      ) : (
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                       )}
+                      <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-first' : ''}`}>
+                        <div className={`px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-md' : 'bg-gray-50 border border-gray-100 text-gray-800 rounded-bl-md'}`}>
+                          {msg.role === 'assistant' ? (
+                            <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:text-gray-900 prose-strong:text-gray-900 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:rounded text-sm">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          )}
+                        </div>
+                        <p className={`text-[11px] mt-1 px-1 ${msg.role === 'user' ? 'text-right text-gray-400' : 'text-gray-400'}`}>
+                          {msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
                     </div>
-                    <p className={`text-[11px] mt-1 px-1 ${msg.role === 'user' ? 'text-right text-gray-400' : 'text-gray-400'}`}>
-                      {msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                    {isLastAssistant && assistantCount > 1 && (
+                      <div className="flex gap-2 mt-2 ml-10 flex-wrap">
+                        {assistantCount % 5 === 0 ? (
+                          <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700">
+                            <span>🔥</span>
+                            <span className="font-medium">{assistantCount} вопросов в этом чате — ты молодец!</span>
+                          </div>
+                        ) : !isPremium && remaining !== null && remaining <= 1 ? (
+                          <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl px-3 py-2 text-xs">
+                            <span>💎</span>
+                            <span className="text-gray-700">Заканчиваются вопросы. </span>
+                            <button onClick={() => window.location.href = '/subscription'} className="text-purple-600 font-semibold hover:text-purple-800 whitespace-nowrap">Получить Premium →</button>
+                          </div>
+                        ) : !isPremium && assistantCount === 2 ? (
+                          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600">
+                            <span>✨</span>
+                            <span>С Premium — безлимит вопросов + план подготовки </span>
+                            <button onClick={() => window.location.href = '/subscription'} className="text-purple-600 font-semibold hover:text-purple-800">Подробнее</button>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {isLoading && <ThinkingIndicator hasMaterials={selectedMaterials.length > 0} elapsed={thinkingElapsed} />}
               <div ref={messagesEndRef} />
             </div>
