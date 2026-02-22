@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import { Card } from '@/components/ui/card';
@@ -151,6 +151,7 @@ const Achievements = () => {
   const [leaderPeriod, setLeaderPeriod] = useState<'today' | 'week' | 'all'>('today');
   const [leaderLoading, setLeaderLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const prevLeaderboardRef = useRef<LeaderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeSection, setActiveSection] = useState('achievements');
@@ -183,7 +184,33 @@ const Achievements = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setLeaderboard(Array.isArray(data) ? data : data.leaderboard || []);
+        const newBoard: LeaderItem[] = Array.isArray(data) ? data : data.leaderboard || [];
+
+        // Проверяем: обогнал ли кто-то текущего пользователя
+        if (silent && prevLeaderboardRef.current.length > 0) {
+          const myPrev = prevLeaderboardRef.current.find(l => l.is_me);
+          const myNew = newBoard.find(l => l.is_me);
+          if (myPrev && myNew && myNew.rank > myPrev.rank) {
+            // Кто обогнал — тот, кто сейчас на позицию выше
+            const overtaker = newBoard.find(l => l.rank === myNew.rank - 1);
+            if (overtaker) {
+              toast({
+                title: '⚡ Тебя обогнали!',
+                description: `${overtaker.name} обошёл тебя в рейтинге — займи своё место!`,
+              });
+            }
+          }
+          // Вышел в топ-3
+          if (myNew && myNew.rank <= 3 && myPrev && myPrev.rank > 3) {
+            toast({
+              title: '🏆 Ты в топ-3!',
+              description: 'Отличная работа — держись!',
+            });
+          }
+        }
+
+        prevLeaderboardRef.current = newBoard;
+        setLeaderboard(newBoard);
         setLastUpdated(new Date());
       }
     } catch (error) {
@@ -191,7 +218,7 @@ const Achievements = () => {
     } finally {
       if (!silent) setLeaderLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   const performCheckin = useCallback(async () => {
     try {
