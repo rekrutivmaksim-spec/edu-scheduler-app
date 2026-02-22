@@ -663,92 +663,96 @@ const Achievements = () => {
 
         {/* Level & XP Progress */}
         {profile && (
-          <Card className="p-6 border-2 border-purple-200/50 shadow-md hover:scale-[1.02] transition-all">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                <span className="text-3xl">{getLevelEmoji(profile.level)}</span>
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-heading font-bold text-gray-800">
-                    Уровень {profile.level}
-                  </h2>
-                  <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-0">
-                    {profile.xp_total} XP
-                  </Badge>
-                  {profile.is_premium && (
-                    <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-[10px] px-1.5">
-                      <Icon name="Crown" size={10} className="mr-0.5" />
-                      Premium
-                    </Badge>
-                  )}
+          <Card className="overflow-hidden border-0 shadow-lg">
+            <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-5 text-white">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shadow-lg flex-shrink-0 text-3xl">
+                  {getLevelEmoji(profile.level)}
                 </div>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  {profile.xp_progress} / {profile.xp_needed} XP до следующего уровня
-                </p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-xl font-bold">Уровень {profile.level}</h2>
+                    <span className="text-sm bg-white/20 rounded-full px-2.5 py-0.5 font-medium">{profile.xp_total} XP</span>
+                    {profile.is_premium && (
+                      <span className="text-[11px] bg-amber-400/30 border border-amber-300/50 rounded-full px-2 py-0.5 flex items-center gap-1">
+                        <Icon name="Crown" size={10} /> Premium
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-purple-200 text-sm mt-0.5">
+                    Ещё <strong className="text-white">{profile.xp_needed - profile.xp_progress} XP</strong> до уровня {profile.level + 1}
+                  </p>
+                </div>
+              </div>
+              <div className="relative w-full h-3 rounded-full bg-white/20 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-white transition-all duration-700 ease-out"
+                  style={{ width: `${xpPercent}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-1.5 text-xs text-purple-200">
+                <span>{profile.xp_progress} / {profile.xp_needed} XP</span>
+                <span>{xpPercent}% до следующего уровня</span>
               </div>
             </div>
-            <div className="relative w-full h-4 rounded-full bg-purple-100 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-700 ease-out"
-                style={{ width: `${xpPercent}%` }}
-              />
+            <div className="bg-white px-5 py-3 flex items-start gap-2">
+              <Icon name="Zap" size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-gray-600 leading-relaxed">
+                <strong className="text-gray-800">Как быстрее расти:</strong> выполняй задачи (+5 XP), запускай помодоро (+10 XP), задавай вопросы ИИ (+3 XP), загружай конспекты (+15 XP)
+              </p>
             </div>
-            <p className="text-right text-xs text-purple-500 mt-1 font-medium">
-              {xpPercent}%
-            </p>
           </Card>
         )}
 
         {/* Stats Summary */}
         {profile && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-            <Card className="p-4 border-2 border-green-200/50 hover:scale-[1.02] transition-all">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                  <Icon name="CheckSquare" size={16} className="text-green-600" />
-                </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card
+              className="p-4 border-0 shadow-md bg-white cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all"
+              onClick={() => navigate('/')}
+            >
+              <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center mb-3">
+                <Icon name="CheckSquare" size={18} className="text-green-600" />
               </div>
-              <p className="text-2xl font-bold text-gray-800">
-                {profile.stats.total_tasks}
-              </p>
+              <p className="text-2xl font-bold text-gray-800">{profile.stats.total_tasks}</p>
               <p className="text-xs text-gray-500 mt-0.5">Задач выполнено</p>
+              <p className="text-[10px] text-green-600 font-medium mt-1">+5 XP каждая</p>
             </Card>
 
-            <Card className="p-4 border-2 border-red-200/50 hover:scale-[1.02] transition-all">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                  <Icon name="Timer" size={16} className="text-red-600" />
-                </div>
+            <Card
+              className="p-4 border-0 shadow-md bg-white cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all"
+              onClick={() => navigate('/pomodoro')}
+            >
+              <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center mb-3">
+                <Icon name="Timer" size={18} className="text-red-600" />
               </div>
-              <p className="text-2xl font-bold text-gray-800">
-                {profile.stats.total_pomodoro_minutes}
-              </p>
+              <p className="text-2xl font-bold text-gray-800">{profile.stats.total_pomodoro_minutes}</p>
               <p className="text-xs text-gray-500 mt-0.5">Минут помодоро</p>
+              <p className="text-[10px] text-red-600 font-medium mt-1">+10 XP/сессия</p>
             </Card>
 
-            <Card className="p-4 border-2 border-blue-200/50 hover:scale-[1.02] transition-all">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Icon name="Bot" size={16} className="text-blue-600" />
-                </div>
+            <Card
+              className="p-4 border-0 shadow-md bg-white cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all"
+              onClick={() => navigate('/assistant')}
+            >
+              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center mb-3">
+                <Icon name="Bot" size={18} className="text-blue-600" />
               </div>
-              <p className="text-2xl font-bold text-gray-800">
-                {profile.stats.total_ai_questions}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">Вопросов AI</p>
+              <p className="text-2xl font-bold text-gray-800">{profile.stats.total_ai_questions}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Вопросов ИИ</p>
+              <p className="text-[10px] text-blue-600 font-medium mt-1">+3 XP каждый</p>
             </Card>
 
-            <Card className="p-4 border-2 border-amber-200/50 hover:scale-[1.02] transition-all">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                  <Icon name="FileUp" size={16} className="text-amber-600" />
-                </div>
+            <Card
+              className="p-4 border-0 shadow-md bg-white cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all"
+              onClick={() => navigate('/materials')}
+            >
+              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
+                <Icon name="FileUp" size={18} className="text-amber-600" />
               </div>
-              <p className="text-2xl font-bold text-gray-800">
-                {profile.stats.total_materials}
-              </p>
+              <p className="text-2xl font-bold text-gray-800">{profile.stats.total_materials}</p>
               <p className="text-xs text-gray-500 mt-0.5">Материалов</p>
+              <p className="text-[10px] text-amber-600 font-medium mt-1">+15 XP каждый</p>
             </Card>
           </div>
         )}

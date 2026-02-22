@@ -109,7 +109,7 @@ const Pricing = () => {
         { text: '2 материала в месяц', included: true },
         { text: '3 AI-вопроса в день', included: true },
         { text: '5 предметов в зачётке', included: true },
-        { text: '20 AI-вопросов/день', included: false },
+        { text: 'Безлимитное расписание и задачи', included: false },
         { text: 'Заморозка стрика', included: false }
       ],
       current: currentPlan === 'free',

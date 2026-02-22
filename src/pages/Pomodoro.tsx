@@ -127,7 +127,7 @@ const Pomodoro = () => {
       if (response.ok) {
         const data = await response.json();
         const unique = [...new Set((data.schedule || []).map((l: { subject: string }) => l.subject))] as string[];
-        setSubjects(unique.length > 0 ? unique : ['\u041c\u0430\u0442\u0435\u043c\u0430\u0442\u0438\u043a\u0430', '\u0424\u0438\u0437\u0438\u043a\u0430', '\u041f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435', '\u0410\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u0438\u0439', '\u0414\u0440\u0443\u0433\u043e\u0435']);
+        setSubjects(unique.length > 0 ? unique : ['Математика', 'Физика', 'Программирование', 'Английский', 'Другое']);
       }
     } catch (e) {
       console.error('Failed to load subjects:', e);
@@ -150,19 +150,19 @@ const Pomodoro = () => {
       if (result?.new_achievements?.length) {
         result.new_achievements.forEach((ach) => {
           toast({
-            title: `\u{1F3C6} Достижение!`,
+            title: `🏆 Достижение!`,
             description: `${ach.title} (+${ach.xp_reward} XP)`,
           });
         });
       } else if (result?.xp_gained) {
         toast({
-          title: `\u{1F345} +${result.xp_gained} XP`,
+          title: `🍅 +${result.xp_gained} XP`,
           description: `Отличная сессия! Время отдохнуть`,
         });
       }
 
       toast({
-        title: "\u{1F389} Сессия завершена!",
+        title: "🎉 Сессия завершена!",
         description: "Время отдохнуть 5 минут",
       });
 
@@ -170,7 +170,7 @@ const Pomodoro = () => {
       setTimeLeft(BREAK_TIME);
     } else {
       toast({
-        title: "\u2705 Перерыв окончен",
+        title: "✅ Перерыв окончен",
         description: "Готов к новой сессии?",
       });
       setMode('work');

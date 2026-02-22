@@ -457,7 +457,7 @@ const ThinkingIndicator = ({ elapsed }: { elapsed: number }) => {
           <div className="h-1 flex-1 bg-gray-200 rounded-full overflow-hidden max-w-[180px]">
             <div
               className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${Math.min(95, (elapsed / 30000) * 100)}%` }}
+              style={{ width: `${Math.min(95, (elapsed / 90000) * 100)}%` }}
             />
           </div>
           <span className="text-[10px] text-gray-400 tabular-nums">{Math.floor(elapsed / 1000)}с</span>
@@ -642,7 +642,7 @@ const Exam = () => {
     try {
       const token = authService.getToken();
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 35000);
+      const tid = setTimeout(() => controller.abort(), 110000);
       const resp = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -683,7 +683,7 @@ const Exam = () => {
     const doFetch = async (): Promise<Response> => {
       const token = authService.getToken();
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 35000);
+      const tid = setTimeout(() => controller.abort(), 110000);
       const resp = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1004,6 +1004,9 @@ const Exam = () => {
             }
           </button>
         </div>
+        <p className="max-w-2xl mx-auto mt-2 text-center text-[11px] text-gray-400 leading-tight">
+          ИИ готовит качественный ответ — иногда до&nbsp;2&nbsp;минут. Не закрывай страницу
+        </p>
       </div>
       <BottomNav />
     </div>
