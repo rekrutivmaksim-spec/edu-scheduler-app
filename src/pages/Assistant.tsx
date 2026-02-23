@@ -223,7 +223,7 @@ const Assistant = () => {
       const resp = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ question: q, material_ids: selectedMaterials }),
+        body: JSON.stringify({ question: q, material_ids: selectedMaterials, history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })) }),
         signal: controller.signal
       });
       clearTimeout(tid);
@@ -550,7 +550,7 @@ const Assistant = () => {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Задай вопрос..."
+              placeholder="Задай вопрос или напиши ответ..."
               rows={1}
               disabled={isLoading}
               className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 pr-12 text-sm focus:outline-none focus:border-purple-400 focus:bg-white transition-colors disabled:opacity-50 max-h-32"
@@ -573,6 +573,24 @@ const Assistant = () => {
             }
           </button>
         </div>
+        {hasMessages && messages[messages.length - 1]?.role === 'assistant' && (
+          <div className="max-w-2xl mx-auto mt-2 flex justify-center">
+            <button
+              onClick={() => {
+                if (question.trim()) {
+                  sendMessage();
+                } else {
+                  sendMessage('Проверь мой ответ');
+                }
+              }}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors disabled:opacity-40"
+            >
+              <Icon name="CheckCircle" size={14} />
+              Проверь мой ответ
+            </button>
+          </div>
+        )}
         <p className="max-w-2xl mx-auto mt-2 text-center text-[11px] text-gray-400 leading-tight">
           ИИ готовит качественный ответ — иногда до&nbsp;2&nbsp;минут. Не закрывай страницу
         </p>

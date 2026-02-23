@@ -1179,7 +1179,7 @@ const Exam = () => {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={mode === 'practice' ? 'Введи ответ...' : 'Спроси или введи номер задания...'}
+              placeholder={mode === 'practice' ? 'Напиши свой ответ...' : 'Спроси или введи номер задания...'}
               rows={1}
               disabled={isLoading}
               className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 pr-12 text-sm focus:outline-none focus:border-purple-400 focus:bg-white transition-colors disabled:opacity-50 max-h-32"
@@ -1202,6 +1202,24 @@ const Exam = () => {
             }
           </button>
         </div>
+        {mode === 'practice' && messages.length >= 1 && (
+          <div className="max-w-2xl mx-auto mt-2 flex justify-center">
+            <button
+              onClick={() => {
+                if (question.trim()) {
+                  sendMessage();
+                } else {
+                  sendMessage('Проверь мой ответ');
+                }
+              }}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors disabled:opacity-40"
+            >
+              <Icon name="CheckCircle" size={14} />
+              Проверь мой ответ
+            </button>
+          </div>
+        )}
         <p className="max-w-2xl mx-auto mt-2 text-center text-[11px] text-gray-400 leading-tight">
           ИИ готовит качественный ответ — иногда до&nbsp;2&nbsp;минут. Не закрывай страницу
         </p>
