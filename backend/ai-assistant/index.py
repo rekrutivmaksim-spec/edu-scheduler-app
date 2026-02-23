@@ -407,12 +407,41 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
     has_context = bool(context and len(context) > 50)
     ctx_trimmed = context[:1200] if has_context else ""
 
-    system = (
-        "You are Studyfay, a friendly student tutor. "
-        "Respond in Russian. Be concise — 3-5 sentences max unless more is truly needed. "
-        "Use relevant emojis naturally (1-3 per response) to make answers friendly and clear. "
-        "No LaTeX. Plain text only. No lengthy introductions."
-    )
+    if exam_meta:
+        parts = exam_meta.split('|')
+        et = parts[0] if len(parts) > 0 else ''
+        sl = parts[2] if len(parts) > 2 else ''
+        mode = parts[3] if len(parts) > 3 else 'explain'
+        el = 'EGE' if et == 'ege' else 'OGE'
+        if mode == 'practice':
+            system = (
+                "You are Studyfay, a friendly student tutor for Russian school exams. "
+                "Respond ONLY in Russian. Use emojis naturally (1-3 per response). No LaTeX. Plain text only.\n\n"
+                "PRACTICE MODE RULES — follow strictly:\n"
+                "1. When the student selects a task topic — give ONE concrete exam-style task for that topic. End with a question mark.\n"
+                "2. When the student writes an answer to your task — evaluate it: say if correct or wrong, explain briefly, then ask if they want another task or a different topic.\n"
+                "3. NEVER ignore the student's answer. NEVER switch to a new task without evaluating the previous answer first.\n"
+                "4. If the student's message looks like an answer (a number, word, sentence, formula) — treat it as their answer to your last task and check it.\n"
+                f"Exam: {el}, Subject: {sl}."
+            )
+        else:
+            system = (
+                "You are Studyfay, a friendly student tutor. "
+                "Respond in Russian. Be concise — 3-5 sentences max unless more is truly needed. "
+                "Use relevant emojis naturally (1-3 per response) to make answers friendly and clear. "
+                "No LaTeX. Plain text only. No lengthy introductions.\n"
+                f"Exam: {el}, Subject: {sl}."
+            )
+        user_content = question[:500]
+    else:
+        system = (
+            "You are Studyfay, a friendly student tutor. "
+            "Respond in Russian. Be concise — 3-5 sentences max unless more is truly needed. "
+            "Use relevant emojis naturally (1-3 per response) to make answers friendly and clear. "
+            "No LaTeX. Plain text only. No lengthy introductions."
+        )
+        user_content = question[:500]
+
     if has_context:
         system += f"\n\nMaterials:\n{ctx_trimmed}"
 
@@ -420,24 +449,13 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
         answer, tokens = ask_ai_vision(question, system, image_base64)
         return answer, tokens
 
-    if exam_meta:
-        parts = exam_meta.split('|')
-        et = parts[0] if len(parts) > 0 else ''
-        sl = parts[2] if len(parts) > 2 else ''
-        mode = parts[3] if len(parts) > 3 else 'explain'
-        el = 'EGE' if et == 'ege' else 'OGE'
-        mt = 'explain briefly with 1 example' if mode == 'explain' else 'give exam task then check answer'
-        user_content = f"[{el},{sl},{mt}] {question[:400]}"
-    else:
-        user_content = question[:400]
-
     messages_list = [{"role": "system", "content": system}]
     if history:
-        for h in history[-3:]:
+        for h in history[-6:]:
             role = h.get('role', 'user')
             content = h.get('content', '')
             if role in ('user', 'assistant') and content:
-                messages_list.append({"role": role, "content": content[:200]})
+                messages_list.append({"role": role, "content": content[:600]})
     messages_list.append({"role": "user", "content": user_content})
 
     try:
@@ -446,7 +464,7 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
             model="deepseek-chat",
             messages=messages_list,
             temperature=0.1,
-            max_tokens=400,
+            max_tokens=600,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0
