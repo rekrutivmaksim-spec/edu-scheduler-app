@@ -11,6 +11,7 @@ import { dailyCheckin } from '@/lib/gamification';
 import BottomNav from '@/components/BottomNav';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
+const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
 interface DashboardData {
   user: {
@@ -61,6 +62,7 @@ const Dashboard = () => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkedIn, setCheckedIn] = useState(false);
+  const [tutorSavings, setTutorSavings] = useState<number>(0);
 
   useEffect(() => {
     const init = async () => {
@@ -73,11 +75,26 @@ const Dashboard = () => {
         navigate('/auth');
         return;
       }
-      await Promise.all([loadDashboard(), loadSuggestions(), doCheckin()]);
+      await Promise.all([loadDashboard(), loadSuggestions(), doCheckin(), loadTutorSavings()]);
       setLoading(false);
     };
     init();
   }, [navigate]);
+
+  const loadTutorSavings = async () => {
+    try {
+      const token = authService.getToken();
+      const res = await fetch(`${GAMIFICATION_URL}?action=profile`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setTutorSavings(d.stats?.tutor_savings || 0);
+      }
+    } catch (e) {
+      console.error('Tutor savings load failed:', e);
+    }
+  };
 
   const loadDashboard = async () => {
     try {
@@ -248,6 +265,20 @@ const Dashboard = () => {
             <div className="mt-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 flex items-center gap-2">
               <Icon name="GraduationCap" size={18} />
               <span className="text-sm">{'Прогноз: '}<strong>{data.scholarship_forecast}</strong></span>
+            </div>
+          )}
+
+          {tutorSavings > 0 && (
+            <div
+              className="mt-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:bg-white/15 transition-colors"
+              onClick={() => navigate('/achievements')}
+            >
+              <div className="text-2xl">💰</div>
+              <div className="flex-1">
+                <div className="text-xs text-purple-200">Сэкономлено на репетиторах</div>
+                <div className="text-lg font-bold">{tutorSavings.toLocaleString('ru-RU')} ₽</div>
+              </div>
+              <Icon name="ChevronRight" size={16} className="text-purple-300" />
             </div>
           )}
         </div>

@@ -65,6 +65,8 @@ interface GamificationProfile {
     total_pomodoro_minutes: number;
     total_ai_questions: number;
     total_materials: number;
+    total_exam_tasks: number;
+    tutor_savings: number;
   };
   achievements: Achievement[];
   achievements_unlocked: number;
@@ -805,6 +807,26 @@ const Achievements = () => {
               <p className="text-[10px] text-amber-600 font-medium mt-1">+15 XP каждый</p>
             </Card>
           </div>
+        )}
+
+        {/* Tutor Savings Banner */}
+        {profile && profile.stats.total_exam_tasks > 0 && (
+          <Card
+            className="p-4 border-0 shadow-md bg-gradient-to-r from-emerald-500 to-teal-500 text-white cursor-pointer hover:shadow-lg transition-all"
+            onClick={() => navigate('/exam')}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Icon name="PiggyBank" size={24} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-emerald-100">Сэкономлено на репетиторах</p>
+                <p className="text-2xl font-bold">{profile.stats.tutor_savings.toLocaleString('ru-RU')} ₽</p>
+                <p className="text-xs text-emerald-100 mt-0.5">{profile.stats.total_exam_tasks} заданий ЕГЭ/ОГЭ с ИИ · ~250 ₽ за задание</p>
+              </div>
+              <Icon name="ChevronRight" size={20} className="text-white/70 flex-shrink-0" />
+            </div>
+          </Card>
         )}
 
         {/* Section Tabs: Achievements / Leaderboard */}

@@ -689,12 +689,16 @@ const Exam = () => {
       setAiUsed(prev => (prev !== null && aiMax !== null) ? aiMax - data.remaining : prev);
     }
     setMessages(prev => [...prev, { role: 'assistant', content: data.answer, timestamp: new Date() }]);
-    if (pendingTaskNumRef.current !== null) {
+    const wasNewTask = pendingTaskNumRef.current !== null;
+    if (wasNewTask) {
       setCompletedTasks(prev => new Set(prev).add(pendingTaskNumRef.current!));
       pendingTaskNumRef.current = null;
     }
     try {
       const gam = await trackActivity('ai_questions_asked', 1);
+      if (wasNewTask) {
+        await trackActivity('exam_tasks_done', 1);
+      }
       if (gam?.new_achievements?.length) {
         gam.new_achievements.forEach((a: { title: string; xp_reward: number }) => {
           toast({ title: `🏆 ${a.title}`, description: `+${a.xp_reward} XP` });

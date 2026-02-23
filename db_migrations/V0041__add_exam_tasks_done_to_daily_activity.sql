@@ -1,0 +1,1 @@
+ALTER TABLE daily_activity ADD COLUMN IF NOT EXISTS exam_tasks_done INTEGER NOT NULL DEFAULT 0;

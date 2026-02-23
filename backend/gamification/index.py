@@ -276,7 +276,8 @@ def record_activity(conn, user_id: int, activity_type: str, value: int = 1):
         'pomodoro_minutes': 1,
         'ai_questions_asked': 5,
         'materials_uploaded': 25,
-        'schedule_views': 2
+        'schedule_views': 2,
+        'exam_tasks_done': 10
     }
     xp_gained = value * xp_map.get(activity_type, 5)
 
@@ -349,7 +350,8 @@ def check_achievements(conn, user_id: int):
             COALESCE(SUM(tasks_completed), 0) as total_tasks,
             COALESCE(SUM(pomodoro_minutes), 0) as total_pomodoro,
             COALESCE(SUM(ai_questions_asked), 0) as total_ai,
-            COALESCE(SUM(materials_uploaded), 0) as total_materials
+            COALESCE(SUM(materials_uploaded), 0) as total_materials,
+            COALESCE(SUM(exam_tasks_done), 0) as total_exam_tasks
         FROM daily_activity WHERE user_id = %s
     """, (user_id,))
     totals = cur.fetchone()
@@ -371,6 +373,7 @@ def check_achievements(conn, user_id: int):
         'pomodoro_minutes': totals['total_pomodoro'],
         'ai_questions': totals['total_ai'],
         'materials_uploaded': totals['total_materials'],
+        'exam_tasks_done': totals['total_exam_tasks'],
         'level_reached': user['level'] if user else 1,
         'referrals': user['referral_count'] if user else 0,
         'first_login': 1,
@@ -477,7 +480,8 @@ def get_profile_data(conn, user_id: int):
             COALESCE(SUM(pomodoro_minutes), 0) as total_pomodoro,
             COALESCE(SUM(ai_questions_asked), 0) as total_ai,
             COALESCE(SUM(materials_uploaded), 0) as total_materials,
-            COALESCE(SUM(xp_earned), 0) as total_xp_earned
+            COALESCE(SUM(xp_earned), 0) as total_xp_earned,
+            COALESCE(SUM(exam_tasks_done), 0) as total_exam_tasks
         FROM daily_activity WHERE user_id = %s
     """, (user_id,))
     totals = cur.fetchone()
@@ -580,7 +584,9 @@ def get_profile_data(conn, user_id: int):
             'total_tasks': totals['total_tasks'],
             'total_pomodoro_minutes': totals['total_pomodoro'],
             'total_ai_questions': totals['total_ai'],
-            'total_materials': totals['total_materials']
+            'total_materials': totals['total_materials'],
+            'total_exam_tasks': totals['total_exam_tasks'],
+            'tutor_savings': int(totals['total_exam_tasks']) * 250
         },
         'achievements': all_ach_list,
         'achievements_unlocked': len(unlocked),
@@ -780,7 +786,7 @@ def handler(event: dict, context) -> dict:
             if action == 'track':
                 activity_type = body.get('type', '')
                 value = min(int(body.get('value', 1)), 100)
-                valid_types = ['tasks_completed', 'pomodoro_minutes', 'ai_questions_asked', 'materials_uploaded', 'schedule_views']
+                valid_types = ['tasks_completed', 'pomodoro_minutes', 'ai_questions_asked', 'materials_uploaded', 'schedule_views', 'exam_tasks_done']
                 if activity_type not in valid_types:
                     return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 \u0442\u0438\u043f \u0430\u043a\u0442\u0438\u0432\u043d\u043e\u0441\u0442\u0438'})}
 

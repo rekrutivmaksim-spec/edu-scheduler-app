@@ -2,7 +2,10 @@ import { authService } from '@/lib/auth';
 
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
-type ActivityType = 'tasks_completed' | 'pomodoro_minutes' | 'ai_questions_asked' | 'materials_uploaded' | 'schedule_views';
+type ActivityType = 'tasks_completed' | 'pomodoro_minutes' | 'ai_questions_asked' | 'materials_uploaded' | 'schedule_views' | 'exam_tasks_done';
+
+// Стоимость репетитора: 1500₽/ч, ~10 мин на задание => 250₽ за задание
+export const TUTOR_SAVINGS_PER_TASK = 250;
 
 interface TrackResult {
   success: boolean;
