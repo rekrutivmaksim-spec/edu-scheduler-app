@@ -13,7 +13,7 @@ const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
 interface Material { id: number; title: string; subject?: string; }
-interface Message { role: 'user' | 'assistant'; content: string; timestamp: Date; suggestions?: string[]; }
+interface Message { role: 'user' | 'assistant'; content: string; timestamp: Date; }
 interface Session { id: number; title: string; updated_at: string; message_count: number; }
 
 const THINKING_STAGES = [
@@ -202,12 +202,7 @@ const Assistant = () => {
     const data = await resp.json();
     if (data.remaining !== undefined) setRemaining(data.remaining);
     if (data.remaining !== undefined && aiMax !== null) setAiUsed(aiMax - data.remaining);
-    setMessages(prev => [...prev, {
-      role: 'assistant',
-      content: data.answer || '',
-      timestamp: new Date(),
-      suggestions: data.suggestions || []
-    }]);
+    setMessages(prev => [...prev, { role: 'assistant', content: data.answer || '', timestamp: new Date() }]);
     // Обновляем список сессий
     loadSessions();
     try { await trackActivity('ai_question', 3); } catch (e) { console.warn('Gamification:', e); }
@@ -517,21 +512,6 @@ const Assistant = () => {
                         <p className={`text-[11px] mt-1 px-1 ${msg.role === 'user' ? 'text-right text-gray-400' : 'text-gray-400'}`}>
                           {msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                         </p>
-                        {msg.role === 'assistant' && msg.suggestions && msg.suggestions.length > 0 && isLastAssistant && (
-                          <div className="mt-2 flex flex-col gap-1.5">
-                            <p className="text-[10px] text-gray-400 px-1">Спроси дальше:</p>
-                            {msg.suggestions.map((s, si) => (
-                              <button
-                                key={si}
-                                onClick={() => sendMessage(s)}
-                                disabled={isLoading}
-                                className="text-left text-xs px-3 py-2 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors disabled:opacity-40 leading-snug"
-                              >
-                                {s}
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </div>
                     {isLastAssistant && assistantCount > 0 && assistantCount % 7 === 0 && (

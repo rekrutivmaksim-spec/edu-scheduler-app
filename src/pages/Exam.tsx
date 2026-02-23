@@ -560,7 +560,6 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  suggestions?: string[];
 }
 
 type Step = 'type' | 'subject' | 'mode' | 'chat';
@@ -689,7 +688,7 @@ const Exam = () => {
       setRemaining(data.remaining);
       setAiUsed(prev => (prev !== null && aiMax !== null) ? aiMax - data.remaining : prev);
     }
-    setMessages(prev => [...prev, { role: 'assistant', content: data.answer, timestamp: new Date(), suggestions: data.suggestions || [] }]);
+    setMessages(prev => [...prev, { role: 'assistant', content: data.answer, timestamp: new Date() }]);
     const wasNewTask = pendingTaskNumRef.current !== null;
     if (wasNewTask) {
       setCompletedTasks(prev => new Set(prev).add(pendingTaskNumRef.current!));
@@ -1135,21 +1134,6 @@ const Exam = () => {
                     <p className={`text-[11px] mt-1 px-1 text-gray-400 ${msg.role === 'user' ? 'text-right' : ''}`}>
                       {msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                    {msg.role === 'assistant' && msg.suggestions && msg.suggestions.length > 0 && isLastAssistant && (
-                      <div className="mt-2 flex flex-col gap-1.5">
-                        <p className="text-[10px] text-gray-400 px-1">Спроси дальше:</p>
-                        {msg.suggestions.map((s, si) => (
-                          <button
-                            key={si}
-                            onClick={() => sendMessage(s)}
-                            disabled={isLoading}
-                            className="text-left text-xs px-3 py-2 rounded-xl border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition-colors disabled:opacity-40 leading-snug"
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
                 {isLastAssistant && assistantCount > 0 && assistantCount % 5 === 0 && (
