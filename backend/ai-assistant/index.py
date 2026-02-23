@@ -402,6 +402,50 @@ def sanitize_answer(text):
     return text.strip()
 
 
+def generate_suggestions(question, answer, exam_meta=None, history=None):
+    """Генерирует 3 умных подсказки — что спросить дальше. Возвращает список строк."""
+    context_hint = ""
+    if exam_meta:
+        parts = exam_meta.split('|')
+        sl = parts[2] if len(parts) > 2 else ''
+        mode = parts[3] if len(parts) > 3 else 'explain'
+        el = 'ЕГЭ' if (parts[0] if parts else '') == 'ege' else 'ОГЭ'
+        context_hint = f"Экзамен: {el}, предмет: {sl}, режим: {'тренировка' if mode == 'practice' else 'объяснение'}."
+    else:
+        context_hint = "Это учебный чат студента с репетитором."
+
+    prev_q = ""
+    if history:
+        last_user = [h for h in history if h.get('role') == 'user']
+        if last_user:
+            prev_q = last_user[-1].get('content', '')[:100]
+
+    prompt = (
+        f"{context_hint}\n"
+        f"Студент спросил: «{question[:150]}»\n"
+        f"ИИ ответил: «{answer[:300]}»\n\n"
+        "Придумай ровно 3 коротких вопроса (до 8 слов каждый), которые студент мог бы задать следующими. "
+        "Вопросы должны быть разными по типу: 1) углубиться в тему, 2) попрактиковаться/проверить себя, 3) связанная соседняя тема. "
+        "Отвечай строго в формате JSON-массива строк, без пояснений. Пример: [\"Как решать задачи типа...\", \"Дай мне задание для практики\", \"Чем отличается X от Y?\"]"
+    )
+    try:
+        resp = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.8,
+            max_tokens=120,
+        )
+        raw = resp.choices[0].message.content.strip()
+        import re
+        m = re.search(r'\[.*?\]', raw, re.DOTALL)
+        if m:
+            suggestions = json.loads(m.group(0))
+            return [s[:80] for s in suggestions[:3] if isinstance(s, str)]
+    except Exception as e:
+        print(f"[AI] suggestions FAIL: {e}", flush=True)
+    return []
+
+
 def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
     """Запрос к ИИ через Artemox. exam_meta — строка 'тип|предмет_id|предмет|режим'"""
     has_context = bool(context and len(context) > 50)
@@ -725,6 +769,14 @@ def handler(event: dict, context) -> dict:
             ai_error = (answer == build_smart_fallback(question, ctx))
             remaining_now = max(0, access.get('remaining', 1) - 1) if not ai_error else access.get('remaining', 0)
 
+            # Генерируем подсказки "что спросить дальше" — только при успешном ответе, не для ошибок и изображений
+            suggestions = []
+            if not ai_error and not image_base64:
+                try:
+                    suggestions = generate_suggestions(question, answer, exam_meta=exam_meta, history=history)
+                except Exception as sg_e:
+                    print(f"[AI] suggestions err: {sg_e}", flush=True)
+
             # --- POST-ОБРАБОТКА В ФОНЕ: не блокируем ответ ---
             def _bg_post(uid, q, mids, ans, tok, acc_info, session_id, is_err):
                 try:
@@ -741,7 +793,7 @@ def handler(event: dict, context) -> dict:
                     print(f"[AI] bg_post err: {ex}", flush=True)
             threading.Thread(target=_bg_post, args=(user_id, question, material_ids, answer, tokens, access, sid, ai_error), daemon=True).start()
 
-            return ok({'answer': answer, 'remaining': remaining_now, 'ai_error': ai_error})
+            return ok({'answer': answer, 'remaining': remaining_now, 'ai_error': ai_error, 'suggestions': suggestions})
 
         return err(405, {'error': 'Method not allowed'})
 
