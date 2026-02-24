@@ -26,7 +26,7 @@ const DEMO_LIMIT = 2;
 const benefits = [
   { icon: 'Lightbulb', text: 'Объясню тему простыми словами' },
   { icon: 'Target', text: 'Подберу задания под твой уровень' },
-  { icon: 'FileText', text: 'Разберу PDF/Word и отвечу по ним' },
+  { icon: 'FileText', text: 'Загружай PDF/Word — объясню и отвечу по материалу' },
 ];
 
 const DEMO_HINTS = [
@@ -49,6 +49,7 @@ export default function AuthNew() {
   const refCode = searchParams.get('ref') || '';
 
   const [screen, setScreen] = useState<Screen>('landing');
+  const [demoStarting, setDemoStarting] = useState(false);
 
   // Demo state
   const [demoMessages, setDemoMessages] = useState<DemoMessage[]>([]);
@@ -100,7 +101,8 @@ export default function AuthNew() {
       const answer = data.answer || data.response || data.message || 'Не удалось получить ответ';
       setDemoMessages(prev => [...prev, { role: 'assistant', text: answer }]);
     } catch {
-      setDemoMessages(prev => [...prev, { role: 'assistant', text: 'Что-то пошло не так. Попробуй ещё раз.' }]);
+      setDemoMessages(prev => [...prev, { role: 'assistant', text: 'Проблемы с соединением — попробуй ещё раз.' }]);
+      setDemoCount(c => c - 1);
     } finally {
       setDemoLoading(false);
     }
@@ -268,11 +270,13 @@ export default function AuthNew() {
     </div>
   );
 
-  const LegalFooter = () => (
+  const LegalFooter = ({ showDelete = false }: { showDelete?: boolean }) => (
     <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pb-4 pt-2">
-      <Link to="/terms" className="text-white/40 text-xs hover:text-white/60 transition-colors">Пользовательское соглашение</Link>
-      <Link to="/privacy" className="text-white/40 text-xs hover:text-white/60 transition-colors">Политика конфиденциальности</Link>
-      <Link to="/privacy#delete" className="text-white/40 text-xs hover:text-white/60 transition-colors">Удаление аккаунта</Link>
+      <Link to="/terms" className="text-white/35 text-xs hover:text-white/55 transition-colors">Соглашение</Link>
+      <Link to="/privacy" className="text-white/35 text-xs hover:text-white/55 transition-colors">Конфиденциальность</Link>
+      {showDelete && (
+        <Link to="/privacy#delete" className="text-white/25 text-xs hover:text-white/45 transition-colors">Удаление аккаунта</Link>
+      )}
     </div>
   );
 
@@ -600,8 +604,11 @@ export default function AuthNew() {
           <h1 className="text-[2rem] font-extrabold text-white leading-tight tracking-tight mb-2">
             ИИ-репетитор<br />для учёбы
           </h1>
-          <p className="text-white/70 text-sm leading-relaxed">
+          <p className="text-white/70 text-sm leading-relaxed mb-2">
             ЕГЭ/ОГЭ и ВУЗ: объяснение тем,<br />задания и разбор PDF/Word
+          </p>
+          <p className="text-white/90 text-sm font-medium">
+            Разберись в теме за 2–3 минуты
           </p>
         </div>
 
@@ -617,38 +624,44 @@ export default function AuthNew() {
           ))}
         </div>
 
-        {/* Главная кнопка — Блок 4 */}
+        {/* Главная кнопка */}
         <div className="flex flex-col items-center gap-1.5">
           <Button
-            onClick={() => setScreen('demo')}
-            className="w-full h-14 bg-white text-purple-700 hover:bg-white/90 font-extrabold text-base rounded-2xl shadow-2xl"
+            onClick={async () => {
+              setDemoStarting(true);
+              await new Promise(r => setTimeout(r, 400));
+              setDemoStarting(false);
+              setScreen('demo');
+            }}
+            disabled={demoStarting}
+            className="w-full h-16 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-lg rounded-2xl shadow-2xl transition-all"
           >
-            Попробовать бесплатно
-            <Icon name="ArrowRight" size={18} className="ml-2" />
+            {demoStarting
+              ? <Icon name="Loader2" size={22} className="animate-spin text-purple-600" />
+              : <>Попробовать ИИ бесплатно <Icon name="ArrowRight" size={20} className="ml-2" /></>
+            }
           </Button>
-          <span className="text-white/50 text-xs">1–2 вопроса без регистрации</span>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-white/60 text-xs">1–2 вопроса без регистрации и карты</span>
+            <span className="text-white/40 text-xs">Регистрация займёт 10 секунд</span>
+          </div>
         </div>
 
-        {/* Блок 5 — Вход / Регистрация */}
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-white/60 text-sm">Уже есть аккаунт?</span>
-            <button
-              onClick={() => { clearErrors(); setScreen('login'); }}
-              className="text-white font-semibold text-sm underline underline-offset-2 hover:text-white/80 transition-colors"
-            >
-              Войти
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-white/60 text-sm">Нет аккаунта?</span>
-            <button
-              onClick={() => { clearErrors(); setScreen('register'); }}
-              className="text-white font-semibold text-sm underline underline-offset-2 hover:text-white/80 transition-colors"
-            >
-              Создать
-            </button>
-          </div>
+        {/* Вход / Регистрация — вторичные */}
+        <div className="flex items-center justify-center gap-4">
+          <button
+            onClick={() => { clearErrors(); setScreen('login'); }}
+            className="text-white/70 text-sm hover:text-white transition-colors"
+          >
+            Уже есть аккаунт? <span className="font-semibold text-white underline underline-offset-2">Войти</span>
+          </button>
+          <span className="text-white/30 text-sm">·</span>
+          <button
+            onClick={() => { clearErrors(); setScreen('register'); }}
+            className="text-white/70 text-sm hover:text-white transition-colors"
+          >
+            Нет аккаунта? <span className="font-semibold text-white underline underline-offset-2">Создать</span>
+          </button>
         </div>
 
         {/* Реферал */}
@@ -662,9 +675,9 @@ export default function AuthNew() {
         )}
 
         {/* Подпись */}
-        <p className="text-center text-white/40 text-xs">Подходит школьникам и студентам</p>
+        <p className="text-center text-white/40 text-xs">Для ЕГЭ/ОГЭ и ВУЗа</p>
 
-        {/* Блок 7 — Юридические ссылки */}
+        {/* Юридические ссылки */}
         <LegalFooter />
       </div>
     </div>
