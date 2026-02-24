@@ -176,7 +176,7 @@ const Profile = () => {
                   'Безлимит занятий',
                   'Слабые темы определяются автоматически',
                   'Подготовка к ЕГЭ быстрее в 2 раза',
-                  'Нет лимитов на ИИ-ассистента',
+                  'Задавай вопросы без ограничений',
                 ].map(f => (
                   <div key={f} className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded-full bg-white/25 flex items-center justify-center flex-shrink-0">
@@ -186,10 +186,23 @@ const Profile = () => {
                   </div>
                 ))}
               </div>
-              <Button className="w-full h-12 bg-white text-purple-700 font-extrabold text-base rounded-2xl shadow-lg">
-                Подключить Premium →
-              </Button>
-              <p className="text-white/50 text-xs text-center mt-2">Бесплатно: 1 занятие в день</p>
+              {/* Срочность */}
+              <div className="bg-white/15 rounded-2xl px-4 py-2.5 mb-4 flex items-center gap-2">
+                <span className="text-base">🔥</span>
+                <p className="text-white text-xs">
+                  До ЕГЭ <span className="font-bold">{DAYS_TO_EXAM} дней</span> — осталось <span className="font-bold">{Math.max(0, 24 - Math.min(totalDays, 24))} тем</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-3 mb-1">
+                <Button className="flex-1 h-12 bg-white text-purple-700 font-extrabold text-base rounded-2xl shadow-lg">
+                  Подключить Premium
+                </Button>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-white font-extrabold text-xl leading-none">399 ₽</p>
+                  <p className="text-white/50 text-xs">в месяц</p>
+                </div>
+              </div>
+              <p className="text-white/50 text-xs text-center mt-1">Бесплатно: 1 занятие в день</p>
             </div>
             {/* Потеря */}
             <div className="bg-purple-900/90 px-5 py-3 flex items-center gap-2">
@@ -209,6 +222,27 @@ const Profile = () => {
               <p className="text-white/60 text-sm">Безлимитный доступ открыт</p>
             </div>
             <Icon name="ChevronRight" size={20} className="text-white/40" />
+          </div>
+        )}
+
+        {/* Рефералка — сразу под Premium */}
+        {!isPremium && (
+          <div
+            className="bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 rounded-3xl p-4 shadow-lg cursor-pointer active:scale-[0.98] transition-all"
+            onClick={() => navigate('/referral')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <Icon name="Gift" size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-sm">Пригласи друга</h3>
+                  <p className="text-white/70 text-xs">+7 дней Premium бесплатно</p>
+                </div>
+              </div>
+              <Icon name="ChevronRight" size={18} className="text-white/50" />
+            </div>
           </div>
         )}
 
@@ -286,17 +320,30 @@ const Profile = () => {
         </div>
 
         {/* 5. Сэкономлено */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm flex items-center gap-4">
-          <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl">💰</span>
+        <div className="bg-white rounded-3xl p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-green-50 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-xl">💰</span>
+            </div>
+            <h3 className="font-bold text-gray-800">Сэкономлено на репетиторах</h3>
           </div>
-          <div>
-            <p className="text-gray-500 text-sm">Сэкономлено на репетиторах</p>
-            <p className="text-3xl font-extrabold text-green-600">
-              {savedMoney.toLocaleString('ru-RU')} <span className="text-base font-medium text-gray-500">₽</span>
-            </p>
-            <p className="text-gray-400 text-xs mt-0.5">{totalDays} занятий × {COST_PER_SESSION}₽</p>
-          </div>
+          {totalDays === 0 ? (
+            <div className="bg-gray-50 rounded-2xl p-4">
+              <p className="text-gray-400 text-sm">Ещё нет занятий</p>
+              <p className="text-gray-500 text-xs mt-1">1 занятие ≈ <span className="font-semibold text-gray-700">{COST_PER_SESSION} ₽</span> у репетитора</p>
+              <p className="text-gray-400 text-xs mt-0.5">Начни заниматься — и здесь появится твоя экономия</p>
+            </div>
+          ) : (
+            <div className="flex items-end gap-3">
+              <div>
+                <p className="text-4xl font-extrabold text-green-600">{savedMoney.toLocaleString('ru-RU')} <span className="text-lg font-medium text-gray-400">₽</span></p>
+                <p className="text-gray-400 text-xs mt-1">{totalDays} {totalDays === 1 ? 'занятие' : totalDays < 5 ? 'занятия' : 'занятий'} × {COST_PER_SESSION} ₽</p>
+              </div>
+              <div className="mb-1 ml-auto text-right">
+                <p className="text-green-500 text-xs font-semibold bg-green-50 px-2 py-1 rounded-lg">вместо репетитора</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 6. Последние занятия */}
@@ -319,25 +366,6 @@ const Profile = () => {
           <button onClick={() => navigate('/session')} className="mt-3 w-full text-indigo-600 text-sm font-semibold text-center py-1">
             Начать сегодняшнее занятие →
           </button>
-        </div>
-
-        {/* 7. Пригласить друга */}
-        <div
-          className="bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 rounded-3xl p-5 shadow-xl cursor-pointer active:scale-[0.98] transition-all"
-          onClick={() => navigate('/referral')}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                <Icon name="Gift" size={24} className="text-white" />
-              </div>
-              <div>
-                <h3 className="text-white font-bold text-base">Пригласи друга</h3>
-                <p className="text-white/70 text-sm">+7 дней Premium за каждого</p>
-              </div>
-            </div>
-            <Icon name="ChevronRight" size={22} className="text-white/50" />
-          </div>
         </div>
 
         {/* 8. Данные пользователя */}
