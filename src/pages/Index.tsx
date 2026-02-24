@@ -13,7 +13,6 @@ const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-
 const TODAY_TOPIC = {
   subject: 'Математика',
   topic: 'Квадратные уравнения',
-  minutes: 15,
   steps: ['Объяснение', 'Пример', 'Задание'],
 };
 
@@ -59,7 +58,7 @@ export default function Index() {
   const [user, setUser] = useState(authService.getUser());
   const [gamification, setGamification] = useState<GamificationProfile | null>(null);
   const [todayLessons, setTodayLessons] = useState<Lesson[]>([]);
-  const [sessionProgress, setSessionProgress] = useState(42);
+
 
   useEffect(() => {
     trackSession();
@@ -152,8 +151,8 @@ export default function Index() {
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4">
             <div className="flex items-center justify-between mb-1">
               <span className="text-white/80 text-xs font-medium uppercase tracking-wide">Сегодняшняя сессия</span>
-              <span className="text-white/70 text-xs flex items-center gap-1">
-                <Icon name="Clock" size={11} /> {TODAY_TOPIC.minutes} мин
+              <span className="text-white/80 text-xs flex items-center gap-1 bg-white/20 rounded-lg px-2 py-0.5">
+                <Icon name="Zap" size={11} /> 2–3 мин
               </span>
             </div>
             <h2 className="text-white font-bold text-lg leading-tight">{TODAY_TOPIC.topic}</h2>
@@ -161,43 +160,28 @@ export default function Index() {
           </div>
 
           <div className="px-5 py-4">
-            {/* Прогресс сессии */}
-            <div className="mb-3">
-              <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                <span>Прогресс</span>
-                <span className="font-semibold text-indigo-600">{sessionProgress}%</span>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
-                  style={{ width: `${sessionProgress}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Шаги сессии */}
+            {/* Шаги — автопереход */}
             <div className="flex gap-2 mb-4">
               {TODAY_TOPIC.steps.map((step, i) => (
                 <div
                   key={step}
                   className={`flex-1 flex items-center justify-center gap-1 rounded-xl py-1.5 text-xs font-medium ${
-                    i === 0
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'bg-gray-100 text-gray-400'
+                    i === 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-300'
                   }`}
                 >
-                  {i === 0 && <Icon name="CheckCircle" size={11} />}
+                  <span>{i === 0 ? '①' : i === 1 ? '②' : '③'}</span>
                   {step}
                 </div>
               ))}
             </div>
 
             <Button
-              onClick={() => navigate('/assistant')}
-              className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl shadow-[0_4px_16px_rgba(99,102,241,0.35)] active:scale-[0.98] transition-all"
+              onClick={() => navigate('/session')}
+              className="w-full h-13 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.45)] active:scale-[0.98] transition-all"
             >
-              Начать занятие <Icon name="ArrowRight" size={16} className="ml-1.5" />
+              Начать за 2 минуты <Icon name="Zap" size={16} className="ml-1.5" />
             </Button>
+            <p className="text-center text-xs text-gray-400 mt-2">Объяснение → пример → задание → готово</p>
           </div>
         </div>
 

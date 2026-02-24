@@ -33,6 +33,7 @@ import Dashboard from "./pages/Dashboard";
 import Exam from "./pages/Exam";
 import NotFound from "./pages/NotFound";
 import Screenshots from "./pages/Screenshots";
+import Session from "./pages/Session";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/exam" element={<Exam />} />
               <Route path="/screenshots" element={<Screenshots />} />
+              <Route path="/session" element={<Session />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
