@@ -426,7 +426,7 @@ export default function ExamPrep() {
         )}
       </div>
 
-      <PaywallSheet open={showPaywall} onClose={() => setShowPaywall(false)} />
+      {showPaywall && <PaywallSheet trigger="ai_limit" onClose={() => setShowPaywall(false)} />}
       <BottomNav />
     </div>
   );
