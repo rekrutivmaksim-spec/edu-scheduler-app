@@ -571,12 +571,48 @@ def build_smart_fallback(question, context):
         return "Привет! Я Studyfay — твой репетитор. Задавай любой вопрос — разберём вместе!"
     return "Сервер перегружен, попробуй отправить вопрос ещё раз — обычно со второго раза всё работает!"
 
+DEMO_SYSTEM = (
+    "You are Studyfay, a friendly AI tutor for Russian school and university students. "
+    "Respond ONLY in Russian. "
+    "Format your answer clearly in 3 parts using plain text (no LaTeX, no markdown bold):\n"
+    "1. Что это — одно простое предложение\n"
+    "2. Как работает — 2-3 предложения с понятным объяснением\n"
+    "3. Пример — короткий конкретный пример из жизни или задачи\n"
+    "Use 1-2 emojis naturally. Be friendly, not academic. Max 8 sentences total."
+)
+
+DEMO_RATE_LIMIT: dict = {}
+
 def handler(event: dict, context) -> dict:
     """ИИ-ассистент Studyfay: отвечает на вопросы студентов"""
     method = event.get('httpMethod', 'GET')
 
     if method == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
+
+    # --- DEMO без авторизации ---
+    if method == 'POST':
+        body_raw = event.get('body', '{}')
+        try:
+            body_demo = json.loads(body_raw)
+        except Exception:
+            body_demo = {}
+        if body_demo.get('action') == 'demo_ask':
+            question = body_demo.get('question', '').strip()
+            if not question:
+                return err(400, {'error': 'Введи вопрос'})
+            ip = (event.get('requestContext', {}) or {}).get('identity', {}).get('sourceIp', 'unknown')
+            now_ts = datetime.now()
+            hits = DEMO_RATE_LIMIT.get(ip, [])
+            hits = [t for t in hits if (now_ts - t).total_seconds() < 3600]
+            if len(hits) >= 10:
+                return err(429, {'error': 'Слишком много запросов. Попробуй позже.'})
+            hits.append(now_ts)
+            DEMO_RATE_LIMIT[ip] = hits
+            print(f"[DEMO] ip:{ip} q:{question[:60]}", flush=True)
+            answer, tokens = ask_ai(question[:300], '', exam_meta=None, history=None)
+            print(f"[DEMO] tokens:{tokens}", flush=True)
+            return ok({'answer': answer})
 
     token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
     user_id = get_user_id(token)

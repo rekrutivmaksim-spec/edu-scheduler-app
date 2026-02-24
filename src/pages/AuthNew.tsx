@@ -29,13 +29,22 @@ const benefits = [
   { icon: 'FileText', text: 'Загружай PDF/Word — объясню и отвечу по материалу' },
 ];
 
-const DEMO_HINTS = [
-  { icon: 'BookOpen', label: 'Объясни тему', q: 'Объясни простыми словами одну тему по математике или физике — на выбор' },
-  { icon: 'PenLine', label: 'Дай задание', q: 'Дай мне одно задание уровня ЕГЭ по математике' },
-  { icon: 'FileText', label: 'Разбери файл', q: 'Как ты разбираешь файлы и PDF? Покажи пример' },
+// Категории → чипы тем
+const DEMO_CATEGORIES = [
+  { icon: 'BookOpen', label: 'Объясни тему', topics: ['Производная', 'Логарифмы', 'Фотосинтез', 'Теорема Пифагора', 'Закон Ома'] },
+  { icon: 'PenLine', label: 'Дай задание', topics: ['Задание по алгебре', 'Задание по физике', 'Задание по химии', 'Задание по биологии'] },
+  { icon: 'Zap', label: 'Быстрый вопрос', topics: ['Что такое интеграл?', 'Чем ДНК отличается от РНК?', 'Что такое молярная масса?', 'Как найти площадь фигуры?'] },
+];
+
+// Follow-up подсказки после ответа ИИ
+const FOLLOWUP = [
+  { label: '🔁 Ещё вопрос', q: 'Задай мне похожее задание для практики' },
+  { label: '📖 Глубже', q: 'Объясни подробнее с ещё одним примером' },
+  { label: '✅ Проверь меня', q: 'Дай мне задание, чтобы проверить понимание' },
 ];
 
 type Screen = 'landing' | 'demo' | 'login' | 'register' | 'forgot';
+type DemoStage = 'greeting' | 'topics' | 'chat';
 
 interface DemoMessage {
   role: 'user' | 'assistant';
@@ -44,7 +53,7 @@ interface DemoMessage {
 
 const GREETING: DemoMessage = {
   role: 'assistant',
-  text: 'Привет! Я помогу объяснить тему, разобрать задание или ответить по материалу.\nПопробуй задать вопрос или выбери один из примеров ниже 👇',
+  text: 'Привет! Я помогу объяснить тему, разобрать задание или ответить по материалу.\nВыбери с чего начать 👇',
 };
 
 export default function AuthNew() {
@@ -61,7 +70,8 @@ export default function AuthNew() {
   const [demoInput, setDemoInput] = useState('');
   const [demoCount, setDemoCount] = useState(0);
   const [demoLoading, setDemoLoading] = useState(false);
-  const [hintsVisible, setHintsVisible] = useState(true);
+  const [demoStage, setDemoStage] = useState<DemoStage>('greeting');
+  const [selectedCategory, setSelectedCategory] = useState<typeof DEMO_CATEGORIES[0] | null>(null);
   const demoBottomRef = useRef<HTMLDivElement>(null);
 
   // Auth state
@@ -93,7 +103,8 @@ export default function AuthNew() {
     const q = (text || demoInput).trim();
     if (!q || demoLoading) return;
     setDemoInput('');
-    setHintsVisible(false);
+    setDemoStage('chat');
+    setSelectedCategory(null);
     const newCount = demoCount + 1;
     setDemoCount(newCount);
     setDemoMessages(prev => [...prev, { role: 'user', text: q }]);
@@ -291,6 +302,8 @@ export default function AuthNew() {
 
   if (screen === 'demo') {
     const limitReached = demoCount >= DEMO_LIMIT;
+    const showFollowup = demoStage === 'chat' && !demoLoading && !limitReached && demoMessages.length >= 3;
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-x-hidden">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
@@ -304,18 +317,16 @@ export default function AuthNew() {
             <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center">
               <Icon name="GraduationCap" size={14} className="text-white" />
             </div>
-            <div>
-              <span className="text-white font-semibold text-sm">Studyfay</span>
-              <span className="text-white/40 text-xs ml-2">демо-режим</span>
-            </div>
+            <span className="text-white font-semibold text-sm">Studyfay</span>
+            <span className="text-white/40 text-xs">демо</span>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
             <div className="flex gap-1">
               {Array.from({ length: DEMO_LIMIT }).map((_, i) => (
-                <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i < demoCount ? 'bg-white' : 'bg-white/25'}`} />
+                <div key={i} className={`w-2 h-2 rounded-full transition-all ${i < demoCount ? 'bg-white' : 'bg-white/25'}`} />
               ))}
             </div>
-            <span className="text-white/40 text-xs">{DEMO_LIMIT - demoCount} осталось</span>
+            <span className="text-white/40 text-xs">{Math.max(0, DEMO_LIMIT - demoCount)} осталось</span>
           </div>
         </div>
 
@@ -326,19 +337,19 @@ export default function AuthNew() {
           {demoMessages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {m.role === 'assistant' && (
-                <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-1">
+                <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
                   <Icon name="GraduationCap" size={13} className="text-white" />
                 </div>
               )}
               <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${
                 m.role === 'user'
                   ? 'bg-white text-purple-700 font-medium rounded-br-sm'
-                  : 'bg-white/18 backdrop-blur text-white rounded-bl-sm'
+                  : 'bg-white/15 backdrop-blur text-white rounded-bl-sm'
               }`}>
                 {m.text}
-                {i === 0 && (
-                  <p className="text-white/60 text-xs mt-2 flex items-center gap-1">
-                    <Icon name="Zap" size={11} className="text-white/50" />
+                {i === 0 && demoStage === 'greeting' && (
+                  <p className="text-white/50 text-xs mt-1.5 flex items-center gap-1">
+                    <Icon name="Zap" size={11} />
                     Отвечаю за несколько секунд
                   </p>
                 )}
@@ -346,56 +357,112 @@ export default function AuthNew() {
             </div>
           ))}
 
-          {/* Подсказки — показываем только пока не начали чат */}
-          {hintsVisible && (
+          {/* СТАДИЯ 1: Выбор категории */}
+          {demoStage === 'greeting' && (
             <div className="flex flex-col gap-2 mt-1 animate-in fade-in duration-300">
-              {DEMO_HINTS.map(h => (
+              {DEMO_CATEGORIES.map(cat => (
                 <button
-                  key={h.label}
-                  onClick={() => sendDemo(h.q)}
+                  key={cat.label}
+                  onClick={() => { setDemoStage('topics'); setSelectedCategory(cat); }}
                   className="flex items-center gap-3 bg-white/12 backdrop-blur border border-white/15 rounded-2xl px-4 py-3 text-left hover:bg-white/20 active:scale-[0.98] transition-all"
                 >
                   <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icon name={h.icon} size={15} className="text-white" />
+                    <Icon name={cat.icon} size={15} className="text-white" />
                   </div>
-                  <span className="text-white text-sm font-medium">{h.label}</span>
+                  <span className="text-white text-sm font-medium">{cat.label}</span>
                   <Icon name="ChevronRight" size={14} className="text-white/40 ml-auto" />
                 </button>
               ))}
             </div>
           )}
 
+          {/* СТАДИЯ 2: Чипы тем */}
+          {demoStage === 'topics' && selectedCategory && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <button
+                onClick={() => { setDemoStage('greeting'); setSelectedCategory(null); }}
+                className="flex items-center gap-1 text-white/60 text-xs mb-3 hover:text-white"
+              >
+                <Icon name="ArrowLeft" size={12} /> Назад
+              </button>
+              <p className="text-white/70 text-xs mb-2">Выбери тему:</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedCategory.topics.map(topic => (
+                  <button
+                    key={topic}
+                    onClick={() => sendDemo(
+                      selectedCategory.label === 'Объясни тему'
+                        ? `Объясни простыми словами: ${topic}`
+                        : selectedCategory.label === 'Дай задание'
+                        ? `Дай мне одно ${topic} уровня ЕГЭ`
+                        : topic
+                    )}
+                    className="bg-white/15 backdrop-blur border border-white/20 rounded-full px-3 py-1.5 text-white text-sm hover:bg-white/25 active:scale-95 transition-all"
+                  >
+                    {topic}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setDemoStage('chat'); setSelectedCategory(null); }}
+                  className="bg-white/8 border border-white/15 rounded-full px-3 py-1.5 text-white/60 text-sm hover:bg-white/15 transition-all"
+                >
+                  Свой вопрос ✏️
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Лоадер */}
           {demoLoading && (
             <div className="flex justify-start">
               <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
                 <Icon name="GraduationCap" size={13} className="text-white" />
               </div>
-              <div className="bg-white/18 backdrop-blur rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="bg-white/15 backdrop-blur rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
+            </div>
+          )}
+
+          {/* Follow-up кнопки после ответа */}
+          {showFollowup && (
+            <div className="flex flex-wrap gap-2 mt-1 animate-in fade-in duration-300">
+              {FOLLOWUP.map(f => (
+                <button
+                  key={f.label}
+                  onClick={() => sendDemo(f.q)}
+                  className="bg-white/12 border border-white/20 rounded-full px-3 py-1.5 text-white/80 text-xs hover:bg-white/20 active:scale-95 transition-all"
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           )}
 
           <div ref={demoBottomRef} />
         </div>
 
-        {/* Мягкий стоп — НЕ paywall, НЕ «купи» */}
+        {/* Мягкий стоп — НЕ paywall */}
         {limitReached && (
           <div className="mx-4 mb-3 bg-white rounded-3xl p-5 shadow-2xl animate-in fade-in slide-in-from-bottom-3 duration-300">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center">
-                <Icon name="GraduationCap" size={16} className="text-indigo-600" />
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <Icon name="GraduationCap" size={18} className="text-indigo-600" />
               </div>
-              <h3 className="font-bold text-gray-800 text-base">Продолжить бесплатно</h3>
+              <div>
+                <h3 className="font-bold text-gray-800 text-sm">Продолжить бесплатно</h3>
+                <p className="text-gray-400 text-xs">можно после регистрации</p>
+              </div>
             </div>
-            <p className="text-gray-500 text-xs mb-1 leading-relaxed pl-10">
-              Регистрация займёт 10 секунд
-            </p>
-            <p className="text-gray-400 text-xs mb-4 pl-10">
-              История диалога сохранится
-            </p>
+            <div className="space-y-1.5 mb-4 pl-1">
+              {['История диалога сохранится', 'Доступ каждый день', 'Регистрация займёт 10 секунд'].map(t => (
+                <p key={t} className="text-gray-500 text-xs flex items-center gap-1.5">
+                  <span className="text-green-500">✓</span> {t}
+                </p>
+              ))}
+            </div>
             <div className="flex flex-col gap-2">
               <Button
                 onClick={() => setScreen('register')}
@@ -414,8 +481,8 @@ export default function AuthNew() {
           </div>
         )}
 
-        {/* Ввод */}
-        {!limitReached && (
+        {/* Ввод — показываем в стадии chat или если пишет свой вопрос */}
+        {!limitReached && demoStage === 'chat' && (
           <div className="px-4 pb-4 pt-2 flex gap-2">
             <Input
               placeholder="Напиши свой вопрос…"

@@ -1,6 +1,18 @@
 {
   "tests": [
     {
+      "name": "Demo ask - real AI no auth",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "demo_ask",
+        "question": "Что такое теорема Пифагора?"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {"answer": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
       "name": "Ask AI without auth",
       "method": "POST",
       "path": "/",
