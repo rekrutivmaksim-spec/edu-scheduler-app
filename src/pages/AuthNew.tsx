@@ -346,17 +346,17 @@ export default function AuthNew() {
     const errs: Record<string, string> = {};
     if (!validateEmail(email)) errs.email = 'Неверный email';
     if (password.length < 8) errs.password = 'Минимум 8 символов';
-    if (passwordConfirm && passwordConfirm !== password) errs.passwordConfirm = 'Пароли не совпадают';
     if (!agreedToTerms) { setTermsError(true); return; }
     if (Object.keys(errs).length) { setFieldErrors(errs); return; }
 
     setLoading(true);
     try {
       const device_id = await getDeviceId();
+      // Бэкенд использует action 'login' — если email новый, создаёт аккаунт автоматически
       const res = await fetch(AUTH_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'register', email, password, device_id }),
+        body: JSON.stringify({ action: 'login', email, password, device_id }),
       });
       const data = await res.json();
       if (res.ok && data.token) {
