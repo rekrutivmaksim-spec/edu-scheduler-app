@@ -64,14 +64,21 @@ export default function Session() {
   const [checkResult, setCheckResult] = useState('');
   const [checkLoading, setCheckLoading] = useState(false);
   const [isDone, setIsDone] = useState(false);
+  const [startTime] = useState(Date.now());
+  const [elapsedSec, setElapsedSec] = useState(0);
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentStep = STEPS[stepIdx];
   const isLastStep = stepIdx === STEPS.length - 1;
 
   useEffect(() => {
     loadStep(0);
+    timerRef.current = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
   useEffect(() => {
@@ -157,6 +164,8 @@ export default function Session() {
 
   const goNext = () => {
     if (isLastStep && checkResult) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      window.dispatchEvent(new Event('session_completed'));
       setIsDone(true);
       return;
     }
@@ -169,44 +178,53 @@ export default function Session() {
 
   const progressPct = isDone ? 100 : Math.round(((stepIdx + (checkResult ? 1 : 0)) / STEPS.length) * 100);
 
+  const elapsedMin = Math.max(1, Math.round(elapsedSec / 60));
+
   if (isDone) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center px-6 text-center">
-        <div className="text-6xl mb-4">🎉</div>
-        <h1 className="text-white font-extrabold text-2xl mb-2">Молодец!</h1>
-        <p className="text-white/80 text-base mb-1">Тема разобрана за 2 минуты</p>
-        <p className="text-white/60 text-sm mb-8">{SESSION_TOPIC.topic} · {SESSION_TOPIC.subject}</p>
+        <div className="text-7xl mb-3 animate-bounce">🎉</div>
+        <h1 className="text-white font-extrabold text-3xl mb-1">Молодец!</h1>
+        <p className="text-white/80 text-base mb-0.5">Тема разобрана</p>
+        <p className="text-white/50 text-sm mb-6">{SESSION_TOPIC.topic} · {SESSION_TOPIC.subject}</p>
 
-        <div className="bg-white/15 rounded-3xl px-6 py-4 mb-8 w-full max-w-sm">
+        {/* Статистика */}
+        <div className="bg-white/15 backdrop-blur rounded-3xl px-6 py-5 mb-6 w-full max-w-sm">
           <div className="flex items-center justify-around">
             <div className="text-center">
               <p className="text-white font-bold text-2xl">3</p>
-              <p className="text-white/60 text-xs">шага</p>
+              <p className="text-white/60 text-xs mt-0.5">шага</p>
             </div>
-            <div className="w-px h-8 bg-white/20" />
+            <div className="w-px h-10 bg-white/20" />
             <div className="text-center">
-              <p className="text-white font-bold text-2xl">~2</p>
-              <p className="text-white/60 text-xs">минуты</p>
+              <p className="text-white font-bold text-2xl">{elapsedMin} мин</p>
+              <p className="text-white/60 text-xs mt-0.5">потрачено</p>
             </div>
-            <div className="w-px h-8 bg-white/20" />
+            <div className="w-px h-10 bg-white/20" />
             <div className="text-center">
-              <p className="text-white font-bold text-2xl">+🔥</p>
-              <p className="text-white/60 text-xs">в серии</p>
+              <p className="text-white font-bold text-2xl">🔥</p>
+              <p className="text-white/60 text-xs mt-0.5">серия растёт</p>
             </div>
           </div>
+        </div>
+
+        {/* Мотивация */}
+        <div className="bg-white/10 rounded-2xl px-5 py-3 mb-6 w-full max-w-sm">
+          <p className="text-white text-sm font-medium">📅 Следующее занятие — завтра</p>
+          <p className="text-white/60 text-xs mt-0.5">Приходи в то же время — не теряй серию</p>
         </div>
 
         <Button
           onClick={() => navigate('/')}
           className="w-full max-w-sm h-14 bg-white text-purple-700 font-bold text-base rounded-2xl shadow-xl mb-3 active:scale-[0.98] transition-all"
         >
-          На главную
+          На главную 🏠
         </Button>
         <button
-          onClick={() => { setIsDone(false); setStepIdx(0); loadStep(0); }}
+          onClick={() => navigate('/assistant')}
           className="text-white/60 text-sm underline underline-offset-2"
         >
-          Разобрать другую тему
+          Задать ещё вопрос по теме
         </button>
       </div>
     );
