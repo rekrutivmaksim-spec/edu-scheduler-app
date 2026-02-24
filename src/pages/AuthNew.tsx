@@ -30,9 +30,9 @@ const benefits = [
 ];
 
 const DEMO_HINTS = [
-  'Объясни теорему Пифагора',
-  'Что такое фотосинтез?',
-  'Помоги с заданием по химии',
+  { icon: 'BookOpen', label: 'Объясни тему', q: 'Объясни простыми словами одну тему по математике или физике — на выбор' },
+  { icon: 'PenLine', label: 'Дай задание', q: 'Дай мне одно задание уровня ЕГЭ по математике' },
+  { icon: 'FileText', label: 'Разбери файл', q: 'Как ты разбираешь файлы и PDF? Покажи пример' },
 ];
 
 type Screen = 'landing' | 'demo' | 'login' | 'register' | 'forgot';
@@ -41,6 +41,11 @@ interface DemoMessage {
   role: 'user' | 'assistant';
   text: string;
 }
+
+const GREETING: DemoMessage = {
+  role: 'assistant',
+  text: 'Привет! Я помогу объяснить тему, разобрать задание или ответить по материалу.\nПопробуй задать вопрос или выбери один из примеров ниже 👇',
+};
 
 export default function AuthNew() {
   const navigate = useNavigate();
@@ -52,10 +57,11 @@ export default function AuthNew() {
   const [demoStarting, setDemoStarting] = useState(false);
 
   // Demo state
-  const [demoMessages, setDemoMessages] = useState<DemoMessage[]>([]);
+  const [demoMessages, setDemoMessages] = useState<DemoMessage[]>([GREETING]);
   const [demoInput, setDemoInput] = useState('');
   const [demoCount, setDemoCount] = useState(0);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [hintsVisible, setHintsVisible] = useState(true);
   const demoBottomRef = useRef<HTMLDivElement>(null);
 
   // Auth state
@@ -87,6 +93,7 @@ export default function AuthNew() {
     const q = (text || demoInput).trim();
     if (!q || demoLoading) return;
     setDemoInput('');
+    setHintsVisible(false);
     const newCount = demoCount + 1;
     setDemoCount(newCount);
     setDemoMessages(prev => [...prev, { role: 'user', text: q }]);
@@ -285,56 +292,88 @@ export default function AuthNew() {
   if (screen === 'demo') {
     const limitReached = demoCount >= DEMO_LIMIT;
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-x-hidden">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Шапка */}
-        <div className="flex items-center gap-3 p-4 pt-6">
-          <button onClick={() => setScreen('landing')} className="text-white/70 hover:text-white">
+        <div className="flex items-center gap-3 px-4 pt-6 pb-3">
+          <button onClick={() => setScreen('landing')} className="text-white/70 hover:text-white transition-colors">
             <Icon name="ArrowLeft" size={20} />
           </button>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center">
               <Icon name="GraduationCap" size={14} className="text-white" />
             </div>
-            <span className="text-white font-semibold text-sm">Studyfay — демо</span>
+            <div>
+              <span className="text-white font-semibold text-sm">Studyfay</span>
+              <span className="text-white/40 text-xs ml-2">демо-режим</span>
+            </div>
           </div>
-          <span className="ml-auto text-white/50 text-xs">{demoCount}/{DEMO_LIMIT} вопроса</span>
+          <div className="ml-auto flex items-center gap-1.5">
+            <div className="flex gap-1">
+              {Array.from({ length: DEMO_LIMIT }).map((_, i) => (
+                <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i < demoCount ? 'bg-white' : 'bg-white/25'}`} />
+              ))}
+            </div>
+            <span className="text-white/40 text-xs">{DEMO_LIMIT - demoCount} осталось</span>
+          </div>
         </div>
 
         {/* Чат */}
         <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-3">
-          {demoMessages.length === 0 && (
-            <div className="flex flex-col gap-3 mt-4">
-              <p className="text-white/70 text-sm text-center">Попробуй спросить что-нибудь:</p>
+
+          {/* Сообщения */}
+          {demoMessages.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {m.role === 'assistant' && (
+                <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-1">
+                  <Icon name="GraduationCap" size={13} className="text-white" />
+                </div>
+              )}
+              <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${
+                m.role === 'user'
+                  ? 'bg-white text-purple-700 font-medium rounded-br-sm'
+                  : 'bg-white/18 backdrop-blur text-white rounded-bl-sm'
+              }`}>
+                {m.text}
+                {i === 0 && (
+                  <p className="text-white/60 text-xs mt-2 flex items-center gap-1">
+                    <Icon name="Zap" size={11} className="text-white/50" />
+                    Отвечаю за несколько секунд
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Подсказки — показываем только пока не начали чат */}
+          {hintsVisible && (
+            <div className="flex flex-col gap-2 mt-1 animate-in fade-in duration-300">
               {DEMO_HINTS.map(h => (
                 <button
-                  key={h}
-                  onClick={() => sendDemo(h)}
-                  className="bg-white/15 backdrop-blur rounded-2xl px-4 py-3 text-white text-sm text-left hover:bg-white/25 transition-colors"
+                  key={h.label}
+                  onClick={() => sendDemo(h.q)}
+                  className="flex items-center gap-3 bg-white/12 backdrop-blur border border-white/15 rounded-2xl px-4 py-3 text-left hover:bg-white/20 active:scale-[0.98] transition-all"
                 >
-                  {h}
+                  <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Icon name={h.icon} size={15} className="text-white" />
+                  </div>
+                  <span className="text-white text-sm font-medium">{h.label}</span>
+                  <Icon name="ChevronRight" size={14} className="text-white/40 ml-auto" />
                 </button>
               ))}
             </div>
           )}
 
-          {demoMessages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                m.role === 'user'
-                  ? 'bg-white text-purple-700 font-medium'
-                  : 'bg-white/15 backdrop-blur text-white'
-              }`}>
-                {m.text}
-              </div>
-            </div>
-          ))}
-
           {demoLoading && (
             <div className="flex justify-start">
-              <div className="bg-white/15 backdrop-blur rounded-2xl px-4 py-3">
-                <Icon name="Loader2" size={16} className="text-white animate-spin" />
+              <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                <Icon name="GraduationCap" size={13} className="text-white" />
+              </div>
+              <div className="bg-white/18 backdrop-blur rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           )}
@@ -342,26 +381,34 @@ export default function AuthNew() {
           <div ref={demoBottomRef} />
         </div>
 
-        {/* Мягкий стоп после лимита */}
+        {/* Мягкий стоп — НЕ paywall, НЕ «купи» */}
         {limitReached && (
           <div className="mx-4 mb-3 bg-white rounded-3xl p-5 shadow-2xl animate-in fade-in slide-in-from-bottom-3 duration-300">
-            <h3 className="font-bold text-gray-800 text-base mb-1">Создайте аккаунт, чтобы продолжить</h3>
-            <p className="text-gray-500 text-xs mb-4 leading-relaxed">
-              С аккаунтом: сохранение истории, доступ каждый день, разбор файлов
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <Icon name="GraduationCap" size={16} className="text-indigo-600" />
+              </div>
+              <h3 className="font-bold text-gray-800 text-base">Продолжить бесплатно</h3>
+            </div>
+            <p className="text-gray-500 text-xs mb-1 leading-relaxed pl-10">
+              Регистрация займёт 10 секунд
+            </p>
+            <p className="text-gray-400 text-xs mb-4 pl-10">
+              История диалога сохранится
             </p>
             <div className="flex flex-col gap-2">
               <Button
                 onClick={() => setScreen('register')}
-                className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl"
+                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl"
               >
                 Создать аккаунт
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setScreen('login')}
-                className="w-full h-11 rounded-xl border-2 border-gray-200 text-gray-700 font-medium"
+                className="w-full h-11 rounded-xl border-2 border-gray-200 text-gray-600 font-medium"
               >
-                Войти
+                Уже есть аккаунт — войти
               </Button>
             </div>
           </div>
@@ -369,19 +416,20 @@ export default function AuthNew() {
 
         {/* Ввод */}
         {!limitReached && (
-          <div className="p-4 flex gap-2">
+          <div className="px-4 pb-4 pt-2 flex gap-2">
             <Input
-              placeholder="Задай вопрос…"
+              placeholder="Напиши свой вопрос…"
               value={demoInput}
               onChange={e => setDemoInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendDemo()}
               disabled={demoLoading}
-              className="flex-1 h-11 bg-white/15 backdrop-blur border-white/20 text-white placeholder:text-white/40 rounded-2xl focus:border-white/50"
+              autoFocus
+              className="flex-1 h-12 bg-white/15 backdrop-blur border border-white/20 text-white placeholder:text-white/40 rounded-2xl focus:border-white/50 text-sm"
             />
             <Button
               onClick={() => sendDemo()}
               disabled={!demoInput.trim() || demoLoading}
-              className="h-11 w-11 bg-white text-purple-700 hover:bg-white/90 rounded-2xl flex-shrink-0 p-0"
+              className="h-12 w-12 bg-white text-purple-700 hover:bg-white/90 rounded-2xl flex-shrink-0 p-0 disabled:opacity-40"
             >
               <Icon name="Send" size={16} />
             </Button>
