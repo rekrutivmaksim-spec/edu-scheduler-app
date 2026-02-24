@@ -402,27 +402,36 @@ def sanitize_answer(text):
     return text.strip()
 
 
+_http_demo = httpx.Client(timeout=httpx.Timeout(24.0, connect=5.0))
+
 def ask_ai_demo(question: str) -> tuple:
-    """Быстрый ответ для демо: минимальный промпт, 300 токенов, temperature 0.5"""
+    """Демо-ответ: прямой httpx в Artemox, без openai SDK, timeout 24 сек"""
     import time as _t
     t0 = _t.time()
     print(f"[DEMO] ask_ai_demo start q_len:{len(question)}", flush=True)
     try:
-        resp = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
                 {"role": "system", "content": DEMO_SYSTEM},
-                {"role": "user", "content": question},
+                {"role": "user", "content": question[:250]},
             ],
-            temperature=0.5,
-            max_tokens=300,
+            "temperature": 0.5,
+            "max_tokens": 250,
+        }
+        r = _http_demo.post(
+            "https://api.artemox.com/v1/chat/completions",
+            json=payload,
+            headers={"Authorization": f"Bearer {ARTEMOX_API_KEY}", "Content-Type": "application/json"},
         )
-        answer = sanitize_answer(resp.choices[0].message.content)
-        tokens = resp.usage.total_tokens if resp.usage else 0
-        print(f"[DEMO] ask_ai_demo ok tokens:{tokens} time:{_t.time()-t0:.1f}s", flush=True)
+        print(f"[DEMO] artemox status:{r.status_code} time:{_t.time()-t0:.1f}s", flush=True)
+        data = r.json()
+        answer = sanitize_answer(data["choices"][0]["message"]["content"])
+        tokens = data.get("usage", {}).get("total_tokens", 0)
+        print(f"[DEMO] ok tokens:{tokens}", flush=True)
         return answer, tokens
     except Exception as e:
-        print(f"[DEMO] AI FAIL {type(e).__name__}: {str(e)[:500]}", flush=True)
+        print(f"[DEMO] AI FAIL {type(e).__name__}: {str(e)[:300]}", flush=True)
         return build_smart_fallback(question, ''), 0
 
 
@@ -595,11 +604,7 @@ def build_smart_fallback(question, context):
         return "Привет! Я Studyfay — твой репетитор. Задавай любой вопрос — разберём вместе!"
     return "Сервер перегружен, попробуй отправить вопрос ещё раз — обычно со второго раза всё работает!"
 
-DEMO_SYSTEM = (
-    "Ты — ИИ-репетитор Studyfay. Отвечай только на русском.\n"
-    "Формат ответа:\nКоротко: одно предложение.\nПример: конкретный пример.\nХочешь глубже — скажи.\n"
-    "Без LaTeX, без markdown. 1-2 эмодзи. Максимум 5 предложений."
-)
+DEMO_SYSTEM = "Ты репетитор. Отвечай по-русски. Формат: Коротко: [1 предложение]. Пример: [пример]. Без LaTeX. До 4 предложений."
 
 DEMO_RATE_LIMIT: dict = {}
 
