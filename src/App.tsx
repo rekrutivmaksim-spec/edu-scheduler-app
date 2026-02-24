@@ -24,7 +24,6 @@ import Terms from "./pages/Terms";
 import Settings from "./pages/Settings";
 import Subscription from "./pages/Subscription";
 import Achievements from "./pages/Achievements";
-import GradeBook from "./pages/GradeBook";
 import Referral from "./pages/Referral";
 import StudyGroups from "./pages/StudyGroups";
 import Widget from "./pages/Widget";
@@ -67,7 +66,6 @@ const App = () => (
               <Route path="/settings" element={<Settings />} />
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/achievements" element={<Achievements />} />
-              <Route path="/gradebook" element={<GradeBook />} />
               <Route path="/referral" element={<Referral />} />
               <Route path="/groups" element={<StudyGroups />} />
               <Route path="/widget" element={<Widget />} />

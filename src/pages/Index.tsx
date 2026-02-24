@@ -102,7 +102,6 @@ const QUICK_ACCESS = [
 ];
 
 const SECONDARY = [
-  { icon: 'BookMarked', label: 'Зачётка', path: '/gradebook' },
   { icon: 'Timer', label: 'Помодоро', path: '/pomodoro' },
   { icon: 'Trophy', label: 'Достижения', path: '/achievements' },
 ];
