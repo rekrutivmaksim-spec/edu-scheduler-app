@@ -196,7 +196,7 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
     print(f"[MATERIALS] Artemox анализ начат, длина текста={len(full_text)}")
     
     try:
-        client = OpenAI(api_key=artemox_key, base_url="https://api.artemox.com/v1", timeout=30.0)
+        client = OpenAI(api_key=artemox_key, base_url="https://api.artemox.com/v1", timeout=22.0)
         # Берём больше текста для анализа (начало + середина + конец)
         text_start = full_text[:2500]
         text_middle = full_text[len(full_text)//2:len(full_text)//2+2500] if len(full_text) > 5000 else ""
@@ -214,7 +214,7 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=1000,
+            max_tokens=500,
             response_format={"type": "json_object"})
         
         content = response.choices[0].message.content

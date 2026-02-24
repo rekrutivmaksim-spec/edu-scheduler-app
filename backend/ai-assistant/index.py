@@ -14,9 +14,9 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(55.0, connect=6.0))
-_http_vision = httpx.Client(timeout=httpx.Timeout(30.0, connect=6.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=55.0, http_client=_http)
+_http = httpx.Client(timeout=httpx.Timeout(22.0, connect=5.0))
+_http_vision = httpx.Client(timeout=httpx.Timeout(22.0, connect=5.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=22.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -402,7 +402,7 @@ def sanitize_answer(text):
     return text.strip()
 
 
-_http_demo = httpx.Client(timeout=httpx.Timeout(12.0, connect=4.0))
+_http_demo = httpx.Client(timeout=httpx.Timeout(10.0, connect=4.0))
 _http_fallback = httpx.Client(timeout=httpx.Timeout(8.0, connect=3.0))
 
 def _call_openai_compat(http_client, url: str, api_key: str, question: str, history: list = None, max_tokens: int = 250) -> str | None:
@@ -548,7 +548,7 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
             model="deepseek-chat",
             messages=messages_list,
             temperature=0.5,
-            max_tokens=600,
+            max_tokens=350,
         )
         answer = resp.choices[0].message.content
         tokens = resp.usage.total_tokens if resp.usage else 0

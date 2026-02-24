@@ -18,7 +18,7 @@ ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 ai_client = OpenAI(
     api_key=ARTEMOX_API_KEY,
     base_url='https://api.artemox.com/v1',
-    timeout=30.0
+    timeout=22.0
 )
 
 CORS_HEADERS = {
@@ -169,7 +169,7 @@ def generate_plan_with_ai(subject: str, difficulty: str, days_left: int, context
             {'role': 'user', 'content': f'Создай план подготовки к экзамену по предмету "{subject}" на {capped_days} дней.'},
         ],
         temperature=0.7,
-        max_tokens=4000,
+        max_tokens=2000,
     )
 
     raw = response.choices[0].message.content.strip()
