@@ -241,7 +241,6 @@ export default function AuthNew() {
     const errs: Record<string, string> = {};
     if (!validateEmail(email)) errs.email = 'Неверный email';
     if (!password) errs.password = 'Введите пароль';
-    if (!agreedToTerms) { setTermsError(true); return; }
     if (Object.keys(errs).length) { setFieldErrors(errs); return; }
 
     setLoading(true);
@@ -628,7 +627,7 @@ export default function AuthNew() {
           </button>
 
           <div className="bg-white rounded-3xl p-6 shadow-2xl">
-            <h2 className="text-xl font-bold text-gray-800 mb-5">Вход в аккаунт</h2>
+            <h2 className="text-2xl font-extrabold text-gray-800 mb-5">Войти</h2>
             <div className="space-y-3">
               <div>
                 <Input
@@ -653,26 +652,29 @@ export default function AuthNew() {
                 />
                 <button
                   onClick={() => setScreen('forgot')}
-                  className="text-xs text-purple-600 hover:underline mt-1 block text-right w-full"
+                  className="text-xs text-purple-500 hover:underline mt-1 block text-right w-full"
                 >
                   Забыли пароль?
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Checkbox id="remember" checked={rememberMe} onCheckedChange={c => setRememberMe(c as boolean)} />
-                <label htmlFor="remember" className="text-xs text-gray-600 cursor-pointer">Запомнить меня</label>
-              </div>
+              {/* Запомнить — второстепенный, без доминирования */}
+              <label htmlFor="remember" className="flex items-center gap-2 cursor-pointer w-fit">
+                <Checkbox id="remember" checked={rememberMe} onCheckedChange={c => setRememberMe(c as boolean)} className="w-4 h-4" />
+                <span className="text-xs text-gray-400">Запомнить меня</span>
+              </label>
 
-              <TermsBlock />
+              {/* TermsBlock убран — пользователь уже соглашался при регистрации */}
 
               <Button
                 onClick={handleLogin}
                 disabled={loading}
-                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold rounded-xl"
+                className="w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 active:scale-[0.98] text-white font-bold text-base rounded-xl shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all"
               >
                 {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Войти'}
               </Button>
+
+              <p className="text-center text-xs text-gray-400">Быстро и бесплатно</p>
 
               <p className="text-center text-xs text-gray-400">
                 Нет аккаунта?{' '}
