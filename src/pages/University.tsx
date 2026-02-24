@@ -372,6 +372,10 @@ export default function University() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 px-4 pt-12 pb-8">
+        <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-white/70 mb-3 hover:text-white transition-colors">
+          <Icon name="ArrowLeft" size={18} />
+          <span className="text-sm">Главная</span>
+        </button>
         <h1 className="text-white font-extrabold text-2xl mb-1">ВУЗ</h1>
         <p className="text-white/60 text-sm">Разбор материалов и подготовка к сессии</p>
       </div>

@@ -4,6 +4,7 @@ import { authService } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import BottomNav from '@/components/BottomNav';
 
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
@@ -354,6 +355,7 @@ const Pricing = () => {
         </div>
 
       </div>
+      <BottomNav />
     </div>
   );
 };

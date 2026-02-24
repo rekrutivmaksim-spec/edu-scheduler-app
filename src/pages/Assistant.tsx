@@ -117,11 +117,11 @@ const LimitScreen = ({ onClose, navigate }: { onClose: () => void; navigate: (p:
 );
 
 const quickActions = [
-  { icon: '🔥', text: 'Объясни тему' },
-  { icon: '🎯', text: 'Дай задание' },
-  { icon: '📄', text: 'Разбери файл' },
-  { icon: '🎓', text: 'Подготовь к экзамену' },
-  { icon: '🏛', text: 'Помощь по вузу' },
+  { icon: '🔥', text: 'Объясни тему', action: 'send' },
+  { icon: '🎯', text: 'Дай задание', action: 'send' },
+  { icon: '📄', text: 'Разбери файл', action: 'navigate', path: '/university' },
+  { icon: '🎓', text: 'Подготовь к экзамену', action: 'navigate', path: '/exam' },
+  { icon: '🏛', text: 'Помощь по вузу', action: 'navigate', path: '/university' },
 ];
 
 const Assistant = () => {
@@ -523,12 +523,12 @@ const Assistant = () => {
                 {quickActions.map((qa, i) => (
                   <button
                     key={i}
-                    onClick={() => sendMessage(qa.text)}
+                    onClick={() => qa.action === 'navigate' && qa.path ? navigate(qa.path) : sendMessage(qa.text)}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-purple-50 rounded-2xl border border-gray-100 hover:border-purple-200 transition-all active:scale-[0.98] text-left"
                   >
                     <span className="text-xl flex-shrink-0">{qa.icon}</span>
                     <span className="text-gray-700 font-medium text-sm flex-1">{qa.text}</span>
-                    <Icon name="ChevronRight" size={14} className="text-gray-300 flex-shrink-0" />
+                    <Icon name={qa.action === 'navigate' ? 'ExternalLink' : 'ChevronRight'} size={14} className="text-gray-300 flex-shrink-0" />
                   </button>
                 ))}
               </div>

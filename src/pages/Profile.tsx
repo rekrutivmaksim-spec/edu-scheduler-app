@@ -278,13 +278,15 @@ const Profile = () => {
                   </div>
                 ))}
               </div>
-              {/* Срочность */}
-              <div className="bg-white/15 rounded-2xl px-4 py-2.5 mb-4 flex items-center gap-2">
-                <span className="text-base">🔥</span>
-                <p className="text-white text-xs">
-                  До ЕГЭ <span className="font-bold">{daysToExam > 0 ? `${daysToExam} дней` : 'скоро'}</span> — осталось <span className="font-bold">{Math.max(0, 24 - Math.min(totalDays, 24))} тем</span>
-                </p>
-              </div>
+              {/* Срочность — только для ЕГЭ/ОГЭ */}
+              {(formData.goal === 'ege' || formData.goal === 'oge') && (
+                <div className="bg-white/15 rounded-2xl px-4 py-2.5 mb-4 flex items-center gap-2">
+                  <span className="text-base">🔥</span>
+                  <p className="text-white text-xs">
+                    До {formData.goal === 'oge' ? 'ОГЭ' : 'ЕГЭ'} <span className="font-bold">{daysToExam > 0 ? `${daysToExam} дней` : 'скоро'}</span> — осталось <span className="font-bold">{Math.max(0, 24 - Math.min(totalDays, 24))} тем</span>
+                  </p>
+                </div>
+              )}
               <div className="flex items-center gap-3 mb-1">
                 <Button className="flex-1 h-12 bg-white text-purple-700 font-extrabold text-base rounded-2xl shadow-lg">
                   Подключить Premium
@@ -395,21 +397,49 @@ const Profile = () => {
         </div>
 
         {/* 4. До экзамена */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm flex items-center gap-4">
-          <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl">🎯</span>
-          </div>
-          <div className="flex-1">
-            <p className="text-gray-500 text-sm">До ЕГЭ осталось</p>
-            <p className="text-3xl font-extrabold text-gray-800">{daysToExam > 0 ? daysToExam : '—'} <span className="text-base font-medium text-gray-500">{daysToExam > 0 ? 'дней' : ''}</span></p>
-            <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-red-400 to-orange-400 rounded-full" style={{ width: `${daysToExam > 0 ? Math.round((1 - daysToExam / 365) * 100) : 100}%` }} />
+        {(formData.goal === 'ege' || formData.goal === 'oge') ? (
+          <div className="bg-white rounded-3xl p-5 shadow-sm flex items-center gap-4">
+            <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl">🎯</span>
             </div>
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm">До {formData.goal === 'oge' ? 'ОГЭ' : 'ЕГЭ'} осталось</p>
+              <p className="text-3xl font-extrabold text-gray-800">{daysToExam > 0 ? daysToExam : '—'} <span className="text-base font-medium text-gray-500">{daysToExam > 0 ? 'дней' : ''}</span></p>
+              <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-red-400 to-orange-400 rounded-full" style={{ width: `${daysToExam > 0 ? Math.round((1 - daysToExam / 365) * 100) : 100}%` }} />
+              </div>
+            </div>
+            <button onClick={() => navigate('/session')} className="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex-shrink-0">
+              Занятие →
+            </button>
           </div>
-          <button onClick={() => navigate('/session')} className="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex-shrink-0">
-            Занятие →
-          </button>
-        </div>
+        ) : formData.goal === 'university' ? (
+          <div className="bg-white rounded-3xl p-5 shadow-sm flex items-center gap-4">
+            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl">🏛️</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm">Подготовка к сессии</p>
+              <p className="text-base font-bold text-gray-800 mt-0.5">Разбирай конспекты каждый день</p>
+            </div>
+            <button onClick={() => navigate('/university')} className="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex-shrink-0">
+              Открыть →
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-3xl p-5 shadow-sm flex items-center gap-4">
+            <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl">🤖</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm">ИИ-помощник</p>
+              <p className="text-base font-bold text-gray-800 mt-0.5">Задай любой вопрос по учёбе</p>
+            </div>
+            <button onClick={() => navigate('/assistant')} className="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex-shrink-0">
+              Открыть →
+            </button>
+          </div>
+        )}
 
         {/* 5. Сэкономлено */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">
@@ -465,8 +495,11 @@ const Profile = () => {
               </div>
             ))}
           </div>
-          <button onClick={() => navigate('/session')} className="mt-3 w-full text-indigo-600 text-sm font-semibold text-center py-1">
-            Начать сегодняшнее занятие →
+          <button
+            onClick={() => navigate(formData.goal === 'university' ? '/university' : '/session')}
+            className="mt-3 w-full text-indigo-600 text-sm font-semibold text-center py-1"
+          >
+            {formData.goal === 'university' ? 'Открыть ВУЗ-помощник →' : 'Начать сегодняшнее занятие →'}
           </button>
         </div>
 
