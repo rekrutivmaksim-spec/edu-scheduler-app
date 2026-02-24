@@ -31,6 +31,8 @@ import Widget from "./pages/Widget";
 import AppStore from "./pages/AppStore";
 import Dashboard from "./pages/Dashboard";
 import Exam from "./pages/Exam";
+import ExamPrep from "./pages/ExamPrep";
+import University from "./pages/University";
 import NotFound from "./pages/NotFound";
 import Screenshots from "./pages/Screenshots";
 import Session from "./pages/Session";
@@ -71,6 +73,8 @@ const App = () => (
               <Route path="/widget" element={<Widget />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/exam" element={<Exam />} />
+              <Route path="/exam-prep" element={<ExamPrep />} />
+              <Route path="/university" element={<University />} />
               <Route path="/screenshots" element={<Screenshots />} />
               <Route path="/session" element={<Session />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
