@@ -36,12 +36,27 @@ const DEMO_CATEGORIES = [
   { icon: 'Zap', label: 'Быстрый вопрос', topics: ['Что такое интеграл?', 'Чем ДНК отличается от РНК?', 'Что такое молярная масса?', 'Как найти площадь фигуры?'] },
 ];
 
-// Follow-up подсказки после ответа ИИ
+// Follow-up кнопки под каждым ответом ИИ
 const FOLLOWUP = [
-  { label: '🔁 Ещё вопрос', q: 'Задай мне похожее задание для практики' },
-  { label: '📖 Глубже', q: 'Объясни подробнее с ещё одним примером' },
-  { label: '✅ Проверь меня', q: 'Дай мне задание, чтобы проверить понимание' },
+  { label: 'Объясни проще', q: 'Объясни то же самое ещё проще, как для 5-классника' },
+  { label: 'Дай задание', q: 'Дай мне короткое задание по этой теме чтобы проверить понимание' },
+  { label: 'Следующий вопрос', q: 'Что ещё важно знать по этой теме? Объясни следующий шаг.' },
 ];
+
+// Очистка markdown и иероглифов из ответов ИИ
+function sanitizeText(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold**
+    .replace(/\*(.+?)\*/g, '$1')        // *italic*
+    .replace(/__(.+?)__/g, '$1')        // __bold__
+    .replace(/_(.+?)_/g, '$1')          // _italic_
+    .replace(/`{1,3}([^`]+)`{1,3}/g, '$1') // `code`
+    .replace(/#{1,6}\s/g, '')           // ## headers
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [link](url)
+    .replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '') // CJK иероглифы
+    .replace(/\n{3,}/g, '\n\n')         // лишние переносы
+    .trim();
+}
 
 type Screen = 'landing' | 'demo' | 'login' | 'register' | 'forgot';
 type DemoStage = 'greeting' | 'topics' | 'chat';
@@ -133,8 +148,8 @@ export default function AuthNew() {
         body: JSON.stringify({ action: 'demo_ask', question: q }),
       });
       const data = await res.json();
-      const answer = data.answer || data.response || data.message || 'Не удалось получить ответ';
-      setDemoMessages(prev => [...prev, { role: 'assistant', text: answer }]);
+      const raw = data.answer || data.response || data.message || 'Не удалось получить ответ';
+      setDemoMessages(prev => [...prev, { role: 'assistant', text: sanitizeText(raw) }]);
     } catch {
       setDemoMessages(prev => [...prev, { role: 'assistant', text: 'Проблемы с соединением — попробуй ещё раз.' }]);
       setDemoCount(c => c - 1);
@@ -321,15 +336,14 @@ export default function AuthNew() {
 
   if (screen === 'demo') {
     const limitReached = demoCount >= DEMO_LIMIT;
-    const showFollowup = demoStage === 'chat' && !demoLoading && !limitReached && demoMessages.length >= 3;
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-x-hidden">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Шапка */}
-        <div className="flex items-center gap-3 px-4 pt-6 pb-3">
-          <button onClick={() => setScreen('landing')} className="text-white/70 hover:text-white transition-colors">
+        {/* Шапка — с отступом под статусбар */}
+        <div className="flex items-center gap-3 px-4 pb-3" style={{ paddingTop: 'max(24px, env(safe-area-inset-top, 24px))' }}>
+          <button onClick={() => setScreen('landing')} className="text-white/70 hover:text-white transition-colors p-1 -ml-1">
             <Icon name="ArrowLeft" size={20} />
           </button>
           <div className="flex items-center gap-2">
@@ -350,31 +364,51 @@ export default function AuthNew() {
         </div>
 
         {/* Чат */}
-        <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-3">
+        <div className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-3">
 
           {/* Сообщения */}
-          {demoMessages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              {m.role === 'assistant' && (
-                <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
-                  <Icon name="GraduationCap" size={13} className="text-white" />
+          {demoMessages.map((m, i) => {
+            const isLastAssistant = m.role === 'assistant' && i === demoMessages.length - 1 && i > 0;
+            const showFollowupHere = isLastAssistant && !demoLoading && !limitReached;
+            return (
+              <div key={i}>
+                <div className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {m.role === 'assistant' && (
+                    <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
+                      <Icon name="GraduationCap" size={13} className="text-white" />
+                    </div>
+                  )}
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${
+                    m.role === 'user'
+                      ? 'bg-white text-purple-700 font-medium rounded-br-sm'
+                      : 'bg-white/15 backdrop-blur text-white rounded-bl-sm'
+                  }`}>
+                    {m.text}
+                    {i === 0 && (
+                      <p className="text-white/40 text-xs mt-1.5 flex items-center gap-1">
+                        <Icon name="Zap" size={11} />
+                        Ответ обычно за 20–60 секунд
+                      </p>
+                    )}
+                  </div>
                 </div>
-              )}
-              <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${
-                m.role === 'user'
-                  ? 'bg-white text-purple-700 font-medium rounded-br-sm'
-                  : 'bg-white/15 backdrop-blur text-white rounded-bl-sm'
-              }`}>
-                {m.text}
-                {i === 0 && demoStage === 'greeting' && (
-                  <p className="text-white/40 text-xs mt-1.5 flex items-center gap-1">
-                    <Icon name="Zap" size={11} />
-                    Ответ обычно за 20–60 секунд
-                  </p>
+                {/* Follow-up под каждым последним ответом ИИ */}
+                {showFollowupHere && (
+                  <div className="flex flex-wrap gap-2 mt-2 ml-9 animate-in fade-in duration-300">
+                    {FOLLOWUP.map(f => (
+                      <button
+                        key={f.label}
+                        onClick={() => sendDemo(f.q)}
+                        className="bg-white/15 border border-white/25 rounded-full px-3 py-1.5 text-white text-xs font-medium hover:bg-white/25 active:scale-95 transition-all"
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* СТАДИЯ 1: Выбор категории */}
           {demoStage === 'greeting' && (
@@ -451,21 +485,6 @@ export default function AuthNew() {
             </div>
           )}
 
-          {/* Follow-up кнопки после ответа */}
-          {showFollowup && (
-            <div className="flex flex-wrap gap-2 mt-1 animate-in fade-in duration-300">
-              {FOLLOWUP.map(f => (
-                <button
-                  key={f.label}
-                  onClick={() => sendDemo(f.q)}
-                  className="bg-white/12 border border-white/20 rounded-full px-3 py-1.5 text-white/80 text-xs hover:bg-white/20 active:scale-95 transition-all"
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div ref={demoBottomRef} />
         </div>
 
@@ -506,16 +525,15 @@ export default function AuthNew() {
           </div>
         )}
 
-        {/* Ввод — показываем в стадии chat или если пишет свой вопрос */}
+        {/* Ввод — всегда в стадии chat */}
         {!limitReached && demoStage === 'chat' && (
-          <div className="px-4 pb-4 pt-2 flex gap-2">
+          <div className="px-3 pt-2 flex gap-2" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))' }}>
             <Input
               placeholder="Напиши свой вопрос…"
               value={demoInput}
               onChange={e => setDemoInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendDemo()}
               disabled={demoLoading}
-              autoFocus
               className="flex-1 h-12 bg-white/15 backdrop-blur border border-white/20 text-white placeholder:text-white/40 rounded-2xl focus:border-white/50 text-sm"
             />
             <Button
@@ -727,11 +745,11 @@ export default function AuthNew() {
 
   // Landing
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-4 relative overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center relative overflow-x-hidden overflow-y-auto">
       <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-16 -right-16 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-sm flex flex-col gap-5">
+      <div className="relative z-10 w-full max-w-sm flex flex-col gap-4 px-4 py-8 min-h-screen justify-center">
 
         {/* Логотип */}
         <div className="flex flex-col items-center gap-2">
@@ -785,7 +803,7 @@ export default function AuthNew() {
           </Button>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-white/60 text-xs">1–2 вопроса без регистрации и карты</span>
-            <span className="text-white/40 text-xs">Ответ за несколько секунд</span>
+            <span className="text-white/40 text-xs">Ответ обычно за 20–60 секунд</span>
           </div>
         </div>
 
