@@ -112,7 +112,7 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 87, onC
             onClick={() => { onClose(); navigate('/pricing'); }}
             className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-lg rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.4)] active:scale-[0.98] transition-all"
           >
-            Подключить Premium — 399 ₽/мес
+            Подключить Premium — 449 ₽/мес
           </Button>
           <p className="text-gray-400 text-xs text-center mt-2">🔓 Отмена в любой момент</p>
         </div>
