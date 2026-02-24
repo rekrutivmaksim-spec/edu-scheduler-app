@@ -212,6 +212,10 @@ const Assistant = () => {
     const q = (overrideText ?? question).trim();
     if (!q || isLoading) return;
     setQuestion('');
+    // Сбрасываем высоту textarea
+    if (inputRef.current) {
+      inputRef.current.style.height = '44px';
+    }
     setIsLoading(true);
     setMessages(prev => [...prev, { role: 'user', content: q, timestamp: new Date() }]);
     startThinking();
@@ -550,7 +554,7 @@ const Assistant = () => {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Задай вопрос или напиши ответ..."
+              placeholder="Задай любой вопрос…"
               rows={1}
               disabled={isLoading}
               className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 pr-12 text-sm focus:outline-none focus:border-purple-400 focus:bg-white transition-colors disabled:opacity-50 max-h-32"
@@ -573,27 +577,11 @@ const Assistant = () => {
             }
           </button>
         </div>
-        {hasMessages && messages[messages.length - 1]?.role === 'assistant' && (
-          <div className="max-w-2xl mx-auto mt-2 flex justify-center">
-            <button
-              onClick={() => {
-                if (question.trim()) {
-                  sendMessage();
-                } else {
-                  sendMessage('Проверь мой ответ');
-                }
-              }}
-              disabled={isLoading}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors disabled:opacity-40"
-            >
-              <Icon name="CheckCircle" size={14} />
-              Проверь мой ответ
-            </button>
-          </div>
+        {isLoading && (
+          <p className="max-w-2xl mx-auto mt-2 text-center text-[11px] text-purple-400 leading-tight animate-pulse">
+            Готовлю ответ, не закрывай страницу…
+          </p>
         )}
-        <p className="max-w-2xl mx-auto mt-2 text-center text-[11px] text-gray-400 leading-tight">
-          ИИ готовит качественный ответ — иногда до&nbsp;2&nbsp;минут. Не закрывай страницу
-        </p>
       </div>
       <BottomNav />
     </div>
