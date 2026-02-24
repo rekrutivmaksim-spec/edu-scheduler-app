@@ -7,6 +7,7 @@ import { trackActivity } from '@/lib/gamification';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import BottomNav from '@/components/BottomNav';
+import PaywallSheet from '@/components/PaywallSheet';
 
 const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
@@ -84,6 +85,7 @@ const Assistant = () => {
   const [isSoftLanding, setIsSoftLanding] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [showMaterialPicker, setShowMaterialPicker] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [thinkingElapsed, setThinkingElapsed] = useState(0);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -192,11 +194,14 @@ const Assistant = () => {
   };
 
   const quickActions = [
-    { icon: '📚', text: 'Объясни производную простыми словами' },
-    { icon: '✍️', text: 'Помоги написать план эссе' },
-    { icon: '🔬', text: 'Что такое фотосинтез?' },
-    { icon: '📐', text: 'Реши задачу по физике' },
+    { icon: '💡', text: 'Объясни тему' },
+    { icon: '📝', text: 'Дай задание' },
+    { icon: '📎', text: 'Разбери файл' },
+    { icon: '🎓', text: 'Подготовь к ЕГЭ' },
+    { icon: '🏛️', text: 'Помоги по вузу' },
   ];
+
+  const isLimitReached = !isTrial && !isPremium && remaining !== null && remaining <= 0;
 
   const handleOk = useCallback(async (resp: Response) => {
     const data = await resp.json();
@@ -211,6 +216,7 @@ const Assistant = () => {
   const sendMessage = useCallback(async (overrideText?: string) => {
     const q = (overrideText ?? question).trim();
     if (!q || isLoading) return;
+    if (isLimitReached) { setShowPaywall(true); return; }
     setQuestion('');
     // Сбрасываем высоту textarea
     if (inputRef.current) {
@@ -400,17 +406,18 @@ const Assistant = () => {
               <Icon name="Bot" size={12} className="text-gray-400" />Бесплатный план
             </span>
           )}
-          {aiMax !== null && aiUsed !== null && !isTrial && (
-            <div className="flex items-center gap-2 flex-1 max-w-[180px]">
-              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${aiUsed / aiMax >= 0.9 ? 'bg-red-500' : aiUsed / aiMax >= 0.7 ? 'bg-orange-400' : 'bg-purple-500'}`}
-                  style={{ width: `${Math.min((aiUsed / aiMax) * 100, 100)}%` }}
-                />
+          {aiMax !== null && aiUsed !== null && !isTrial && !isPremium && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1">
+                <span className={`text-xs font-bold ${aiMax - aiUsed <= 0 ? 'text-red-500' : aiMax - aiUsed === 1 ? 'text-amber-600' : 'text-gray-700'}`}>
+                  Осталось сегодня: {Math.max(0, aiMax - aiUsed)} вопрос{aiMax - aiUsed === 1 ? '' : aiMax - aiUsed >= 2 && aiMax - aiUsed <= 4 ? 'а' : 'ов'}
+                </span>
               </div>
-              <span className={`text-xs flex-shrink-0 font-medium ${aiUsed / aiMax >= 0.9 ? 'text-red-500' : 'text-gray-500'}`}>
-                {aiMax - aiUsed} / {aiMax}
-              </span>
+              {aiMax - aiUsed <= 0 && (
+                <button onClick={() => setShowPaywall(true)} className="text-xs text-purple-600 font-semibold hover:text-purple-800">
+                  Premium →
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -465,21 +472,48 @@ const Assistant = () => {
                 <Icon name="Sparkles" size={32} className="text-white" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">Привет! Я Studyfay ✨</h2>
-              <p className="text-gray-500 text-center mb-8 max-w-sm text-sm leading-relaxed">
-                Задай любой вопрос — помогу разобраться с учёбой, объясню тему или составлю конспект
+              <p className="text-gray-500 text-center mb-1 max-w-sm text-sm leading-relaxed">
+                ИИ помогает разобраться в теме, подготовиться к экзамену и выполнить задание.
               </p>
-              <div className="w-full space-y-2">
+              {!isTrial && !isPremium && (
+                <p className="text-gray-400 text-xs text-center mb-6">Сегодня доступно бесплатно: 3 вопроса</p>
+              )}
+              {(isTrial || isPremium) && <div className="mb-6" />}
+              <div className="w-full grid grid-cols-2 gap-2 mb-4">
                 {quickActions.map((qa, i) => (
                   <button
                     key={i}
                     onClick={() => sendMessage(qa.text)}
-                    className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 hover:border-purple-200 transition-all text-sm text-gray-700 hover:text-purple-700 flex items-center gap-3"
+                    className="text-left px-4 py-3 bg-gray-50 hover:bg-purple-50 rounded-2xl border border-gray-100 hover:border-purple-200 transition-all text-sm text-gray-700 hover:text-purple-700 flex items-center gap-2.5"
                   >
-                    <span className="text-lg">{qa.icon}</span>
-                    <span>{qa.text}</span>
+                    <span className="text-xl flex-shrink-0">{qa.icon}</span>
+                    <span className="font-medium leading-tight">{qa.text}</span>
                   </button>
                 ))}
               </div>
+
+              {!isTrial && !isPremium && (
+                <div className="w-full bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-4 mb-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-base">🔥</span>
+                    <span className="font-bold text-gray-800 text-sm">Premium</span>
+                  </div>
+                  <div className="space-y-1 mb-3">
+                    {['Безлимит вопросов к ИИ', 'Подготовка к экзаменам', 'Анализ файлов и конспектов'].map(f => (
+                      <div key={f} className="flex items-center gap-2 text-gray-600 text-xs">
+                        <span className="text-indigo-400">✓</span>
+                        {f}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => navigate('/pricing')}
+                    className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-bold rounded-xl active:scale-[0.98] transition-all"
+                  >
+                    Попробовать бесплатно
+                  </button>
+                </div>
+              )}
               {sessions.length > 0 && (
                 <button
                   onClick={() => setShowSidebar(true)}
@@ -526,13 +560,44 @@ const Assistant = () => {
                         </div>
                       </div>
                     )}
-                    {isLastAssistant && !isPremium && remaining !== null && remaining <= 1 && (
+                    {isLastAssistant && !isPremium && !isTrial && remaining !== null && remaining === 0 && (
+                      <div className="mt-3 ml-10 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-4">
+                        <p className="font-bold text-gray-800 text-sm mb-0.5">Ты задал все бесплатные вопросы на сегодня</p>
+                        <p className="text-gray-500 text-xs mb-3">Продолжай обучение без ограничений</p>
+                        <button
+                          onClick={() => setShowPaywall(true)}
+                          className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-bold rounded-xl active:scale-[0.98] transition-all"
+                        >
+                          Подключить Premium
+                        </button>
+                      </div>
+                    )}
+                    {isLastAssistant && !isPremium && !isTrial && remaining !== null && remaining === 1 && (
                       <div className="flex gap-2 mt-2 ml-10">
-                        <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl px-3 py-2 text-xs">
-                          <span>💎</span>
-                          <span className="text-gray-700">Заканчиваются вопросы — </span>
-                          <button onClick={() => window.location.href = '/subscription'} className="text-purple-600 font-semibold hover:text-purple-800 whitespace-nowrap">оформи Premium →</button>
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs">
+                          <span>⚡</span>
+                          <span className="text-amber-800">Остался 1 бесплатный вопрос — </span>
+                          <button onClick={() => setShowPaywall(true)} className="text-amber-700 font-semibold hover:text-amber-900 whitespace-nowrap">Premium →</button>
                         </div>
+                      </div>
+                    )}
+                    {isLastAssistant && !isPremium && !isTrial && (
+                      <div className="mt-2 ml-10 flex gap-2 flex-wrap">
+                        {['Дай ещё задание', 'Объясни проще'].map(action => (
+                          <button
+                            key={action}
+                            onClick={() => sendMessage(action)}
+                            className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-purple-50 hover:text-purple-700 rounded-full text-gray-600 transition-colors border border-gray-200 hover:border-purple-200"
+                          >
+                            {action}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setShowPaywall(true)}
+                          className="text-xs px-3 py-1.5 bg-purple-600 text-white rounded-full font-medium hover:bg-purple-700 transition-colors"
+                        >
+                          Подключить Premium
+                        </button>
                       </div>
                     )}
                   </div>
@@ -567,23 +632,38 @@ const Assistant = () => {
             />
           </div>
           <button
-            onClick={() => sendMessage()}
-            disabled={!question.trim() || isLoading}
-            className="w-11 h-11 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-200 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+            onClick={() => isLimitReached ? setShowPaywall(true) : sendMessage()}
+            disabled={(!question.trim() && !isLimitReached) || isLoading}
+            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
+              isLimitReached
+                ? 'bg-gradient-to-br from-indigo-600 to-purple-600 cursor-pointer'
+                : 'bg-purple-600 hover:bg-purple-700 disabled:bg-gray-200 disabled:cursor-not-allowed'
+            }`}
           >
             {isLoading
               ? <Icon name="Loader2" size={20} className="text-white animate-spin" />
+              : isLimitReached
+              ? <Icon name="Lock" size={18} className="text-white" />
               : <Icon name="ArrowUp" size={20} className={question.trim() ? 'text-white' : 'text-gray-400'} />
             }
           </button>
         </div>
+        {!isTrial && !isPremium && (
+          <p className="max-w-2xl mx-auto mt-1.5 text-center text-[11px] text-gray-400">
+            Бесплатно: 3 вопроса в день
+          </p>
+        )}
         {isLoading && (
-          <p className="max-w-2xl mx-auto mt-2 text-center text-[11px] text-purple-400 leading-tight animate-pulse">
+          <p className="max-w-2xl mx-auto mt-1 text-center text-[11px] text-purple-400 leading-tight animate-pulse">
             Готовлю ответ, не закрывай страницу…
           </p>
         )}
       </div>
       <BottomNav />
+
+      {showPaywall && (
+        <PaywallSheet trigger="ai_limit" onClose={() => setShowPaywall(false)} />
+      )}
     </div>
   );
 };
