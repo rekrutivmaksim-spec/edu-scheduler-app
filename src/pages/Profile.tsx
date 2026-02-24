@@ -54,9 +54,9 @@ const Profile = () => {
 
   useEffect(() => {
     const init = async () => {
-      if (!authService.isAuthenticated()) { navigate('/login'); return; }
+      if (!authService.isAuthenticated()) { navigate('/auth'); return; }
       const verified = await authService.verifyToken();
-      if (!verified) { navigate('/login'); return; }
+      if (!verified) { navigate('/auth'); return; }
       setUser(verified);
       setFormData(f => ({
         ...f,

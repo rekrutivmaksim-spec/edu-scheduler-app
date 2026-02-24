@@ -155,7 +155,7 @@ const StudyPlan = () => {
   useEffect(() => {
     const init = async () => {
       if (!authService.isAuthenticated()) {
-        navigate('/login');
+        navigate('/auth');
         return;
       }
       setLoading(true);

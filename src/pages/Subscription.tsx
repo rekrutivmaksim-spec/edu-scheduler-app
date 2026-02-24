@@ -88,7 +88,7 @@ const Subscription = () => {
   useEffect(() => {
     const checkAuth = async () => {
       if (!authService.isAuthenticated()) {
-        navigate('/login');
+        navigate('/auth');
         return;
       }
       const params = new URLSearchParams(window.location.search);

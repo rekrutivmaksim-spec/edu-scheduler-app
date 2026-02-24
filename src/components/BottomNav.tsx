@@ -3,7 +3,7 @@ import Icon from '@/components/ui/icon';
 
 const tabs = [
   { path: '/', icon: 'Home', label: 'Главная' },
-  { path: '/exam-prep', icon: 'Target', label: 'Экзамен' },
+  { path: '/exam', icon: 'Target', label: 'Экзамен' },
   { path: '/university', icon: 'GraduationCap', label: 'ВУЗ' },
   { path: '/assistant', icon: 'Zap', label: 'Помощь' },
   { path: '/profile', icon: 'User', label: 'Профиль' },

@@ -83,7 +83,7 @@ const Materials = () => {
 
     const checkAuth = async () => {
       if (!authService.isAuthenticated()) {
-        navigate('/login');
+        navigate('/auth');
         return;
       }
       await loadMaterials();

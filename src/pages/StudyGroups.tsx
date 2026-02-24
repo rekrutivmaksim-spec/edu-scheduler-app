@@ -123,12 +123,12 @@ const StudyGroups = () => {
   useEffect(() => {
     const checkAuth = async () => {
       if (!authService.isAuthenticated()) {
-        navigate('/login');
+        navigate('/auth');
         return;
       }
       const verifiedUser = await authService.verifyToken();
       if (!verifiedUser) {
-        navigate('/login');
+        navigate('/auth');
       } else {
         loadGroups();
       }

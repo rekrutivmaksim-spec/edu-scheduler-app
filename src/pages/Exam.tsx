@@ -596,7 +596,7 @@ const Exam = () => {
   const pendingTaskNumRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) navigate('/login');
+    if (!authService.isAuthenticated()) navigate('/auth');
     else { loadAiLimits(); loadSessions(); }
   }, [navigate]);
 

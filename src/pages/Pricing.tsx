@@ -45,7 +45,7 @@ const Pricing = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) { navigate('/login'); return; }
+    if (!authService.isAuthenticated()) { navigate('/auth'); return; }
     fetch(`${SUBSCRIPTION_URL}?action=status`, {
       headers: { Authorization: `Bearer ${authService.getToken()}` },
     })

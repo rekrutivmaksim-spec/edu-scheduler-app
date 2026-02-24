@@ -223,7 +223,7 @@ export default function Achievements() {
   };
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) { navigate('/login'); return; }
+    if (!authService.isAuthenticated()) { navigate('/auth'); return; }
     Promise.all([loadProfile(), loadLeaderboard(), performCheckin()])
       .finally(() => setLoading(false));
   }, [navigate, loadProfile, loadLeaderboard, performCheckin]);

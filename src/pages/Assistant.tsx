@@ -150,7 +150,7 @@ const Assistant = () => {
   const [loadingSession, setLoadingSession] = useState(false);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) { navigate('/login'); return; }
+    if (!authService.isAuthenticated()) { navigate('/auth'); return; }
     loadMaterials();
     loadAiLimits();
     loadSessions();
