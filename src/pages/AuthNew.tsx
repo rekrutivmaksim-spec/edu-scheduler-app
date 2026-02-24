@@ -70,9 +70,11 @@ export default function AuthNew() {
   const [demoInput, setDemoInput] = useState('');
   const [demoCount, setDemoCount] = useState(0);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState(0);
   const [demoStage, setDemoStage] = useState<DemoStage>('greeting');
   const [selectedCategory, setSelectedCategory] = useState<typeof DEMO_CATEGORIES[0] | null>(null);
   const demoBottomRef = useRef<HTMLDivElement>(null);
+  const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Auth state
   const [email, setEmail] = useState('');
@@ -99,6 +101,14 @@ export default function AuthNew() {
 
   const validateEmail = (v: string) => v.includes('@') && v.includes('.');
 
+  const THINKING_STEPS = [
+    'Анализирую вопрос…',
+    'Подбираю объяснение…',
+    'Добавляю пример…',
+    'Формирую ответ…',
+    'Почти готово…',
+  ];
+
   const sendDemo = async (text?: string) => {
     const q = (text || demoInput).trim();
     if (!q || demoLoading) return;
@@ -109,6 +119,13 @@ export default function AuthNew() {
     setDemoCount(newCount);
     setDemoMessages(prev => [...prev, { role: 'user', text: q }]);
     setDemoLoading(true);
+    setThinkingStep(0);
+
+    // Крутим шаги мышления каждые 4 сек
+    thinkingTimerRef.current = setInterval(() => {
+      setThinkingStep(s => Math.min(s + 1, THINKING_STEPS.length - 1));
+    }, 4000);
+
     try {
       const res = await fetch(AI_API_URL, {
         method: 'POST',
@@ -122,7 +139,9 @@ export default function AuthNew() {
       setDemoMessages(prev => [...prev, { role: 'assistant', text: 'Проблемы с соединением — попробуй ещё раз.' }]);
       setDemoCount(c => c - 1);
     } finally {
+      if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
       setDemoLoading(false);
+      setThinkingStep(0);
     }
   };
 
@@ -348,9 +367,9 @@ export default function AuthNew() {
               }`}>
                 {m.text}
                 {i === 0 && demoStage === 'greeting' && (
-                  <p className="text-white/50 text-xs mt-1.5 flex items-center gap-1">
+                  <p className="text-white/40 text-xs mt-1.5 flex items-center gap-1">
                     <Icon name="Zap" size={11} />
-                    Отвечаю за несколько секунд
+                    Ответ обычно за 20–60 секунд
                   </p>
                 )}
               </div>
@@ -412,16 +431,22 @@ export default function AuthNew() {
             </div>
           )}
 
-          {/* Лоадер */}
+          {/* Лоадер с шагами мышления */}
           {demoLoading && (
-            <div className="flex justify-start">
-              <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+            <div className="flex justify-start animate-in fade-in duration-200">
+              <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
                 <Icon name="GraduationCap" size={13} className="text-white" />
               </div>
-              <div className="bg-white/15 backdrop-blur rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="bg-white/15 backdrop-blur rounded-2xl rounded-bl-sm px-4 py-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                <p className="text-white/70 text-xs transition-all duration-500">
+                  {THINKING_STEPS[thinkingStep]}
+                </p>
+                <p className="text-white/35 text-xs mt-0.5">Ответ может занять до минуты</p>
               </div>
             </div>
           )}
