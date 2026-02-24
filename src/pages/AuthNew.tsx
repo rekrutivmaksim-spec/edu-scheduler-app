@@ -71,6 +71,81 @@ const GREETING: DemoMessage = {
   text: 'Привет! Я помогу объяснить тему, разобрать задание или ответить по материалу.\nВыбери с чего начать 👇',
 };
 
+// --- Статичные компоненты ВНЕ AuthNew — не пересоздаются при каждом ренедере ---
+
+const FieldError = ({ name, errors }: { name: string; errors: Record<string, string> }) =>
+  errors[name] ? <p className="text-red-500 text-xs mt-1">{errors[name]}</p> : null;
+
+const PasswordInput = ({
+  placeholder, value, onChange, onEnter, fieldName, errors, showPassword, onToggleShow,
+}: {
+  placeholder: string; value: string;
+  onChange: (v: string) => void;
+  onEnter?: () => void;
+  fieldName: string;
+  errors: Record<string, string>;
+  showPassword: boolean;
+  onToggleShow: () => void;
+}) => (
+  <div>
+    <div className="relative">
+      <Input
+        type={showPassword ? 'text' : 'password'}
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && onEnter?.()}
+        autoComplete="current-password"
+        className={`h-11 border-2 rounded-xl text-sm pr-10 ${errors[fieldName] ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
+      />
+      <button
+        type="button"
+        onClick={onToggleShow}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+      >
+        <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={16} />
+      </button>
+    </div>
+    <FieldError name={fieldName} errors={errors} />
+  </div>
+);
+
+const TermsBlock = ({
+  agreed, onToggle, error,
+}: {
+  agreed: boolean; onToggle: (v: boolean) => void; error: boolean;
+}) => (
+  <div>
+    <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer group">
+      <Checkbox
+        id="terms"
+        checked={agreed}
+        onCheckedChange={c => onToggle(c as boolean)}
+        className="mt-0.5 w-5 h-5 flex-shrink-0 rounded-md border-2 border-gray-300 group-hover:border-purple-400 transition-colors"
+      />
+      <span className="text-xs text-gray-500 leading-relaxed pt-0.5">
+        Согласен(на) с{' '}
+        <Link to="/terms" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>условиями</Link>
+        {' '}и{' '}
+        <Link to="/privacy" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>политикой</Link>
+      </span>
+    </label>
+    {error && <p className="text-red-500 text-xs mt-1">Нужно согласиться с условиями и политикой</p>}
+  </div>
+);
+
+const LegalFooter = ({ showDelete = false }: { showDelete?: boolean }) => (
+  <div className="flex items-center justify-center gap-2 pb-4 pt-2">
+    <Link to="/terms" className="text-white/35 text-xs hover:text-white/55 transition-colors">Соглашение</Link>
+    <span className="text-white/25 text-xs">|</span>
+    <Link to="/privacy" className="text-white/35 text-xs hover:text-white/55 transition-colors">Конфиденциальность</Link>
+    {showDelete && <>
+      <span className="text-white/25 text-xs">|</span>
+      <Link to="/privacy#delete" className="text-white/25 text-xs hover:text-white/45 transition-colors">Удаление аккаунта</Link>
+    </>}
+  </div>
+);
+
 export default function AuthNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -324,69 +399,7 @@ export default function AuthNew() {
     }
   };
 
-  const FieldError = ({ name }: { name: string }) =>
-    fieldErrors[name] ? <p className="text-red-500 text-xs mt-1">{fieldErrors[name]}</p> : null;
 
-  const PasswordInput = ({ placeholder, value, onChange, onEnter, fieldName }: {
-    placeholder: string; value: string;
-    onChange: (v: string) => void;
-    onEnter?: () => void;
-    fieldName: string;
-  }) => (
-    <div>
-      <div className="relative">
-        <Input
-          type={showPassword ? 'text' : 'password'}
-          placeholder={placeholder}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && onEnter?.()}
-          autoComplete="current-password"
-          className={`h-11 border-2 rounded-xl text-sm pr-10 ${fieldErrors[fieldName] ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
-        />
-        <button
-          type="button"
-          onClick={() => setShowPassword(p => !p)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-        >
-          <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={16} />
-        </button>
-      </div>
-      <FieldError name={fieldName} />
-    </div>
-  );
-
-  const TermsBlock = () => (
-    <div>
-      <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer group">
-        <Checkbox
-          id="terms"
-          checked={agreedToTerms}
-          onCheckedChange={c => { setAgreedToTerms(c as boolean); setTermsError(false); }}
-          className="mt-0.5 w-5 h-5 flex-shrink-0 rounded-md border-2 border-gray-300 group-hover:border-purple-400 transition-colors"
-        />
-        <span className="text-xs text-gray-500 leading-relaxed pt-0.5">
-          Согласен(на) с{' '}
-          <Link to="/terms" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>условиями</Link>
-          {' '}и{' '}
-          <Link to="/privacy" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>политикой</Link>
-        </span>
-      </label>
-      {termsError && <p className="text-red-500 text-xs mt-1">Нужно согласиться с условиями и политикой</p>}
-    </div>
-  );
-
-  const LegalFooter = ({ showDelete = false }: { showDelete?: boolean }) => (
-    <div className="flex items-center justify-center gap-2 pb-4 pt-2">
-      <Link to="/terms" className="text-white/35 text-xs hover:text-white/55 transition-colors">Соглашение</Link>
-      <span className="text-white/25 text-xs">|</span>
-      <Link to="/privacy" className="text-white/35 text-xs hover:text-white/55 transition-colors">Конфиденциальность</Link>
-      {showDelete && <>
-        <span className="text-white/25 text-xs">|</span>
-        <Link to="/privacy#delete" className="text-white/25 text-xs hover:text-white/45 transition-colors">Удаление аккаунта</Link>
-      </>}
-    </div>
-  );
 
   if (screen === 'demo') {
     const limitReached = demoCount >= DEMO_LIMIT;
@@ -639,7 +652,7 @@ export default function AuthNew() {
                   autoCapitalize="none"
                   className={`h-11 border-2 rounded-xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
                 />
-                <FieldError name="email" />
+                <FieldError name="email" errors={fieldErrors} />
               </div>
 
               <div>
@@ -649,6 +662,9 @@ export default function AuthNew() {
                   onChange={setPassword}
                   onEnter={handleLogin}
                   fieldName="password"
+                  errors={fieldErrors}
+                  showPassword={showPassword}
+                  onToggleShow={() => setShowPassword(p => !p)}
                 />
                 <button
                   onClick={() => setScreen('forgot')}
@@ -729,7 +745,7 @@ export default function AuthNew() {
                   autoCapitalize="none"
                   className={`h-11 border-2 rounded-xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
                 />
-                <FieldError name="email" />
+                <FieldError name="email" errors={fieldErrors} />
               </div>
 
               {/* Пароль — без повтора, с показом */}
@@ -740,6 +756,9 @@ export default function AuthNew() {
                   onChange={setPassword}
                   onEnter={handleRegister}
                   fieldName="password"
+                  errors={fieldErrors}
+                  showPassword={showPassword}
+                  onToggleShow={() => setShowPassword(p => !p)}
                 />
                 {password.length > 0 && password.length < 8 && (
                   <p className="text-xs text-amber-500 mt-1">Минимум 8 символов</p>
@@ -750,7 +769,7 @@ export default function AuthNew() {
               </div>
 
               {/* Чекбокс */}
-              <TermsBlock />
+              <TermsBlock agreed={agreedToTerms} onToggle={v => { setAgreedToTerms(v); setTermsError(false); }} error={termsError} />
 
               {/* Главная кнопка — подсвечивается при фокусе в полях */}
               <Button
@@ -810,7 +829,7 @@ export default function AuthNew() {
                   autoCapitalize="none"
                   className={`h-11 border-2 rounded-xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
                 />
-                <FieldError name="email" />
+                <FieldError name="email" errors={fieldErrors} />
               </div>
               <PasswordInput
                 placeholder="Новый пароль (минимум 8 символов)"
@@ -818,6 +837,9 @@ export default function AuthNew() {
                 onChange={setPassword}
                 onEnter={handleForgot}
                 fieldName="password"
+                errors={fieldErrors}
+                showPassword={showPassword}
+                onToggleShow={() => setShowPassword(p => !p)}
               />
               <Button
                 onClick={handleForgot}
