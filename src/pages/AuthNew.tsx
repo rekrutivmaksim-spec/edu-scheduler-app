@@ -103,6 +103,7 @@ export default function AuthNew() {
   const [termsError, setTermsError] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [regFieldFocused, setRegFieldFocused] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -347,20 +348,20 @@ export default function AuthNew() {
 
   const TermsBlock = () => (
     <div>
-      <div className="flex items-start gap-2">
+      <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer group">
         <Checkbox
           id="terms"
           checked={agreedToTerms}
           onCheckedChange={c => { setAgreedToTerms(c as boolean); setTermsError(false); }}
-          className="mt-0.5"
+          className="mt-0.5 w-5 h-5 flex-shrink-0 rounded-md border-2 border-gray-300 group-hover:border-purple-400 transition-colors"
         />
-        <label htmlFor="terms" className="text-xs text-gray-500 cursor-pointer leading-relaxed">
+        <span className="text-xs text-gray-500 leading-relaxed pt-0.5">
           Согласен(на) с{' '}
-          <Link to="/terms" className="text-purple-600 hover:underline font-medium">условиями</Link>
+          <Link to="/terms" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>условиями</Link>
           {' '}и{' '}
-          <Link to="/privacy" className="text-purple-600 hover:underline font-medium">политикой</Link>
-        </label>
-      </div>
+          <Link to="/privacy" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>политикой</Link>
+        </span>
+      </label>
       {termsError && <p className="text-red-500 text-xs mt-1">Нужно согласиться с условиями и политикой</p>}
     </div>
   );
@@ -709,16 +710,17 @@ export default function AuthNew() {
                   placeholder="Email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
+                  onFocus={() => setRegFieldFocused(true)}
+                  onBlur={() => setRegFieldFocused(false)}
                   autoComplete="email"
                   autoCapitalize="none"
-                  autoFocus
                   className={`h-11 border-2 rounded-xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
                 />
                 <FieldError name="email" />
               </div>
 
               {/* Пароль — без повтора, с показом */}
-              <div>
+              <div onFocus={() => setRegFieldFocused(true)} onBlur={() => setRegFieldFocused(false)}>
                 <PasswordInput
                   placeholder="Придумай пароль"
                   value={password}
@@ -737,11 +739,15 @@ export default function AuthNew() {
               {/* Чекбокс */}
               <TermsBlock />
 
-              {/* Главная кнопка */}
+              {/* Главная кнопка — подсвечивается при фокусе в полях */}
               <Button
                 onClick={handleRegister}
                 disabled={loading}
-                className="w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 active:scale-[0.98] text-white font-bold text-base rounded-xl shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all"
+                className={`w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 active:scale-[0.98] text-white font-bold text-base rounded-xl transition-all duration-300 ${
+                  regFieldFocused
+                    ? 'shadow-[0_8px_28px_rgba(99,102,241,0.6)] scale-[1.01]'
+                    : 'shadow-[0_4px_16px_rgba(99,102,241,0.35)]'
+                }`}
               >
                 {loading
                   ? <Icon name="Loader2" size={18} className="animate-spin" />
