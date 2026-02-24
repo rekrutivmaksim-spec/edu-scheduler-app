@@ -95,10 +95,22 @@ function getTodayTopic(examSubject?: string): { subject: string; topic: string; 
   return { ...fallback, steps: ['Объяснение', 'Пример', 'Задание'] };
 }
 
-const QUICK_ACCESS = [
+const QUICK_ACCESS_EGE = [
   { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/exam', color: 'bg-indigo-50 text-indigo-600' },
-  { icon: 'GraduationCap', label: 'ВУЗ / конспекты', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
-  { icon: 'Paperclip', label: 'Разобрать файл', path: '/materials', color: 'bg-pink-50 text-pink-600' },
+  { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
+  { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
+];
+
+const QUICK_ACCESS_UNI = [
+  { icon: 'GraduationCap', label: 'ВУЗ и конспекты', path: '/university', color: 'bg-indigo-50 text-indigo-600' },
+  { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
+  { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
+];
+
+const QUICK_ACCESS_OTHER = [
+  { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
+  { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
+  { icon: 'Trophy', label: 'Достижения', path: '/achievements', color: 'bg-amber-50 text-amber-600' },
 ];
 
 const SECONDARY = [
@@ -187,6 +199,10 @@ export default function Index() {
   const todayDow = new Date().getDay();
   const todayName = dayNames[todayDow === 0 ? 6 : todayDow - 1];
   const topic = getTodayTopic(user?.exam_subject || undefined);
+  const userGoal = user?.goal || 'ege';
+  const isExamGoal = userGoal === 'ege' || userGoal === 'oge';
+  const isUniGoal = userGoal === 'university';
+  const quickAccess = isExamGoal ? QUICK_ACCESS_EGE : isUniGoal ? QUICK_ACCESS_UNI : QUICK_ACCESS_OTHER;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -253,8 +269,45 @@ export default function Index() {
               </button>
             </div>
           </div>
+        ) : isUniGoal ? (
+          /* Вузовец — не нужны занятия по ЕГЭ */
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4">
+              <span className="text-white/80 text-xs font-medium uppercase tracking-wide">Готов к учёбе?</span>
+              <h2 className="text-white font-bold text-lg leading-tight mt-1">Задай вопрос ИИ или разбери конспект</h2>
+              <p className="text-white/60 text-xs mt-0.5">Загрузи лекцию — получи краткое изложение</p>
+            </div>
+            <div className="px-5 py-4 flex flex-col gap-2">
+              <Button
+                onClick={() => navigate('/university')}
+                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl"
+              >
+                Разобрать конспект <Icon name="ArrowRight" size={16} className="ml-1.5" />
+              </Button>
+              <button onClick={() => navigate('/assistant')} className="w-full py-2 text-indigo-500 text-sm font-medium text-center">
+                Или задать вопрос ИИ
+              </button>
+            </div>
+          </div>
+        ) : !isExamGoal ? (
+          /* "Другое" */
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-4">
+              <span className="text-white/80 text-xs font-medium uppercase tracking-wide">Сегодня</span>
+              <h2 className="text-white font-bold text-lg leading-tight mt-1">Задай любой вопрос ИИ</h2>
+              <p className="text-white/60 text-xs mt-0.5">Объясняю темы, решаю задачи, помогаю с учёбой</p>
+            </div>
+            <div className="px-5 py-4">
+              <Button
+                onClick={() => navigate('/assistant')}
+                className="w-full h-12 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-2xl"
+              >
+                Открыть ИИ-помощник <Icon name="Sparkles" size={16} className="ml-1.5" />
+              </Button>
+            </div>
+          </div>
         ) : (
-          /* Активная сессия */
+          /* Активная сессия ЕГЭ/ОГЭ */
           <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4">
               <div className="flex items-center justify-between mb-1">
@@ -283,7 +336,7 @@ export default function Index() {
               {/* Кнопка с пульсацией */}
               <Button
                 onClick={() => navigate('/session')}
-                className="w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.45)] active:scale-[0.98] transition-all animate-pulse-soft"
+                className="w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.45)] active:scale-[0.98] transition-all"
                 style={{ animation: 'pulse-cta 2.5s ease-in-out infinite' }}
               >
                 Начать за 2 минуты <Icon name="Zap" size={16} className="ml-1.5" />
@@ -291,8 +344,6 @@ export default function Index() {
               <p className="text-center text-xs text-gray-400 mt-2">
                 Объяснение → пример → задание → готово
               </p>
-
-              {/* Бесплатный якорь */}
               <p className="text-center text-[11px] text-indigo-400 font-medium mt-1">
                 Сегодня доступно: 1 занятие бесплатно
               </p>
@@ -301,7 +352,7 @@ export default function Index() {
         )}
 
         {/* ===== БЛОК 2: STREAK ===== */}
-        <div className="bg-white rounded-3xl shadow-sm px-5 py-4">
+        <button onClick={() => navigate('/achievements')} className="bg-white rounded-3xl shadow-sm px-5 py-4 w-full text-left active:scale-[0.98] transition-all">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-orange-100 rounded-2xl flex items-center justify-center text-xl">🔥</div>
             <div className="flex-1">
@@ -345,7 +396,7 @@ export default function Index() {
               🏆 Лучшая серия: {gamification?.streak?.longest ?? streak} {streakWord(gamification?.streak?.longest ?? streak)}
             </p>
           )}
-        </div>
+        </button>
 
         {/* ===== БЛОК 3: ПРОГРЕСС ===== */}
         <div className="bg-white rounded-3xl shadow-sm px-5 py-4">
@@ -397,14 +448,16 @@ export default function Index() {
               <span className="text-2xl">🚀</span>
               <div>
                 <p className="text-white font-bold text-base">Ты занимаешься {streak} {streakWord(streak)} подряд!</p>
-                <p className="text-white/70 text-xs">Хочешь готовиться быстрее?</p>
+                <p className="text-white/70 text-xs">
+                  {isExamGoal ? 'Хочешь готовиться без ограничений?' : 'Хочешь безлимит ИИ-вопросов?'}
+                </p>
               </div>
             </div>
             <button
               onClick={() => navigate('/pricing')}
               className="w-full bg-white text-orange-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
             >
-              Безлимит занятий — подробнее
+              {isExamGoal ? 'Безлимит занятий — подробнее' : 'Premium — 449 ₽/мес'}
             </button>
           </div>
         )}
@@ -413,7 +466,7 @@ export default function Index() {
         <div>
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 px-1">Быстрый доступ</p>
           <div className="grid grid-cols-3 gap-2.5">
-            {QUICK_ACCESS.map(item => (
+            {quickAccess.map(item => (
               <button
                 key={item.label}
                 onClick={() => navigate(item.path)}
