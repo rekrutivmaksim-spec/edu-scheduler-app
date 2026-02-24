@@ -7,7 +7,6 @@ import BottomNav from '@/components/BottomNav';
 import { trackSession } from '@/lib/review';
 import { dailyCheckin } from '@/lib/gamification';
 
-const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
 const TOPICS_BY_SUBJECT: Record<string, { topic: string }[]> = {
@@ -185,17 +184,8 @@ export default function Index() {
   };
 
   const loadTodaySchedule = async () => {
-    try {
-      const token = authService.getToken();
-      const res = await fetch(`${SCHEDULE_URL}?action=lessons`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const dow = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
-        setTodayLessons((data.lessons || []).filter((l: Lesson) => l.day_of_week === dow));
-      }
-    } catch (e) { console.warn(e); }
+    // Schedule function not available yet
+    setTodayLessons([]);
   };
 
   const firstName = user?.full_name?.split(' ')[0] || 'Студент';

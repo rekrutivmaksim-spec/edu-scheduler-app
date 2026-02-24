@@ -66,10 +66,8 @@ const Profile = () => {
   const loadGamification = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(GAMIFICATION_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: 'get_profile' }),
+      const res = await fetch(`${GAMIFICATION_URL}?action=profile`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const d = await res.json();
