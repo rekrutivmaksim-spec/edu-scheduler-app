@@ -14,9 +14,9 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
-_http_vision = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=20.0, http_client=_http)
+_http = httpx.Client(timeout=httpx.Timeout(55.0, connect=6.0))
+_http_vision = httpx.Client(timeout=httpx.Timeout(30.0, connect=6.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=55.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -404,6 +404,9 @@ def sanitize_answer(text):
 
 def ask_ai_demo(question: str) -> tuple:
     """Быстрый ответ для демо: минимальный промпт, 300 токенов, temperature 0.5"""
+    import time as _t
+    t0 = _t.time()
+    print(f"[DEMO] ask_ai_demo start q_len:{len(question)}", flush=True)
     try:
         resp = client.chat.completions.create(
             model="deepseek-chat",
@@ -416,9 +419,10 @@ def ask_ai_demo(question: str) -> tuple:
         )
         answer = sanitize_answer(resp.choices[0].message.content)
         tokens = resp.usage.total_tokens if resp.usage else 0
+        print(f"[DEMO] ask_ai_demo ok tokens:{tokens} time:{_t.time()-t0:.1f}s", flush=True)
         return answer, tokens
     except Exception as e:
-        print(f"[DEMO] AI FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
+        print(f"[DEMO] AI FAIL {type(e).__name__}: {str(e)[:500]}", flush=True)
         return build_smart_fallback(question, ''), 0
 
 
@@ -656,7 +660,17 @@ def _normalize(text: str) -> str:
     return t
 
 def get_demo_cache(question: str) -> str | None:
-    """Ищет точное или частичное совпадение в кэше популярных тем"""
+    """Ищет точное или частичное совпадение в кэше популярных тем.
+    Не срабатывает на follow-up запросы (они длинные и содержат кавычки/спецфразы)."""
+    # Follow-up запросы — не кэшируем
+    q_lower = question.lower()
+    followup_markers = ['"', 'объясни ещё проще', 'объясни еще проще', 'дай одно задание',
+                        'разбери тему', 'глубже', 'типичные ошибки', 'уровня егэ', 'как для 5-классника']
+    if any(m in q_lower for m in followup_markers):
+        return None
+    # Слишком длинный вопрос — скорее всего не про одну тему
+    if len(question) > 60:
+        return None
     norm = _normalize(question)
     # 1. Точное совпадение ключа
     if norm in DEMO_CACHE:
