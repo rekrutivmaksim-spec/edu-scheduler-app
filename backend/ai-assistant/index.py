@@ -443,17 +443,15 @@ def ask_ai_demo(question: str) -> tuple:
         print(f"[DEMO] artemox ok time:{_t.time()-t0:.1f}s", flush=True)
         return answer, 1
 
-    print(f"[DEMO] artemox failed, trying deepseek time:{_t.time()-t0:.1f}s", flush=True)
+    print(f"[DEMO] artemox failed, retry once time:{_t.time()-t0:.1f}s", flush=True)
 
-    # 2️⃣ DeepSeek напрямую
-    ds_key = os.environ.get('DEEPSEEK_API_KEY', '')
-    if ds_key:
-        answer = _call_openai_compat(_http_fallback, "https://api.deepseek.com/v1/chat/completions", ds_key, question)
-        if answer:
-            print(f"[DEMO] deepseek ok time:{_t.time()-t0:.1f}s", flush=True)
-            return answer, 1
+    # 2️⃣ Повторная попытка Artemox
+    answer = _call_openai_compat(_http_fallback, "https://api.artemox.com/v1/chat/completions", ARTEMOX_API_KEY, question)
+    if answer:
+        print(f"[DEMO] artemox retry ok time:{_t.time()-t0:.1f}s", flush=True)
+        return answer, 1
 
-    print(f"[DEMO] both failed, using smart fallback time:{_t.time()-t0:.1f}s", flush=True)
+    print(f"[DEMO] artemox retry failed, smart fallback time:{_t.time()-t0:.1f}s", flush=True)
 
     # 3️⃣ Умный локальный ответ — всегда работает
     return _smart_demo_fallback(question), 0
