@@ -207,10 +207,19 @@ export default function AuthNew() {
     } catch (e) { console.warn('referral', e); }
   };
 
-  const afterLogin = async (data: { token: string; user: { full_name: string } }) => {
+  const afterLogin = async (data: { token: string; user: { full_name: string } }, fromRegister = false) => {
     authService.setToken(data.token);
     authService.setUser(data.user);
     await applyReferral(data.token);
+    if (fromRegister && demoCount > 0) {
+      // Возвращаем в демо-чат с приветственным сообщением
+      setDemoMessages(prev => [
+        ...prev,
+        { role: 'assistant', text: 'Аккаунт создан. Продолжаем 👇\nТеперь история сохраняется, задавай вопросы без ограничений.' },
+      ]);
+      setScreen('demo');
+      return;
+    }
     toast({ title: '✅ Вход выполнен!', description: `Добро пожаловать, ${data.user.full_name}!` });
     navigate('/');
   };
@@ -265,7 +274,7 @@ export default function AuthNew() {
       });
       const data = await res.json();
       if (res.ok && data.token) {
-        await afterLogin(data);
+        await afterLogin(data, true);
       } else {
         setFieldErrors({ email: data.error || 'Не удалось создать аккаунт' });
       }
@@ -669,13 +678,26 @@ export default function AuthNew() {
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 w-full max-w-sm flex flex-col gap-4">
 
-          <button onClick={() => setScreen('landing')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
+          <button onClick={() => setScreen(demoCount > 0 ? 'demo' : 'landing')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
             <Icon name="ArrowLeft" size={16} /> Назад
           </button>
 
           <div className="bg-white rounded-3xl p-6 shadow-2xl">
-            <h2 className="text-xl font-bold text-gray-800 mb-5">Создать аккаунт</h2>
+            {/* Заголовок с контекстом */}
+            <div className="mb-5">
+              <h2 className="text-2xl font-extrabold text-gray-800 mb-1">Продолжим?</h2>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                  <span className="text-green-500">✓</span> История диалога сохранится
+                </p>
+                <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                  <span className="text-green-500">✓</span> Можно продолжить в любой момент
+                </p>
+              </div>
+            </div>
+
             <div className="space-y-3">
+              {/* Email */}
               <div>
                 <Input
                   type="email"
@@ -684,40 +706,46 @@ export default function AuthNew() {
                   onChange={e => setEmail(e.target.value)}
                   autoComplete="email"
                   autoCapitalize="none"
+                  autoFocus
                   className={`h-11 border-2 rounded-xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
                 />
                 <FieldError name="email" />
               </div>
 
-              <PasswordInput
-                placeholder="Пароль (минимум 8 символов)"
-                value={password}
-                onChange={setPassword}
-                fieldName="password"
-              />
-
+              {/* Пароль — без повтора, с показом */}
               <div>
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Повторите пароль"
-                  value={passwordConfirm}
-                  onChange={e => setPasswordConfirm(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleRegister()}
-                  autoComplete="new-password"
-                  className={`h-11 border-2 rounded-xl text-sm ${fieldErrors.passwordConfirm ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
+                <PasswordInput
+                  placeholder="Придумай пароль"
+                  value={password}
+                  onChange={setPassword}
+                  onEnter={handleRegister}
+                  fieldName="password"
                 />
-                <FieldError name="passwordConfirm" />
+                {password.length > 0 && password.length < 8 && (
+                  <p className="text-xs text-amber-500 mt-1">Минимум 8 символов</p>
+                )}
+                {password.length >= 8 && (
+                  <p className="text-xs text-green-500 mt-1">✓ Хороший пароль</p>
+                )}
               </div>
 
+              {/* Чекбокс */}
               <TermsBlock />
 
+              {/* Главная кнопка */}
               <Button
                 onClick={handleRegister}
                 disabled={loading}
-                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold rounded-xl"
+                className="w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 active:scale-[0.98] text-white font-bold text-base rounded-xl shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all"
               >
-                {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Создать аккаунт'}
+                {loading
+                  ? <Icon name="Loader2" size={18} className="animate-spin" />
+                  : <>Создать и продолжить <Icon name="ArrowRight" size={16} className="ml-1.5" /></>
+                }
               </Button>
+
+              {/* Снятие страха */}
+              <p className="text-center text-xs text-gray-400">Бесплатно. Без карты.</p>
 
               <p className="text-center text-xs text-gray-400">
                 Уже есть аккаунт?{' '}
