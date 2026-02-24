@@ -8,7 +8,6 @@ import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/
 
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
-const DAYS_TO_EXAM = 87;
 
 const TOPICS_BY_SUBJECT: Record<string, string[]> = {
   'Математика (профиль)': [
@@ -98,6 +97,14 @@ function getTodayTopic(examSubject?: string | null): { subject: string; topic: s
 
 const SESSION_TOPIC = getTodayTopic(authService.getUser()?.exam_subject);
 
+function getDaysToExam(): number {
+  const examDate = authService.getUser()?.exam_date;
+  if (!examDate || examDate === 'custom') return 87;
+  const d = new Date(examDate);
+  const now = new Date();
+  return Math.max(0, Math.ceil((d.getTime() - now.getTime()) / 86400000));
+}
+
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
 interface StepDef {
@@ -154,6 +161,7 @@ type Screen = 'ready' | 'session' | 'correct_anim' | 'done';
 
 export default function Session() {
   const navigate = useNavigate();
+  const daysToExam = getDaysToExam();
   const [screen, setScreen] = useState<Screen>('ready');
   const [stepIdx, setStepIdx] = useState(0);
   const [content, setContent] = useState('');
@@ -520,7 +528,7 @@ export default function Session() {
           <div className="flex items-center gap-3 mb-3">
             <span className="text-2xl">📅</span>
             <div>
-              <p className="text-white font-bold text-base">До экзамена {DAYS_TO_EXAM} дней</p>
+              <p className="text-white font-bold text-base">До экзамена {daysToExam} {daysToExam === 1 ? 'день' : daysToExam < 5 ? 'дня' : 'дней'}</p>
               <p className="text-white/60 text-xs">Ты прошёл {SESSION_TOPIC.number} из {SESSION_TOPIC.total} тем</p>
             </div>
           </div>
@@ -611,7 +619,7 @@ export default function Session() {
         <PaywallSheet
           trigger={paywallTrigger}
           streak={newStreak}
-          daysToExam={DAYS_TO_EXAM}
+          daysToExam={daysToExam}
           onClose={() => setShowPaywall(false)}
         />
       )}
@@ -806,7 +814,7 @@ export default function Session() {
         <PaywallSheet
           trigger={paywallTrigger}
           streak={streak}
-          daysToExam={DAYS_TO_EXAM}
+          daysToExam={daysToExam}
           onClose={() => setShowPaywall(false)}
         />
       )}

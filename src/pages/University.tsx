@@ -225,7 +225,7 @@ export default function University() {
               {/* Плашка после ответа */}
               <div className="mt-4 pt-4 border-t border-gray-50 space-y-2">
                 <button
-                  onClick={() => { setQuestion(''); setAnswer(''); }}
+                  onClick={() => { setQuestion(''); setAnswer(''); setTimeout(() => document.querySelector<HTMLTextAreaElement>('textarea')?.focus(), 50); }}
                   className="w-full text-indigo-600 text-sm font-semibold border border-indigo-200 rounded-2xl py-2.5 hover:bg-indigo-50 transition-colors"
                 >
                   Задать другой вопрос

@@ -106,13 +106,6 @@ const SECONDARY = [
   { icon: 'Trophy', label: 'Достижения', path: '/achievements' },
 ];
 
-// Прогресс с «осталось тем»
-const PROGRESS_SUBJECTS = [
-  { name: 'Математика', pct: 48, left: 12, color: 'bg-indigo-500' },
-  { name: 'Русский язык', pct: 32, left: 18, color: 'bg-purple-500' },
-  { name: 'Физика', pct: 12, left: 24, color: 'bg-pink-500' },
-];
-
 interface GamificationProfile {
   streak: { current: number; longest: number };
   level: number;
@@ -358,31 +351,42 @@ export default function Index() {
         <div className="bg-white rounded-3xl shadow-sm px-5 py-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-gray-800">Твоя подготовка</h3>
-            <button onClick={() => navigate('/analytics')} className="text-xs text-indigo-500 font-medium flex items-center gap-0.5">
-              Подробнее <Icon name="ChevronRight" size={13} />
+            <button onClick={() => navigate('/exam')} className="text-xs text-indigo-500 font-medium flex items-center gap-0.5">
+              План <Icon name="ChevronRight" size={13} />
             </button>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {PROGRESS_SUBJECTS.map(s => (
-              <div key={s.name}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-gray-600 font-medium">{s.name}</span>
-                  <span className="text-indigo-400 font-semibold">осталось {s.left} тем</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${s.color} rounded-full transition-all duration-700`} style={{ width: `${s.pct}%` }} />
-                </div>
+          {/* XP прогресс */}
+          {gamification && (
+            <div className="mb-3">
+              <div className="flex justify-between text-xs mb-1.5">
+                <span className="text-gray-600 font-medium">Уровень {gamification.level}</span>
+                <span className="text-purple-500 font-semibold">{gamification.xp_progress} / {gamification.xp_needed} XP</span>
               </div>
-            ))}
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700"
+                  style={{ width: `${gamification.xp_needed > 0 ? Math.round((gamification.xp_progress / gamification.xp_needed) * 100) : 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Тема дня */}
+          <div className="bg-indigo-50 rounded-2xl px-4 py-3 flex items-center gap-3">
+            <span className="text-xl">📚</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-indigo-700 font-bold text-sm truncate">{topic.topic}</p>
+              <p className="text-indigo-400 text-xs">{topic.subject} · тема сегодня</p>
+            </div>
           </div>
 
           <button
             onClick={() => navigate('/exam')}
-            className="mt-4 w-full flex items-center justify-center gap-2 border-2 border-dashed border-indigo-200 rounded-2xl py-2.5 text-indigo-500 text-sm font-medium hover:bg-indigo-50 transition-colors active:scale-[0.98]"
+            className="mt-3 w-full flex items-center justify-center gap-2 border-2 border-dashed border-indigo-200 rounded-2xl py-2.5 text-indigo-500 text-sm font-medium hover:bg-indigo-50 transition-colors active:scale-[0.98]"
           >
             <Icon name="Target" size={15} />
-            Посмотреть слабые темы
+            Посмотреть план подготовки
           </button>
         </div>
 

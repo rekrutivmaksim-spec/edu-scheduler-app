@@ -88,6 +88,7 @@ export default function ExamPrep() {
   const [examType, setExamType] = useState<ExamType>(profileExamType || null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(profileSubject || null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const [plan, setPlan] = useState<StudyPlan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
@@ -411,14 +412,35 @@ export default function ExamPrep() {
             </div>
 
             <button
-              onClick={() => {
-                if (!window.confirm('Текущий прогресс будет сброшен. Создать новый план?')) return;
-                generatePlan(subjectLabel, profileExamDate!);
-              }}
+              onClick={() => setShowResetConfirm(true)}
               className="w-full py-3 text-sm text-gray-400 hover:text-gray-600 transition-colors"
             >
               Обновить план
             </button>
+
+            {showResetConfirm && (
+              <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowResetConfirm(false)}>
+                <div className="absolute inset-0 bg-black/50" />
+                <div className="relative w-full max-w-md bg-white rounded-t-3xl p-6 pb-8" onClick={e => e.stopPropagation()}>
+                  <h3 className="font-bold text-gray-900 text-lg mb-2">Обновить план?</h3>
+                  <p className="text-gray-500 text-sm mb-5">Текущий прогресс будет сброшен, ИИ составит новый план.</p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowResetConfirm(false)}
+                      className="flex-1 py-3 border border-gray-200 rounded-2xl text-gray-600 font-medium text-sm"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={() => { setShowResetConfirm(false); generatePlan(subjectLabel, profileExamDate!); }}
+                      className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm"
+                    >
+                      Обновить
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 

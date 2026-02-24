@@ -14,8 +14,14 @@ const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
-const DAYS_TO_EXAM = 87;
 const COST_PER_SESSION = 300;
+
+function getDaysToExam(examDate?: string | null): number {
+  if (!examDate || examDate === 'custom') return 0;
+  const d = new Date(examDate);
+  const now = new Date();
+  return Math.max(0, Math.ceil((d.getTime() - now.getTime()) / 86400000));
+}
 
 const LAST_SESSIONS = [
   'Квадратные уравнения',
@@ -168,6 +174,7 @@ const Profile = () => {
     } catch { /* silent — localStorage уже обновлён */ }
   };
 
+  const daysToExam = getDaysToExam(user?.exam_date);
   const savedMoney = totalDays * COST_PER_SESSION;
   const streakLabel = streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней';
 
@@ -275,7 +282,7 @@ const Profile = () => {
               <div className="bg-white/15 rounded-2xl px-4 py-2.5 mb-4 flex items-center gap-2">
                 <span className="text-base">🔥</span>
                 <p className="text-white text-xs">
-                  До ЕГЭ <span className="font-bold">{DAYS_TO_EXAM} дней</span> — осталось <span className="font-bold">{Math.max(0, 24 - Math.min(totalDays, 24))} тем</span>
+                  До ЕГЭ <span className="font-bold">{daysToExam > 0 ? `${daysToExam} дней` : 'скоро'}</span> — осталось <span className="font-bold">{Math.max(0, 24 - Math.min(totalDays, 24))} тем</span>
                 </p>
               </div>
               <div className="flex items-center gap-3 mb-1">
@@ -394,9 +401,9 @@ const Profile = () => {
           </div>
           <div className="flex-1">
             <p className="text-gray-500 text-sm">До ЕГЭ осталось</p>
-            <p className="text-3xl font-extrabold text-gray-800">{DAYS_TO_EXAM} <span className="text-base font-medium text-gray-500">дней</span></p>
+            <p className="text-3xl font-extrabold text-gray-800">{daysToExam > 0 ? daysToExam : '—'} <span className="text-base font-medium text-gray-500">{daysToExam > 0 ? 'дней' : ''}</span></p>
             <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-red-400 to-orange-400 rounded-full" style={{ width: `${Math.round((1 - DAYS_TO_EXAM / 365) * 100)}%` }} />
+              <div className="h-full bg-gradient-to-r from-red-400 to-orange-400 rounded-full" style={{ width: `${daysToExam > 0 ? Math.round((1 - daysToExam / 365) * 100) : 100}%` }} />
             </div>
           </div>
           <button onClick={() => navigate('/session')} className="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex-shrink-0">
