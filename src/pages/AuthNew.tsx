@@ -88,8 +88,11 @@ export default function AuthNew() {
   const [thinkingStep, setThinkingStep] = useState(0);
   const [demoStage, setDemoStage] = useState<DemoStage>('greeting');
   const [selectedCategory, setSelectedCategory] = useState<typeof DEMO_CATEGORIES[0] | null>(null);
+  const [typingText, setTypingText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const demoBottomRef = useRef<HTMLDivElement>(null);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Auth state
   const [email, setEmail] = useState('');
@@ -124,9 +127,28 @@ export default function AuthNew() {
     'Почти готово…',
   ];
 
+  const typeAnswer = (fullText: string, onDone: () => void) => {
+    if (typingTimerRef.current) clearInterval(typingTimerRef.current);
+    setIsTyping(true);
+    setTypingText('');
+    let i = 0;
+    // ~18ms на символ = ~55 символов/сек — живая скорость
+    typingTimerRef.current = setInterval(() => {
+      i++;
+      setTypingText(fullText.slice(0, i));
+      demoBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (i >= fullText.length) {
+        clearInterval(typingTimerRef.current!);
+        setIsTyping(false);
+        setTypingText('');
+        onDone();
+      }
+    }, 18);
+  };
+
   const sendDemo = async (text?: string) => {
     const q = (text || demoInput).trim();
-    if (!q || demoLoading) return;
+    if (!q || demoLoading || isTyping) return;
     setDemoInput('');
     setDemoStage('chat');
     setSelectedCategory(null);
@@ -148,8 +170,20 @@ export default function AuthNew() {
         body: JSON.stringify({ action: 'demo_ask', question: q }),
       });
       const data = await res.json();
-      const raw = data.answer || data.response || data.message || 'Не удалось получить ответ';
-      setDemoMessages(prev => [...prev, { role: 'assistant', text: sanitizeText(raw) }]);
+      const raw = sanitizeText(data.answer || data.response || data.message || 'Не удалось получить ответ');
+      if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
+      setDemoLoading(false);
+      setThinkingStep(0);
+      // Добавляем пустышку-placeholder, потом заменим через typing
+      setDemoMessages(prev => [...prev, { role: 'assistant', text: '' }]);
+      typeAnswer(raw, () => {
+        setDemoMessages(prev => {
+          const copy = [...prev];
+          copy[copy.length - 1] = { role: 'assistant', text: raw };
+          return copy;
+        });
+      });
+      return;
     } catch {
       setDemoMessages(prev => [...prev, { role: 'assistant', text: 'Проблемы с соединением — попробуй ещё раз.' }]);
       setDemoCount(c => c - 1);
@@ -369,7 +403,9 @@ export default function AuthNew() {
           {/* Сообщения */}
           {demoMessages.map((m, i) => {
             const isLastAssistant = m.role === 'assistant' && i === demoMessages.length - 1 && i > 0;
-            const showFollowupHere = isLastAssistant && !demoLoading && !limitReached;
+            const isBeingTyped = isLastAssistant && isTyping;
+            const displayText = isBeingTyped ? typingText : m.text;
+            const showFollowupHere = isLastAssistant && !demoLoading && !isTyping && !limitReached && m.text;
             return (
               <div key={i}>
                 <div className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -383,11 +419,14 @@ export default function AuthNew() {
                       ? 'bg-white text-purple-700 font-medium rounded-br-sm'
                       : 'bg-white/15 backdrop-blur text-white rounded-bl-sm'
                   }`}>
-                    {m.text}
+                    {displayText}
+                    {isBeingTyped && (
+                      <span className="inline-block w-0.5 h-4 bg-white/70 ml-0.5 animate-pulse align-middle" />
+                    )}
                     {i === 0 && (
                       <p className="text-white/40 text-xs mt-1.5 flex items-center gap-1">
                         <Icon name="Zap" size={11} />
-                        Ответ обычно за 20–60 секунд
+                        Ответ обычно за 30–60 секунд
                       </p>
                     )}
                   </div>

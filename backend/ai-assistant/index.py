@@ -402,6 +402,26 @@ def sanitize_answer(text):
     return text.strip()
 
 
+def ask_ai_demo(question: str) -> tuple:
+    """Быстрый ответ для демо: минимальный промпт, 300 токенов, temperature 0.5"""
+    try:
+        resp = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": DEMO_SYSTEM},
+                {"role": "user", "content": question},
+            ],
+            temperature=0.5,
+            max_tokens=300,
+        )
+        answer = sanitize_answer(resp.choices[0].message.content)
+        tokens = resp.usage.total_tokens if resp.usage else 0
+        return answer, tokens
+    except Exception as e:
+        print(f"[DEMO] AI FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
+        return build_smart_fallback(question, ''), 0
+
+
 def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
     """Запрос к ИИ через Artemox. exam_meta — строка 'тип|предмет_id|предмет|режим'"""
     has_context = bool(context and len(context) > 50)
@@ -451,11 +471,11 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
 
     messages_list = [{"role": "system", "content": system}]
     if history:
-        for h in history[-6:]:
+        for h in history[-4:]:
             role = h.get('role', 'user')
             content = h.get('content', '')
             if role in ('user', 'assistant') and content:
-                messages_list.append({"role": role, "content": content[:600]})
+                messages_list.append({"role": role, "content": content[:400]})
     messages_list.append({"role": "user", "content": user_content})
 
     try:
@@ -463,7 +483,7 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
         resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages_list,
-            temperature=0.1,
+            temperature=0.5,
             max_tokens=600,
         )
         answer = resp.choices[0].message.content
@@ -572,13 +592,9 @@ def build_smart_fallback(question, context):
     return "Сервер перегружен, попробуй отправить вопрос ещё раз — обычно со второго раза всё работает!"
 
 DEMO_SYSTEM = (
-    "You are Studyfay, a friendly AI tutor for Russian school and university students. "
-    "Respond ONLY in Russian. "
-    "Format your answer clearly in 3 parts using plain text (no LaTeX, no markdown bold):\n"
-    "1. Что это — одно простое предложение\n"
-    "2. Как работает — 2-3 предложения с понятным объяснением\n"
-    "3. Пример — короткий конкретный пример из жизни или задачи\n"
-    "Use 1-2 emojis naturally. Be friendly, not academic. Max 8 sentences total."
+    "Ты — ИИ-репетитор Studyfay. Отвечай только на русском.\n"
+    "Формат ответа:\nКоротко: одно предложение.\nПример: конкретный пример.\nХочешь глубже — скажи.\n"
+    "Без LaTeX, без markdown. 1-2 эмодзи. Максимум 5 предложений."
 )
 
 DEMO_RATE_LIMIT: dict = {}
@@ -609,9 +625,12 @@ def handler(event: dict, context) -> dict:
                 return err(429, {'error': 'Слишком много запросов. Попробуй позже.'})
             hits.append(now_ts)
             DEMO_RATE_LIMIT[ip] = hits
+            import time as _time
+            t0 = _time.time()
             print(f"[DEMO] ip:{ip} q:{question[:60]}", flush=True)
-            answer, tokens = ask_ai(question[:300], '', exam_meta=None, history=None)
-            print(f"[DEMO] tokens:{tokens}", flush=True)
+            # DEMO: только вопрос пользователя, без истории, 300 токенов, temperature 0.5
+            answer, tokens = ask_ai_demo(question[:300])
+            print(f"[DEMO] tokens:{tokens} time:{_time.time()-t0:.1f}s", flush=True)
             return ok({'answer': answer})
 
     token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
