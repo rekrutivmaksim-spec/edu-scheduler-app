@@ -459,9 +459,13 @@ export default function Session() {
 
         <Button
           onClick={startSession}
-          className="w-full max-w-xs h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all mb-3"
+          disabled={sessionAllowed === null}
+          className="w-full max-w-xs h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all mb-3 disabled:opacity-60"
         >
-          Начать <Icon name="ArrowRight" size={20} className="ml-1.5" />
+          {sessionAllowed === null
+            ? <><Icon name="Loader2" size={18} className="animate-spin mr-2 text-purple-400" />Загружаю...</>
+            : <>Начать <Icon name="ArrowRight" size={20} className="ml-1.5" /></>
+          }
         </Button>
 
         {streak >= 3 && (
@@ -469,7 +473,7 @@ export default function Session() {
             <p className="text-white font-bold text-sm mb-1">🔥 Ты занимаешься {streak} дней подряд!</p>
             <p className="text-white/60 text-xs mb-3">Убери ограничения — занимайся без лимита</p>
             <button onClick={() => navigate('/pricing')} className="bg-white text-purple-700 font-bold text-sm px-5 py-2 rounded-xl w-full">
-              Безлимит 399₽ →
+              Безлимит 449₽ →
             </button>
           </div>
         )}
@@ -569,7 +573,7 @@ export default function Session() {
               onClick={() => navigate('/pricing')}
               className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl"
             >
-              Безлимит 399₽
+              Безлимит 449₽
             </Button>
           </div>
         )}

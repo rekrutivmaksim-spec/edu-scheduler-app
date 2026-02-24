@@ -63,12 +63,13 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
 
   const isExam = goal === 'ege' || goal === 'oge';
-  const gradeOptions = goal === 'ege' ? GRADES_EGE : goal === 'oge' ? GRADES_OGE : COURSES_UNI;
+  const isUniversity = goal === 'university';
+  const gradeOptions = goal === 'ege' ? GRADES_EGE : goal === 'oge' ? GRADES_OGE : goal === 'university' ? COURSES_UNI : [];
   const subjectOptions = goal === 'ege' ? SUBJECTS_EGE : SUBJECTS_OGE;
   const dateOptions = goal === 'ege' ? EGE_DATES : OGE_DATES;
 
-  // шаги: 0=цель, 1=помощник, 2=класс, 3=предмет(exam only), 4=дата(exam only)
-  const totalSteps = isExam ? 5 : 3;
+  // шаги: 0=цель, 1=помощник, 2=класс(не для other), 3=предмет(exam only), 4=дата(exam only)
+  const totalSteps = isExam ? 5 : (isUniversity ? 3 : 2);
 
   const handleNext = () => {
     if (step < totalSteps - 1) setStep(s => s + 1);
@@ -125,6 +126,26 @@ export default function Onboarding() {
     return true;
   };
 
+  // заголовок шага с учётом other (нет шага "класс")
+  const stepTitle = () => {
+    if (step === 0) return 'Какова твоя цель?';
+    if (step === 1) return 'Выбери помощника';
+    if (!isExam && !isUniversity) return 'Начнём!';
+    if (step === 2) return goal === 'university' ? 'На каком курсе?' : 'В каком классе?';
+    if (step === 3) return 'Главный предмет?';
+    if (step === 4) return 'Когда экзамен?';
+    return '';
+  };
+
+  const stepSubtitle = () => {
+    if (step === 0) return 'Это поможет подобрать темы именно для тебя';
+    if (step === 1) return 'Он будет учиться вместе с тобой и расти';
+    if (step === 2) return goal === 'university' ? 'Адаптируем программу под твой курс' : 'Адаптируем программу под твой уровень';
+    if (step === 3) return 'Начнём с него — остальные добавишь позже';
+    if (step === 4) return 'Рассчитаем темп подготовки';
+    return '';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 flex flex-col">
       {/* Прогресс */}
@@ -147,20 +168,8 @@ export default function Onboarding() {
         </div>
 
         <p className="text-white/70 text-sm">Настройка под тебя</p>
-        <h1 className="text-white font-bold text-2xl mt-1">
-          {step === 0 && 'Какова твоя цель?'}
-          {step === 1 && 'Выбери помощника'}
-          {step === 2 && (goal === 'university' ? 'На каком курсе?' : 'В каком классе?')}
-          {step === 3 && 'Главный предмет?'}
-          {step === 4 && 'Когда экзамен?'}
-        </h1>
-        <p className="text-white/60 text-sm mt-1">
-          {step === 0 && 'Это поможет подобрать темы именно для тебя'}
-          {step === 1 && 'Он будет учиться вместе с тобой и расти'}
-          {step === 2 && 'Адаптируем программу под твой уровень'}
-          {step === 3 && 'Начнём с него — остальные добавишь позже'}
-          {step === 4 && 'Рассчитаем темп подготовки'}
-        </p>
+        <h1 className="text-white font-bold text-2xl mt-1">{stepTitle()}</h1>
+        <p className="text-white/60 text-sm mt-1">{stepSubtitle()}</p>
       </div>
 
       {/* Карточки */}

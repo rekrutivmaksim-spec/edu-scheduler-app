@@ -244,6 +244,7 @@ const Assistant = () => {
     setSelectedMaterials(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const limitsLoaded = isTrial || isPremium || remaining !== null;
   const isLimitReached = !isTrial && !isPremium && remaining !== null && remaining <= 0;
   const showFreeCounter = !isTrial && !isPremium && aiMax !== null && aiUsed !== null;
   const freeLeft = aiMax !== null && aiUsed !== null ? Math.max(0, aiMax - aiUsed) : 0;
@@ -669,9 +670,9 @@ const Assistant = () => {
               value={question}
               onChange={e => setQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Задай любой вопрос…"
+              placeholder={isLimitReached ? 'Лимит вопросов исчерпан' : 'Задай любой вопрос…'}
               rows={1}
-              disabled={isLoading}
+              disabled={isLoading || isLimitReached}
               className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-purple-400 focus:bg-white transition-colors disabled:opacity-50 max-h-32"
               style={{ minHeight: '44px' }}
               onInput={(e) => {
@@ -682,8 +683,11 @@ const Assistant = () => {
             />
           </div>
           <button
-            onClick={() => isLimitReached ? setShowLimitScreen(true) : sendMessage()}
-            disabled={(!question.trim() && !isLimitReached) || isLoading}
+            onClick={() => {
+              if (!limitsLoaded || isLoading) return;
+              if (isLimitReached) { setShowLimitScreen(true); } else { sendMessage(); }
+            }}
+            disabled={(!limitsLoaded || isLoading) || (!question.trim() && !isLimitReached)}
             className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
               isLimitReached
                 ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
@@ -692,6 +696,8 @@ const Assistant = () => {
           >
             {isLoading
               ? <Icon name="Loader2" size={20} className="text-white animate-spin" />
+              : !limitsLoaded
+              ? <Icon name="Loader2" size={18} className="text-gray-400 animate-spin" />
               : isLimitReached
               ? <Icon name="Lock" size={18} className="text-white" />
               : <Icon name="ArrowUp" size={20} className={question.trim() ? 'text-white' : 'text-gray-400'} />

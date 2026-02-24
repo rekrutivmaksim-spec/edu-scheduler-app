@@ -152,12 +152,20 @@ const Profile = () => {
     }
   };
 
-  const changeCompanion = (id: CompanionId) => {
+  const changeCompanion = async (id: CompanionId) => {
     setCompanionId(id);
     setShowCompanionPicker(false);
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     userData.companion = id;
     localStorage.setItem('user', JSON.stringify(userData));
+    try {
+      const token = authService.getToken();
+      await fetch(API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'update_profile', companion: id }),
+      });
+    } catch { /* silent — localStorage уже обновлён */ }
   };
 
   const savedMoney = totalDays * COST_PER_SESSION;

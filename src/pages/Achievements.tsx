@@ -517,28 +517,7 @@ export default function Achievements() {
               <p className="text-gray-400 text-xs mt-3">Без ограничений — в Premium.</p>
             </div>
 
-            {/* Демо-кнопки наград */}
-            <div className="bg-white rounded-3xl p-5 shadow-sm">
-              <h3 className="font-bold text-gray-700 text-sm mb-3">Посмотреть экраны наград:</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {([
-                  { type: 'level_up' as RewardType, label: '🎉 Уровень', data: { level: 2, reward: '+3 бонус-вопроса ИИ' } },
-                  { type: 'streak_reward' as RewardType, label: '🔥 Серия', data: { streakDays: 3, reward: '+3 бонус-вопроса ИИ', nextReward: '7 дне: +10 вопросов' } },
-                  { type: 'streak_lost' as RewardType, label: '⚠️ Потеря серии', data: {} },
-                  { type: 'achievement' as RewardType, label: '🏆 Достижение', data: { achievementTitle: 'Серия 7 дней', xp: 30, bonusQuestions: 10 } },
-                  { type: 'premium_day' as RewardType, label: '🎁 День Premium', data: {} },
-                  { type: 'streak_freeze' as RewardType, label: '🧊 Заморозка', data: { freezesLeft: 0 } },
-                ]).map(item => (
-                  <button
-                    key={item.type}
-                    onClick={() => setRewardModal({ type: item.type, data: item.data })}
-                    className="text-xs py-2 px-3 bg-gray-50 hover:bg-purple-50 rounded-xl text-gray-600 hover:text-purple-700 transition-colors border border-gray-100 text-left"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+
           </>
         )}
 
