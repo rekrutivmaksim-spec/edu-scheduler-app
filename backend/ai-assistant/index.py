@@ -402,13 +402,11 @@ def sanitize_answer(text):
     return text.strip()
 
 
-_http_demo = httpx.Client(timeout=httpx.Timeout(24.0, connect=5.0))
+_http_demo = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
+_http_fallback = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
 
-def ask_ai_demo(question: str) -> tuple:
-    """Демо-ответ: прямой httpx в Artemox, без openai SDK, timeout 24 сек"""
-    import time as _t
-    t0 = _t.time()
-    print(f"[DEMO] ask_ai_demo start q_len:{len(question)}", flush=True)
+def _call_openai_compat(http_client, url: str, api_key: str, question: str, max_tokens: int = 250) -> str | None:
+    """Универсальный вызов OpenAI-совместимого API. Возвращает текст ответа или None."""
     try:
         payload = {
             "model": "deepseek-chat",
@@ -417,22 +415,72 @@ def ask_ai_demo(question: str) -> tuple:
                 {"role": "user", "content": question[:250]},
             ],
             "temperature": 0.5,
-            "max_tokens": 250,
+            "max_tokens": max_tokens,
         }
-        r = _http_demo.post(
-            "https://api.artemox.com/v1/chat/completions",
+        r = http_client.post(
+            url,
             json=payload,
-            headers={"Authorization": f"Bearer {ARTEMOX_API_KEY}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         )
-        print(f"[DEMO] artemox status:{r.status_code} time:{_t.time()-t0:.1f}s", flush=True)
-        data = r.json()
-        answer = sanitize_answer(data["choices"][0]["message"]["content"])
-        tokens = data.get("usage", {}).get("total_tokens", 0)
-        print(f"[DEMO] ok tokens:{tokens}", flush=True)
-        return answer, tokens
+        if r.status_code == 200:
+            data = r.json()
+            return sanitize_answer(data["choices"][0]["message"]["content"])
+        print(f"[DEMO] http {r.status_code}: {r.text[:200]}", flush=True)
+        return None
     except Exception as e:
-        print(f"[DEMO] AI FAIL {type(e).__name__}: {str(e)[:300]}", flush=True)
-        return build_smart_fallback(question, ''), 0
+        print(f"[DEMO] call fail {type(e).__name__}: {str(e)[:200]}", flush=True)
+        return None
+
+def ask_ai_demo(question: str) -> tuple:
+    """Демо: Artemox → DeepSeek → локальный ответ. Всегда возвращает ответ."""
+    import time as _t
+    t0 = _t.time()
+    print(f"[DEMO] start q:{question[:60]}", flush=True)
+
+    # 1️⃣ Artemox
+    answer = _call_openai_compat(_http_demo, "https://api.artemox.com/v1/chat/completions", ARTEMOX_API_KEY, question)
+    if answer:
+        print(f"[DEMO] artemox ok time:{_t.time()-t0:.1f}s", flush=True)
+        return answer, 1
+
+    print(f"[DEMO] artemox failed, trying deepseek time:{_t.time()-t0:.1f}s", flush=True)
+
+    # 2️⃣ DeepSeek напрямую
+    ds_key = os.environ.get('DEEPSEEK_API_KEY', '')
+    if ds_key:
+        answer = _call_openai_compat(_http_fallback, "https://api.deepseek.com/v1/chat/completions", ds_key, question)
+        if answer:
+            print(f"[DEMO] deepseek ok time:{_t.time()-t0:.1f}s", flush=True)
+            return answer, 1
+
+    print(f"[DEMO] both failed, using smart fallback time:{_t.time()-t0:.1f}s", flush=True)
+
+    # 3️⃣ Умный локальный ответ — всегда работает
+    return _smart_demo_fallback(question), 0
+
+def _smart_demo_fallback(question: str) -> str:
+    """Локальный ответ на основе ключевых слов — когда оба API недоступны."""
+    q = question.lower()
+    # Проверяем кэш
+    cached = get_demo_cache(question)
+    if cached:
+        return cached
+    # Универсальный ответ по типу запроса
+    if any(w in q for w in ['объясни', 'что такое', 'расскажи', 'как работает']):
+        return (
+            "Коротко: это важная тема, которую стоит разобрать подробнее.\n"
+            "Пример: в ЕГЭ она встречается в заданиях части 2.\n"
+            "Задай вопрос ещё раз — ИИ сейчас восстанавливается после нагрузки."
+        )
+    if any(w in q for w in ['задание', 'задача', 'пример', 'реши']):
+        return (
+            "Коротко: сейчас сервер перегружен, задание сформировать не могу.\n"
+            "Попробуй через 10–15 секунд — обычно это помогает."
+        )
+    return (
+        "Коротко: отличный вопрос, но ИИ сейчас под нагрузкой.\n"
+        "Попробуй задать его снова через несколько секунд — всегда отвечаю!"
+    )
 
 
 def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
