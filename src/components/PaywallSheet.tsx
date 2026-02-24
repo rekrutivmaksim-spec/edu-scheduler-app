@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 
 interface Props {
-  trigger: 'session_limit' | 'ai_limit' | 'after_session';
+  trigger?: 'session_limit' | 'ai_limit' | 'after_session';
   streak?: number;
   daysToExam?: number;
   onClose: () => void;
@@ -39,7 +39,7 @@ const FEATURES = [
 
 export default function PaywallSheet({ trigger, streak = 0, daysToExam = 87, onClose }: Props) {
   const navigate = useNavigate();
-  const copy = TRIGGER_COPY[trigger];
+  const copy = TRIGGER_COPY[trigger] ?? TRIGGER_COPY['ai_limit'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
