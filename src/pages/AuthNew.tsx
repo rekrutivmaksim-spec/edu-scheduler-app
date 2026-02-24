@@ -271,12 +271,14 @@ export default function AuthNew() {
   );
 
   const LegalFooter = ({ showDelete = false }: { showDelete?: boolean }) => (
-    <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pb-4 pt-2">
+    <div className="flex items-center justify-center gap-2 pb-4 pt-2">
       <Link to="/terms" className="text-white/35 text-xs hover:text-white/55 transition-colors">Соглашение</Link>
+      <span className="text-white/25 text-xs">|</span>
       <Link to="/privacy" className="text-white/35 text-xs hover:text-white/55 transition-colors">Конфиденциальность</Link>
-      {showDelete && (
+      {showDelete && <>
+        <span className="text-white/25 text-xs">|</span>
         <Link to="/privacy#delete" className="text-white/25 text-xs hover:text-white/45 transition-colors">Удаление аккаунта</Link>
-      )}
+      </>}
     </div>
   );
 
@@ -602,13 +604,13 @@ export default function AuthNew() {
         {/* Ценность */}
         <div className="text-center">
           <h1 className="text-[2rem] font-extrabold text-white leading-tight tracking-tight mb-2">
-            ИИ-репетитор<br />для учёбы
+            ИИ-репетитор для<br />экзаменов и учёбы
           </h1>
           <p className="text-white/70 text-sm leading-relaxed mb-2">
             ЕГЭ/ОГЭ и ВУЗ: объяснение тем,<br />задания и разбор PDF/Word
           </p>
           <p className="text-white/90 text-sm font-medium">
-            Разберись в теме за 2–3 минуты
+            Пойми тему за 2–3 минуты
           </p>
         </div>
 
