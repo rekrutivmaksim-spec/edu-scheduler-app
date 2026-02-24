@@ -6,6 +6,7 @@ import Icon from '@/components/ui/icon';
 import BottomNav from '@/components/BottomNav';
 import { trackSession } from '@/lib/review';
 import { dailyCheckin } from '@/lib/gamification';
+import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
@@ -211,6 +212,32 @@ export default function Index() {
       </div>
 
       <div className="px-4 -mt-3 flex flex-col gap-4">
+
+        {/* ===== КОМПАНЬОН ===== */}
+        {(() => {
+          const companionId = getCompanionFromStorage();
+          const comp = getCompanion(companionId);
+          const lvl = gamification?.level ?? 1;
+          const stage = getCompanionStage(comp, lvl);
+          return (
+            <button
+              onClick={() => navigate('/achievements')}
+              className="bg-white rounded-3xl shadow-sm px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
+            >
+              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-2xl flex-shrink-0 shadow-sm`}>
+                {stage.emoji}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-800 text-sm">{comp.name} · {stage.title}</p>
+                <p className="text-gray-400 text-xs truncate">"{stage.phrase}"</p>
+              </div>
+              <div className="flex-shrink-0 text-right">
+                <p className="text-purple-600 font-bold text-xs">Ур. {lvl}</p>
+                <p className="text-gray-300 text-[10px]">→ прогресс</p>
+              </div>
+            </button>
+          );
+        })()}
 
         {/* ===== БЛОК 1: СЕГОДНЯШНЯЯ СЕССИЯ ===== */}
         {sessionDone ? (

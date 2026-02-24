@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import PaywallSheet from '@/components/PaywallSheet';
+import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
@@ -404,10 +405,18 @@ export default function Session() {
 
   // ─── Экран: Готов? ──────────────────────────────────────────────────────────
   if (screen === 'ready') {
+    const companionId = getCompanionFromStorage();
+    const companion = getCompanion(companionId);
+    const stage = getCompanionStage(companion, streak > 0 ? Math.min(streak, 30) : 1);
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 flex flex-col items-center justify-center px-6 text-center">
-        <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
-          <Icon name="GraduationCap" size={36} className="text-white" />
+        {/* Компаньон */}
+        <div className={`w-20 h-20 rounded-3xl bg-gradient-to-br ${companion.style} flex items-center justify-center mb-2 shadow-xl text-4xl`}>
+          {stage.emoji}
+        </div>
+        <div className="bg-white/15 rounded-2xl px-4 py-2 mb-5 max-w-xs">
+          <p className="text-white text-sm font-medium">"{stage.phrase}"</p>
+          <p className="text-white/50 text-xs mt-0.5">{companion.name} · {stage.title}</p>
         </div>
         <p className="text-white/60 text-sm mb-1 uppercase tracking-wide font-medium">{SESSION_TOPIC.subject}</p>
         <h1 className="text-white font-extrabold text-2xl mb-3 leading-tight">{SESSION_TOPIC.topic}</h1>

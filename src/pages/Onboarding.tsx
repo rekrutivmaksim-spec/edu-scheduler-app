@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { COMPANIONS, type CompanionId } from '@/lib/companion';
 
 const AUTH_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 
@@ -55,6 +56,7 @@ export default function Onboarding() {
   const { toast } = useToast();
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState('');
+  const [companion, setCompanion] = useState<CompanionId | ''>('');
   const [grade, setGrade] = useState('');
   const [subject, setSubject] = useState('');
   const [examDate, setExamDate] = useState('');
@@ -65,7 +67,8 @@ export default function Onboarding() {
   const subjectOptions = goal === 'ege' ? SUBJECTS_EGE : SUBJECTS_OGE;
   const dateOptions = goal === 'ege' ? EGE_DATES : OGE_DATES;
 
-  const totalSteps = isExam ? 4 : 2;
+  // шаги: 0=цель, 1=помощник, 2=класс, 3=предмет(exam only), 4=дата(exam only)
+  const totalSteps = isExam ? 5 : 3;
 
   const handleNext = () => {
     if (step < totalSteps - 1) setStep(s => s + 1);
@@ -88,6 +91,7 @@ export default function Onboarding() {
             full_name: authService.getUser()?.full_name || '',
             goal,
             grade,
+            companion: companion || 'owl',
             exam_type: isExam ? goal : null,
             exam_subject: isExam ? subject : null,
             exam_date: isExam && examDate ? examDate : null,
@@ -114,9 +118,10 @@ export default function Onboarding() {
 
   const canNext = () => {
     if (step === 0) return !!goal;
-    if (step === 1) return !!grade;
-    if (step === 2) return !!subject;
-    if (step === 3) return !!examDate;
+    if (step === 1) return !!companion;
+    if (step === 2) return !!grade;
+    if (step === 3) return !!subject;
+    if (step === 4) return !!examDate;
     return true;
   };
 
@@ -144,15 +149,17 @@ export default function Onboarding() {
         <p className="text-white/70 text-sm">Настройка под тебя</p>
         <h1 className="text-white font-bold text-2xl mt-1">
           {step === 0 && 'Какова твоя цель?'}
-          {step === 1 && (goal === 'university' ? 'На каком курсе?' : 'В каком классе?')}
-          {step === 2 && 'Главный предмет?'}
-          {step === 3 && 'Когда экзамен?'}
+          {step === 1 && 'Выбери помощника'}
+          {step === 2 && (goal === 'university' ? 'На каком курсе?' : 'В каком классе?')}
+          {step === 3 && 'Главный предмет?'}
+          {step === 4 && 'Когда экзамен?'}
         </h1>
         <p className="text-white/60 text-sm mt-1">
           {step === 0 && 'Это поможет подобрать темы именно для тебя'}
-          {step === 1 && 'Адаптируем программу под твой уровень'}
-          {step === 2 && 'Начнём с него — остальные добавишь позже'}
-          {step === 3 && 'Рассчитаем темп подготовки'}
+          {step === 1 && 'Он будет учиться вместе с тобой и расти'}
+          {step === 2 && 'Адаптируем программу под твой уровень'}
+          {step === 3 && 'Начнём с него — остальные добавишь позже'}
+          {step === 4 && 'Рассчитаем темп подготовки'}
         </p>
       </div>
 
@@ -181,8 +188,42 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Шаг 1: Класс/курс */}
+          {/* Шаг 1: Выбор помощника */}
           {step === 1 && (
+            <div className="grid grid-cols-1 gap-3">
+              {COMPANIONS.map(c => {
+                const isSelected = companion === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setCompanion(c.id)}
+                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-100 bg-gray-50 hover:border-indigo-200'
+                    }`}
+                  >
+                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${c.style} flex items-center justify-center text-3xl flex-shrink-0 shadow-sm`}>
+                      {c.emoji}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-bold text-base ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>{c.name}</p>
+                      <p className="text-gray-400 text-sm mt-0.5">{c.description}</p>
+                    </div>
+                    {isSelected && (
+                      <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-xs font-bold">✓</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+              <p className="text-gray-400 text-xs text-center mt-1">Можно сменить позже в профиле</p>
+            </div>
+          )}
+
+          {/* Шаг 2: Класс/курс */}
+          {step === 2 && (
             <div className="flex flex-col gap-2.5">
               {gradeOptions.map(g => (
                 <button
@@ -212,8 +253,8 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Шаг 2: Предмет (только для ЕГЭ/ОГЭ) */}
-          {step === 2 && isExam && (
+          {/* Шаг 3: Предмет (только для ЕГЭ/ОГЭ) */}
+          {step === 3 && isExam && (
             <div className="grid grid-cols-2 gap-2.5">
               {subjectOptions.map(s => (
                 <button
@@ -231,8 +272,8 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Шаг 3: Дата экзамена */}
-          {step === 3 && isExam && (
+          {/* Шаг 4: Дата экзамена */}
+          {step === 4 && isExam && (
             <div className="flex flex-col gap-3">
               {dateOptions.map(d => {
                 const days = daysUntil(d.value);

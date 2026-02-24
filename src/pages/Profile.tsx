@@ -8,6 +8,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import BottomNav from '@/components/BottomNav';
+import { COMPANIONS, getCompanion, getCompanionStage, getCompanionFromStorage, type CompanionId } from '@/lib/companion';
 
 const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
@@ -34,6 +35,8 @@ const Profile = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showCompanionPicker, setShowCompanionPicker] = useState(false);
+  const [companionId, setCompanionId] = useState<CompanionId | null>(getCompanionFromStorage());
 
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
@@ -149,6 +152,14 @@ const Profile = () => {
     }
   };
 
+  const changeCompanion = (id: CompanionId) => {
+    setCompanionId(id);
+    setShowCompanionPicker(false);
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    userData.companion = id;
+    localStorage.setItem('user', JSON.stringify(userData));
+  };
+
   const savedMoney = totalDays * COST_PER_SESSION;
   const streakLabel = streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней';
 
@@ -173,6 +184,58 @@ const Profile = () => {
       </div>
 
       <div className="px-4 -mt-3 space-y-3 max-w-xl mx-auto">
+
+        {/* КОМПАНЬОН */}
+        {(() => {
+          const comp = getCompanion(companionId);
+          const stage = getCompanionStage(comp, streak > 0 ? streak : 1);
+          return (
+            <div className="bg-white rounded-3xl shadow-sm p-4">
+              <div className="flex items-center gap-4">
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-3xl shadow-sm flex-shrink-0`}>
+                  {stage.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-800">{comp.name} — {stage.title}</p>
+                  <p className="text-gray-400 text-xs mt-0.5 truncate">"{stage.phrase}"</p>
+                  <p className="text-purple-500 text-xs mt-1 font-medium">Серия {streak} дн. → {stage.title}</p>
+                </div>
+                <button
+                  onClick={() => setShowCompanionPicker(true)}
+                  className="text-xs text-gray-400 hover:text-purple-600 border border-gray-200 rounded-xl px-3 py-2 flex-shrink-0"
+                >
+                  Сменить
+                </button>
+              </div>
+
+              {showCompanionPicker && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-sm font-medium text-gray-700 mb-3">Выбери помощника:</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {COMPANIONS.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => changeCompanion(c.id)}
+                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all ${
+                          companionId === c.id ? 'border-purple-400 bg-purple-50' : 'border-gray-100 hover:border-purple-200'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${c.style} flex items-center justify-center text-xl flex-shrink-0`}>
+                          {c.emoji}
+                        </div>
+                        <div className="text-left">
+                          <p className="font-bold text-gray-800 text-sm">{c.name}</p>
+                          <p className="text-gray-400 text-xs">{c.description}</p>
+                        </div>
+                        {companionId === c.id && <span className="ml-auto text-purple-500 text-sm">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* 1. PREMIUM — главный блок */}
         {!isPremium ? (
