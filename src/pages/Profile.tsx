@@ -214,7 +214,7 @@ const Profile = () => {
                   Подключить Premium
                 </Button>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-white font-extrabold text-xl leading-none">399 ₽</p>
+                  <p className="text-white font-extrabold text-xl leading-none">449 ₽</p>
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>

@@ -107,7 +107,7 @@ const LimitScreen = ({ onClose, navigate }: { onClose: () => void; navigate: (p:
         >
           Подключить Premium
         </button>
-        <button onClick={onClose} className="w-full py-2.5 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+        <button onClick={() => { onClose(); setTimeout(() => document.querySelector<HTMLTextAreaElement>('textarea')?.focus(), 100); }} className="w-full py-2.5 text-sm text-gray-400 hover:text-gray-600 transition-colors">
           Вернуться завтра
         </button>
       </div>
@@ -394,6 +394,8 @@ const Assistant = () => {
                     <span className="text-purple-600 font-medium">Думаю...</span>
                   ) : isPremium || isTrial ? (
                     <span className="text-emerald-600 font-medium">Безлимитный доступ активен 🔥</span>
+                  ) : remaining === null && !isPremium && !isTrial ? (
+                    <span className="text-gray-400">Загружаю лимиты...</span>
                   ) : showFreeCounter ? (
                     <span className={freeLeft === 0 ? 'text-red-500 font-medium' : freeLeft === 1 ? 'text-amber-600' : 'text-gray-400'}>
                       Осталось: {freeLeft} из {aiMax}

@@ -97,6 +97,8 @@ function getTodayTopic(examSubject?: string | null): { subject: string; topic: s
 
 const SESSION_TOPIC = getTodayTopic(authService.getUser()?.exam_subject);
 
+const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+
 interface StepDef {
   label: string;
   icon: string;
@@ -170,6 +172,8 @@ export default function Session() {
   const [checkTypingText, setCheckTypingText] = useState('');
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallTrigger, setPaywallTrigger] = useState<'session_limit' | 'ai_limit' | 'after_session'>('after_session');
+  const [sessionAllowed, setSessionAllowed] = useState<boolean | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
 
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loaderRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -191,6 +195,27 @@ export default function Session() {
       .then(r => r.json())
       .then(d => { if (d?.streak?.current_streak) setStreak(d.streak.current_streak); })
       .catch(() => {});
+
+    fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(d => {
+        const sub = d.subscription_type;
+        const isTrial = !!d.is_trial;
+        if (sub === 'premium' || isTrial) {
+          setIsPremium(true);
+          setSessionAllowed(true);
+          return;
+        }
+        const sessions = d.limits?.sessions;
+        if (sessions) {
+          setSessionAllowed((sessions.used ?? 0) < (sessions.max ?? 1));
+        } else {
+          setSessionAllowed(true);
+        }
+      })
+      .catch(() => setSessionAllowed(true));
   }, []);
 
   useEffect(() => {
@@ -206,6 +231,11 @@ export default function Session() {
   }, []);
 
   const startSession = () => {
+    if (sessionAllowed === false) {
+      setPaywallTrigger('session_limit');
+      setShowPaywall(true);
+      return;
+    }
     const t = Date.now();
     setStartTime(t);
     timerRef.current = setInterval(() => {
@@ -268,6 +298,16 @@ export default function Session() {
         headers,
         body: JSON.stringify({ action: 'demo_ask', question: step.prompt }),
       });
+      if (res.status === 403) {
+        stopLoaderPhrases();
+        setLoading(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+        setPaywallTrigger('session_limit');
+        setShowPaywall(true);
+        setScreen('ready');
+        return;
+      }
+      if (!res.ok) throw new Error('server_error');
       const data = await res.json();
       const raw = sanitize(data.answer || data.response || '');
       stopLoaderPhrases();
@@ -344,6 +384,7 @@ export default function Session() {
       setTimeout(() => {
         setScreen('done');
         // Показываем paywall через 2 сек на экране завершения (только не-Premium)
+        if (isPremium) return;
         const token = authService.getToken();
         if (token && token !== 'guest_token') {
           setTimeout(() => {

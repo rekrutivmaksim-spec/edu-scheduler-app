@@ -20,7 +20,9 @@ const BottomNav = () => {
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         {tabs.map((tab) => {
-          const isActive = location.pathname === tab.path;
+          const isActive = tab.path === '/'
+            ? location.pathname === '/'
+            : location.pathname.startsWith(tab.path);
           return (
             <button
               key={tab.path}

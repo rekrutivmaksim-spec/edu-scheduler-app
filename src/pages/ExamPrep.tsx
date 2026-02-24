@@ -103,10 +103,16 @@ export default function ExamPrep() {
     if (!token) return;
     setPlanLoading(true);
     setPlanError(null);
+    const timeout = setTimeout(() => {
+      setPlanLoading(false);
+      setPlanError('Нет соединения. Проверь интернет и попробуй снова.');
+    }, 20000);
     try {
       const res = await fetch(`${STUDY_PLAN_URL}?action=list`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 403) { setShowPaywall(true); return; }
+      if (!res.ok) throw new Error('server_error');
       const data = await res.json();
       const existing = (data.plans || []).find(
         (p: StudyPlan) => p.subject.toLowerCase() === subject.toLowerCase()
@@ -115,14 +121,16 @@ export default function ExamPrep() {
         const detailRes = await fetch(`${STUDY_PLAN_URL}?action=detail&plan_id=${existing.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+        if (!detailRes.ok) throw new Error('server_error');
         const detailData = await detailRes.json();
         setPlan(detailData.plan);
       } else {
         await generatePlan(subject, examDate);
       }
     } catch {
-      setPlanError('Не удалось загрузить план');
+      setPlanError('Не удалось загрузить план. Попробуй снова.');
     } finally {
+      clearTimeout(timeout);
       setPlanLoading(false);
     }
   }, [token]);
@@ -403,7 +411,10 @@ export default function ExamPrep() {
             </div>
 
             <button
-              onClick={() => generatePlan(subjectLabel, profileExamDate!)}
+              onClick={() => {
+                if (!window.confirm('Текущий прогресс будет сброшен. Создать новый план?')) return;
+                generatePlan(subjectLabel, profileExamDate!);
+              }}
               className="w-full py-3 text-sm text-gray-400 hover:text-gray-600 transition-colors"
             >
               Обновить план

@@ -37,7 +37,7 @@ export default function University() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [fileUsedToday, setFileUsedToday] = useState(false);
+  const [fileUsedToday, setFileUsedToday] = useState(true);
   const [aiRemaining, setAiRemaining] = useState<number | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,7 +57,9 @@ export default function University() {
             setAiRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
           }
           const files = data.limits?.file_analysis;
-          if (files && !data.is_trial && data.subscription_type !== 'premium') {
+          if (data.is_trial || data.subscription_type === 'premium') {
+            setFileUsedToday(false);
+          } else if (files) {
             setFileUsedToday((files.used ?? 0) >= (files.max ?? 1));
           }
         }
@@ -66,6 +68,7 @@ export default function University() {
     loadLimits();
   }, []);
 
+  // fail-safe: при ошибке API считаем файловый лимит исчерпанным
   const handleQuickAction = (action: typeof QUICK_ACTIONS[0]) => {
     if (aiRemaining !== null && aiRemaining <= 0 && !isPremium) {
       setShowPaywall('ai_limit');

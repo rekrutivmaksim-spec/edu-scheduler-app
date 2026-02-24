@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 
 const AUTH_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 
@@ -51,6 +52,7 @@ function daysUntil(dateStr: string): number {
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState('');
   const [grade, setGrade] = useState('');
@@ -78,7 +80,7 @@ export default function Onboarding() {
     try {
       const token = authService.getToken();
       if (token && token !== 'guest_token') {
-        await fetch(AUTH_URL, {
+        const res = await fetch(AUTH_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
@@ -92,15 +94,22 @@ export default function Onboarding() {
             onboarding_completed: true,
           }),
         });
+        if (!res.ok) {
+          toast({ title: 'Ошибка сохранения', description: 'Не удалось сохранить профиль. Попробуй снова.', variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
         const updated = await authService.verifyToken();
         if (updated) authService.setUser(updated);
       }
-    } catch (e) {
-      console.warn(e);
+    } catch {
+      toast({ title: 'Нет соединения', description: 'Проверь интернет и попробуй снова.', variant: 'destructive' });
+      setSaving(false);
+      return;
     } finally {
       setSaving(false);
-      navigate('/');
     }
+    navigate('/');
   };
 
   const canNext = () => {
