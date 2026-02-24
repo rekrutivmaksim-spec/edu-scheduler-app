@@ -95,10 +95,7 @@ function getTodayTopic(examSubject?: string | null): { subject: string; topic: s
   return { ...fallback, number: idx + 1, total: DEFAULT_TOPICS.length };
 }
 
-const SESSION_TOPIC = getTodayTopic(authService.getUser()?.exam_subject);
-
-function getDaysToExam(): number {
-  const examDate = authService.getUser()?.exam_date;
+function getDaysToExam(examDate?: string | null): number {
   if (!examDate || examDate === 'custom') return 87;
   const d = new Date(examDate);
   const now = new Date();
@@ -114,26 +111,28 @@ interface StepDef {
   loaderPhrases: string[];
 }
 
-const STEPS: StepDef[] = [
-  {
-    label: 'Объяснение',
-    icon: 'Lightbulb',
-    prompt: `Объясни тему "${SESSION_TOPIC.topic}" (${SESSION_TOPIC.subject}) очень коротко — 2–3 предложения простыми словами, без формул и терминов. Как для человека, который первый раз слышит.`,
-    loaderPhrases: ['Разбираю тему…', 'Подбираю слова…', 'Готовлю объяснение…', 'Почти готово…'],
-  },
-  {
-    label: 'Пример',
-    icon: 'BookOpen',
-    prompt: `Дай один конкретный пример по теме "${SESSION_TOPIC.topic}" — покажи как это работает на простом числе или ситуации. Только пример, без длинных объяснений.`,
-    loaderPhrases: ['Ищу хороший пример…', 'Подбираю числа…', 'Формирую пример…'],
-  },
-  {
-    label: 'Задание',
-    icon: 'PenLine',
-    prompt: `Дай одно короткое задание по теме "${SESSION_TOPIC.topic}" уровня базового ЕГЭ. Только условие задачи, без решения.`,
-    loaderPhrases: ['Составляю задание…', 'Подбираю сложность…', 'Готовлю условие…'],
-  },
-];
+function buildSteps(topic: string, subject: string): StepDef[] {
+  return [
+    {
+      label: 'Объяснение',
+      icon: 'Lightbulb',
+      prompt: `Объясни тему "${topic}" (${subject}) очень коротко — 2–3 предложения простыми словами, без формул и терминов. Как для человека, который первый раз слышит.`,
+      loaderPhrases: ['Разбираю тему…', 'Подбираю слова…', 'Готовлю объяснение…', 'Почти готово…'],
+    },
+    {
+      label: 'Пример',
+      icon: 'BookOpen',
+      prompt: `Дай один конкретный пример по теме "${topic}" — покажи как это работает на простом числе или ситуации. Только пример, без длинных объяснений.`,
+      loaderPhrases: ['Ищу хороший пример…', 'Подбираю числа…', 'Формирую пример…'],
+    },
+    {
+      label: 'Задание',
+      icon: 'PenLine',
+      prompt: `Дай одно короткое задание по теме "${topic}" уровня базового ЕГЭ. Только условие задачи, без решения.`,
+      loaderPhrases: ['Составляю задание…', 'Подбираю сложность…', 'Готовлю условие…'],
+    },
+  ];
+}
 
 function sanitize(text: string): string {
   return text
@@ -161,7 +160,6 @@ type Screen = 'ready' | 'session' | 'correct_anim' | 'done';
 
 export default function Session() {
   const navigate = useNavigate();
-  const daysToExam = getDaysToExam();
   const [screen, setScreen] = useState<Screen>('ready');
   const [stepIdx, setStepIdx] = useState(0);
   const [content, setContent] = useState('');
@@ -183,12 +181,15 @@ export default function Session() {
   const [paywallTrigger, setPaywallTrigger] = useState<'session_limit' | 'ai_limit' | 'after_session'>('after_session');
   const [sessionAllowed, setSessionAllowed] = useState<boolean | null>(null);
   const [isPremium, setIsPremium] = useState(false);
+  const [sessionTopic, setSessionTopic] = useState(() => getTodayTopic(authService.getUser()?.exam_subject));
+  const [daysToExam, setDaysToExam] = useState(() => getDaysToExam(authService.getUser()?.exam_date));
 
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loaderRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const STEPS = buildSteps(sessionTopic.topic, sessionTopic.subject);
   const currentStep = STEPS[stepIdx];
   const progressPct = Math.round(((stepIdx + (checkResult ? 1 : 0)) / STEPS.length) * 100);
   const elapsedMin = Math.max(1, Math.round(elapsedSec / 60));
@@ -196,6 +197,16 @@ export default function Session() {
   useEffect(() => {
     const token = authService.getToken();
     if (!token || token === 'guest_token') return;
+
+    // Верифицируем токен и получаем свежие данные пользователя
+    authService.verifyToken().then(user => {
+      if (user) {
+        const topic = getTodayTopic(user.exam_subject);
+        setSessionTopic(topic);
+        setDaysToExam(getDaysToExam(user.exam_date));
+      }
+    }).catch(() => {});
+
     fetch(GAMIFICATION_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -426,8 +437,8 @@ export default function Session() {
           <p className="text-white text-sm font-medium">"{stage.phrase}"</p>
           <p className="text-white/50 text-xs mt-0.5">{companion.name} · {stage.title}</p>
         </div>
-        <p className="text-white/60 text-sm mb-1 uppercase tracking-wide font-medium">{SESSION_TOPIC.subject}</p>
-        <h1 className="text-white font-extrabold text-2xl mb-3 leading-tight">{SESSION_TOPIC.topic}</h1>
+        <p className="text-white/60 text-sm mb-1 uppercase tracking-wide font-medium">{sessionTopic.subject}</p>
+        <h1 className="text-white font-extrabold text-2xl mb-3 leading-tight">{sessionTopic.topic}</h1>
 
         {streak >= 2 && (
           <div className="flex items-center gap-1.5 bg-orange-400/20 border border-orange-400/30 rounded-full px-3 py-1 mb-4">
@@ -449,7 +460,7 @@ export default function Session() {
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div className="text-center">
-              <p className="text-white font-bold text-xl">{SESSION_TOPIC.number}/{SESSION_TOPIC.total}</p>
+              <p className="text-white font-bold text-xl">{sessionTopic.number}/{sessionTopic.total}</p>
               <p className="text-white/60 text-xs">тема</p>
             </div>
           </div>
@@ -520,7 +531,7 @@ export default function Session() {
         <div className="text-center mb-5">
           <div className="text-5xl mb-2">🎉</div>
           <h1 className="text-white font-extrabold text-3xl mb-1">Занятие завершено!</h1>
-          <p className="text-white/50 text-sm">{SESSION_TOPIC.topic} · {SESSION_TOPIC.subject}</p>
+          <p className="text-white/50 text-sm">{sessionTopic.topic} · {sessionTopic.subject}</p>
         </div>
 
         {/* Крючок: до экзамена */}
@@ -529,13 +540,13 @@ export default function Session() {
             <span className="text-2xl">📅</span>
             <div>
               <p className="text-white font-bold text-base">До экзамена {daysToExam} {daysToExam === 1 ? 'день' : daysToExam < 5 ? 'дня' : 'дней'}</p>
-              <p className="text-white/60 text-xs">Ты прошёл {SESSION_TOPIC.number} из {SESSION_TOPIC.total} тем</p>
+              <p className="text-white/60 text-xs">Ты прошёл {sessionTopic.number} из {sessionTopic.total} тем</p>
             </div>
           </div>
           <div className="h-2 bg-white/20 rounded-full overflow-hidden">
             <div
               className="h-full bg-white rounded-full transition-all duration-1000"
-              style={{ width: `${Math.round((SESSION_TOPIC.number / SESSION_TOPIC.total) * 100)}%` }}
+              style={{ width: `${Math.round((sessionTopic.number / sessionTopic.total) * 100)}%` }}
             />
           </div>
         </div>
@@ -643,8 +654,8 @@ export default function Session() {
             <Icon name="ArrowLeft" size={20} />
           </button>
           <div className="flex-1">
-            <p className="text-white/60 text-xs">{SESSION_TOPIC.subject}</p>
-            <h1 className="text-white font-bold text-base leading-tight">{SESSION_TOPIC.topic}</h1>
+            <p className="text-white/60 text-xs">{sessionTopic.subject}</p>
+            <h1 className="text-white font-bold text-base leading-tight">{sessionTopic.topic}</h1>
           </div>
           {streak >= 1 && (
             <div className="flex items-center gap-1 text-orange-200 text-xs font-semibold">
@@ -793,14 +804,14 @@ export default function Session() {
             >
               Дальше <Icon name="ArrowRight" size={16} className="ml-1.5" />
             </Button>
-          ) : (answerCorrect === true && showCheckResult) ? (
+          ) : isTaskStep && answerCorrect === true && showCheckResult ? (
             <Button
               onClick={goNext}
               className="w-full h-[52px] bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(34,197,94,0.35)] active:scale-[0.98] transition-all animate-in fade-in duration-300"
             >
               Завершить занятие 🎉
             </Button>
-          ) : null}
+          ) : isTaskStep && !checkResult && !showAnswerForm ? null : null}
         </div>
       )}
 

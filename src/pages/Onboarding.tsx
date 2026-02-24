@@ -32,15 +32,11 @@ const SUBJECTS_OGE = [
 ];
 
 const EGE_DATES: { label: string; value: string }[] = [
-  { label: 'Май 2025', value: '2025-05-26' },
-  { label: 'Июнь 2025', value: '2025-06-02' },
   { label: 'Май 2026', value: '2026-05-25' },
   { label: 'Июнь 2026', value: '2026-06-01' },
 ];
 
 const OGE_DATES: { label: string; value: string }[] = [
-  { label: 'Май 2025', value: '2025-05-20' },
-  { label: 'Июнь 2025', value: '2025-06-09' },
   { label: 'Май 2026', value: '2026-05-19' },
   { label: 'Июнь 2026', value: '2026-06-08' },
 ];
