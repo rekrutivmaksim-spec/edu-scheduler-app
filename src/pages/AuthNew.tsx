@@ -634,34 +634,36 @@ export default function AuthNew() {
               setScreen('demo');
             }}
             disabled={demoStarting}
-            className="w-full h-16 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-lg rounded-2xl shadow-2xl transition-all"
+            className="w-full h-14 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-base rounded-2xl shadow-2xl transition-all"
           >
             {demoStarting
-              ? <Icon name="Loader2" size={22} className="animate-spin text-purple-600" />
-              : <>Попробовать ИИ бесплатно <Icon name="ArrowRight" size={20} className="ml-2" /></>
+              ? <Icon name="Loader2" size={20} className="animate-spin text-purple-600" />
+              : <>Начать бесплатно <Icon name="ArrowRight" size={18} className="ml-1.5" /></>
             }
           </Button>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-white/60 text-xs">1–2 вопроса без регистрации и карты</span>
-            <span className="text-white/40 text-xs">Регистрация займёт 10 секунд</span>
+            <span className="text-white/40 text-xs">Ответ за несколько секунд</span>
           </div>
         </div>
 
         {/* Вход / Регистрация — вторичные */}
-        <div className="flex items-center justify-center gap-4">
-          <button
-            onClick={() => { clearErrors(); setScreen('login'); }}
-            className="text-white/70 text-sm hover:text-white transition-colors"
-          >
-            Уже есть аккаунт? <span className="font-semibold text-white underline underline-offset-2">Войти</span>
-          </button>
-          <span className="text-white/30 text-sm">·</span>
-          <button
-            onClick={() => { clearErrors(); setScreen('register'); }}
-            className="text-white/70 text-sm hover:text-white transition-colors"
-          >
-            Нет аккаунта? <span className="font-semibold text-white underline underline-offset-2">Создать</span>
-          </button>
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={() => { clearErrors(); setScreen('login'); }}
+              className="text-white/70 text-sm hover:text-white transition-colors"
+            >
+              Уже есть аккаунт? <span className="font-semibold text-white underline underline-offset-2">Войти</span>
+            </button>
+            <span className="text-white/30 text-sm">·</span>
+            <button
+              onClick={() => { clearErrors(); setScreen('register'); }}
+              className="text-white/70 text-sm hover:text-white transition-colors"
+            >
+              Нет аккаунта? <span className="font-semibold text-white underline underline-offset-2">Создать</span>
+            </button>
+          </div>
         </div>
 
         {/* Реферал */}
@@ -673,9 +675,6 @@ export default function AuthNew() {
             </p>
           </div>
         )}
-
-        {/* Подпись */}
-        <p className="text-center text-white/40 text-xs">Для ЕГЭ/ОГЭ и ВУЗа</p>
 
         {/* Юридические ссылки */}
         <LegalFooter />
