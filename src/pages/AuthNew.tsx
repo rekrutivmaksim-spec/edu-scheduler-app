@@ -38,9 +38,9 @@ const DEMO_CATEGORIES = [
 
 // Follow-up кнопки под каждым ответом ИИ
 const FOLLOWUP = [
-  { label: 'Объясни проще', q: 'Объясни то же самое ещё проще, как для 5-классника' },
-  { label: 'Дай задание', q: 'Дай мне короткое задание по этой теме чтобы проверить понимание' },
-  { label: 'Следующий вопрос', q: 'Что ещё важно знать по этой теме? Объясни следующий шаг.' },
+  { label: '🔹 Объясни проще', q: 'Объясни то же самое ещё проще, как для 5-классника' },
+  { label: '🔹 Дай похожее задание', q: 'Дай мне одно похожее задание по этой теме чтобы проверить понимание' },
+  { label: '🔹 Разобрать глубже', q: 'Разбери эту тему глубже — что важно знать дополнительно?' },
 ];
 
 // Очистка markdown и иероглифов из ответов ИИ
@@ -136,10 +136,10 @@ export default function AuthNew() {
     setDemoLoading(true);
     setThinkingStep(0);
 
-    // Крутим шаги мышления каждые 4 сек
+    // Крутим шаги мышления каждые 2.5 сек
     thinkingTimerRef.current = setInterval(() => {
       setThinkingStep(s => Math.min(s + 1, THINKING_STEPS.length - 1));
-    }, 4000);
+    }, 2500);
 
     try {
       const res = await fetch(AI_API_URL, {
@@ -496,12 +496,12 @@ export default function AuthNew() {
                 <Icon name="GraduationCap" size={18} className="text-indigo-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-800 text-sm">Продолжить бесплатно</h3>
-                <p className="text-gray-400 text-xs">можно после регистрации</p>
+                <h3 className="font-bold text-gray-800 text-base">Продолжим?</h3>
+                <p className="text-gray-400 text-xs">Регистрация займёт 10 секунд</p>
               </div>
             </div>
             <div className="space-y-1.5 mb-4 pl-1">
-              {['История диалога сохранится', 'Доступ каждый день', 'Регистрация займёт 10 секунд'].map(t => (
+              {['История диалога сохранится', 'Доступ каждый день', 'Без ограничений на вопросы'].map(t => (
                 <p key={t} className="text-gray-500 text-xs flex items-center gap-1.5">
                   <span className="text-green-500">✓</span> {t}
                 </p>
@@ -510,10 +510,11 @@ export default function AuthNew() {
             <div className="flex flex-col gap-2">
               <Button
                 onClick={() => setScreen('register')}
-                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl"
+                className="w-full h-13 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-xl shadow-[0_6px_24px_rgba(99,102,241,0.45)] hover:opacity-95 active:scale-[0.98] transition-all"
               >
                 Создать аккаунт
               </Button>
+              <p className="text-center text-gray-400 text-xs">Бесплатно. Без карты.</p>
               <Button
                 variant="outline"
                 onClick={() => setScreen('login')}
@@ -785,7 +786,8 @@ export default function AuthNew() {
         </div>
 
         {/* Главная кнопка */}
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-white/55 text-xs tracking-wide">Работает для ЕГЭ, ОГЭ и ВУЗа</p>
           <Button
             onClick={async () => {
               setDemoStarting(true);
@@ -794,16 +796,16 @@ export default function AuthNew() {
               setScreen('demo');
             }}
             disabled={demoStarting}
-            className="w-full h-14 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-base rounded-2xl shadow-2xl transition-all"
+            className="w-full h-[60px] bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-[1.05rem] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] transition-all duration-200 animate-in fade-in zoom-in-95"
           >
             {demoStarting
-              ? <Icon name="Loader2" size={20} className="animate-spin text-purple-600" />
-              : <>Начать бесплатно <Icon name="ArrowRight" size={18} className="ml-1.5" /></>
+              ? <Icon name="Loader2" size={22} className="animate-spin text-purple-600" />
+              : <>Начать бесплатно <Icon name="ArrowRight" size={20} className="ml-1.5" /></>
             }
           </Button>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-white/60 text-xs">1–2 вопроса без регистрации и карты</span>
-            <span className="text-white/40 text-xs">Ответ обычно за 20–60 секунд</span>
+            <span className="text-white/40 text-xs">Ответ обычно за 30–60 секунд</span>
           </div>
         </div>
 
