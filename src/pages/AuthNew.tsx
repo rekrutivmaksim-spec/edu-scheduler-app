@@ -21,7 +21,7 @@ const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
 const benefits = [
-  { icon: 'MessageCircle', text: 'Объясню тему простыми словами' },
+  { icon: 'Lightbulb', text: 'Поясню тему простыми словами' },
   { icon: 'Target', text: 'Подберу задания под твой уровень' },
   { icon: 'FileText', text: 'Разберу PDF/Word и отвечу по ним' },
 ];
@@ -36,20 +36,18 @@ export default function AuthNew() {
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [showLoginForm, setShowLoginForm] = useState(false);
   const refCode = searchParams.get('ref') || '';
 
   useEffect(() => {
-    if (refCode) {
-      localStorage.setItem('pendingReferral', refCode);
-    }
+    if (refCode) localStorage.setItem('pendingReferral', refCode);
     const savedEmail = localStorage.getItem('savedEmail');
     localStorage.removeItem('savedPassword');
     if (savedEmail) {
       setEmail(savedEmail);
       setRememberMe(true);
     }
-  }, []);
+  }, [refCode]);
 
   const handleEmailLogin = async () => {
     if (!agreedToTerms) {
@@ -148,78 +146,84 @@ export default function AuthNew() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Фоновые блобы */}
-      <div className="absolute top-[-80px] left-[-80px] w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-[-60px] right-[-60px] w-96 h-96 bg-pink-400/20 rounded-full blur-3xl" />
+      <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-16 -right-16 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-sm">
+      <div className="relative z-10 w-full max-w-sm flex flex-col gap-5">
 
-        {/* Логотип */}
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mb-3 shadow-xl">
-            <Icon name="GraduationCap" size={32} className="text-white" />
+        {/* Блок 1 — Логотип */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center shadow-xl">
+            <Icon name="GraduationCap" size={28} className="text-white" />
           </div>
-          <span className="text-white/80 text-sm font-medium tracking-widest uppercase">Studyfay</span>
+          <span className="text-white/70 text-xs font-semibold tracking-widest uppercase">Studyfay</span>
         </div>
 
-        {/* Заголовок */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-white leading-tight mb-2">
-            ИИ-репетитор для учёбы
+        {/* Блок 2 — Ценность */}
+        <div className="text-center">
+          <h1 className="text-[2rem] font-extrabold text-white leading-tight tracking-tight mb-2">
+            ИИ-репетитор<br />для учёбы
           </h1>
-          <p className="text-white/75 text-sm leading-relaxed">
-            ЕГЭ/ОГЭ и ВУЗ: объяснение тем,<br />задания и разбор материалов
+          <p className="text-white/70 text-sm leading-relaxed">
+            Объясню темы, подберу задания<br />и разберу PDF/Word
           </p>
         </div>
 
-        {/* Плашки-выгоды */}
-        <div className="space-y-2 mb-6">
+        {/* Блок 3 — 3 выгоды */}
+        <div className="flex flex-col gap-2">
           {benefits.map((b) => (
-            <div key={b.text} className="flex items-center gap-3 bg-white/15 backdrop-blur rounded-xl px-4 py-3">
-              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Icon name={b.icon} size={16} className="text-white" />
+            <div
+              key={b.text}
+              className="flex items-center gap-3 bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-3"
+            >
+              <div className="w-8 h-8 bg-white/25 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Icon name={b.icon} size={15} className="text-white" />
               </div>
               <span className="text-white text-sm font-medium">{b.text}</span>
             </div>
           ))}
         </div>
 
-        {/* Социальное доказательство */}
-        <div className="text-center mb-6">
-          <span className="inline-flex items-center gap-2 bg-white/15 backdrop-blur rounded-full px-4 py-2 text-white/80 text-xs">
-            <Icon name="Users" size={14} className="text-white/60" />
-            Подходит школьникам и студентам
-          </span>
-        </div>
-
-        {/* CTA — кнопка открывает форму */}
-        {!showForm && (
+        {/* Блок 4 — Главная кнопка */}
+        <div className="flex flex-col items-center gap-1.5">
           <Button
-            onClick={() => setShowForm(true)}
-            className="w-full h-14 bg-white text-purple-700 hover:bg-white/90 font-bold text-base rounded-2xl shadow-xl mb-3"
+            onClick={() => navigate('/assistant')}
+            className="w-full h-14 bg-white text-purple-700 hover:bg-white/90 font-extrabold text-base rounded-2xl shadow-2xl"
           >
-            Начать бесплатно
+            Попробовать бесплатно
             <Icon name="ArrowRight" size={18} className="ml-2" />
           </Button>
+          <span className="text-white/50 text-xs">1–2 вопроса без регистрации</span>
+        </div>
+
+        {/* Блок 5 — Уже есть аккаунт */}
+        {!showLoginForm && (
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-white/60 text-sm">Уже есть аккаунт?</span>
+            <button
+              onClick={() => setShowLoginForm(true)}
+              className="text-white font-semibold text-sm underline underline-offset-2 hover:text-white/80 transition-colors"
+            >
+              Войти
+            </button>
+          </div>
         )}
 
-        {/* Форма входа / сброса */}
-        {showForm && (
-          <div className="bg-white rounded-3xl p-5 shadow-2xl mb-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        {/* Блок 6 — Форма входа (скрытая, Вариант А) */}
+        {showLoginForm && (
+          <div className="bg-white rounded-3xl p-5 shadow-2xl animate-in fade-in slide-in-from-bottom-3 duration-300">
 
-            {mode === 'forgot' && (
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-gray-800">
+                {mode === 'login' ? 'Вход в аккаунт' : 'Сброс пароля'}
+              </h2>
               <button
-                onClick={() => setMode('login')}
-                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 mb-4"
+                onClick={() => { setShowLoginForm(false); setMode('login'); }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <Icon name="ArrowLeft" size={14} />
-                Вернуться к входу
+                <Icon name="X" size={18} />
               </button>
-            )}
-
-            <h2 className="text-base font-bold text-gray-800 mb-4">
-              {mode === 'login' ? 'Вход или регистрация' : 'Сброс пароля'}
-            </h2>
+            </div>
 
             <div className="space-y-3">
               <Input
@@ -249,7 +253,6 @@ export default function AuthNew() {
                 </div>
               )}
 
-              {/* Согласие */}
               <div className="flex items-start gap-2">
                 <Checkbox
                   id="terms"
@@ -271,7 +274,10 @@ export default function AuthNew() {
                   disabled={loading || !agreedToTerms}
                   className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold rounded-xl"
                 >
-                  {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Войти / Зарегистрироваться'}
+                  {loading
+                    ? <Icon name="Loader2" size={18} className="animate-spin" />
+                    : 'Войти / Зарегистрироваться'
+                  }
                 </Button>
               ) : (
                 <Button
@@ -279,35 +285,42 @@ export default function AuthNew() {
                   disabled={loading}
                   className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90 text-white font-semibold rounded-xl"
                 >
-                  {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Сохранить новый пароль'}
+                  {loading
+                    ? <Icon name="Loader2" size={18} className="animate-spin" />
+                    : 'Сохранить новый пароль'
+                  }
                 </Button>
               )}
 
-              {mode === 'login' && (
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-gray-400">
+                  Нет аккаунта? Введи email и пароль — создадим автоматически
+                </p>
                 <button
-                  onClick={() => setMode('forgot')}
-                  className="w-full text-center text-xs text-purple-600 hover:underline"
+                  onClick={() => setMode(mode === 'login' ? 'forgot' : 'login')}
+                  className="text-xs text-purple-600 hover:underline whitespace-nowrap ml-2 flex-shrink-0"
                 >
-                  Забыли пароль?
+                  {mode === 'login' ? 'Забыли пароль?' : '← Назад'}
                 </button>
-              )}
-
-              <p className="text-xs text-gray-400 text-center">
-                Нет аккаунта? Просто введи email и пароль — зарегистрируем автоматически
-              </p>
+              </div>
             </div>
           </div>
         )}
 
         {/* Реферальный бонус */}
         {refCode && (
-          <div className="bg-green-500/20 backdrop-blur border border-green-400/30 rounded-2xl p-3 mb-3">
+          <div className="bg-green-500/20 backdrop-blur border border-green-400/30 rounded-2xl p-3">
             <p className="text-white text-xs text-center">
               <Icon name="Gift" size={14} className="inline mr-1" />
               Вас пригласил друг — получите +5 бонусных вопросов к ИИ
             </p>
           </div>
         )}
+
+        {/* Подходит для */}
+        <p className="text-center text-white/40 text-xs pb-2">
+          Подходит школьникам и студентам
+        </p>
 
       </div>
     </div>
