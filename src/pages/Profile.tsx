@@ -202,7 +202,7 @@ const Profile = () => {
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>
-              <p className="text-white/50 text-xs text-center mt-1">Бесплатно: 1 занятие в день</p>
+              <p className="text-white/60 text-xs text-center mt-1.5">🔓 Отмена в любой момент · Бесплатно: 1 занятие сегодня</p>
             </div>
             {/* Потеря */}
             <div className="bg-purple-900/90 px-5 py-3 flex items-center gap-2">
@@ -327,21 +327,31 @@ const Profile = () => {
             </div>
             <h3 className="font-bold text-gray-800">Сэкономлено на репетиторах</h3>
           </div>
-          {totalDays === 0 ? (
-            <div className="bg-gray-50 rounded-2xl p-4">
-              <p className="text-gray-400 text-sm">Ещё нет занятий</p>
-              <p className="text-gray-500 text-xs mt-1">1 занятие ≈ <span className="font-semibold text-gray-700">{COST_PER_SESSION} ₽</span> у репетитора</p>
-              <p className="text-gray-400 text-xs mt-0.5">Начни заниматься — и здесь появится твоя экономия</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-gray-400 text-xs">1 занятие ≈ <span className="font-semibold text-gray-600">{COST_PER_SESSION} ₽</span> у репетитора</p>
+            {totalDays > 0 && <p className="text-green-500 text-xs font-semibold bg-green-50 px-2 py-1 rounded-lg">экономия реальная</p>}
+          </div>
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <p className="text-gray-500 text-xs mb-0.5">Уже сэкономлено:</p>
+              <p className="text-4xl font-extrabold text-green-600 leading-none">
+                {savedMoney.toLocaleString('ru-RU')} <span className="text-lg font-medium text-gray-400">₽</span>
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
+                {totalDays} {totalDays === 1 ? 'занятие' : totalDays < 5 ? 'занятия' : 'занятий'} × {COST_PER_SESSION} ₽
+              </p>
             </div>
-          ) : (
-            <div className="flex items-end gap-3">
-              <div>
-                <p className="text-4xl font-extrabold text-green-600">{savedMoney.toLocaleString('ru-RU')} <span className="text-lg font-medium text-gray-400">₽</span></p>
-                <p className="text-gray-400 text-xs mt-1">{totalDays} {totalDays === 1 ? 'занятие' : totalDays < 5 ? 'занятия' : 'занятий'} × {COST_PER_SESSION} ₽</p>
-              </div>
-              <div className="mb-1 ml-auto text-right">
-                <p className="text-green-500 text-xs font-semibold bg-green-50 px-2 py-1 rounded-lg">вместо репетитора</p>
-              </div>
+            {totalDays === 0 && (
+              <button onClick={() => navigate('/session')} className="bg-green-500 text-white text-xs font-bold px-3 py-2 rounded-xl mb-1">
+                Начать →
+              </button>
+            )}
+          </div>
+          {totalDays > 0 && (
+            <div className="mt-3 bg-green-50 rounded-2xl px-4 py-2.5">
+              <p className="text-green-700 text-xs font-medium">
+                🚀 При 10 занятиях сэкономишь <span className="font-bold">{(10 * COST_PER_SESSION).toLocaleString('ru-RU')} ₽</span>
+              </p>
             </div>
           )}
         </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
+import PaywallSheet from '@/components/PaywallSheet';
 
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
@@ -122,6 +123,8 @@ export default function Session() {
   const [streak, setStreak] = useState(0);
   const [progressAnim, setProgressAnim] = useState(false);
   const [checkTypingText, setCheckTypingText] = useState('');
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallTrigger, setPaywallTrigger] = useState<'session_limit' | 'ai_limit' | 'after_session'>('after_session');
 
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loaderRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -293,7 +296,17 @@ export default function Session() {
       window.dispatchEvent(new Event('session_completed'));
       if (navigator.vibrate) navigator.vibrate([80, 40, 120]);
       setScreen('correct_anim');
-      setTimeout(() => setScreen('done'), 950);
+      setTimeout(() => {
+        setScreen('done');
+        // Показываем paywall через 2 сек на экране завершения (только не-Premium)
+        const token = authService.getToken();
+        if (token && token !== 'guest_token') {
+          setTimeout(() => {
+            setPaywallTrigger('after_session');
+            setShowPaywall(true);
+          }, 2000);
+        }
+      }, 950);
       return;
     }
     if (stepIdx < STEPS.length - 1) {
@@ -395,6 +408,7 @@ export default function Session() {
   if (screen === 'done') {
     const newStreak = streak + 1;
     return (
+      <>
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col px-5 pt-14 pb-10 overflow-y-auto">
         <div className="text-center mb-5">
           <div className="text-5xl mb-2">🎉</div>
@@ -493,6 +507,16 @@ export default function Session() {
           Задать дополнительный вопрос
         </button>
       </div>
+
+      {showPaywall && (
+        <PaywallSheet
+          trigger={paywallTrigger}
+          streak={newStreak}
+          daysToExam={DAYS_TO_EXAM}
+          onClose={() => setShowPaywall(false)}
+        />
+      )}
+      </>
     );
   }
 
@@ -678,6 +702,15 @@ export default function Session() {
         @keyframes progress { 0% { width: 0%; margin-left:0 } 50% { width: 60%; margin-left:20% } 100% { width: 0%; margin-left:100% } }
         .animate-progress { animation: progress 1.8s ease-in-out infinite; }
       `}</style>
+
+      {showPaywall && (
+        <PaywallSheet
+          trigger={paywallTrigger}
+          streak={streak}
+          daysToExam={DAYS_TO_EXAM}
+          onClose={() => setShowPaywall(false)}
+        />
+      )}
     </div>
   );
 }
