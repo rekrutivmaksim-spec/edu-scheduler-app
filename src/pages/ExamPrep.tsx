@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import BottomNav from '@/components/BottomNav';
 import PaywallSheet from '@/components/PaywallSheet';
+import { authService } from '@/lib/auth';
 
 type ExamType = 'ege' | 'oge' | null;
 
@@ -39,13 +40,21 @@ const TASK_TYPES = [
   { id: 'mistakes', label: 'Разбор ошибок', icon: '🔍', desc: 'Типичные ошибки' },
 ];
 
-const DAYS_TO_EXAM = 87;
+function daysUntilExam(examDate?: string | null): number {
+  if (!examDate || examDate === 'custom') return 0;
+  const d = new Date(examDate);
+  const now = new Date();
+  return Math.max(0, Math.ceil((d.getTime() - now.getTime()) / 86400000));
+}
 
 export default function ExamPrep() {
   const navigate = useNavigate();
-  const [examType, setExamType] = useState<ExamType>(null);
+  const user = authService.getUser();
+  const profileExamType = user?.exam_type as ExamType | undefined;
+  const [examType, setExamType] = useState<ExamType>(profileExamType || null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const daysLeft = daysUntilExam(user?.exam_date);
 
   const subjects = examType === 'oge' ? SUBJECTS_OGE : SUBJECTS_EGE;
   const selectedSubjectData = subjects.find(s => s.id === selectedSubject);
@@ -93,13 +102,15 @@ export default function ExamPrep() {
             </div>
           </div>
 
-          <div className="bg-indigo-50 rounded-3xl p-4 border border-indigo-100 flex items-center gap-3">
-            <span className="text-2xl">🎯</span>
-            <div>
-              <p className="text-indigo-800 font-bold text-sm">До экзамена {DAYS_TO_EXAM} дней</p>
-              <p className="text-indigo-500 text-xs mt-0.5">Выбери предмет — составим план</p>
+          {daysLeft > 0 && (
+            <div className="bg-indigo-50 rounded-3xl p-4 border border-indigo-100 flex items-center gap-3">
+              <span className="text-2xl">🎯</span>
+              <div>
+                <p className="text-indigo-800 font-bold text-sm">До экзамена {daysLeft} {daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'}</p>
+                <p className="text-indigo-500 text-xs mt-0.5">Выбери предмет — составим план</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <BottomNav />
       </div>

@@ -7,6 +7,14 @@ export interface User {
   university?: string;
   faculty?: string;
   course?: string;
+  subscription_type?: string;
+  subscription_expires_at?: string;
+  onboarding_completed?: boolean;
+  grade?: string;
+  goal?: string;
+  exam_type?: string;
+  exam_subject?: string;
+  exam_date?: string;
 }
 
 export const authService = {

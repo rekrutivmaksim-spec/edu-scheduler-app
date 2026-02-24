@@ -411,16 +411,33 @@ def handler(event: dict, context) -> dict:
             university = body.get('university', '').strip()
             faculty = body.get('faculty', '').strip()
             course = body.get('course', '').strip()
+            grade = body.get('grade', None)
+            goal = body.get('goal', None)
+            exam_type = body.get('exam_type', None)
+            exam_subject = body.get('exam_subject', None)
+            exam_date = body.get('exam_date', None)
+            onboarding_completed = body.get('onboarding_completed', None)
             
             conn = get_db_connection()
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute("""
                         UPDATE users 
-                        SET full_name = %s, university = %s, faculty = %s, course = %s, updated_at = CURRENT_TIMESTAMP
+                        SET full_name = %s, university = %s, faculty = %s, course = %s,
+                            grade = COALESCE(%s, grade),
+                            goal = COALESCE(%s, goal),
+                            exam_type = COALESCE(%s, exam_type),
+                            exam_subject = COALESCE(%s, exam_subject),
+                            exam_date = COALESCE(%s::date, exam_date),
+                            onboarding_completed = CASE WHEN %s IS NOT NULL THEN %s ELSE onboarding_completed END,
+                            updated_at = CURRENT_TIMESTAMP
                         WHERE id = %s
-                        RETURNING id, email, full_name, university, faculty, course
-                    """, (full_name, university, faculty, course, payload['user_id']))
+                        RETURNING id, email, full_name, university, faculty, course,
+                                  grade, goal, exam_type, exam_subject, exam_date, onboarding_completed
+                    """, (full_name, university, faculty, course,
+                          grade, goal, exam_type, exam_subject, exam_date,
+                          onboarding_completed, onboarding_completed,
+                          payload['user_id']))
                     
                     user = cur.fetchone()
                     conn.commit()
@@ -435,7 +452,13 @@ def handler(event: dict, context) -> dict:
                                 'full_name': user['full_name'],
                                 'university': user['university'],
                                 'faculty': user['faculty'],
-                                'course': user['course']
+                                'course': user['course'],
+                                'grade': user['grade'],
+                                'goal': user['goal'],
+                                'exam_type': user['exam_type'],
+                                'exam_subject': user['exam_subject'],
+                                'exam_date': user['exam_date'].isoformat() if user['exam_date'] else None,
+                                'onboarding_completed': user['onboarding_completed']
                             }
                         })
                     }
@@ -467,8 +490,10 @@ def handler(event: dict, context) -> dict:
         try:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("""
-                    SELECT id, email, full_name, university, faculty, course, 
-                           subscription_type, subscription_expires_at
+                    SELECT id, email, full_name, university, faculty, course,
+                           subscription_type, subscription_expires_at,
+                           onboarding_completed, grade, goal, exam_type, exam_subject,
+                           exam_date
                     FROM users WHERE id = %s
                 """, (payload['user_id'],))
                 
@@ -493,7 +518,13 @@ def handler(event: dict, context) -> dict:
                             'faculty': user['faculty'],
                             'course': user['course'],
                             'subscription_type': user['subscription_type'],
-                            'subscription_expires_at': user['subscription_expires_at'].isoformat() if user['subscription_expires_at'] else None
+                            'subscription_expires_at': user['subscription_expires_at'].isoformat() if user['subscription_expires_at'] else None,
+                            'onboarding_completed': user['onboarding_completed'],
+                            'grade': user['grade'],
+                            'goal': user['goal'],
+                            'exam_type': user['exam_type'],
+                            'exam_subject': user['exam_subject'],
+                            'exam_date': user['exam_date'].isoformat() if user['exam_date'] else None
                         }
                     })
                 }

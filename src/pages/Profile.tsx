@@ -37,8 +37,10 @@ const Profile = () => {
 
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
-    grade: '',
-    goal: 'ege',
+    grade: user?.grade || '',
+    goal: user?.goal || 'ege',
+    exam_subject: user?.exam_subject || '',
+    exam_date: user?.exam_date || '',
   });
 
   useEffect(() => {
@@ -47,7 +49,14 @@ const Profile = () => {
       const verified = await authService.verifyToken();
       if (!verified) { navigate('/login'); return; }
       setUser(verified);
-      setFormData(f => ({ ...f, full_name: verified.full_name || '' }));
+      setFormData(f => ({
+        ...f,
+        full_name: verified.full_name || '',
+        grade: verified.grade || '',
+        goal: verified.goal || 'ege',
+        exam_subject: verified.exam_subject || '',
+        exam_date: verified.exam_date || '',
+      }));
       loadGamification();
       loadSubscription();
     };
@@ -94,7 +103,14 @@ const Profile = () => {
       const res = await fetch(API_URL, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ full_name: formData.full_name }),
+        body: JSON.stringify({
+          action: 'update_profile',
+          full_name: formData.full_name,
+          grade: formData.grade || null,
+          goal: formData.goal || null,
+          exam_subject: formData.exam_subject || null,
+          exam_date: formData.exam_date || null,
+        }),
       });
       if (res.ok) {
         const d = await res.json();

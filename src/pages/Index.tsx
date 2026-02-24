@@ -10,19 +10,90 @@ import { dailyCheckin } from '@/lib/gamification';
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
-// Тема дня — в будущем с бэкенда
-const TODAY_TOPIC = {
-  subject: 'Математика',
-  topic: 'Квадратные уравнения',
-  steps: ['Объяснение', 'Пример', 'Задание'],
+const TOPICS_BY_SUBJECT: Record<string, { topic: string }[]> = {
+  'Математика (профиль)': [
+    { topic: 'Квадратные уравнения' }, { topic: 'Производная функции' },
+    { topic: 'Интегралы' }, { topic: 'Логарифмы' }, { topic: 'Тригонометрия' },
+    { topic: 'Пределы' }, { topic: 'Матрицы и определители' },
+  ],
+  'Математика (база)': [
+    { topic: 'Квадратные уравнения' }, { topic: 'Дроби и проценты' },
+    { topic: 'Линейные функции' }, { topic: 'Геометрия: площади' },
+  ],
+  'Математика': [
+    { topic: 'Квадратные уравнения' }, { topic: 'Производная функции' },
+    { topic: 'Логарифмы' }, { topic: 'Тригонометрия' },
+  ],
+  'Физика': [
+    { topic: 'Законы Ньютона' }, { topic: 'Электрическое поле' },
+    { topic: 'Магнетизм' }, { topic: 'Оптика' }, { topic: 'Термодинамика' },
+  ],
+  'Химия': [
+    { topic: 'Реакции окисления-восстановления' }, { topic: 'Органические соединения' },
+    { topic: 'Периодическая система' }, { topic: 'Кислоты и основания' },
+  ],
+  'Биология': [
+    { topic: 'Клеточное строение' }, { topic: 'Генетика и наследственность' },
+    { topic: 'Эволюция' }, { topic: 'Экология' },
+  ],
+  'Информатика': [
+    { topic: 'Алгоритмы сортировки' }, { topic: 'Рекурсия' },
+    { topic: 'Логические операции' }, { topic: 'Базы данных' },
+  ],
+  'История': [
+    { topic: 'Петровские реформы' }, { topic: 'Вторая мировая война' },
+    { topic: 'Революция 1917 года' }, { topic: 'Эпоха Ивана Грозного' },
+  ],
+  'Русский язык': [
+    { topic: 'Причастие и деепричастие' }, { topic: 'Сложноподчинённые предложения' },
+    { topic: 'Орфография: корни с чередованием' }, { topic: 'Пунктуация' },
+  ],
+  'Обществознание': [
+    { topic: 'Конституция РФ' }, { topic: 'Рыночная экономика' },
+    { topic: 'Права человека' }, { topic: 'Политические системы' },
+  ],
+  'Литература': [
+    { topic: 'Война и мир: образы' }, { topic: 'Мастер и Маргарита' },
+    { topic: 'Лирика Пушкина' }, { topic: 'Преступление и наказание' },
+  ],
+  'Английский язык': [
+    { topic: 'Present Perfect vs Past Simple' }, { topic: 'Условные предложения' },
+    { topic: 'Пассивный залог' }, { topic: 'Артикли' },
+  ],
+  'География': [
+    { topic: 'Климатические пояса' }, { topic: 'Природные зоны России' },
+    { topic: 'Экономические районы' }, { topic: 'Демография' },
+  ],
 };
 
-// Показываем «базовую» тему если пользователь новый или тема не задана
-const FALLBACK_TOPIC = {
-  subject: 'Математика',
-  topic: 'Начнём с базовой темы',
-  steps: ['Объяснение', 'Пример', 'Задание'],
-};
+const DEFAULT_TOPICS = [
+  { subject: 'Математика', topic: 'Квадратные уравнения' },
+  { subject: 'Русский язык', topic: 'Причастие и деепричастие' },
+  { subject: 'Физика', topic: 'Законы Ньютона' },
+  { subject: 'Химия', topic: 'Реакции окисления-восстановления' },
+  { subject: 'История', topic: 'Петровские реформы' },
+  { subject: 'Обществознание', topic: 'Конституция РФ' },
+];
+
+function simpleHash(str: string): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function getTodayTopic(examSubject?: string): { subject: string; topic: string; steps: string[] } {
+  const today = new Date().toISOString().slice(0, 10);
+  const hash = simpleHash(today);
+  if (examSubject && TOPICS_BY_SUBJECT[examSubject]) {
+    const topics = TOPICS_BY_SUBJECT[examSubject];
+    const t = topics[hash % topics.length];
+    return { subject: examSubject, topic: t.topic, steps: ['Объяснение', 'Пример', 'Задание'] };
+  }
+  const fallback = DEFAULT_TOPICS[hash % DEFAULT_TOPICS.length];
+  return { ...fallback, steps: ['Объяснение', 'Пример', 'Задание'] };
+}
 
 const QUICK_ACCESS = [
   { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/exam', color: 'bg-indigo-50 text-indigo-600' },
@@ -96,6 +167,7 @@ export default function Index() {
       const verifiedUser = await authService.verifyToken();
       if (!verifiedUser) { navigate('/auth'); return; }
       setUser(verifiedUser);
+      if (!verifiedUser.onboarding_completed) { navigate('/onboarding'); return; }
       loadGamification();
       loadTodaySchedule();
       dailyCheckin();
@@ -131,7 +203,7 @@ export default function Index() {
   const streak = gamification?.streak?.current ?? 0;
   const todayDow = new Date().getDay();
   const todayName = dayNames[todayDow === 0 ? 6 : todayDow - 1];
-  const topic = TODAY_TOPIC;
+  const topic = getTodayTopic(user?.exam_subject || undefined);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
