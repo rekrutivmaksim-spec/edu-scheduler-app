@@ -165,10 +165,15 @@ export default function AuthNew() {
     }, 2500);
 
     try {
+      // Берём последние 2 пары (4 сообщения) для контекста — чтобы ИИ понимал о чём разговор
+      const historySnap = demoMessages
+        .filter(m => m.text)
+        .slice(-4)
+        .map(m => ({ role: m.role, content: m.text }));
       const res = await fetch(AI_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'demo_ask', question: q }),
+        body: JSON.stringify({ action: 'demo_ask', question: q, history: historySnap }),
       });
       const data = await res.json();
       const raw = sanitizeText(data.answer || data.response || data.message || 'Не удалось получить ответ');

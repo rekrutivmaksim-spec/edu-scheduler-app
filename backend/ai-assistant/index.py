@@ -405,15 +405,20 @@ def sanitize_answer(text):
 _http_demo = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
 _http_fallback = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
 
-def _call_openai_compat(http_client, url: str, api_key: str, question: str, max_tokens: int = 250) -> str | None:
+def _call_openai_compat(http_client, url: str, api_key: str, question: str, history: list = None, max_tokens: int = 250) -> str | None:
     """Универсальный вызов OpenAI-совместимого API. Возвращает текст ответа или None."""
     try:
+        messages = [{"role": "system", "content": DEMO_SYSTEM}]
+        if history:
+            for h in history[-4:]:
+                role = h.get('role', 'user')
+                content = str(h.get('content', ''))[:300]
+                if role in ('user', 'assistant') and content:
+                    messages.append({"role": role, "content": content})
+        messages.append({"role": "user", "content": question[:250]})
         payload = {
             "model": "deepseek-chat",
-            "messages": [
-                {"role": "system", "content": DEMO_SYSTEM},
-                {"role": "user", "content": question[:250]},
-            ],
+            "messages": messages,
             "temperature": 0.5,
             "max_tokens": max_tokens,
         }
@@ -431,14 +436,14 @@ def _call_openai_compat(http_client, url: str, api_key: str, question: str, max_
         print(f"[DEMO] call fail {type(e).__name__}: {str(e)[:200]}", flush=True)
         return None
 
-def ask_ai_demo(question: str) -> tuple:
-    """Демо: Artemox → DeepSeek → локальный ответ. Всегда возвращает ответ."""
+def ask_ai_demo(question: str, history: list = None) -> tuple:
+    """Демо: Artemox → повтор Artemox → локальный ответ. Всегда возвращает ответ."""
     import time as _t
     t0 = _t.time()
     print(f"[DEMO] start q:{question[:60]}", flush=True)
 
     # 1️⃣ Artemox
-    answer = _call_openai_compat(_http_demo, "https://api.artemox.com/v1/chat/completions", ARTEMOX_API_KEY, question)
+    answer = _call_openai_compat(_http_demo, "https://api.artemox.com/v1/chat/completions", ARTEMOX_API_KEY, question, history)
     if answer:
         print(f"[DEMO] artemox ok time:{_t.time()-t0:.1f}s", flush=True)
         return answer, 1
@@ -446,7 +451,7 @@ def ask_ai_demo(question: str) -> tuple:
     print(f"[DEMO] artemox failed, retry once time:{_t.time()-t0:.1f}s", flush=True)
 
     # 2️⃣ Повторная попытка Artemox
-    answer = _call_openai_compat(_http_fallback, "https://api.artemox.com/v1/chat/completions", ARTEMOX_API_KEY, question)
+    answer = _call_openai_compat(_http_fallback, "https://api.artemox.com/v1/chat/completions", ARTEMOX_API_KEY, question, history)
     if answer:
         print(f"[DEMO] artemox retry ok time:{_t.time()-t0:.1f}s", flush=True)
         return answer, 1
@@ -760,14 +765,15 @@ def handler(event: dict, context) -> dict:
             DEMO_RATE_LIMIT[ip] = hits
             import time as _time
             t0 = _time.time()
-            print(f"[DEMO] ip:{ip} q:{question[:60]}", flush=True)
-            # Сначала проверяем кэш популярных тем
-            cached_answer = get_demo_cache(question)
-            if cached_answer:
-                print(f"[DEMO] cache hit time:{_time.time()-t0:.3f}s", flush=True)
-                return ok({'answer': cached_answer, 'cached': True})
-            # DEMO: только вопрос пользователя, без истории, 300 токенов, temperature 0.5
-            answer, tokens = ask_ai_demo(question[:300])
+            history = body_demo.get('history', [])
+            print(f"[DEMO] ip:{ip} q:{question[:60]} history:{len(history)}", flush=True)
+            # Кэш только если нет истории (первый вопрос про тему)
+            if not history:
+                cached_answer = get_demo_cache(question)
+                if cached_answer:
+                    print(f"[DEMO] cache hit time:{_time.time()-t0:.3f}s", flush=True)
+                    return ok({'answer': cached_answer, 'cached': True})
+            answer, tokens = ask_ai_demo(question[:300], history)
             print(f"[DEMO] tokens:{tokens} time:{_time.time()-t0:.1f}s", flush=True)
             return ok({'answer': answer})
 
