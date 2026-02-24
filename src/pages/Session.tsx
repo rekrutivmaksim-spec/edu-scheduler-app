@@ -5,11 +5,51 @@ import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
+const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+const DAYS_TO_EXAM = 87;
 
-const SESSION_TOPIC = {
-  subject: 'Математика',
-  topic: 'Квадратные уравнения',
-};
+const DAILY_TOPICS = [
+  { subject: 'Математика', topic: 'Квадратные уравнения' },
+  { subject: 'Математика', topic: 'Производная функции' },
+  { subject: 'Математика', topic: 'Интегралы' },
+  { subject: 'Математика', topic: 'Логарифмы' },
+  { subject: 'Математика', topic: 'Тригонометрия' },
+  { subject: 'Математика', topic: 'Пределы' },
+  { subject: 'Математика', topic: 'Матрицы и определители' },
+  { subject: 'Физика', topic: 'Законы Ньютона' },
+  { subject: 'Физика', topic: 'Электрическое поле' },
+  { subject: 'Физика', topic: 'Магнетизм' },
+  { subject: 'Физика', topic: 'Оптика' },
+  { subject: 'Физика', topic: 'Термодинамика' },
+  { subject: 'Химия', topic: 'Реакции окисления-восстановления' },
+  { subject: 'Химия', topic: 'Органические соединения' },
+  { subject: 'Биология', topic: 'Клеточное строение' },
+  { subject: 'Биология', topic: 'Генетика и наследственность' },
+  { subject: 'Информатика', topic: 'Алгоритмы сортировки' },
+  { subject: 'Информатика', topic: 'Рекурсия' },
+  { subject: 'История', topic: 'Петровские реформы' },
+  { subject: 'История', topic: 'Вторая мировая война' },
+  { subject: 'Русский язык', topic: 'Причастие и деепричастие' },
+  { subject: 'Русский язык', topic: 'Сложноподчинённые предложения' },
+  { subject: 'Обществознание', topic: 'Конституция РФ' },
+  { subject: 'Обществознание', topic: 'Рыночная экономика' },
+];
+
+function simpleHash(str: string): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function getTodayTopic() {
+  const today = new Date().toISOString().slice(0, 10);
+  const idx = simpleHash(today) % DAILY_TOPICS.length;
+  return { ...DAILY_TOPICS[idx], number: idx + 1, total: DAILY_TOPICS.length };
+}
+
+const SESSION_TOPIC = getTodayTopic();
 
 interface StepDef {
   label: string;
@@ -23,7 +63,7 @@ const STEPS: StepDef[] = [
     label: 'Объяснение',
     icon: 'Lightbulb',
     prompt: `Объясни тему "${SESSION_TOPIC.topic}" (${SESSION_TOPIC.subject}) очень коротко — 2–3 предложения простыми словами, без формул и терминов. Как для человека, который первый раз слышит.`,
-    loaderPhrases: ['Разбираю тему…', 'Подбираю слова…', 'Готовлю объяснение…'],
+    loaderPhrases: ['Разбираю тему…', 'Подбираю слова…', 'Готовлю объяснение…', 'Почти готово…'],
   },
   {
     label: 'Пример',
@@ -50,7 +90,18 @@ function sanitize(text: string): string {
     .trim();
 }
 
-type Screen = 'ready' | 'session' | 'check_anim' | 'done';
+function isCorrect(text: string) {
+  const t = text.toLowerCase();
+  return (
+    t.startsWith('правильно') ||
+    t.includes('верно!') ||
+    t.includes('молодец') ||
+    t.includes('отлично!') ||
+    t.includes('правильно!')
+  );
+}
+
+type Screen = 'ready' | 'session' | 'correct_anim' | 'done';
 
 export default function Session() {
   const navigate = useNavigate();
@@ -64,21 +115,39 @@ export default function Session() {
   const [userAnswer, setUserAnswer] = useState('');
   const [checkResult, setCheckResult] = useState('');
   const [checkLoading, setCheckLoading] = useState(false);
+  const [answerCorrect, setAnswerCorrect] = useState<boolean | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [startTime, setStartTime] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [progressAnim, setProgressAnim] = useState(false);
+  const [checkTypingText, setCheckTypingText] = useState('');
+
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loaderRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const currentStep = STEPS[stepIdx];
-  const isLastStep = stepIdx === STEPS.length - 1;
   const progressPct = Math.round(((stepIdx + (checkResult ? 1 : 0)) / STEPS.length) * 100);
   const elapsedMin = Math.max(1, Math.round(elapsedSec / 60));
 
   useEffect(() => {
+    const token = authService.getToken();
+    if (!token || token === 'guest_token') return;
+    fetch(GAMIFICATION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: 'get_profile' }),
+    })
+      .then(r => r.json())
+      .then(d => { if (d?.streak?.current_streak) setStreak(d.streak.current_streak); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [typingText, checkResult]);
+  }, [typingText, checkTypingText, checkResult]);
 
   useEffect(() => {
     return () => {
@@ -101,6 +170,7 @@ export default function Session() {
   const startLoaderPhrases = (phrases: string[]) => {
     let i = 0;
     setLoaderPhrase(phrases[0]);
+    if (loaderRef.current) clearInterval(loaderRef.current);
     loaderRef.current = setInterval(() => {
       i = (i + 1) % phrases.length;
       setLoaderPhrase(phrases[i]);
@@ -112,14 +182,14 @@ export default function Session() {
     setLoaderPhrase('');
   };
 
-  const typeText = (full: string, onDone?: () => void) => {
+  const typeText = (full: string, setter: (v: string) => void, onDone?: () => void) => {
     if (typingRef.current) clearInterval(typingRef.current);
     setIsTyping(true);
-    setTypingText('');
+    setter('');
     let i = 0;
     typingRef.current = setInterval(() => {
       i++;
-      setTypingText(full.slice(0, i));
+      setter(full.slice(0, i));
       if (i >= full.length) {
         clearInterval(typingRef.current!);
         setIsTyping(false);
@@ -133,8 +203,11 @@ export default function Session() {
     setLoading(true);
     setContent('');
     setTypingText('');
+    setCheckTypingText('');
     setUserAnswer('');
     setCheckResult('');
+    setAnswerCorrect(null);
+    setRetryCount(0);
     startLoaderPhrases(step.loaderPhrases);
 
     try {
@@ -152,20 +225,25 @@ export default function Session() {
       stopLoaderPhrases();
       setLoading(false);
       setContent(raw);
-      typeText(raw);
+      typeText(raw, setTypingText);
     } catch {
       stopLoaderPhrases();
       const fallback = 'Не удалось загрузить. Попробуй ещё раз.';
       setLoading(false);
       setContent(fallback);
-      typeText(fallback);
+      typeText(fallback, setTypingText);
     }
   };
 
-  const checkAnswer = async () => {
-    if (!userAnswer.trim()) return;
+  const checkAnswer = async (answerOverride?: string) => {
+    const answer = answerOverride ?? userAnswer;
+    if (!answer.trim()) return;
     setCheckLoading(true);
+    setCheckResult('');
+    setCheckTypingText('');
+    setAnswerCorrect(null);
     startLoaderPhrases(['Проверяю ответ…', 'Смотрю внимательно…', 'Анализирую…']);
+
     try {
       const token = authService.getToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -176,15 +254,24 @@ export default function Session() {
         headers,
         body: JSON.stringify({
           action: 'demo_ask',
-          question: `Задание: ${content}\n\nОтвет ученика: ${userAnswer}\n\nПроверь ответ. Если правильно — похвали коротко. Если неправильно — объясни где ошибка и дай правильный ответ. 2–3 предложения максимум.`,
+          question: `Задание: ${content}\n\nОтвет ученика: ${answer}\n\nПроверь ответ. Если правильно — начни ответ строго со слова "Правильно!" и похвали. Если неправильно — начни строго со слова "Неверно." и объясни ошибку. 2–3 предложения.`,
           history: [{ role: 'assistant', content }],
         }),
       });
       const data = await res.json();
       const raw = sanitize(data.answer || data.response || '');
+      const correct = isCorrect(raw);
       stopLoaderPhrases();
       setCheckLoading(false);
-      typeText(raw, () => setCheckResult(raw));
+      setAnswerCorrect(correct);
+
+      if (correct) {
+        if (navigator.vibrate) navigator.vibrate([60, 30, 100]);
+        setProgressAnim(true);
+        setTimeout(() => setProgressAnim(false), 1200);
+      }
+
+      typeText(raw, setCheckTypingText, () => setCheckResult(raw));
     } catch {
       stopLoaderPhrases();
       setCheckResult('Не удалось проверить. Попробуй ещё раз.');
@@ -192,12 +279,20 @@ export default function Session() {
     }
   };
 
+  const handleRetry = () => {
+    setUserAnswer('');
+    setCheckResult('');
+    setCheckTypingText('');
+    setAnswerCorrect(null);
+    setRetryCount(r => r + 1);
+  };
+
   const goNext = () => {
-    if (isLastStep && checkResult) {
+    if (stepIdx === STEPS.length - 1 && checkResult && answerCorrect) {
       if (timerRef.current) clearInterval(timerRef.current);
       window.dispatchEvent(new Event('session_completed'));
       if (navigator.vibrate) navigator.vibrate([80, 40, 120]);
-      setScreen('check_anim');
+      setScreen('correct_anim');
       setTimeout(() => setScreen('done'), 950);
       return;
     }
@@ -208,7 +303,7 @@ export default function Session() {
     }
   };
 
-  // ─── ЭКРАН 1: Готов? ─────────────────────────────────────────────────────
+  // ─── Экран: Готов? ──────────────────────────────────────────────────────────
   if (screen === 'ready') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 flex flex-col items-center justify-center px-6 text-center">
@@ -216,21 +311,33 @@ export default function Session() {
           <Icon name="GraduationCap" size={36} className="text-white" />
         </div>
         <p className="text-white/60 text-sm mb-1 uppercase tracking-wide font-medium">{SESSION_TOPIC.subject}</p>
-        <h1 className="text-white font-extrabold text-2xl mb-2 leading-tight">{SESSION_TOPIC.topic}</h1>
+        <h1 className="text-white font-extrabold text-2xl mb-3 leading-tight">{SESSION_TOPIC.topic}</h1>
 
-        <div className="bg-white/15 rounded-2xl px-5 py-4 mb-8 w-full max-w-xs">
-          <div className="flex items-center justify-center gap-6">
+        {streak >= 2 && (
+          <div className="flex items-center gap-1.5 bg-orange-400/20 border border-orange-400/30 rounded-full px-3 py-1 mb-4">
+            <span>🔥</span>
+            <span className="text-orange-200 text-sm font-semibold">Серия {streak} дней</span>
+          </div>
+        )}
+
+        <div className="bg-white/15 rounded-2xl px-5 py-4 mb-6 w-full max-w-xs">
+          <div className="flex items-center justify-center gap-5 mb-3">
             <div className="text-center">
               <p className="text-white font-bold text-xl">3</p>
-              <p className="text-white/60 text-xs mt-0.5">шага</p>
+              <p className="text-white/60 text-xs">шага</p>
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div className="text-center">
               <p className="text-white font-bold text-xl">2 мин</p>
-              <p className="text-white/60 text-xs mt-0.5">всего</p>
+              <p className="text-white/60 text-xs">всего</p>
+            </div>
+            <div className="w-px h-8 bg-white/20" />
+            <div className="text-center">
+              <p className="text-white font-bold text-xl">{SESSION_TOPIC.number}/{SESSION_TOPIC.total}</p>
+              <p className="text-white/60 text-xs">тема</p>
             </div>
           </div>
-          <div className="border-t border-white/15 mt-3 pt-3 flex flex-col gap-1.5">
+          <div className="border-t border-white/15 pt-3 flex flex-col gap-1.5">
             {STEPS.map((s, i) => (
               <div key={s.label} className="flex items-center gap-2 text-white/70 text-sm">
                 <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
@@ -244,19 +351,30 @@ export default function Session() {
 
         <Button
           onClick={startSession}
-          className="w-full max-w-xs h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all"
+          className="w-full max-w-xs h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all mb-3"
         >
           Начать <Icon name="ArrowRight" size={20} className="ml-1.5" />
         </Button>
-        <button onClick={() => navigate('/')} className="text-white/40 text-sm mt-4">
+
+        {streak >= 3 && (
+          <div className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 w-full max-w-xs text-center mb-3">
+            <p className="text-white font-bold text-sm mb-1">🔥 Ты занимаешься {streak} дней подряд!</p>
+            <p className="text-white/60 text-xs mb-3">Убери ограничения — занимайся без лимита</p>
+            <button onClick={() => navigate('/pricing')} className="bg-white text-purple-700 font-bold text-sm px-5 py-2 rounded-xl w-full">
+              Безлимит 399₽ →
+            </button>
+          </div>
+        )}
+
+        <button onClick={() => navigate('/')} className="text-white/40 text-sm mt-1">
           Вернуться
         </button>
       </div>
     );
   }
 
-  // ─── ЭКРАН: Анимация галочки ──────────────────────────────────────────────
-  if (screen === 'check_anim') {
+  // ─── Экран: Анимация галочки ────────────────────────────────────────────────
+  if (screen === 'correct_anim') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -273,22 +391,42 @@ export default function Session() {
     );
   }
 
-  // ─── ЭКРАН: Завершено ────────────────────────────────────────────────────
+  // ─── Экран: Завершено ───────────────────────────────────────────────────────
   if (screen === 'done') {
+    const newStreak = streak + 1;
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col px-5 pt-14 pb-10 overflow-y-auto">
         <div className="text-center mb-5">
-          <div className="text-6xl mb-2">🎉</div>
+          <div className="text-5xl mb-2">🎉</div>
           <h1 className="text-white font-extrabold text-3xl mb-1">Занятие завершено!</h1>
           <p className="text-white/50 text-sm">{SESSION_TOPIC.topic} · {SESSION_TOPIC.subject}</p>
+        </div>
+
+        {/* Крючок: до экзамена */}
+        <div className="bg-white/15 backdrop-blur rounded-3xl px-5 py-4 mb-3">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-2xl">📅</span>
+            <div>
+              <p className="text-white font-bold text-base">До экзамена {DAYS_TO_EXAM} дней</p>
+              <p className="text-white/60 text-xs">Ты прошёл {SESSION_TOPIC.number} из {SESSION_TOPIC.total} тем</p>
+            </div>
+          </div>
+          <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white rounded-full transition-all duration-1000"
+              style={{ width: `${Math.round((SESSION_TOPIC.number / SESSION_TOPIC.total) * 100)}%` }}
+            />
+          </div>
         </div>
 
         {/* Серия */}
         <div className="bg-white/15 backdrop-blur rounded-3xl px-5 py-4 mb-3">
           <div className="flex items-center gap-3 mb-3">
             <span className="text-3xl">🔥</span>
-            <div className="flex-1">
-              <p className="text-white font-bold text-base">Серия продолжается!</p>
+            <div>
+              <p className="text-white font-bold text-base">
+                Серия {newStreak} {newStreak === 1 ? 'день' : newStreak < 5 ? 'дня' : 'дней'}!
+              </p>
               <p className="text-white/60 text-xs">Приходи завтра — не теряй прогресс</p>
             </div>
           </div>
@@ -304,7 +442,7 @@ export default function Session() {
                     past ? 'bg-white/35 text-white' :
                     'bg-white/10 text-white/20'
                   }`}>
-                    {isToday || past ? '✓' : ''}
+                    {(isToday || past) ? '✓' : ''}
                   </div>
                   <span className="text-[9px] text-white/40">{d}</span>
                 </div>
@@ -313,25 +451,22 @@ export default function Session() {
           </div>
         </div>
 
-        {/* Прогресс вырос */}
-        <div className="bg-white/15 backdrop-blur rounded-3xl px-5 py-4 mb-3">
-          <p className="text-white/70 text-xs font-semibold uppercase tracking-wide mb-2.5">📊 Прогресс вырос</p>
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <div className="flex justify-between text-xs text-white/70 mb-1.5">
-                <span>{SESSION_TOPIC.subject}</span>
-                <span>48% → 50%</span>
-              </div>
-              <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white rounded-full" style={{ width: '50%' }} />
-              </div>
-            </div>
-            <span className="text-green-300 font-bold text-sm">+2%</span>
+        {/* Пейволл: 3+ дней */}
+        {newStreak >= 3 && (
+          <div className="bg-white rounded-3xl px-5 py-4 mb-3 shadow-xl">
+            <p className="text-purple-700 font-extrabold text-lg mb-1">🔥 Ты занимаешься {newStreak} дней подряд</p>
+            <p className="text-gray-500 text-sm mb-3">Хочешь заниматься без ограничений?</p>
+            <Button
+              onClick={() => navigate('/pricing')}
+              className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl"
+            >
+              Безлимит 399₽
+            </Button>
           </div>
-        </div>
+        )}
 
         {/* Статистика */}
-        <div className="bg-white/10 rounded-3xl px-5 py-3 mb-6 flex items-center justify-around">
+        <div className="bg-white/10 rounded-3xl px-5 py-3 mb-4 flex items-center justify-around">
           <div className="text-center">
             <p className="text-white font-bold text-xl">3</p>
             <p className="text-white/50 text-xs">шага</p>
@@ -361,7 +496,12 @@ export default function Session() {
     );
   }
 
-  // ─── ЭКРАН 2: Само занятие ────────────────────────────────────────────────
+  // ─── Экран: Само занятие ─────────────────────────────────────────────────────
+  const isTaskStep = currentStep.label === 'Задание';
+  const showAnswerForm = isTaskStep && !loading && content && !isTyping && !checkResult && !checkTypingText && !checkLoading;
+  const showCheckTyping = isTaskStep && !checkResult && checkTypingText && isTyping;
+  const showCheckResult = !!checkResult && !isTyping;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
 
@@ -375,38 +515,39 @@ export default function Session() {
             <p className="text-white/60 text-xs">{SESSION_TOPIC.subject}</p>
             <h1 className="text-white font-bold text-base leading-tight">{SESSION_TOPIC.topic}</h1>
           </div>
-          <span className="text-white/70 text-xs flex items-center gap-1">
-            <Icon name="Zap" size={12} /> 2–3 мин
-          </span>
+          {streak >= 1 && (
+            <div className="flex items-center gap-1 text-orange-200 text-xs font-semibold">
+              <span>🔥</span>{streak}
+            </div>
+          )}
         </div>
 
         {/* Прогресс-бар */}
         <div className="flex items-center gap-2 mb-3">
           <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
             <div
-              className="h-full bg-white rounded-full transition-all duration-500"
+              className={`h-full bg-white rounded-full transition-all duration-700 ${progressAnim ? 'shadow-[0_0_8px_rgba(255,255,255,0.8)]' : ''}`}
               style={{ width: `${progressPct}%` }}
             />
           </div>
           <span className="text-white/60 text-xs w-7 text-right">{progressPct}%</span>
         </div>
 
-        {/* Этапы — с подсветкой активного */}
+        {/* Этапы */}
         <div className="flex gap-1.5">
           {STEPS.map((s, i) => (
             <div
               key={s.label}
               className={`flex-1 flex items-center justify-center gap-1 rounded-xl py-1.5 text-xs font-semibold transition-all duration-300 ${
-                i < stepIdx
-                  ? 'bg-white/30 text-white'
-                  : i === stepIdx
-                  ? 'bg-white text-indigo-700 shadow-sm scale-[1.03]'
-                  : 'bg-white/10 text-white/35'
+                i < stepIdx ? 'bg-white/30 text-white' :
+                i === stepIdx ? 'bg-white text-indigo-700 shadow-sm scale-[1.03]' :
+                'bg-white/10 text-white/35'
               }`}
             >
-              {i < stepIdx ? <Icon name="Check" size={10} /> : (
-                <Icon name={s.icon} size={10} />
-              )}
+              {i < stepIdx
+                ? <Icon name="Check" size={10} />
+                : <Icon name={s.icon} size={10} />
+              }
               {s.label}
             </div>
           ))}
@@ -416,16 +557,18 @@ export default function Session() {
       {/* Контент */}
       <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
 
-        {/* Иконка + название этапа */}
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center">
             <Icon name={currentStep.icon} size={16} className="text-indigo-600" />
           </div>
           <span className="font-bold text-gray-800">{currentStep.label}</span>
+          {retryCount > 0 && (
+            <span className="ml-auto text-xs text-amber-500 font-semibold">Попытка {retryCount + 1}</span>
+          )}
         </div>
 
-        {/* Лоадер ИИ */}
-        {(loading || checkLoading) ? (
+        {/* Лоадер */}
+        {(loading || checkLoading) && (
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex gap-1">
@@ -433,60 +576,76 @@ export default function Session() {
                   <span key={i} className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
                 ))}
               </div>
-              <span className="text-indigo-500 text-sm font-medium transition-all duration-500">
-                {loaderPhrase}
-              </span>
+              <span className="text-indigo-500 text-sm font-medium">{loaderPhrase}</span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full animate-progress" />
             </div>
           </div>
-        ) : (
-          <div className="bg-white rounded-2xl p-4 shadow-sm text-gray-800 text-sm leading-relaxed whitespace-pre-line animate-in fade-in duration-300">
-            {isTyping ? typingText : content}
-            {isTyping && <span className="inline-block w-0.5 h-4 bg-indigo-500 ml-0.5 animate-pulse align-middle" />}
+        )}
+
+        {/* Текст контента */}
+        {!loading && !checkLoading && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm text-gray-800 text-sm leading-relaxed whitespace-pre-line">
+            {isTyping && !checkTypingText ? typingText : content}
+            {isTyping && !checkTypingText && <span className="inline-block w-0.5 h-4 bg-indigo-500 ml-0.5 animate-pulse align-middle" />}
           </div>
         )}
 
-        {/* Поле ответа (только на шаге Задание) */}
-        {currentStep.label === 'Задание' && !loading && content && !isTyping && (
+        {/* Поле ответа */}
+        {showAnswerForm && (
           <div className="flex flex-col gap-3">
             <p className="text-gray-500 text-xs font-medium">Твой ответ:</p>
             <textarea
+              key={`answer-${retryCount}`}
               value={userAnswer}
               onChange={e => setUserAnswer(e.target.value)}
               placeholder="Напиши решение..."
               rows={3}
               className="w-full rounded-2xl border-2 border-gray-200 focus:border-indigo-400 px-4 py-3 text-sm text-gray-800 resize-none outline-none transition-colors"
             />
-            {!checkResult && (
-              <Button
-                onClick={checkAnswer}
-                disabled={!userAnswer.trim() || checkLoading}
-                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl disabled:opacity-50"
-              >
-                {checkLoading ? <Icon name="Loader2" size={16} className="animate-spin" /> : 'Проверить ответ'}
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Результат проверки */}
-        {checkResult && !isTyping && (
-          <div className={`rounded-2xl p-4 text-sm leading-relaxed whitespace-pre-line animate-in fade-in duration-300 ${
-            checkResult.toLowerCase().includes('правильно') || checkResult.toLowerCase().includes('верно') || checkResult.toLowerCase().includes('молодец') || checkResult.toLowerCase().includes('отлично')
-              ? 'bg-green-50 border border-green-200 text-green-800'
-              : 'bg-amber-50 border border-amber-200 text-amber-800'
-          }`}>
-            {checkResult}
+            <Button
+              onClick={() => checkAnswer()}
+              disabled={!userAnswer.trim()}
+              className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl disabled:opacity-50"
+            >
+              Проверить ответ
+            </Button>
           </div>
         )}
 
         {/* Типинг результата проверки */}
-        {isTyping && currentStep.label === 'Задание' && content && !checkResult && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800 whitespace-pre-line">
-            {typingText}
-            <span className="inline-block w-0.5 h-4 bg-amber-500 ml-0.5 animate-pulse align-middle" />
+        {showCheckTyping && (
+          <div className={`rounded-2xl p-4 text-sm text-gray-800 whitespace-pre-line border ${
+            answerCorrect === true ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'
+          }`}>
+            {checkTypingText}
+            <span className="inline-block w-0.5 h-4 bg-gray-400 ml-0.5 animate-pulse align-middle" />
+          </div>
+        )}
+
+        {/* Результат проверки */}
+        {showCheckResult && (
+          <div className={`rounded-2xl p-4 shadow-sm text-sm leading-relaxed whitespace-pre-line animate-in fade-in duration-300 ${
+            answerCorrect ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-amber-50 border border-amber-200 text-amber-800'
+          }`}>
+            <div className="flex items-start gap-2">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${answerCorrect ? 'bg-green-500' : 'bg-amber-500'}`}>
+                <Icon name={answerCorrect ? 'Check' : 'X'} size={12} className="text-white" />
+              </div>
+              <p>{checkResult}</p>
+            </div>
+
+            {/* Попробовать ещё раз — только при неверном */}
+            {!answerCorrect && (
+              <button
+                onClick={handleRetry}
+                className="mt-3 w-full bg-amber-100 hover:bg-amber-200 text-amber-700 font-semibold text-sm rounded-xl py-2.5 transition-colors flex items-center justify-center gap-2"
+              >
+                <Icon name="RotateCcw" size={14} />
+                Попробовать ещё раз
+              </button>
+            )}
           </div>
         )}
 
@@ -494,19 +653,19 @@ export default function Session() {
       </div>
 
       {/* Кнопка Дальше */}
-      {!loading && !checkLoading && content && !isTyping && (
+      {!loading && !checkLoading && content && !isTyping && !checkTypingText && (
         <div className="px-4 pb-8 pt-2 bg-gray-50">
-          {currentStep.label !== 'Задание' ? (
+          {!isTaskStep ? (
             <Button
               onClick={goNext}
               className="w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(99,102,241,0.35)] active:scale-[0.98] transition-all"
             >
               Дальше <Icon name="ArrowRight" size={16} className="ml-1.5" />
             </Button>
-          ) : checkResult ? (
+          ) : (answerCorrect === true && showCheckResult) ? (
             <Button
               onClick={goNext}
-              className="w-full h-[52px] bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(34,197,94,0.35)] active:scale-[0.98] transition-all"
+              className="w-full h-[52px] bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(34,197,94,0.35)] active:scale-[0.98] transition-all animate-in fade-in duration-300"
             >
               Завершить занятие 🎉
             </Button>
@@ -516,7 +675,7 @@ export default function Session() {
 
       <style>{`
         @keyframes pop-in { from { transform: scale(0); opacity:0 } to { transform: scale(1); opacity:1 } }
-        @keyframes progress { 0% { width: 0%; margin-left:0 } 50% { width: 60%; margin-left: 20% } 100% { width: 0%; margin-left:100% } }
+        @keyframes progress { 0% { width: 0%; margin-left:0 } 50% { width: 60%; margin-left:20% } 100% { width: 0%; margin-left:100% } }
         .animate-progress { animation: progress 1.8s ease-in-out infinite; }
       `}</style>
     </div>

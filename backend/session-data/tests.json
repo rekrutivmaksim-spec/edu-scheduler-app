@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Get session data (guest)",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"topic": {}, "streak": 0, "days_to_exam": 87},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
