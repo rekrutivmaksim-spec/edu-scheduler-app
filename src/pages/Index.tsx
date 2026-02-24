@@ -1,44 +1,46 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import Icon from '@/components/ui/icon';
-import { useToast } from '@/hooks/use-toast';
-import NotificationPrompt from '@/components/NotificationPrompt';
-import ExamReminder from '@/components/ExamReminder';
-import LimitsIndicator from '@/components/LimitsIndicator';
-import NotificationBell from '@/components/NotificationBell';
-import ScheduleExport from '@/components/ScheduleExport';
-import GoogleCalendarSync from '@/components/GoogleCalendarSync';
 import BottomNav from '@/components/BottomNav';
-import SmartSuggestions from '@/components/SmartSuggestions';
-import AppReviewPrompt from '@/components/AppReviewPrompt';
 import { trackSession } from '@/lib/review';
-
-import LoadingSpinner from '@/components/LoadingSpinner';
-import { trackActivity } from '@/lib/gamification';
-import { offlineCache } from '@/lib/offline-cache';
-import {
-  scheduleClassNotifications,
-  scheduleTaskNotifications,
-  cancelAllNotifications,
-  requestPermission,
-  isPermissionGranted,
-  shouldShowBanner,
-  dismissBanner,
-  type LessonInfo,
-  type TaskInfo,
-} from '@/lib/notifications';
+import { dailyCheckin } from '@/lib/gamification';
 
 const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
+const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+
+const TODAY_TOPIC = {
+  subject: 'Математика',
+  topic: 'Квадратные уравнения',
+  minutes: 15,
+  steps: ['Объяснение', 'Пример', 'Задание'],
+};
+
+const QUICK_ACCESS = [
+  { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/exam', color: 'bg-indigo-50 text-indigo-600' },
+  { icon: 'GraduationCap', label: 'ВУЗ / конспекты', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
+  { icon: 'Paperclip', label: 'Разобрать файл', path: '/materials', color: 'bg-pink-50 text-pink-600' },
+];
+
+const SECONDARY = [
+  { icon: 'BookMarked', label: 'Зачётка', path: '/gradebook' },
+  { icon: 'Timer', label: 'Помодоро', path: '/pomodoro' },
+  { icon: 'Trophy', label: 'Достижения', path: '/achievements' },
+];
+
+const PROGRESS_SUBJECTS = [
+  { name: 'Математика', pct: 48, color: 'bg-indigo-500' },
+  { name: 'Русский язык', pct: 32, color: 'bg-purple-500' },
+  { name: 'Физика', pct: 12, color: 'bg-pink-500' },
+];
+
+interface GamificationProfile {
+  streak: { current: number; longest: number };
+  level: number;
+  xp_progress: number;
+  xp_needed: number;
+}
 
 interface Lesson {
   id: number;
@@ -48,1312 +50,304 @@ interface Lesson {
   end_time: string;
   day_of_week: number;
   room?: string;
-  teacher?: string;
-  color?: string;
-  week_type?: string;
 }
 
-interface Task {
-  id: number;
-  title: string;
-  description?: string;
-  subject?: string;
-  deadline?: string;
-  priority: string;
-  completed: boolean;
-  recurrence?: string;
-  recurrence_day?: number;
-  parent_task_id?: number;
-}
+const dayNames = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
-const Index = () => {
+export default function Index() {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('schedule');
   const [user, setUser] = useState(authService.getUser());
-  const [schedule, setSchedule] = useState<Lesson[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [isAddingLesson, setIsAddingLesson] = useState(false);
-  const [isAddingTask, setIsAddingTask] = useState(false);
-  const [isExamReminderOpen, setIsExamReminderOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(1);
-  const [taskFilter, setTaskFilter] = useState<'all' | 'active' | 'completed'>('all');
-  const [taskSearch, setTaskSearch] = useState('');
-  const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
-  const [weekFilter, setWeekFilter] = useState<'all' | 'even' | 'odd'>('all');
-  const [isScheduleCached, setIsScheduleCached] = useState(false);
-  const [isTasksCached, setIsTasksCached] = useState(false);
-  const [showNotifBanner, setShowNotifBanner] = useState(false);
-
-  const getISOWeekNumber = (date: Date) => {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  };
-
-  const currentWeekNumber = getISOWeekNumber(new Date());
-  const currentWeekParity: 'even' | 'odd' = currentWeekNumber % 2 === 0 ? 'even' : 'odd';
-
-  const [lessonForm, setLessonForm] = useState({
-    subject: '',
-    type: 'lecture',
-    start_time: '',
-    end_time: '',
-    day_of_week: 1,
-    room: '',
-    teacher: '',
-    color: 'bg-purple-500',
-    week_type: 'every'
-  });
-
-  const [taskForm, setTaskForm] = useState({
-    title: '',
-    description: '',
-    subject: '',
-    deadline: '',
-    priority: 'medium',
-    recurrence: ''
-  });
-
-  const dayNames = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+  const [gamification, setGamification] = useState<GamificationProfile | null>(null);
+  const [todayLessons, setTodayLessons] = useState<Lesson[]>([]);
+  const [sessionProgress, setSessionProgress] = useState(42);
 
   useEffect(() => {
     trackSession();
   }, []);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const init = async () => {
       if (!authService.isAuthenticated()) {
-        navigate('/login');
+        navigate('/auth');
         return;
       }
       const verifiedUser = await authService.verifyToken();
       if (!verifiedUser) {
-        navigate('/login');
-      } else {
-        setUser(verifiedUser);
-        loadSchedule();
-        loadTasks();
+        navigate('/auth');
+        return;
       }
+      setUser(verifiedUser);
+      loadGamification();
+      loadTodaySchedule();
+      dailyCheckin();
     };
-    checkAuth();
+    init();
   }, [navigate]);
 
-  // Show notification banner on mount if permission not yet decided
-  useEffect(() => {
-    if (shouldShowBanner()) {
-      setShowNotifBanner(true);
-    }
-  }, []);
-
-  // Schedule notifications whenever schedule or tasks data changes
-  useEffect(() => {
-    if (!isPermissionGranted()) return;
-
-    const lessons: LessonInfo[] = schedule.map((l) => ({
-      subject: l.subject,
-      time: l.start_time,
-      room: l.room,
-      day: l.day_of_week,
-    }));
-    scheduleClassNotifications(lessons);
-
-    const taskInfos: TaskInfo[] = tasks
-      .filter((t) => !t.completed && t.deadline)
-      .map((t) => ({
-        title: t.title,
-        deadline: t.deadline!,
-        priority: t.priority,
-      }));
-    scheduleTaskNotifications(taskInfos);
-
-    return () => {
-      cancelAllNotifications();
-    };
-  }, [schedule, tasks]);
-
-  const loadSchedule = async () => {
-    setIsLoadingSchedule(true);
-    setIsScheduleCached(false);
+  const loadGamification = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=schedule`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${GAMIFICATION_URL}?action=profile`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (response.ok) {
-        const data = await response.json();
-        setSchedule(data.schedule);
-        offlineCache.save('schedule', data.schedule);
-      } else {
-        toast({
-          title: "Ошибка загрузки",
-          description: "Не удалось загрузить расписание",
-          variant: "destructive",
-        });
+      if (res.ok) {
+        const data = await res.json();
+        setGamification(data);
       }
-    } catch (error) {
-      console.error('Failed to load schedule:', error);
-      const cached = offlineCache.load<Lesson[]>('schedule');
-      if (cached) {
-        setSchedule(cached);
-        setIsScheduleCached(true);
-        toast({
-          title: "Офлайн-режим",
-          description: "Показаны данные из кэша",
-        });
-      } else {
-        toast({
-          title: "Ошибка сети",
-          description: "Проверьте подключение к интернету",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setIsLoadingSchedule(false);
-    }
+    } catch (e) { console.warn(e); }
   };
 
-  const loadTasks = async () => {
-    setIsLoadingTasks(true);
-    setIsTasksCached(false);
+  const loadTodaySchedule = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=tasks`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${SCHEDULE_URL}?action=lessons`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (response.ok) {
-        const data = await response.json();
-        setTasks(data.tasks);
-        offlineCache.save('tasks', data.tasks);
-      } else {
-        toast({
-          title: "Ошибка загрузки",
-          description: "Не удалось загрузить задачи",
-          variant: "destructive",
-        });
+      if (res.ok) {
+        const data = await res.json();
+        const todayDow = new Date().getDay(); // 0=вс
+        const dow = todayDow === 0 ? 6 : todayDow - 1; // 0=пн
+        const lessons: Lesson[] = (data.lessons || []).filter((l: Lesson) => l.day_of_week === dow);
+        setTodayLessons(lessons);
       }
-    } catch (error) {
-      console.error('Failed to load tasks:', error);
-      const cached = offlineCache.load<Task[]>('tasks');
-      if (cached) {
-        setTasks(cached);
-        setIsTasksCached(true);
-        toast({
-          title: "Офлайн-режим",
-          description: "Показаны задачи из кэша",
-        });
-      } else {
-        toast({
-          title: "Ошибка сети",
-          description: "Проверьте подключение к интернету",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setIsLoadingTasks(false);
-    }
+    } catch (e) { console.warn(e); }
   };
 
-  const handleAddLesson = async () => {
-    if (!lessonForm.subject || !lessonForm.start_time || !lessonForm.end_time) {
-      toast({
-        title: "Ошибка",
-        description: "Заполните обязательные поля",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=schedule`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(lessonForm)
-      });
-
-      if (response.ok) {
-        toast({ title: "Занятие добавлено" });
-        setIsAddingLesson(false);
-        setLessonForm({
-          subject: '',
-          type: 'lecture',
-          start_time: '',
-          end_time: '',
-          day_of_week: 1,
-          room: '',
-          teacher: '',
-          color: 'bg-purple-500',
-          week_type: 'every'
-        });
-        loadSchedule();
-      }
-    } catch (error) {
-      toast({
-        title: "Ошибка",
-        description: "Не удалось добавить занятие",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleAddTask = async () => {
-    if (!taskForm.title) {
-      toast({
-        title: "Ошибка",
-        description: "Введите название задачи",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(taskForm)
-      });
-
-      if (response.ok) {
-        toast({ title: "Задача добавлена" });
-        setIsAddingTask(false);
-        setTaskForm({
-          title: '',
-          description: '',
-          subject: '',
-          deadline: '',
-          priority: 'medium',
-          recurrence: ''
-        });
-        loadTasks();
-      }
-    } catch (error) {
-      toast({
-        title: "Ошибка",
-        description: "Не удалось добавить задачу",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleToggleTask = async (task: Task) => {
-    try {
-      const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=tasks`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...task,
-          completed: !task.completed
-        })
-      });
-
-      if (response.ok) {
-        if (!task.completed) {
-          const result = await trackActivity('tasks_completed', 1);
-          if (result?.new_achievements?.length) {
-            result.new_achievements.forEach((ach) => {
-              toast({
-                title: `\u{1F3C6} Достижение!`,
-                description: `${ach.title} (+${ach.xp_reward} XP)`,
-              });
-            });
-          } else if (result?.xp_gained) {
-            toast({
-              title: `\u2728 +${result.xp_gained} XP`,
-              description: `Продолжай в том же духе!`,
-            });
-          }
-        }
-        loadTasks();
-      }
-    } catch (error) {
-      console.error('Failed to toggle task:', error);
-    }
-  };
-
-  const handleDeleteTask = async (taskId: number) => {
-    try {
-      const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=tasks&id=${taskId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        toast({ title: "Задача удалена" });
-        loadTasks();
-      }
-    } catch (error) {
-      toast({
-        title: "Ошибка",
-        description: "Не удалось удалить задачу",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleLogout = () => {
-    authService.logout();
-    navigate('/login');
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const todayLessons = schedule.filter(l => {
-    if (l.day_of_week !== selectedDay) return false;
-    if (weekFilter === 'all') return true;
-    if (!l.week_type || l.week_type === 'every') return true;
-    return l.week_type === weekFilter;
-  });
-  const activeTasks = tasks.filter(t => !t.completed);
-  const completedTasks = tasks.filter(t => t.completed);
-  const completionRate = tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0;
-
-  const now = new Date();
-  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + 1);
-  const weekTasks = tasks.filter(t => {
-    if (!t.deadline) return false;
-    const deadline = new Date(t.deadline);
-    return deadline >= weekStart;
-  });
-  const weekCompleted = weekTasks.filter(t => t.completed).length;
-  const weekCompletionRate = weekTasks.length > 0 ? Math.round((weekCompleted / weekTasks.length) * 100) : 0;
-
-  const highPriorityTasks = activeTasks.filter(t => t.priority === 'high');
-  const overdueTasks = activeTasks.filter(t => {
-    if (!t.deadline) return false;
-    return new Date(t.deadline) < now;
-  });
-
-  const subjectStats = tasks.reduce((acc, task) => {
-    if (task.subject) {
-      if (!acc[task.subject]) {
-        acc[task.subject] = { total: 0, completed: 0 };
-      }
-      acc[task.subject].total++;
-      if (task.completed) acc[task.subject].completed++;
-    }
-    return acc;
-  }, {} as Record<string, { total: number; completed: number }>);
-
-  const uniqueSubjects = [...new Set(schedule.map(l => l.subject))];
-  const totalScheduleHours = schedule.reduce((acc, l) => {
-    const start = new Date(`2000-01-01 ${l.start_time}`);
-    const end = new Date(`2000-01-01 ${l.end_time}`);
-    return acc + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-  }, 0);
+  const firstName = user?.full_name?.split(' ')[0] || 'Студент';
+  const streak = gamification?.streak?.current ?? 0;
+  const todayDow = new Date().getDay();
+  const todayName = dayNames[todayDow === 0 ? 6 : todayDow - 1];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="relative">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                  <Icon name="Sparkles" size={20} className="text-white sm:w-6 sm:h-6" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-2xl font-heading font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Studyfay
-                </h1>
-                <p className="text-[10px] sm:text-xs text-purple-600/70 font-medium">Твой умный помощник в учёбе</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => navigate('/calendar')}
-                className="hover:bg-purple-100/50 rounded-xl h-8 w-8 sm:h-10 sm:w-10"
-              >
-                <Icon name="CalendarDays" size={18} className="text-purple-600 sm:w-5 sm:h-5" />
-              </Button>
-              <NotificationBell />
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => navigate('/profile')}
-                className="hover:bg-purple-100/50 rounded-xl h-8 w-8 sm:h-10 sm:w-10 sm:hidden"
-              >
-                <Icon name="User" size={18} className="text-purple-600 sm:w-5 sm:h-5" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                onClick={() => navigate('/profile')}
-                className="hidden sm:flex rounded-xl hover:bg-purple-100/50 text-gray-600 text-sm h-9"
-              >
-                <Icon name="User" size={18} className="mr-1.5" />
-                Профиль
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={handleLogout}
-                className="hover:bg-red-100/50 text-gray-600 hover:text-red-600 rounded-xl h-8 w-8 sm:h-10 sm:w-10 sm:hidden"
-              >
-                <Icon name="LogOut" size={18} className="sm:w-5 sm:h-5" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                onClick={handleLogout}
-                className="hidden sm:flex rounded-xl hover:bg-red-100/50 text-gray-600 hover:text-red-600 text-sm h-9"
-              >
-                <Icon name="LogOut" size={18} className="mr-1.5" />
-                Выйти
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 pb-24">
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-0">
-        {showNotifBanner && (
-          <div className="mb-3 flex items-center gap-3 rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3">
-            <Icon name="Bell" size={18} className="text-indigo-600 flex-shrink-0" />
-            <span className="flex-1 text-sm text-gray-700">
-              Включите уведомления, чтобы не пропускать пары
-            </span>
-            <Button
-              size="sm"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8 px-3"
-              onClick={async () => {
-                const perm = await requestPermission();
-                setShowNotifBanner(false);
-                if (perm !== 'granted') {
-                  dismissBanner();
-                }
-              }}
-            >
-              Включить
-            </Button>
-            <button
-              type="button"
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="Закрыть"
-              onClick={() => {
-                setShowNotifBanner(false);
-                dismissBanner();
-              }}
-            >
-              <Icon name="X" size={16} />
-            </button>
+      {/* Шапка */}
+      <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 px-4 pt-12 pb-6">
+        <div className="flex items-center justify-between mb-1">
+          <div>
+            <p className="text-white/70 text-sm">Привет, {firstName} 👋</p>
+            <h1 className="text-white font-bold text-xl">Сегодня — {todayName}</h1>
+          </div>
+          <button
+            onClick={() => navigate('/profile')}
+            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center"
+          >
+            <Icon name="User" size={18} className="text-white" />
+          </button>
+        </div>
+
+        {/* Streak в шапке */}
+        {streak > 0 && (
+          <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-2xl px-3 py-2 w-fit">
+            <span className="text-lg">🔥</span>
+            <span className="text-white font-semibold text-sm">{streak} {streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней'} подряд</span>
           </div>
         )}
+      </div>
 
-        <NotificationPrompt />
-        
-        <LimitsIndicator compact />
+      <div className="px-4 -mt-3 flex flex-col gap-4">
 
-        <SmartSuggestions />
-
-        {user && (
-          <Card className="animate-fade-in-up mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 border-0 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8 shimmer-bg" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <div>
-                  <p className="text-white/80 text-xs sm:text-sm">
-                    {(() => { const h = new Date().getHours(); return h >= 5 && h < 12 ? 'Доброе утро' : h >= 12 && h < 18 ? 'Добрый день' : h >= 18 && h < 23 ? 'Добрый вечер' : 'Доброй ночи'; })()}, {(user.full_name || user.name)?.split(' ')[0] || 'студент'}!
-                  </p>
-                  <h2 className="text-white font-bold text-base sm:text-lg mt-0.5">
-                    {tasks.length === 0
-                      ? 'Добавь первую задачу!'
-                      : activeTasks.length > 0
-                      ? `${activeTasks.length} ${activeTasks.length === 1 ? 'задача' : activeTasks.length < 5 ? 'задачи' : 'задач'} на сегодня`
-                      : 'Все задачи выполнены! 🎉'}
-                  </h2>
-                </div>
-                <div className="text-3xl sm:text-4xl">
-                  {tasks.length === 0 ? '✨' : completionRate >= 80 ? '🔥' : completionRate >= 50 ? '💪' : activeTasks.length === 0 ? '🎉' : '📚'}
-                </div>
-              </div>
-              {tasks.length > 0 && (
-                <div className="bg-white/20 rounded-full h-2 sm:h-2.5 overflow-hidden">
-                  <div
-                    className="bg-white rounded-full h-full transition-all duration-500"
-                    style={{ width: `${completionRate}%` }}
-                  />
-                </div>
-              )}
-              {highPriorityTasks.length > 0 && (
-                <p className="text-white/70 text-[10px] sm:text-xs mt-2">
-                  {highPriorityTasks.length} важн{highPriorityTasks.length === 1 ? 'ая' : 'ых'} • {overdueTasks.length > 0 ? `${overdueTasks.length} просрочен${overdueTasks.length === 1 ? 'а' : 'о'}` : 'всё вовремя'}
-                </p>
-              )}
+        {/* ===== БЛОК 1: СЕГОДНЯ ===== */}
+        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-white/80 text-xs font-medium uppercase tracking-wide">Сегодняшняя сессия</span>
+              <span className="text-white/70 text-xs flex items-center gap-1">
+                <Icon name="Clock" size={11} /> {TODAY_TOPIC.minutes} мин
+              </span>
             </div>
-          </Card>
-        )}
-        
-        <Card 
-          onClick={() => navigate('/gradebook')}
-          className="animate-fade-in-up-delay-1 mt-4 sm:mt-6 mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-2 border-emerald-300 cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/30 transition-all duration-300 hover:scale-[1.02]"
-        >
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-              <span className="text-2xl sm:text-3xl">📊</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">Зачётная книжка</h3>
-              <p className="text-xs sm:text-sm text-gray-600">Следи за оценками, средним баллом и стипендией</p>
-            </div>
-            <Icon name="ArrowRight" size={20} className="text-emerald-600 flex-shrink-0 sm:w-6 sm:h-6" />
+            <h2 className="text-white font-bold text-lg leading-tight">{TODAY_TOPIC.topic}</h2>
+            <p className="text-white/60 text-xs mt-0.5">{TODAY_TOPIC.subject}</p>
           </div>
-        </Card>
 
-        <Card
-          onClick={() => navigate('/exam')}
-          className="animate-fade-in-up mb-3 sm:mb-4 p-4 sm:p-6 bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 border-2 border-violet-300 cursor-pointer hover:shadow-2xl hover:shadow-violet-500/30 transition-all duration-300 hover:scale-[1.01] relative overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-violet-100 rounded-full -translate-y-8 translate-x-8 opacity-60" />
-          <div className="absolute bottom-0 right-16 w-16 h-16 bg-purple-100 rounded-full translate-y-6 opacity-40" />
-          <div className="relative flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-              <Icon name="GraduationCap" size={24} className="text-white sm:w-8 sm:h-8" />
+          <div className="px-5 py-4">
+            {/* Прогресс сессии */}
+            <div className="mb-3">
+              <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+                <span>Прогресс</span>
+                <span className="font-semibold text-indigo-600">{sessionProgress}%</span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+                  style={{ width: `${sessionProgress}%` }}
+                />
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5">Подготовка к ЕГЭ и ОГЭ</h3>
-              <p className="text-xs sm:text-sm text-gray-600">ИИ-репетитор · объяснение тем · тренировка заданий</p>
-            </div>
-            <Icon name="ArrowRight" size={20} className="text-violet-600 flex-shrink-0" />
-          </div>
-        </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <Card 
-            onClick={() => navigate('/assistant')}
-            className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-indigo-300 cursor-pointer hover:shadow-2xl hover:shadow-indigo-500/30 transition-all duration-300 hover:scale-[1.02]"
-          >
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <Icon name="Bot" size={24} className="text-white sm:w-8 sm:h-8" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">ИИ-ассистент для вуза</h3>
-                <p className="text-xs sm:text-sm text-gray-600">Задай вопрос по лекциям, конспектам, сессии</p>
-              </div>
-              <Icon name="ArrowRight" size={20} className="text-indigo-600 flex-shrink-0 sm:w-6 sm:h-6" />
-            </div>
-          </Card>
-          
-          <Card 
-            onClick={() => navigate('/pomodoro')}
-            className="p-4 sm:p-6 bg-gradient-to-r from-red-50 via-pink-50 to-rose-50 border-2 border-red-300 cursor-pointer hover:shadow-2xl hover:shadow-red-500/30 transition-all duration-300 hover:scale-[1.02]"
-          >
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <span className="text-2xl sm:text-3xl">🍅</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1 truncate">Таймер Помодоро</h3>
-                <p className="text-xs sm:text-sm text-gray-600">Учись эффективно с таймером и статистикой</p>
-              </div>
-              <Icon name="ArrowRight" size={20} className="text-red-600 flex-shrink-0 sm:w-6 sm:h-6" />
-            </div>
-          </Card>
-        </div>
-
-        <Card
-          onClick={() => navigate('/achievements')}
-          className="mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border-2 border-amber-300 cursor-pointer hover:shadow-2xl hover:shadow-amber-500/30 transition-all duration-300 hover:scale-[1.02]"
-        >
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-              <span className="text-2xl sm:text-3xl">🔥</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-0.5 sm:mb-1">Достижения и стрики</h3>
-              <p className="text-xs sm:text-sm text-gray-600">Зарабатывай XP, открывай бейджи, соревнуйся с другими</p>
-            </div>
-            <Icon name="ArrowRight" size={20} className="text-amber-600 flex-shrink-0 sm:w-6 sm:h-6" />
-          </div>
-        </Card>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
-          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/20">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10 flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Занятий сегодня</p>
-                <p className="text-3xl sm:text-4xl font-bold mt-2 sm:mt-3 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent group-hover:text-white transition-all">{todayLessons.length}</p>
-              </div>
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-100 to-purple-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg flex-shrink-0">
-                <Icon name="Calendar" size={24} className="text-indigo-600 group-hover:text-white transition-colors sm:w-7 sm:h-7" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10 flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Активных задач</p>
-                <p className="text-3xl sm:text-4xl font-bold mt-2 sm:mt-3 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent group-hover:text-white transition-all">{activeTasks.length}</p>
-              </div>
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-100 to-pink-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg flex-shrink-0">
-                <Icon name="CheckSquare" size={24} className="text-purple-600 group-hover:text-white transition-colors sm:w-7 sm:h-7" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="group relative overflow-hidden p-5 sm:p-7 bg-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-pink-500/20">
-            <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10 flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-white transition-colors">Выполнено задач</p>
-                <p className="text-3xl sm:text-4xl font-bold mt-2 sm:mt-3 bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent group-hover:text-white transition-all">{completionRate}%</p>
-              </div>
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-pink-100 to-rose-100 group-hover:from-white/20 group-hover:to-white/10 rounded-2xl flex items-center justify-center transition-all shadow-lg flex-shrink-0">
-                <Icon name="TrendingUp" size={24} className="text-pink-600 group-hover:text-white transition-colors sm:w-7 sm:h-7" />
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-2 h-12 sm:h-14 bg-white/90 backdrop-blur-xl border-2 border-purple-200/50 shadow-lg shadow-purple-500/10 rounded-2xl p-1 sm:p-1.5">
-            <TabsTrigger value="schedule" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-sm font-semibold">
-              <Icon name="Calendar" size={18} className="mr-2" />
-              Расписание
-            </TabsTrigger>
-            <TabsTrigger value="tasks" className="rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 transition-all text-sm font-semibold">
-              <Icon name="CheckSquare" size={18} className="mr-2" />
-              Задачи
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="schedule" className="space-y-4 sm:space-y-5">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-              <div className="flex-1">
-                <h2 className="text-xl sm:text-3xl font-heading font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Расписание</h2>
-                <p className="text-purple-600/70 text-xs sm:text-sm mt-0.5 sm:mt-1">Управление занятиями</p>
-              </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <GoogleCalendarSync schedule={schedule} />
-                <ScheduleExport schedule={schedule} />
-                <Button 
-                  onClick={() => setIsAddingLesson(true)}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-purple-500/30 rounded-xl text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial"
+            {/* Шаги сессии */}
+            <div className="flex gap-2 mb-4">
+              {TODAY_TOPIC.steps.map((step, i) => (
+                <div
+                  key={step}
+                  className={`flex-1 flex items-center justify-center gap-1 rounded-xl py-1.5 text-xs font-medium ${
+                    i === 0
+                      ? 'bg-indigo-100 text-indigo-700'
+                      : 'bg-gray-100 text-gray-400'
+                  }`}
                 >
-                  <Icon name="Plus" size={16} className="mr-1.5 sm:mr-2 sm:w-[18px] sm:h-[18px]" />
-                  Добавить занятие
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex gap-1 sm:gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
-              {dayNames.map((day, idx) => (
-                <Button
-                  key={idx}
-                  variant={selectedDay === idx + 1 ? "default" : "outline"}
-                  onClick={() => setSelectedDay(idx + 1)}
-                  className={`flex-shrink-0 text-[11px] sm:text-sm h-8 sm:h-10 px-2.5 sm:px-4 whitespace-nowrap ${selectedDay === idx + 1 ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white" : ""}`}
-                >
-                  {day}
-                </Button>
+                  {i === 0 && <Icon name="CheckCircle" size={11} />}
+                  {step}
+                </div>
               ))}
             </div>
 
-            <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <div className="flex gap-1 sm:gap-1.5 bg-white/80 border border-purple-200 rounded-xl p-1">
-                <Button
-                  variant={weekFilter === 'all' ? 'default' : 'ghost'}
-                  onClick={() => setWeekFilter('all')}
-                  className={`text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 rounded-lg ${weekFilter === 'all' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' : ''}`}
-                >
-                  Все
-                </Button>
-                <Button
-                  variant={weekFilter === 'even' ? 'default' : 'ghost'}
-                  onClick={() => setWeekFilter('even')}
-                  className={`text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 rounded-lg ${weekFilter === 'even' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' : ''}`}
-                >
-                  Чётная
-                </Button>
-                <Button
-                  variant={weekFilter === 'odd' ? 'default' : 'ghost'}
-                  onClick={() => setWeekFilter('odd')}
-                  className={`text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 rounded-lg ${weekFilter === 'odd' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' : ''}`}
-                >
-                  Нечётная
-                </Button>
-              </div>
-              <Badge variant="outline" className="text-[10px] sm:text-xs">
-                Сейчас: {currentWeekParity === 'even' ? 'чётная' : 'нечётная'} (нед. {currentWeekNumber})
-              </Badge>
-              {isScheduleCached && (
-                <Badge variant="outline" className="text-[10px] sm:text-xs bg-amber-50 text-amber-700 border-amber-300">
-                  <Icon name="WifiOff" size={10} className="mr-1" />
-                  Кэш
-                </Badge>
-              )}
-            </div>
-
-            {isAddingLesson && (
-              <Card className="p-4 sm:p-6 bg-white mb-4 sm:mb-6">
-                <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">Новое занятие</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <Label className="text-xs sm:text-sm">Предмет *</Label>
-                    <Input
-                      value={lessonForm.subject}
-                      onChange={(e) => setLessonForm({...lessonForm, subject: e.target.value})}
-                      placeholder="Математический анализ"
-                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">Тип</Label>
-                    <Select value={lessonForm.type} onValueChange={(v) => setLessonForm({...lessonForm, type: v})}>
-                      <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="lecture">Лекция</SelectItem>
-                        <SelectItem value="practice">Практика</SelectItem>
-                        <SelectItem value="lab">Лабораторная</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">Начало *</Label>
-                    <Input
-                      type="time"
-                      value={lessonForm.start_time}
-                      onChange={(e) => setLessonForm({...lessonForm, start_time: e.target.value})}
-                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">Конец *</Label>
-                    <Input
-                      type="time"
-                      value={lessonForm.end_time}
-                      onChange={(e) => setLessonForm({...lessonForm, end_time: e.target.value})}
-                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">День недели</Label>
-                    <Select value={String(lessonForm.day_of_week)} onValueChange={(v) => setLessonForm({...lessonForm, day_of_week: Number(v)})}>
-                      <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {dayNames.map((day, idx) => (
-                          <SelectItem key={idx} value={String(idx + 1)}>{day}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">Аудитория</Label>
-                    <Input
-                      value={lessonForm.room}
-                      onChange={(e) => setLessonForm({...lessonForm, room: e.target.value})}
-                      placeholder="ауд. 301"
-                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">Неделя</Label>
-                    <Select value={lessonForm.week_type} onValueChange={(v) => setLessonForm({...lessonForm, week_type: v})}>
-                      <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="every">Каждую неделю</SelectItem>
-                        <SelectItem value="even">Чётная неделя</SelectItem>
-                        <SelectItem value="odd">Нечётная неделя</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3 sm:mt-4">
-                  <Button onClick={handleAddLesson} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
-                    Сохранить
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsAddingLesson(false)} className="text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
-                    Отмена
-                  </Button>
-                </div>
-              </Card>
-            )}
-
-            <div className="space-y-3 sm:space-y-4">
-              {isLoadingSchedule ? (
-                <Card className="p-8 sm:p-12 text-center bg-white">
-                  <LoadingSpinner size={40} text="Загрузка расписания..." />
-                </Card>
-              ) : todayLessons.length === 0 ? (
-                <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
-                  <Icon name="CalendarOff" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
-                  <p className="text-sm sm:text-base text-gray-600">Нет занятий на этот день</p>
-                </Card>
-              ) : (
-                todayLessons.map((lesson) => (
-                  <Card key={lesson.id} className="p-4 sm:p-6 bg-white hover:shadow-xl transition-all">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                        <div className={`w-12 h-12 sm:w-16 sm:h-16 ${lesson.color || 'bg-purple-500'} rounded-xl flex items-center justify-center text-white shadow-lg flex-shrink-0`}>
-                          <Icon name="BookOpen" size={20} className="sm:w-6 sm:h-6" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-sm sm:text-lg truncate">{lesson.subject}</h3>
-                          <p className="text-xs sm:text-sm text-gray-600">{lesson.start_time} - {lesson.end_time}</p>
-                          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{lesson.room} • {lesson.type}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <Badge className="text-[10px] sm:text-xs">{lesson.type === 'lecture' ? 'Лекция' : lesson.type === 'practice' ? 'Практика' : 'Лаб'}</Badge>
-                        {lesson.week_type && lesson.week_type !== 'every' && (
-                          <Badge variant="outline" className="text-[9px] sm:text-[10px] bg-indigo-50 text-indigo-600 border-indigo-200">
-                            {lesson.week_type === 'even' ? 'Чёт' : 'Нечёт'}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="tasks" className="space-y-4 sm:space-y-5">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl sm:text-3xl font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Задачи</h2>
-                  {isTasksCached && (
-                    <Badge variant="outline" className="text-[10px] sm:text-xs bg-amber-50 text-amber-700 border-amber-300">
-                      <Icon name="WifiOff" size={10} className="mr-1" />
-                      Кэш
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-purple-600/70 text-xs sm:text-sm mt-0.5 sm:mt-1">Управление делами</p>
-              </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <Button 
-                  onClick={() => setIsExamReminderOpen(true)}
-                  variant="outline"
-                  className="border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl text-xs sm:text-sm h-9 sm:h-10 hidden sm:flex"
-                >
-                  <Icon name="Bell" size={16} className="mr-1.5 sm:w-[18px] sm:h-[18px]" />
-                  Напоминание об экзамене
-                </Button>
-                <Button 
-                  onClick={() => setIsExamReminderOpen(true)}
-                  variant="outline"
-                  size="icon"
-                  className="border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl sm:hidden h-9 w-9"
-                >
-                  <Icon name="Bell" size={18} />
-                </Button>
-                <Button 
-                  onClick={() => setIsAddingTask(true)}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-pink-500/30 rounded-xl text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial"
-                >
-                  <Icon name="Plus" size={16} className="mr-1.5 sm:mr-2 sm:w-[18px] sm:h-[18px]" />
-                  Новая задача
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
-              <div className="relative flex-1">
-                <Icon name="Search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 sm:w-5 sm:h-5" />
-                <Input
-                  type="text"
-                  placeholder="Поиск задачи..."
-                  value={taskSearch}
-                  onChange={(e) => setTaskSearch(e.target.value)}
-                  className="pl-9 sm:pl-10 rounded-xl border-2 border-purple-200 h-9 sm:h-10 text-sm"
-                />
-              </div>
-              <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
-                <Button
-                  variant={taskFilter === 'all' ? 'default' : 'outline'}
-                  onClick={() => setTaskFilter('all')}
-                  className="rounded-xl text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4 flex-shrink-0"
-                >
-                  Все
-                </Button>
-                <Button
-                  variant={taskFilter === 'active' ? 'default' : 'outline'}
-                  onClick={() => setTaskFilter('active')}
-                  className="rounded-xl text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4 flex-shrink-0"
-                >
-                  Активные
-                </Button>
-                <Button
-                  variant={taskFilter === 'completed' ? 'default' : 'outline'}
-                  onClick={() => setTaskFilter('completed')}
-                  className="rounded-xl text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4 flex-shrink-0"
-                >
-                  Выполненные
-                </Button>
-              </div>
-            </div>
-
-            {isAddingTask && (
-              <Card className="p-4 sm:p-6 bg-white mb-4 sm:mb-6">
-                <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">Новая задача</h3>
-                <div className="space-y-3 sm:space-y-4">
-                  <div>
-                    <Label className="text-xs sm:text-sm">Название *</Label>
-                    <Input
-                      value={taskForm.title}
-                      onChange={(e) => setTaskForm({...taskForm, title: e.target.value})}
-                      placeholder="Решить задачи по математике"
-                      className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">Описание</Label>
-                    <Textarea
-                      value={taskForm.description}
-                      onChange={(e) => setTaskForm({...taskForm, description: e.target.value})}
-                      placeholder="Дополнительная информация..."
-                      className="mt-1.5 sm:mt-2 text-sm"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <Label className="text-xs sm:text-sm">Предмет</Label>
-                      <Input
-                        value={taskForm.subject}
-                        onChange={(e) => setTaskForm({...taskForm, subject: e.target.value})}
-                        placeholder="Математика"
-                        className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs sm:text-sm">Дедлайн</Label>
-                      <Input
-                        type="datetime-local"
-                        value={taskForm.deadline}
-                        onChange={(e) => setTaskForm({...taskForm, deadline: e.target.value})}
-                        className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs sm:text-sm">Приоритет</Label>
-                      <Select value={taskForm.priority} onValueChange={(v) => setTaskForm({...taskForm, priority: v})}>
-                        <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Низкий</SelectItem>
-                          <SelectItem value="medium">Средний</SelectItem>
-                          <SelectItem value="high">Высокий</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs sm:text-sm">Повтор</Label>
-                      <Select value={taskForm.recurrence} onValueChange={(v) => setTaskForm({...taskForm, recurrence: v})}>
-                        <SelectTrigger className="mt-1.5 sm:mt-2 h-9 sm:h-10 text-sm">
-                          <SelectValue placeholder="Без повтора" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Без повтора</SelectItem>
-                          <SelectItem value="daily">Ежедневно</SelectItem>
-                          <SelectItem value="weekly">Еженедельно</SelectItem>
-                          <SelectItem value="biweekly">Раз в 2 недели</SelectItem>
-                          <SelectItem value="monthly">Ежемесячно</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3 sm:mt-4">
-                  <Button onClick={handleAddTask} className="bg-gradient-to-r from-purple-600 to-pink-600 text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
-                    Создать
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsAddingTask(false)} className="text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
-                    Отмена
-                  </Button>
-                </div>
-              </Card>
-            )}
-
-            <div className="space-y-3 sm:space-y-4">
-              {isLoadingTasks ? (
-                <Card className="p-8 sm:p-12 text-center bg-white">
-                  <LoadingSpinner size={40} text="Загрузка задач..." />
-                </Card>
-              ) : tasks.length === 0 ? (
-                <Card className="p-8 sm:p-12 text-center bg-white border-2 border-dashed border-purple-200">
-                  <Icon name="ListTodo" size={40} className="mx-auto mb-3 sm:mb-4 text-purple-300 sm:w-12 sm:h-12" />
-                  <p className="text-sm sm:text-base text-gray-600">Нет задач</p>
-                </Card>
-              ) : (
-                tasks
-                  .filter(task => {
-                    const matchesSearch = taskSearch === '' ||
-                      task.title.toLowerCase().includes(taskSearch.toLowerCase()) ||
-                      task.description?.toLowerCase().includes(taskSearch.toLowerCase());
-                    
-                    const matchesFilter = 
-                      taskFilter === 'all' ||
-                      (taskFilter === 'active' && !task.completed) ||
-                      (taskFilter === 'completed' && task.completed);
-                    
-                    return matchesSearch && matchesFilter;
-                  })
-                  .map((task) => (
-                  <Card key={task.id} className={`p-4 sm:p-5 bg-white hover:shadow-xl transition-all ${task.completed ? 'opacity-60' : ''}`}>
-                    <div className="flex items-start gap-3 sm:gap-4">
-                      <Checkbox
-                        checked={task.completed}
-                        onCheckedChange={() => handleToggleTask(task)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3 className={`font-bold text-sm sm:text-base ${task.completed ? 'line-through text-gray-500' : ''}`}>{task.title}</h3>
-                        {task.description && <p className="text-xs sm:text-sm text-gray-600 mt-1">{task.description}</p>}
-                        <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 flex-wrap">
-                          {task.subject && <Badge variant="outline" className="text-[10px] sm:text-xs">{task.subject}</Badge>}
-                          {task.deadline && (
-                            <Badge variant="outline" className="text-[10px] sm:text-xs">
-                              <Icon name="Clock" size={10} className="mr-0.5 sm:mr-1 sm:w-3 sm:h-3" />
-                              {new Date(task.deadline).toLocaleString('ru-RU', {
-                                day: 'numeric',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </Badge>
-                          )}
-                          <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${getPriorityColor(task.priority)}`}></div>
-                          {task.recurrence && task.recurrence !== 'none' && task.recurrence !== '' && (
-                            <Badge variant="outline" className="text-[10px] sm:text-xs bg-violet-50 text-violet-600 border-violet-200">
-                              <Icon name="Repeat" size={10} className="mr-0.5 sm:mr-1" />
-                              {task.recurrence === 'daily' ? 'Ежедн.' : task.recurrence === 'weekly' ? 'Еженед.' : task.recurrence === 'biweekly' ? '2 нед.' : 'Ежемес.'}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="text-red-500 hover:bg-red-50 h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
-                      >
-                        <Icon name="Trash2" size={16} className="sm:w-[18px] sm:h-[18px]" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-4 sm:space-y-5">
-            <div className="mb-4 sm:mb-6">
-              <h2 className="text-xl sm:text-3xl font-heading font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">Аналитика</h2>
-              <p className="text-blue-600/70 text-xs sm:text-sm mt-0.5 sm:mt-1">Статистика вашей учёбы</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              <Card className="p-4 sm:p-5 bg-white">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-600 font-medium">Всего задач</p>
-                  <Icon name="ListTodo" size={20} className="text-indigo-500" />
-                </div>
-                <p className="text-3xl font-bold text-indigo-600">{tasks.length}</p>
-                <p className="text-xs text-gray-500 mt-1">{activeTasks.length} активных</p>
-              </Card>
-
-              <Card className="p-5 bg-white">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-600 font-medium">Выполнено за неделю</p>
-                  <Icon name="CheckCircle2" size={20} className="text-green-500" />
-                </div>
-                <p className="text-3xl font-bold text-green-600">{weekCompletionRate}%</p>
-                <p className="text-xs text-gray-500 mt-1">{weekCompleted} из {weekTasks.length} задач</p>
-              </Card>
-
-              <Card className="p-5 bg-white">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-600 font-medium">Просрочено</p>
-                  <Icon name="AlertCircle" size={20} className="text-red-500" />
-                </div>
-                <p className="text-3xl font-bold text-red-600">{overdueTasks.length}</p>
-                <p className="text-xs text-gray-500 mt-1">Требуют внимания</p>
-              </Card>
-
-              <Card className="p-5 bg-white">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-600 font-medium">Высокий приоритет</p>
-                  <Icon name="Flag" size={20} className="text-orange-500" />
-                </div>
-                <p className="text-3xl font-bold text-orange-600">{highPriorityTasks.length}</p>
-                <p className="text-xs text-gray-500 mt-1">Важных задач</p>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="p-6 bg-white">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <Icon name="Calendar" size={20} className="text-purple-600" />
-                  Расписание
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700">Всего занятий в неделю</span>
-                    <span className="text-xl font-bold text-purple-600">{schedule.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700">Предметов</span>
-                    <span className="text-xl font-bold text-indigo-600">{uniqueSubjects.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700">Часов в неделю</span>
-                    <span className="text-xl font-bold text-blue-600">{totalScheduleHours.toFixed(1)}</span>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <Icon name="TrendingUp" size={20} className="text-green-600" />
-                  Прогресс по предметам
-                </h3>
-                <div className="space-y-3">
-                  {Object.keys(subjectStats).length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">Нет данных по предметам</p>
-                  ) : (
-                    Object.entries(subjectStats).slice(0, 5).map(([subject, stats]) => {
-                      const rate = Math.round((stats.completed / stats.total) * 100);
-                      return (
-                        <div key={subject}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-700">{subject}</span>
-                            <span className="text-sm font-bold text-gray-600">{rate}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
-                              style={{ width: `${rate}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">{stats.completed} из {stats.total} задач</p>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </Card>
-            </div>
-
-            <Card className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Icon name="Target" size={20} className="text-indigo-600" />
-                Общий прогресс
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Выполнение всех задач</span>
-                    <span className="text-lg font-bold text-indigo-600">{completionRate}%</span>
-                  </div>
-                  <div className="w-full bg-white rounded-full h-4">
-                    <div 
-                      className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 h-4 rounded-full transition-all"
-                      style={{ width: `${completionRate}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-2 text-xs text-gray-600">
-                    <span>Выполнено: {completedTasks.length}</span>
-                    <span>Активных: {activeTasks.length}</span>
-                  </div>
-                </div>
-                {completionRate >= 80 && (
-                  <div className="flex items-center gap-2 p-3 bg-green-100 border border-green-300 rounded-lg">
-                    <Icon name="Trophy" size={20} className="text-green-600" />
-                    <p className="text-sm text-green-800 font-medium">Отличная работа! Так держать! 🎉</p>
-                  </div>
-                )}
-                {overdueTasks.length > 0 && (
-                  <div className="flex items-center gap-2 p-3 bg-red-100 border border-red-300 rounded-lg">
-                    <Icon name="AlertTriangle" size={20} className="text-red-600" />
-                    <p className="text-sm text-red-800 font-medium">У вас {overdueTasks.length} просроченных задач. Обратите внимание!</p>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="profile" className="space-y-5">
-            <Card className="p-8 bg-white">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg">
-                  <span className="text-3xl font-bold text-white">
-                    {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
-                  </span>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold">{user?.full_name}</h2>
-                  <p className="text-gray-600">{user?.email}</p>
-                </div>
-              </div>
-              <Button onClick={() => navigate('/profile')} className="w-full">
-                Редактировать профиль
-              </Button>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      {/* Футер с юридическими документами */}
-      <footer className="bg-white/70 backdrop-blur-xl border-t border-purple-200/50 mt-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-600">© 2026 Studyfay. Все права защищены.</p>
-            <div className="flex items-center gap-4 text-sm">
-              <a href="/privacy" className="text-purple-600 hover:underline">Политика конфиденциальности</a>
-              <span className="text-gray-400">•</span>
-              <a href="/terms" className="text-purple-600 hover:underline">Пользовательское соглашение</a>
-            </div>
+            <Button
+              onClick={() => navigate('/assistant')}
+              className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl shadow-[0_4px_16px_rgba(99,102,241,0.35)] active:scale-[0.98] transition-all"
+            >
+              Начать занятие <Icon name="ArrowRight" size={16} className="ml-1.5" />
+            </Button>
           </div>
         </div>
-      </footer>
 
-      <ExamReminder 
-        isOpen={isExamReminderOpen} 
-        onClose={() => setIsExamReminderOpen(false)} 
-      />
+        {/* ===== БЛОК 2: STREAK ===== */}
+        <div className="bg-white rounded-3xl shadow-sm px-5 py-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-orange-100 rounded-2xl flex items-center justify-center text-xl">
+              🔥
+            </div>
+            <div>
+              <p className="font-bold text-gray-800 text-base">
+                {streak > 0 ? `Ты занимаешься уже ${streak} ${streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней'} подряд!` : 'Начни серию сегодня!'}
+              </p>
+              <p className="text-gray-400 text-xs">
+                {streak > 0 ? 'Не прерывай — это работает 💪' : 'Каждый день — шаг к результату'}
+              </p>
+            </div>
+          </div>
 
-      <AppReviewPrompt />
+          {/* Визуализация 7 дней */}
+          <div className="flex gap-1.5">
+            {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((d, i) => {
+              const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+              const isToday = i === todayIdx;
+              const isDone = streak > 0 && i <= todayIdx && i > todayIdx - streak;
+              return (
+                <div key={d} className="flex-1 flex flex-col items-center gap-1">
+                  <div className={`w-full aspect-square rounded-xl flex items-center justify-center text-xs font-bold transition-all ${
+                    isToday && isDone ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(249,115,22,0.4)]' :
+                    isDone ? 'bg-orange-200 text-orange-700' :
+                    isToday ? 'border-2 border-dashed border-orange-300 text-orange-400' :
+                    'bg-gray-100 text-gray-300'
+                  }`}>
+                    {isDone ? '✓' : isToday ? '·' : ''}
+                  </div>
+                  <span className={`text-[9px] font-medium ${isToday ? 'text-orange-500' : 'text-gray-400'}`}>{d}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {streak >= 3 && (
+            <p className="text-center text-xs text-orange-500 font-semibold mt-3">
+              🏆 Рекорд: {gamification?.streak?.longest ?? streak} дней
+            </p>
+          )}
+        </div>
+
+        {/* ===== БЛОК 3: ПРОГРЕСС ===== */}
+        <div className="bg-white rounded-3xl shadow-sm px-5 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-gray-800">Твоя подготовка</h3>
+            <button
+              onClick={() => navigate('/analytics')}
+              className="text-xs text-indigo-500 font-medium flex items-center gap-0.5"
+            >
+              Подробнее <Icon name="ChevronRight" size={13} />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {PROGRESS_SUBJECTS.map(s => (
+              <div key={s.name}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-600 font-medium">{s.name}</span>
+                  <span className="text-gray-400">{s.pct}%</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full ${s.color} rounded-full transition-all duration-700`} style={{ width: `${s.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={() => navigate('/exam')}
+            className="mt-4 w-full flex items-center justify-center gap-2 border-2 border-dashed border-indigo-200 rounded-2xl py-2.5 text-indigo-500 text-sm font-medium hover:bg-indigo-50 transition-colors active:scale-[0.98]"
+          >
+            <Icon name="Target" size={15} />
+            Посмотреть слабые темы
+          </button>
+        </div>
+
+        {/* ===== БЛОК 4: БЫСТРЫЙ ДОСТУП ===== */}
+        <div>
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 px-1">Быстрый доступ</p>
+          <div className="grid grid-cols-3 gap-2.5">
+            {QUICK_ACCESS.map(item => (
+              <button
+                key={item.label}
+                onClick={() => navigate(item.path)}
+                className="bg-white rounded-2xl shadow-sm p-3.5 flex flex-col items-center gap-2 active:scale-[0.96] transition-all"
+              >
+                <div className={`w-10 h-10 ${item.color} rounded-xl flex items-center justify-center`}>
+                  <Icon name={item.icon} size={18} />
+                </div>
+                <span className="text-gray-700 text-xs font-medium text-center leading-tight">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ===== РАСПИСАНИЕ СЕГОДНЯ ===== */}
+        {todayLessons.length > 0 && (
+          <div className="bg-white rounded-3xl shadow-sm px-5 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-gray-800">Пары сегодня</h3>
+              <button onClick={() => navigate('/?tab=schedule')} className="text-xs text-indigo-500 font-medium">
+                Всё расписание
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {todayLessons.slice(0, 3).map(lesson => (
+                <div key={lesson.id} className="flex items-center gap-3 bg-gray-50 rounded-2xl px-3 py-2.5">
+                  <div className="w-1 h-10 bg-indigo-400 rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 text-sm truncate">{lesson.subject}</p>
+                    <p className="text-gray-400 text-xs">{lesson.start_time} – {lesson.end_time}{lesson.room ? ` · ауд. ${lesson.room}` : ''}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ===== БЛОК 5: ВТОРОСТЕПЕННЫЕ ФУНКЦИИ ===== */}
+        <div>
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 px-1">Ещё</p>
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden divide-y divide-gray-50">
+            {SECONDARY.map(item => (
+              <button
+                key={item.label}
+                onClick={() => navigate(item.path)}
+                className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
+              >
+                <div className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center">
+                  <Icon name={item.icon} size={16} className="text-gray-500" />
+                </div>
+                <span className="text-gray-700 text-sm font-medium flex-1">{item.label}</span>
+                <Icon name="ChevronRight" size={14} className="text-gray-300" />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Отступ снизу */}
+        <div className="h-2" />
+      </div>
+
       <BottomNav />
     </div>
   );
-};
-
-export default Index;
+}
