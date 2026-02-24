@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +20,12 @@ async function getDeviceId(): Promise<string> {
 const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
+const benefits = [
+  { icon: 'MessageCircle', text: 'Объясню тему простыми словами' },
+  { icon: 'Target', text: 'Подберу задания под твой уровень' },
+  { icon: 'FileText', text: 'Разберу PDF/Word и отвечу по ним' },
+];
+
 export default function AuthNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -31,6 +36,7 @@ export default function AuthNew() {
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const refCode = searchParams.get('ref') || '';
 
   useEffect(() => {
@@ -47,54 +53,31 @@ export default function AuthNew() {
 
   const handleEmailLogin = async () => {
     if (!agreedToTerms) {
-      toast({
-        variant: 'destructive',
-        title: 'Необходимо согласие',
-        description: 'Подтвердите согласие с условиями использования'
-      });
+      toast({ variant: 'destructive', title: 'Необходимо согласие', description: 'Подтвердите согласие с условиями использования' });
       return;
     }
-
     if (!email || !email.includes('@')) {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка',
-        description: 'Введите корректный email'
-      });
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Введите корректный email' });
       return;
     }
-
     if (!password) {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка',
-        description: 'Введите пароль'
-      });
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Введите пароль' });
       return;
     }
 
     setLoading(true);
-
     try {
       const device_id = await getDeviceId();
-
       const response = await fetch(AUTH_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'login',
-          email,
-          password,
-          device_id
-        })
+        body: JSON.stringify({ action: 'login', email, password, device_id })
       });
-
       const data = await response.json();
 
       if (response.ok && data.token) {
         authService.setToken(data.token);
         authService.setUser(data.user);
-        
         if (rememberMe) {
           localStorage.setItem('savedEmail', email);
         } else {
@@ -111,28 +94,16 @@ export default function AuthNew() {
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.token}` },
               body: JSON.stringify({ action: 'use_referral', referral_code: pending.toUpperCase() })
             });
-          } catch (_) { /* referral apply failed, ignore */ }
+          } catch (e) { console.warn('referral', e); }
         }
-        
-        toast({
-          title: '✅ Вход выполнен!',
-          description: `Добро пожаловать, ${data.user.full_name}!`
-        });
 
+        toast({ title: '✅ Вход выполнен!', description: `Добро пожаловать, ${data.user.full_name}!` });
         navigate('/');
       } else {
-        toast({
-          variant: 'destructive',
-          title: 'Ошибка входа',
-          description: data.error || 'Неверный email или пароль'
-        });
+        toast({ variant: 'destructive', title: 'Ошибка входа', description: data.error || 'Неверный email или пароль' });
       }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка',
-        description: 'Не удалось выполнить вход'
-      });
+    } catch {
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось выполнить вход' });
     } finally {
       setLoading(false);
     }
@@ -140,36 +111,21 @@ export default function AuthNew() {
 
   const handleResetPassword = async () => {
     if (!email || !email.includes('@')) {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка',
-        description: 'Введите корректный email'
-      });
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Введите корректный email' });
       return;
     }
-
     if (!password || password.length < 6) {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка',
-        description: 'Пароль должен быть минимум 6 символов'
-      });
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Пароль должен быть минимум 6 символов' });
       return;
     }
 
     setLoading(true);
-
     try {
       const response = await fetch(AUTH_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'reset_password',
-          email,
-          new_password: password
-        })
+        body: JSON.stringify({ action: 'reset_password', email, new_password: password })
       });
-
       const data = await response.json();
 
       if (response.ok && data.token) {
@@ -178,181 +134,182 @@ export default function AuthNew() {
         toast({ title: '✅ Пароль обновлён!', description: 'Вход выполнен с новым паролем' });
         navigate('/');
       } else if (response.ok && data.message) {
-        // Email не найден — показываем нейтральное сообщение
         toast({ title: 'Готово', description: data.message });
         setMode('login');
       } else {
-        toast({
-          variant: 'destructive',
-          title: 'Ошибка',
-          description: data.error || 'Не удалось обновить пароль'
-        });
+        toast({ variant: 'destructive', title: 'Ошибка', description: data.error || 'Не удалось обновить пароль' });
       }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка',
-        description: 'Не удалось обновить пароль'
-      });
+    } catch {
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось обновить пароль' });
     } finally {
       setLoading(false);
     }
   };
 
-
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-3 sm:p-6">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Фоновые блобы */}
+      <div className="absolute top-[-80px] left-[-80px] w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-[-60px] right-[-60px] w-96 h-96 bg-pink-400/20 rounded-full blur-3xl" />
 
-      <Card className="relative z-10 w-full max-w-md p-5 sm:p-8 bg-white/95 backdrop-blur-xl border-0 shadow-2xl rounded-3xl">
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-xl mb-3 sm:mb-4">
-            <Icon name="GraduationCap" size={32} className="text-white sm:w-10 sm:h-10" />
+      <div className="relative z-10 w-full max-w-sm">
+
+        {/* Логотип */}
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mb-3 shadow-xl">
+            <Icon name="GraduationCap" size={32} className="text-white" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-1.5 sm:mb-2">
-            Studyfay
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600 mb-2 sm:mb-3">
-            {mode === 'login' ? 'Войдите в аккаунт' : 'Сброс пароля'}
-          </p>
-
+          <span className="text-white/80 text-sm font-medium tracking-widest uppercase">Studyfay</span>
         </div>
 
-        <div className="space-y-4 sm:space-y-6">
-          {/* Согласие с условиями */}
-          <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <Checkbox
-              id="terms"
-              checked={agreedToTerms}
-              onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-              className="mt-0.5 sm:mt-1"
-            />
-            <label htmlFor="terms" className="text-xs sm:text-sm text-gray-700 cursor-pointer">
-              Я согласен(на) с{' '}
-              <Link to="/terms" className="text-purple-600 font-semibold hover:underline">
-                Пользовательским соглашением
-              </Link>
-              {' '}и{' '}
-              <Link to="/privacy" className="text-purple-600 font-semibold hover:underline">
-                Политикой конфиденциальности
-              </Link>
-            </label>
-          </div>
+        {/* Заголовок */}
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-white leading-tight mb-2">
+            ИИ-репетитор для учёбы
+          </h1>
+          <p className="text-white/75 text-sm leading-relaxed">
+            ЕГЭ/ОГЭ и ВУЗ: объяснение тем,<br />задания и разбор материалов
+          </p>
+        </div>
 
-          {/* Email и пароль */}
-          <div className="space-y-3 sm:space-y-4">
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                Email
-              </label>
+        {/* Плашки-выгоды */}
+        <div className="space-y-2 mb-6">
+          {benefits.map((b) => (
+            <div key={b.text} className="flex items-center gap-3 bg-white/15 backdrop-blur rounded-xl px-4 py-3">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Icon name={b.icon} size={16} className="text-white" />
+              </div>
+              <span className="text-white text-sm font-medium">{b.text}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Социальное доказательство */}
+        <div className="text-center mb-6">
+          <span className="inline-flex items-center gap-2 bg-white/15 backdrop-blur rounded-full px-4 py-2 text-white/80 text-xs">
+            <Icon name="Users" size={14} className="text-white/60" />
+            Подходит школьникам и студентам
+          </span>
+        </div>
+
+        {/* CTA — кнопка открывает форму */}
+        {!showForm && (
+          <Button
+            onClick={() => setShowForm(true)}
+            className="w-full h-14 bg-white text-purple-700 hover:bg-white/90 font-bold text-base rounded-2xl shadow-xl mb-3"
+          >
+            Начать бесплатно
+            <Icon name="ArrowRight" size={18} className="ml-2" />
+          </Button>
+        )}
+
+        {/* Форма входа / сброса */}
+        {showForm && (
+          <div className="bg-white rounded-3xl p-5 shadow-2xl mb-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+            {mode === 'forgot' && (
+              <button
+                onClick={() => setMode('login')}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 mb-4"
+              >
+                <Icon name="ArrowLeft" size={14} />
+                Вернуться к входу
+              </button>
+            )}
+
+            <h2 className="text-base font-bold text-gray-800 mb-4">
+              {mode === 'login' ? 'Вход или регистрация' : 'Сброс пароля'}
+            </h2>
+
+            <div className="space-y-3">
               <Input
                 type="email"
-                placeholder="student@example.com"
+                placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-10 sm:h-12 text-sm sm:text-base border-2 border-gray-300 focus:border-purple-500 rounded-xl"
+                className="h-11 border-2 border-gray-200 focus:border-purple-400 rounded-xl text-sm"
               />
-            </div>
-
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                {mode === 'login' ? 'Пароль' : 'Новый пароль'}
-              </label>
               <Input
                 type="password"
-                placeholder={mode === 'login' ? 'Введите пароль' : 'Минимум 6 символов'}
+                placeholder={mode === 'login' ? 'Пароль' : 'Новый пароль (мин. 6 символов)'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-10 sm:h-12 text-sm sm:text-base border-2 border-gray-300 focus:border-purple-500 rounded-xl"
+                onKeyDown={(e) => e.key === 'Enter' && (mode === 'login' ? handleEmailLogin() : handleResetPassword())}
+                className="h-11 border-2 border-gray-200 focus:border-purple-400 rounded-xl text-sm"
               />
-              {mode === 'forgot' && (
-                <p className="text-xs text-gray-500 mt-2">
-                  Введите новый пароль - он сразу сохранится в базу
-                </p>
+
+              {mode === 'login' && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="remember"
+                    checked={rememberMe}
+                    onCheckedChange={(c) => setRememberMe(c as boolean)}
+                  />
+                  <label htmlFor="remember" className="text-xs text-gray-600 cursor-pointer">Запомнить меня</label>
+                </div>
               )}
-            </div>
 
-            {/* Кнопка входа / сброса */}
-            {mode === 'login' ? (
-              <Button
-                onClick={handleEmailLogin}
-                disabled={loading || !agreedToTerms}
-                className="w-full h-14 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-90 text-white text-base font-semibold shadow-lg rounded-xl"
-              >
-                {loading ? (
-                  <Icon name="Loader2" size={20} className="animate-spin" />
-                ) : (
-                  <>
-                    <Icon name="LogIn" size={20} className="mr-2" />
-                    Войти
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                onClick={handleResetPassword}
-                disabled={loading}
-                className="w-full h-14 bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90 text-white text-base font-semibold shadow-lg rounded-xl"
-              >
-                {loading ? (
-                  <Icon name="Loader2" size={20} className="animate-spin" />
-                ) : (
-                  <>
-                    <Icon name="KeyRound" size={20} className="mr-2" />
-                    Сохранить новый пароль
-                  </>
-                )}
-              </Button>
-            )}
-
-            {/* Запомнить пароль */}
-            {mode === 'login' && (
-              <div className="flex items-center gap-2">
+              {/* Согласие */}
+              <div className="flex items-start gap-2">
                 <Checkbox
-                  id="remember"
-                  checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  id="terms"
+                  checked={agreedToTerms}
+                  onCheckedChange={(c) => setAgreedToTerms(c as boolean)}
+                  className="mt-0.5"
                 />
-                <label htmlFor="remember" className="text-sm text-gray-700 cursor-pointer">
-                  Запомнить пароль
+                <label htmlFor="terms" className="text-xs text-gray-500 cursor-pointer leading-relaxed">
+                  Согласен(на) с{' '}
+                  <Link to="/terms" className="text-purple-600 hover:underline font-medium">условиями</Link>
+                  {' '}и{' '}
+                  <Link to="/privacy" className="text-purple-600 hover:underline font-medium">политикой</Link>
                 </label>
               </div>
-            )}
 
-            {/* Переключение режима */}
-            <div className="text-center">
-              <button
-                onClick={() => setMode(mode === 'login' ? 'forgot' : 'login')}
-                className="text-sm text-purple-600 hover:underline font-medium"
-              >
-                {mode === 'login' ? '🔑 Забыли пароль?' : '← Вернуться к входу'}
-              </button>
-            </div>
-          </div>
+              {mode === 'login' ? (
+                <Button
+                  onClick={handleEmailLogin}
+                  disabled={loading || !agreedToTerms}
+                  className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold rounded-xl"
+                >
+                  {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Войти / Зарегистрироваться'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleResetPassword}
+                  disabled={loading}
+                  className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90 text-white font-semibold rounded-xl"
+                >
+                  {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Сохранить новый пароль'}
+                </Button>
+              )}
 
-          {refCode && (
-            <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
-              <p className="text-xs text-green-900 font-medium">
-                <Icon name="Gift" size={14} className="inline mr-1" />
-                Вас пригласил друг! Зарегистрируйтесь и получите +5 бонусных вопросов к ИИ-ассистенту
+              {mode === 'login' && (
+                <button
+                  onClick={() => setMode('forgot')}
+                  className="w-full text-center text-xs text-purple-600 hover:underline"
+                >
+                  Забыли пароль?
+                </button>
+              )}
+
+              <p className="text-xs text-gray-400 text-center">
+                Нет аккаунта? Просто введи email и пароль — зарегистрируем автоматически
               </p>
             </div>
-          )}
+          </div>
+        )}
 
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
-            <p className="text-xs text-blue-900">
-              <Icon name="Info" size={14} className="inline mr-1" />
-              {mode === 'login' 
-                ? 'Нет аккаунта? Просто введите email и пароль - аккаунт создастся автоматически при первом входе.' 
-                : 'Если у вас нет VK - введите новый пароль и он сохранится для входа по email.'}
+        {/* Реферальный бонус */}
+        {refCode && (
+          <div className="bg-green-500/20 backdrop-blur border border-green-400/30 rounded-2xl p-3 mb-3">
+            <p className="text-white text-xs text-center">
+              <Icon name="Gift" size={14} className="inline mr-1" />
+              Вас пригласил друг — получите +5 бонусных вопросов к ИИ
             </p>
           </div>
-        </div>
-      </Card>
+        )}
+
+      </div>
     </div>
   );
 }
