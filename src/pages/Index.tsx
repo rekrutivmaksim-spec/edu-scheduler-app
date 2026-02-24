@@ -298,7 +298,26 @@ export default function Index() {
           </button>
         </div>
 
-        {/* ===== БЛОК 4: БЫСТРЫЙ ДОСТУП ===== */}
+        {/* ===== БЛОК 4: МОНЕТИЗАЦИЯ (streak ≥ 5) ===== */}
+        {streak >= 5 && (
+          <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-3xl px-5 py-4 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">🚀</span>
+              <div>
+                <p className="text-white font-bold text-base">Ты занимаешься {streak} {streakWord(streak)} подряд!</p>
+                <p className="text-white/70 text-xs">Хочешь готовиться быстрее?</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/pricing')}
+              className="w-full bg-white text-orange-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
+            >
+              Безлимит занятий — подробнее
+            </button>
+          </div>
+        )}
+
+        {/* ===== БЛОК 5: БЫСТРЫЙ ДОСТУП ===== */}
         <div>
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 px-1">Быстрый доступ</p>
           <div className="grid grid-cols-3 gap-2.5">

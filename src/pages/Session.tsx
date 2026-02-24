@@ -64,6 +64,7 @@ export default function Session() {
   const [checkResult, setCheckResult] = useState('');
   const [checkLoading, setCheckLoading] = useState(false);
   const [isDone, setIsDone] = useState(false);
+  const [showCheck, setShowCheck] = useState(false);
   const [startTime] = useState(Date.now());
   const [elapsedSec, setElapsedSec] = useState(0);
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -166,7 +167,11 @@ export default function Session() {
     if (isLastStep && checkResult) {
       if (timerRef.current) clearInterval(timerRef.current);
       window.dispatchEvent(new Event('session_completed'));
-      setIsDone(true);
+      // Вибрация (если поддерживается)
+      if (navigator.vibrate) navigator.vibrate([80, 40, 120]);
+      // Анимация галочки перед переходом
+      setShowCheck(true);
+      setTimeout(() => setIsDone(true), 900);
       return;
     }
     if (stepIdx < STEPS.length - 1) {
@@ -180,52 +185,113 @@ export default function Session() {
 
   const elapsedMin = Math.max(1, Math.round(elapsedSec / 60));
 
+  // Промежуточная анимация галочки
+  if (showCheck && !isDone) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-2xl" style={{ animation: 'pop-in 0.4s cubic-bezier(0.34,1.56,0.64,1)' }}>
+            <Icon name="Check" size={48} className="text-green-500" />
+          </div>
+          <p className="text-white font-bold text-2xl">Отлично!</p>
+        </div>
+        <style>{`@keyframes pop-in { from { transform: scale(0); opacity:0 } to { transform: scale(1); opacity:1 } }`}</style>
+      </div>
+    );
+  }
+
   if (isDone) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center px-6 text-center">
-        <div className="text-7xl mb-3 animate-bounce">🎉</div>
-        <h1 className="text-white font-extrabold text-3xl mb-1">Молодец!</h1>
-        <p className="text-white/80 text-base mb-0.5">Тема разобрана</p>
-        <p className="text-white/50 text-sm mb-6">{SESSION_TOPIC.topic} · {SESSION_TOPIC.subject}</p>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col px-5 pt-16 pb-10">
 
-        {/* Статистика */}
-        <div className="bg-white/15 backdrop-blur rounded-3xl px-6 py-5 mb-6 w-full max-w-sm">
-          <div className="flex items-center justify-around">
-            <div className="text-center">
-              <p className="text-white font-bold text-2xl">3</p>
-              <p className="text-white/60 text-xs mt-0.5">шага</p>
+        {/* Заголовок */}
+        <div className="text-center mb-6">
+          <div className="text-6xl mb-3">🎉</div>
+          <h1 className="text-white font-extrabold text-3xl mb-1">Занятие завершено!</h1>
+          <p className="text-white/60 text-sm">{SESSION_TOPIC.topic} · {SESSION_TOPIC.subject}</p>
+        </div>
+
+        {/* Блок: серия */}
+        <div className="bg-white/15 backdrop-blur rounded-3xl px-5 py-4 mb-3">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🔥</span>
+            <div className="flex-1">
+              <p className="text-white font-bold text-base">Серия продолжается!</p>
+              <p className="text-white/60 text-xs">Не прерывай — придёт завтра и станет больше</p>
             </div>
-            <div className="w-px h-10 bg-white/20" />
-            <div className="text-center">
-              <p className="text-white font-bold text-2xl">{elapsedMin} мин</p>
-              <p className="text-white/60 text-xs mt-0.5">потрачено</p>
-            </div>
-            <div className="w-px h-10 bg-white/20" />
-            <div className="text-center">
-              <p className="text-white font-bold text-2xl">🔥</p>
-              <p className="text-white/60 text-xs mt-0.5">серия растёт</p>
-            </div>
+          </div>
+          {/* Мини-визуализация дней */}
+          <div className="flex gap-1.5 mt-3">
+            {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((d, i) => {
+              const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+              const isToday = i === todayIdx;
+              const isDoneDay = i <= todayIdx;
+              return (
+                <div key={d} className="flex-1 flex flex-col items-center gap-1">
+                  <div className={`w-full h-6 rounded-lg flex items-center justify-center text-[10px] font-bold ${
+                    isToday ? 'bg-white text-purple-700 shadow-md' :
+                    isDoneDay ? 'bg-white/40 text-white' :
+                    'bg-white/10 text-white/20'
+                  }`}>
+                    {isDoneDay ? '✓' : ''}
+                  </div>
+                  <span className="text-[9px] text-white/50">{d}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Мотивация */}
-        <div className="bg-white/10 rounded-2xl px-5 py-3 mb-6 w-full max-w-sm">
-          <p className="text-white text-sm font-medium">📅 Следующее занятие — завтра</p>
-          <p className="text-white/60 text-xs mt-0.5">Приходи в то же время — не теряй серию</p>
+        {/* Блок: прогресс вырос */}
+        <div className="bg-white/15 backdrop-blur rounded-3xl px-5 py-4 mb-3">
+          <p className="text-white/70 text-xs font-semibold uppercase tracking-wide mb-2">Прогресс вырос</p>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div className="flex justify-between text-xs text-white/70 mb-1">
+                <span>{SESSION_TOPIC.subject}</span>
+                <span>было 48% → стало 50%</span>
+              </div>
+              <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
+                <div className="h-full bg-white rounded-full" style={{ width: '50%', transition: 'width 1s ease' }} />
+              </div>
+            </div>
+            <span className="text-green-300 text-sm font-bold">+2%</span>
+          </div>
         </div>
 
+        {/* Статистика */}
+        <div className="bg-white/10 rounded-3xl px-5 py-3 mb-6 flex items-center justify-around">
+          <div className="text-center">
+            <p className="text-white font-bold text-xl">3</p>
+            <p className="text-white/50 text-xs">шага</p>
+          </div>
+          <div className="w-px h-8 bg-white/20" />
+          <div className="text-center">
+            <p className="text-white font-bold text-xl">{elapsedMin} мин</p>
+            <p className="text-white/50 text-xs">времени</p>
+          </div>
+          <div className="w-px h-8 bg-white/20" />
+          <div className="text-center">
+            <p className="text-white font-bold text-xl">+1</p>
+            <p className="text-white/50 text-xs">к серии</p>
+          </div>
+        </div>
+
+        {/* CTA */}
         <Button
           onClick={() => navigate('/')}
-          className="w-full max-w-sm h-14 bg-white text-purple-700 font-bold text-base rounded-2xl shadow-xl mb-3 active:scale-[0.98] transition-all"
+          className="w-full h-14 bg-white text-purple-700 font-bold text-base rounded-2xl shadow-xl mb-3 active:scale-[0.98] transition-all"
         >
-          На главную 🏠
+          Продолжим завтра 📅
         </Button>
         <button
           onClick={() => navigate('/assistant')}
-          className="text-white/60 text-sm underline underline-offset-2"
+          className="text-white/50 text-sm text-center w-full py-2"
         >
-          Задать ещё вопрос по теме
+          Задать дополнительный вопрос
         </button>
+
+        <style>{`@keyframes pop-in { from { transform: scale(0); opacity:0 } to { transform: scale(1); opacity:1 } }`}</style>
       </div>
     );
   }
