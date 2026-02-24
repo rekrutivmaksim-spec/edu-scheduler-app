@@ -164,40 +164,46 @@ export default function AuthNew() {
       setThinkingStep(s => Math.min(s + 1, THINKING_STEPS.length - 1));
     }, 2500);
 
-    try {
-      // Берём последние 2 пары (4 сообщения) для контекста — чтобы ИИ понимал о чём разговор
-      const historySnap = demoMessages
-        .filter(m => m.text)
-        .slice(-4)
-        .map(m => ({ role: m.role, content: m.text }));
-      const res = await fetch(AI_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'demo_ask', question: q, history: historySnap }),
-      });
-      const data = await res.json();
-      const raw = sanitizeText(data.answer || data.response || data.message || 'Не удалось получить ответ');
-      if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
-      setDemoLoading(false);
-      setThinkingStep(0);
-      // Добавляем пустышку-placeholder, потом заменим через typing
-      setDemoMessages(prev => [...prev, { role: 'assistant', text: '' }]);
-      typeAnswer(raw, () => {
-        setDemoMessages(prev => {
-          const copy = [...prev];
-          copy[copy.length - 1] = { role: 'assistant', text: raw };
-          return copy;
+    const historySnap = demoMessages
+      .filter(m => m.text)
+      .slice(-4)
+      .map(m => ({ role: m.role, content: m.text }));
+
+    // Автоповтор до 3 раз — ответ должен прийти всегда
+    let raw = '';
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(AI_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'demo_ask', question: q, history: historySnap }),
         });
-      });
-      return;
-    } catch {
-      setDemoMessages(prev => [...prev, { role: 'assistant', text: 'Проблемы с соединением — попробуй ещё раз.' }]);
-      setDemoCount(c => c - 1);
-    } finally {
-      if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
-      setDemoLoading(false);
-      setThinkingStep(0);
+        const data = await res.json();
+        const candidate = sanitizeText(data.answer || data.response || data.message || '');
+        if (candidate) { raw = candidate; break; }
+      } catch {
+        // сеть упала — пробуем ещё раз
+      }
+      if (attempt < 3) await new Promise(r => setTimeout(r, 1500));
     }
+
+    // Если все 3 попытки без ответа — показываем нейтральный текст
+    if (!raw) {
+      raw = 'Секунду, сервер перегружен. Попробуй задать вопрос ещё раз 🔄';
+      setDemoCount(c => c - 1); // не тратим попытку
+    }
+
+    if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
+    setDemoLoading(false);
+    setThinkingStep(0);
+    setDemoMessages(prev => [...prev, { role: 'assistant', text: '' }]);
+    typeAnswer(raw, () => {
+      setDemoMessages(prev => {
+        const copy = [...prev];
+        copy[copy.length - 1] = { role: 'assistant', text: raw };
+        return copy;
+      });
+    });
   };
 
   const applyReferral = async (token: string) => {
