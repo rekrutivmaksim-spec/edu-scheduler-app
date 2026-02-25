@@ -14,9 +14,14 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-_http = httpx.Client(timeout=httpx.Timeout(22.0, connect=5.0))
-_http_vision = httpx.Client(timeout=httpx.Timeout(22.0, connect=5.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=22.0, http_client=_http)
+_http = httpx.Client(timeout=httpx.Timeout(15.0, connect=4.0))
+_http_vision = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
+client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=15.0, http_client=_http)
+
+# DeepSeek как резервный провайдер
+DEEPSEEK_CHAT_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+_http_ds = httpx.Client(timeout=httpx.Timeout(12.0, connect=3.0))
+client_ds = OpenAI(api_key=DEEPSEEK_CHAT_KEY, base_url='https://api.deepseek.com/v1', timeout=12.0, http_client=_http_ds) if DEEPSEEK_CHAT_KEY else None
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -402,8 +407,8 @@ def sanitize_answer(text):
     return text.strip()
 
 
-_http_demo = httpx.Client(timeout=httpx.Timeout(10.0, connect=4.0))
-_http_fallback = httpx.Client(timeout=httpx.Timeout(8.0, connect=3.0))
+_http_demo = httpx.Client(timeout=httpx.Timeout(8.0, connect=3.0))
+_http_fallback = httpx.Client(timeout=httpx.Timeout(6.0, connect=2.5))
 
 def _call_openai_compat(http_client, url: str, api_key: str, question: str, history: list = None, max_tokens: int = 600) -> str | None:
     """Универсальный вызов OpenAI-совместимого API. Возвращает текст ответа или None."""
