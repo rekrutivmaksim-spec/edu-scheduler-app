@@ -29,7 +29,7 @@ import StudyGroups from "./pages/StudyGroups";
 import Widget from "./pages/Widget";
 import AppStore from "./pages/AppStore";
 import Dashboard from "./pages/Dashboard";
-
+import Exam from "./pages/Exam";
 import University from "./pages/University";
 import NotFound from "./pages/NotFound";
 import Screenshots from "./pages/Screenshots";
@@ -70,6 +70,7 @@ const App = () => (
               <Route path="/widget" element={<Widget />} />
               <Route path="/dashboard" element={<Dashboard />} />
 
+              <Route path="/exam" element={<Exam />} />
               <Route path="/university" element={<University />} />
               <Route path="/screenshots" element={<Screenshots />} />
               <Route path="/session" element={<Session />} />

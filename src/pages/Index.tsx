@@ -12,7 +12,7 @@ import { getTodayTopic } from '@/lib/topics';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
 const QUICK_ACCESS_EGE = [
-  { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/session', color: 'bg-indigo-50 text-indigo-600' },
+  { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/exam', color: 'bg-indigo-50 text-indigo-600' },
   { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
   { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
 ];
@@ -347,11 +347,11 @@ export default function Index() {
           </div>
 
           <button
-            onClick={() => navigate('/session')}
+            onClick={() => navigate('/exam')}
             className="mt-3 w-full flex items-center justify-center gap-2 border-2 border-dashed border-indigo-200 rounded-2xl py-2.5 text-indigo-500 text-sm font-medium hover:bg-indigo-50 transition-colors active:scale-[0.98]"
           >
-            <Icon name="Zap" size={15} />
-            Начать занятие
+            <Icon name="Target" size={15} />
+            Открыть подготовку к экзамену
           </button>
         </div>
 
