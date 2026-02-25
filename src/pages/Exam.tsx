@@ -109,9 +109,12 @@ export default function Exam() {
   const [mode, setMode] = useState<Mode>('explain');
 
   // Лимит вопросов
-  const [questionsLeft, setQuestionsLeft] = useState<number>(3);
+  const [questionsLeft, setQuestionsLeft] = useState<number | null>(null); // null = ещё загружается
+  const [questionsLimit, setQuestionsLimit] = useState<number>(3);
   const [isPremium, setIsPremium] = useState(false);
+  const [isTrial, setIsTrial] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [subLoading, setSubLoading] = useState(true);
 
   // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -136,58 +139,110 @@ export default function Exam() {
   const stats = SUBJECT_STATS[subjectId] ?? { progress: 0, level: 'Базовый', scoreForecast: 0 };
   const daysLeft = daysUntil(examType === 'ege' ? EGE_DATE : OGE_DATE);
 
-  // Загружаем подписку
-  useEffect(() => {
+  // Загружаем подписку и реальный лимит вопросов
+  const loadSubscription = async () => {
     const token = authService.getToken();
-    if (!token) return;
-    fetch(SUBSCRIPTION_URL, {
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    })
-      .then(r => r.json())
-      .then(d => {
-        setIsPremium(d.is_premium || d.is_trial || false);
-        const used = d.daily_questions_used || 0;
-        const limit = d.is_premium || d.is_trial ? 20 : 3;
-        setQuestionsLeft(Math.max(0, limit - used));
-      })
-      .catch(() => {});
-  }, []);
+    if (!token) {
+      // Гость — demo режим, 10 запросов в час (на сервере)
+      setQuestionsLeft(3);
+      setQuestionsLimit(3);
+      setSubLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const d = await res.json();
+      const premium = d.is_premium || false;
+      const trial = d.is_trial || false;
+      setIsPremium(premium);
+      setIsTrial(trial);
+
+      if (trial || premium) {
+        // Безлимит или 20/день
+        const used = d.limits?.ai_questions?.used ?? d.daily_questions_used ?? 0;
+        const max = premium ? 20 : 999;
+        setQuestionsLimit(max);
+        setQuestionsLeft(trial ? 999 : Math.max(0, max - used));
+      } else {
+        // Бесплатный: 3 вопроса в день + бонусные
+        const used = d.daily_questions_used ?? d.limits?.ai_questions?.used ?? 0;
+        const bonus = d.bonus_questions ?? 0;
+        const total = 3 + bonus;
+        setQuestionsLimit(total);
+        setQuestionsLeft(Math.max(0, total - used));
+      }
+    } catch {
+      setQuestionsLeft(3);
+      setQuestionsLimit(3);
+    } finally {
+      setSubLoading(false);
+    }
+  };
+
+  useEffect(() => { loadSubscription(); }, []);
 
   const scrollBottom = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
-  const askAI = async (question: string, history: Message[] = [], useAuth = false): Promise<{ answer: string; remaining?: number }> => {
+  const askAI = async (
+    question: string,
+    history: Message[] = [],
+    currentSubject?: Subject | null,
+    currentMode?: Mode,
+    currentExamType?: ExamType
+  ): Promise<{ answer: string; remaining?: number }> => {
     const token = authService.getToken();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-    if (token && useAuth) {
+    const sub = currentSubject ?? subject;
+    const mod = currentMode ?? mode;
+    const et = currentExamType ?? examType;
+    const examMeta = sub ? `${et}||${sub.name}|${mod}` : undefined;
+
+    if (token) {
+      // Авторизованный пользователь — используем auth endpoint, списываем лимиты реально
       headers['Authorization'] = `Bearer ${token}`;
-    }
+      const body: Record<string, unknown> = {
+        question,
+        exam_meta: examMeta,
+        history: history.slice(-6).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
+      };
+      const res = await fetch(AI_API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
+      const data = await res.json();
 
-    const examMeta = subject ? `${examType}||${subject.name}|${mode}` : undefined;
+      if (res.status === 403 && data.error === 'limit') {
+        setShowPaywall(true);
+        setQuestionsLeft(0);
+        throw new Error('limit');
+      }
 
-    const body: Record<string, unknown> = {
-      question,
-      history: history.slice(-6).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
-    };
+      // Обновляем счётчик из ответа сервера (источник правды)
+      if (data.remaining !== undefined) {
+        setQuestionsLeft(data.remaining);
+      }
 
-    if (token && useAuth) {
-      body.exam_meta = examMeta;
+      return { answer: sanitize(data.answer || data.response || 'Попробуй ещё раз.'), remaining: data.remaining };
     } else {
-      body.action = 'demo_ask';
+      // Гость — demo_ask без авторизации
+      const body = {
+        action: 'demo_ask',
+        question,
+        history: history.slice(-6).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
+      };
+      const res = await fetch(AI_API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
+      const data = await res.json();
+
+      if (res.status === 429) {
+        setShowPaywall(true);
+        throw new Error('limit');
+      }
+
+      // Гость — декрементируем локально
+      setQuestionsLeft(q => (q !== null ? Math.max(0, q - 1) : null));
+
+      return { answer: sanitize(data.answer || data.response || 'Попробуй ещё раз.') };
     }
-
-    const res = await fetch(AI_API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
-    const data = await res.json();
-
-    if (res.status === 403 && data.error === 'limit') {
-      setShowPaywall(true);
-      setQuestionsLeft(0);
-      throw new Error('limit');
-    }
-
-    if (data.remaining !== undefined) setQuestionsLeft(data.remaining);
-
-    return { answer: sanitize(data.answer || data.response || 'Попробуй ещё раз.'), remaining: data.remaining };
   };
 
   const saveChoice = (et: ExamType, s: Subject, m: Mode) => {
@@ -209,25 +264,22 @@ export default function Exam() {
     setLoading(true);
     scrollBottom();
 
-    const token = authService.getToken();
-    const useAuth = !!token;
-
     let prompt = '';
     let quickReplies: string[] = [];
 
     if (m === 'explain') {
-      prompt = `Ты репетитор Studyfay. Пользователь начинает подготовку к ${eType.toUpperCase()} по предмету "${s.name}". Поприветствуй его по имени репетитора, кратко (3-4 предложения) объясни что ты умеешь по этому предмету и предложи выбрать тему или задать вопрос. Используй 1-2 эмодзи. Не пиши длинно.`;
+      prompt = `Ты репетитор Studyfay. Пользователь начинает подготовку к ${eType.toUpperCase()} по предмету "${s.name}". Поприветствуй, кратко (3-4 предложения) объясни что умеешь по этому предмету и предложи выбрать тему или задать вопрос. Используй 1-2 эмодзи. Не пиши длинно.`;
       quickReplies = ['Объясни главные темы', 'Дай типовое задание', 'Разбери сложные места', `Что точно будет на ${eType.toUpperCase()}?`];
     } else if (m === 'practice') {
       prompt = `Ты экзаменатор ${eType.toUpperCase()} по предмету "${s.name}". Дай задание №1 — реальное типовое задание точно как на экзамене. Только условие задачи, без ответа и подсказок. В конце напиши "Жду твой ответ."`;
     } else if (m === 'weak') {
-      prompt = `Ты репетитор по предмету "${s.name}" для ${eType.toUpperCase()}. Скажи что сейчас разберём самые слабые темы, которые часто вызывают ошибки на экзамене. Начни с самой трудной темы: дай короткое объяснение ключевого правила и сразу задание на проверку. Одно задание — жди ответа.`;
+      prompt = `Ты репетитор по предмету "${s.name}" для ${eType.toUpperCase()}. Скажи что разберём самые слабые темы, которые чаще всего вызывают ошибки. Начни с самой трудной: дай короткое объяснение ключевого правила и сразу задание. В конце напиши "Жду ответ."`;
     } else if (m === 'mock') {
-      prompt = `Сегодня имитация реального экзамена ${eType.toUpperCase()} по предмету "${s.name}". Правила: я буду давать задания по порядку от №1, ты отвечаешь — я проверяю и иду дальше. Время ограничено, как на экзамене. Начинаем! Задание №1: дай первое типовое задание точно как в КИМ ${eType.toUpperCase()}. Только условие.`;
+      prompt = `Сегодня имитация реального экзамена ${eType.toUpperCase()} по предмету "${s.name}". Задания идут по порядку как в КИМ. Задание №1: дай первое типовое задание точно как на экзамене. Только условие, без ответа.`;
     }
 
     try {
-      const { answer } = await askAI(prompt, [], useAuth);
+      const { answer } = await askAI(prompt, [], s, m, eType);
       const msg: Message = { role: 'ai', text: answer };
       if (quickReplies.length) msg.quickReplies = quickReplies;
       setMessages([msg]);
@@ -246,7 +298,8 @@ export default function Exam() {
     const msg = (text ?? input).trim();
     if (!msg || loading) return;
 
-    if (questionsLeft <= 0 && !isPremium) {
+    const isUnlimited = isPremium || isTrial;
+    if (!isUnlimited && questionsLeft !== null && questionsLeft <= 0) {
       setShowPaywall(true);
       return;
     }
@@ -257,12 +310,9 @@ export default function Exam() {
     setLoading(true);
     scrollBottom();
 
-    const token = authService.getToken();
-
     try {
-      const { answer } = await askAI(msg, newMessages.slice(-6), !!token);
+      const { answer } = await askAI(msg, newMessages.slice(-6));
       setMessages(prev => [...prev, { role: 'ai', text: answer }]);
-      if (!isPremium) setQuestionsLeft(q => Math.max(0, q - 1));
     } catch (e: unknown) {
       if ((e as Error).message !== 'limit') {
         setMessages(prev => [...prev, { role: 'ai', text: 'Ошибка. Попробуй ещё раз.' }]);
@@ -277,7 +327,8 @@ export default function Exam() {
     const text = userAnswer.trim();
     if (!text || checkLoading) return;
 
-    if (questionsLeft <= 0 && !isPremium) {
+    const isUnlimited = isPremium || isTrial;
+    if (!isUnlimited && questionsLeft !== null && questionsLeft <= 0) {
       setShowPaywall(true);
       return;
     }
@@ -290,16 +341,14 @@ export default function Exam() {
     setCheckLoading(true);
     scrollBottom();
 
-    const token = authService.getToken();
     const nextNum = taskNum + 1;
 
     try {
       const prompt = `Задание: ${lastTask}\n\nОтвет ученика: ${text}\n\nПроверь ответ. Если правильно — начни "Правильно! ✅" и похвали одной фразой. Если неправильно — начни "Неверно ❌" и объясни правильное решение коротко. Потом дай задание №${nextNum} — новое типовое задание ${examType.toUpperCase()} по "${subject?.name}". Только условие, без ответа. В конце напиши "Жду ответ."`;
-      const { answer } = await askAI(prompt, newMessages.slice(-4), !!token);
+      const { answer } = await askAI(prompt, newMessages.slice(-4));
       setMessages(prev => [...prev, { role: 'ai', text: answer }]);
       setTaskNum(nextNum);
       setWaitingAnswer(true);
-      if (!isPremium) setQuestionsLeft(q => Math.max(0, q - 1));
     } catch (e: unknown) {
       if ((e as Error).message !== 'limit') {
         setMessages(prev => [...prev, { role: 'ai', text: 'Ошибка. Попробуй ещё раз.' }]);
@@ -690,22 +739,36 @@ export default function Exam() {
         </div>
 
         {/* Лимит вопросов */}
-        {!isPremium && (
-          <div
-            className={`px-4 py-2 flex items-center justify-between ${questionsLeft <= 1 ? 'bg-red-50' : 'bg-indigo-50'}`}
-            onClick={() => questionsLeft === 0 && setShowPaywall(true)}
-          >
-            <p className={`text-xs font-semibold ${questionsLeft <= 1 ? 'text-red-600' : 'text-indigo-600'}`}>
-              {questionsLeft > 0
-                ? `Осталось ${questionsLeft} ${questionsLeft === 1 ? 'вопрос' : questionsLeft < 5 ? 'вопроса' : 'вопросов'} сегодня`
-                : 'Бесплатные вопросы исчерпаны'}
-            </p>
-            {questionsLeft === 0
-              ? <button onClick={() => setShowPaywall(true)} className="text-xs font-bold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">Premium</button>
-              : <button onClick={() => setShowPaywall(true)} className="text-xs text-indigo-400">Безлимит →</button>
-            }
-          </div>
-        )}
+        {(() => {
+          if (subLoading) return null;
+          if (isTrial) return (
+            <div className="px-4 py-2 bg-green-50 flex items-center justify-between">
+              <p className="text-xs font-semibold text-green-700">✨ Триал — безлимитные вопросы</p>
+            </div>
+          );
+          if (isPremium) return (
+            <div className="px-4 py-2 bg-indigo-50 flex items-center justify-between">
+              <p className="text-xs font-semibold text-indigo-600">
+                Premium: {questionsLeft !== null ? `осталось ${questionsLeft} из ${questionsLimit}` : '...'} сегодня
+              </p>
+            </div>
+          );
+          // Бесплатный
+          const left = questionsLeft ?? 0;
+          return (
+            <div className={`px-4 py-2 flex items-center justify-between ${left <= 1 ? 'bg-red-50' : 'bg-amber-50'}`}>
+              <p className={`text-xs font-semibold ${left <= 1 ? 'text-red-600' : 'text-amber-700'}`}>
+                {left > 0
+                  ? `Осталось ${left} ${left === 1 ? 'вопрос' : left < 5 ? 'вопроса' : 'вопросов'} сегодня`
+                  : 'Бесплатные вопросы исчерпаны'}
+              </p>
+              {left === 0
+                ? <button onClick={() => setShowPaywall(true)} className="text-xs font-bold text-white bg-indigo-600 px-3 py-1 rounded-full">Разблокировать</button>
+                : <button onClick={() => setShowPaywall(true)} className="text-xs text-indigo-500 font-medium">Безлимит →</button>
+              }
+            </div>
+          );
+        })()}
 
         {/* Сообщения */}
         <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
