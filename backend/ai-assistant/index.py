@@ -18,11 +18,6 @@ _http = httpx.Client(timeout=httpx.Timeout(15.0, connect=4.0))
 _http_vision = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
 client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=15.0, http_client=_http)
 
-# DeepSeek как резервный провайдер
-DEEPSEEK_CHAT_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
-_http_ds = httpx.Client(timeout=httpx.Timeout(12.0, connect=3.0))
-client_ds = OpenAI(api_key=DEEPSEEK_CHAT_KEY, base_url='https://api.deepseek.com/v1', timeout=12.0, http_client=_http_ds) if DEEPSEEK_CHAT_KEY else None
-
 CORS_HEADERS = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -442,52 +437,48 @@ def _call_openai_compat(http_client, url: str, api_key: str, question: str, hist
         return None
 
 def ask_ai_demo(question: str, history: list = None) -> tuple:
-    """Демо: Artemox → повтор Artemox → локальный ответ. Всегда возвращает ответ."""
+    """Демо: Artemox → повтор Artemox × 2 → локальный ответ. Всегда возвращает ответ."""
     import time as _t
     t0 = _t.time()
     print(f"[DEMO] start q:{question[:60]}", flush=True)
 
-    # 1️⃣ Artemox
-    answer = _call_openai_compat(_http_demo, "https://api.artemox.com/v1/chat/completions", ARTEMOX_API_KEY, question, history)
-    if answer:
-        print(f"[DEMO] artemox ok time:{_t.time()-t0:.1f}s", flush=True)
-        return answer, 1
+    for attempt in range(3):
+        answer = _call_openai_compat(
+            _http_demo if attempt == 0 else _http_fallback,
+            "https://api.artemox.com/v1/chat/completions",
+            ARTEMOX_API_KEY, question, history
+        )
+        if answer:
+            print(f"[DEMO] artemox ok attempt:{attempt} time:{_t.time()-t0:.1f}s", flush=True)
+            return answer, 1
+        print(f"[DEMO] artemox attempt:{attempt} failed time:{_t.time()-t0:.1f}s", flush=True)
 
-    print(f"[DEMO] artemox failed, retry once time:{_t.time()-t0:.1f}s", flush=True)
-
-    # 2️⃣ Повторная попытка Artemox
-    answer = _call_openai_compat(_http_fallback, "https://api.artemox.com/v1/chat/completions", ARTEMOX_API_KEY, question, history)
-    if answer:
-        print(f"[DEMO] artemox retry ok time:{_t.time()-t0:.1f}s", flush=True)
-        return answer, 1
-
-    print(f"[DEMO] artemox retry failed, smart fallback time:{_t.time()-t0:.1f}s", flush=True)
-
-    # 3️⃣ Умный локальный ответ — всегда работает
+    # Локальный ответ — всегда работает
     return _smart_demo_fallback(question), 0
 
 def _smart_demo_fallback(question: str) -> str:
-    """Локальный ответ на основе ключевых слов — когда оба API недоступны."""
+    """Локальный ответ на основе ключевых слов — когда все попытки API не удались."""
     q = question.lower()
-    # Проверяем кэш
+    # Сначала проверяем кэш тем
     cached = get_demo_cache(question)
     if cached:
         return cached
-    # Универсальный ответ по типу запроса
-    if any(w in q for w in ['объясни', 'что такое', 'расскажи', 'как работает']):
+    # Ответ по типу запроса — без упоминания нагрузки/ошибок
+    if any(w in q for w in ['объясни', 'что такое', 'расскажи', 'как работает', 'что это']):
         return (
-            "Коротко: это важная тема, которую стоит разобрать подробнее.\n"
-            "Пример: в ЕГЭ она встречается в заданиях части 2.\n"
-            "Задай вопрос ещё раз — ИИ сейчас восстанавливается после нагрузки."
+            "Это важная тема для экзамена! 📚\n"
+            "Задай вопрос чуть конкретнее — например, укажи конкретное понятие или формулу, и я разберу подробно."
         )
-    if any(w in q for w in ['задание', 'задача', 'пример', 'реши']):
+    if any(w in q for w in ['задание', 'задача', 'пример', 'реши', 'дай задание']):
         return (
-            "Коротко: сейчас сервер перегружен, задание сформировать не могу.\n"
-            "Попробуй через 10–15 секунд — обычно это помогает."
+            "Давай порешаем! ✏️\n"
+            "Напиши конкретную тему — например, «задание по теореме Пифагора» или «задача по закону Ома» — и я дам тебе задание уровня ЕГЭ."
         )
+    if any(w in q for w in ['привет', 'здравствуй', 'хай', 'начнём', 'начнем']):
+        return "Привет! Я Studyfay — твой репетитор 👋\nЗадавай любой вопрос по школьным предметам — разберём вместе!"
     return (
-        "Коротко: отличный вопрос, но ИИ сейчас под нагрузкой.\n"
-        "Попробуй задать его снова через несколько секунд — всегда отвечаю!"
+        "Хороший вопрос! 🤔\n"
+        "Уточни тему или предмет — и я дам точный ответ с примером."
     )
 
 
@@ -547,24 +538,28 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
                 messages_list.append({"role": role, "content": content[:400]})
     messages_list.append({"role": "user", "content": user_content})
 
-    try:
-        print(f"[AI] -> Artemox {'[exam]' if exam_meta else ''} q_len:{len(user_content)}", flush=True)
-        resp = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=messages_list,
-            temperature=0.5,
-            max_tokens=350,
-        )
-        answer = resp.choices[0].message.content
-        tokens = resp.usage.total_tokens if resp.usage else 0
-        print(f"[AI] Artemox OK tokens:{tokens}", flush=True)
-        answer = sanitize_answer(answer)
-        if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
-            answer = answer.rstrip() + '.'
-        return answer, tokens
-    except Exception as e:
-        print(f"[AI] Artemox FAIL: {type(e).__name__}: {str(e)[:200]}", flush=True)
-        return build_smart_fallback(question, context), 0
+    for attempt in range(3):
+        try:
+            print(f"[AI] -> Artemox {'[exam]' if exam_meta else ''} attempt:{attempt} q_len:{len(user_content)}", flush=True)
+            resp = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=messages_list,
+                temperature=0.5,
+                max_tokens=350,
+            )
+            answer = resp.choices[0].message.content
+            tokens = resp.usage.total_tokens if resp.usage else 0
+            print(f"[AI] Artemox OK attempt:{attempt} tokens:{tokens}", flush=True)
+            answer = sanitize_answer(answer)
+            if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
+                answer = answer.rstrip() + '.'
+            return answer, tokens
+        except Exception as e:
+            print(f"[AI] Artemox FAIL attempt:{attempt}: {type(e).__name__}: {str(e)[:200]}", flush=True)
+            if attempt < 2:
+                import time as _t
+                _t.sleep(0.5)
+    return build_smart_fallback(question, context), 0
 
 
 def ocr_image(image_base64):
@@ -654,11 +649,19 @@ def ask_ai_vision(question, system, image_base64):
         return "Не удалось распознать текст с фото. Попробуй сфотографировать чётче или перепиши условие задачи текстом — разберём вместе!", 0
 
 def build_smart_fallback(question, context):
-    """Fallback когда Artemox недоступен — честно говорим и просим повторить"""
+    """Fallback когда Artemox недоступен — умный ответ без упоминания ошибок"""
     q = question.lower().strip()
     if any(w in q for w in ['привет', 'здравствуй', 'хай']):
         return "Привет! Я Studyfay — твой репетитор. Задавай любой вопрос — разберём вместе!"
-    return "Сервер перегружен, попробуй отправить вопрос ещё раз — обычно со второго раза всё работает!"
+    # Пробуем найти в кэше тем
+    cached = get_demo_cache(question)
+    if cached:
+        return cached
+    if any(w in q for w in ['объясни', 'что такое', 'расскажи', 'как работает']):
+        return "Давай разберём эту тему! 📚\nУточни, какой именно аспект тебя интересует — дам точный ответ с примером."
+    if any(w in q for w in ['задание', 'задача', 'пример', 'реши']):
+        return "Готов порешать! ✏️\nНапиши тему задания конкретнее — и я дам задачу уровня ЕГЭ с разбором."
+    return "Хороший вопрос! 🤔\nУточни тему или предмет — отвечу подробно с примером."
 
 DEMO_SYSTEM = "Ты репетитор по школьным предметам. Отвечай ТОЛЬКО по-русски. Без LaTeX и формул со спецсимволами — пиши формулы текстом (например x^2, sqrt(x)). Давай точные, правильные ответы. Если проверяешь задание — сначала реши его сам, потом сравни с ответом ученика. Объясняй ошибки чётко."
 
