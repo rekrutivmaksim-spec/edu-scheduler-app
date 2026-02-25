@@ -405,8 +405,8 @@ def sanitize_answer(text):
     return text.strip()
 
 
-_http_demo = httpx.Client(timeout=httpx.Timeout(8.0, connect=3.0))
-_http_fallback = httpx.Client(timeout=httpx.Timeout(6.0, connect=2.5))
+_http_demo = httpx.Client(timeout=httpx.Timeout(5.0, connect=3.0))
+_http_fallback = httpx.Client(timeout=httpx.Timeout(5.0, connect=2.5))
 
 def _call_openai_compat(http_client, url: str, api_key: str, question: str, history: list = None, max_tokens: int = 600) -> str | None:
     """Универсальный вызов OpenAI-совместимого API. Возвращает текст ответа или None."""
@@ -445,11 +445,11 @@ def ask_ai_demo(question: str, history: list = None) -> tuple:
     t0 = _t.time()
     print(f"[DEMO] start q:{question[:60]}", flush=True)
 
-    for attempt in range(3):
+    for attempt in range(2):
         answer = _call_openai_compat(
             _http_demo if attempt == 0 else _http_fallback,
             f"{OPENROUTER_BASE_URL}/chat/completions",
-            OPENROUTER_API_KEY, question, history
+            OPENROUTER_API_KEY, question, history, max_tokens=300
         )
         if answer:
             print(f"[DEMO] artemox ok attempt:{attempt} time:{_t.time()-t0:.1f}s", flush=True)
