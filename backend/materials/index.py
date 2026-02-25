@@ -188,15 +188,15 @@ def split_text_into_chunks(text: str) -> list:
 
 
 def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
-    artemox_key = os.environ.get('OPENAI_API_KEY') or os.environ.get('ARTEMOX_API_KEY')
+    openrouter_key = os.environ.get('OPENROUTER_API_KEY', '')
     
-    if not artemox_key or not full_text or len(full_text) < 10:
+    if not openrouter_key or not full_text or len(full_text) < 10:
         return {'summary': 'Документ загружен', 'subject': 'Общее', 'title': filename[:50], 'tasks': []}
     
-    print(f"[MATERIALS] Artemox анализ начат, длина текста={len(full_text)}")
+    print(f"[MATERIALS] OpenRouter/Llama анализ начат, длина текста={len(full_text)}")
     
     try:
-        client = OpenAI(api_key=artemox_key, base_url="https://api.artemox.com/v1", timeout=22.0)
+        client = OpenAI(api_key=openrouter_key, base_url="https://openrouter.ai/api/v1", timeout=22.0)
         # Берём больше текста для анализа (начало + середина + конец)
         text_start = full_text[:2500]
         text_middle = full_text[len(full_text)//2:len(full_text)//2+2500] if len(full_text) > 5000 else ""
@@ -212,7 +212,7 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
 {{"summary": "Подробное резюме документа (5-7 предложений, основные темы и концепции)", "subject": "Предмет", "title": "Название (макс 50 символов)", "tasks": [{{"title": "Задача", "deadline": "YYYY-MM-DD или null"}}]}}"""
         
         response = client.chat.completions.create(
-            model="deepseek-chat",
+            model="meta-llama/llama-4-maverick",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=500,
             response_format={"type": "json_object"})
@@ -224,7 +224,7 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
             content = content.split('```')[1].split('```')[0].strip()
         
         result = json.loads(content)
-        print(f"[MATERIALS] Artemox анализ завершен: title={result.get('title')}, subject={result.get('subject')}")
+        print(f"[MATERIALS] OpenRouter/Llama анализ завершен: title={result.get('title')}, subject={result.get('subject')}")
         return result
     except Exception as e:
         print(f"[MATERIALS] Artemox ошибка: {e}")

@@ -13,11 +13,12 @@ from rate_limiter import check_rate_limit, get_client_ip
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
+LLAMA_MODEL = 'meta-llama/llama-4-maverick'
 
 ai_client = OpenAI(
-    api_key=ARTEMOX_API_KEY,
-    base_url='https://api.artemox.com/v1',
+    api_key=OPENROUTER_API_KEY,
+    base_url='https://openrouter.ai/api/v1',
     timeout=22.0
 )
 
@@ -163,7 +164,7 @@ def generate_plan_with_ai(subject: str, difficulty: str, days_left: int, context
     print(f"[STUDY-PLAN] Generating plan: subject={subject}, difficulty={difficulty}, days={capped_days}", flush=True)
 
     response = ai_client.chat.completions.create(
-        model='deepseek-chat',
+        model=LLAMA_MODEL,
         messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': f'Создай план подготовки к экзамену по предмету "{subject}" на {capped_days} дней.'},

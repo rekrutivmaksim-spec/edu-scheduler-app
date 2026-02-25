@@ -11,12 +11,15 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+
+LLAMA_MODEL = 'meta-llama/llama-4-maverick'
+OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 
 _http = httpx.Client(timeout=httpx.Timeout(15.0, connect=4.0))
 _http_vision = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
-client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=15.0, http_client=_http)
+client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL, timeout=15.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -417,7 +420,7 @@ def _call_openai_compat(http_client, url: str, api_key: str, question: str, hist
                     messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": question[:800]})
         payload = {
-            "model": "deepseek-chat",
+            "model": LLAMA_MODEL,
             "messages": messages,
             "temperature": 0.5,
             "max_tokens": max_tokens,
@@ -445,8 +448,8 @@ def ask_ai_demo(question: str, history: list = None) -> tuple:
     for attempt in range(3):
         answer = _call_openai_compat(
             _http_demo if attempt == 0 else _http_fallback,
-            "https://api.artemox.com/v1/chat/completions",
-            ARTEMOX_API_KEY, question, history
+            f"{OPENROUTER_BASE_URL}/chat/completions",
+            OPENROUTER_API_KEY, question, history
         )
         if answer:
             print(f"[DEMO] artemox ok attempt:{attempt} time:{_t.time()-t0:.1f}s", flush=True)
@@ -540,22 +543,22 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
 
     for attempt in range(3):
         try:
-            print(f"[AI] -> Artemox {'[exam]' if exam_meta else ''} attempt:{attempt} q_len:{len(user_content)}", flush=True)
+            print(f"[AI] -> OpenRouter/Llama {'[exam]' if exam_meta else ''} attempt:{attempt} q_len:{len(user_content)}", flush=True)
             resp = client.chat.completions.create(
-                model="deepseek-chat",
+                model=LLAMA_MODEL,
                 messages=messages_list,
                 temperature=0.5,
                 max_tokens=350,
             )
             answer = resp.choices[0].message.content
             tokens = resp.usage.total_tokens if resp.usage else 0
-            print(f"[AI] Artemox OK attempt:{attempt} tokens:{tokens}", flush=True)
+            print(f"[AI] OpenRouter/Llama OK attempt:{attempt} tokens:{tokens}", flush=True)
             answer = sanitize_answer(answer)
             if answer and not answer.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
                 answer = answer.rstrip() + '.'
             return answer, tokens
         except Exception as e:
-            print(f"[AI] Artemox FAIL attempt:{attempt}: {type(e).__name__}: {str(e)[:200]}", flush=True)
+            print(f"[AI] OpenRouter/Llama FAIL attempt:{attempt}: {type(e).__name__}: {str(e)[:200]}", flush=True)
             if attempt < 2:
                 import time as _t
                 _t.sleep(0.5)
@@ -625,10 +628,10 @@ def ask_ai_vision(question, system, image_base64):
             combined = f"{user_q}\n\nТекст с фото:\n{ocr_text}"
         else:
             combined = f"Разбери задачу пошагово и объясни решение:\n\n{ocr_text}"
-        print(f"[AI] Vision->text, sending to deepseek-chat: {combined[:80]}", flush=True)
+        print(f"[AI] Vision->text, sending to Llama: {combined[:80]}", flush=True)
         try:
             resp = client.chat.completions.create(
-                model="deepseek-chat",
+                model=LLAMA_MODEL,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": combined[:1200]}

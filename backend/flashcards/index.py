@@ -11,10 +11,11 @@ from openai import OpenAI
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-ARTEMOX_API_KEY = os.environ.get('ARTEMOX_API_KEY', 'sk-Z7PQzAcoYmPrv3O7x4ZkyQ')
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
+LLAMA_MODEL = 'meta-llama/llama-4-maverick'
 
 _http = httpx.Client(timeout=httpx.Timeout(22.0, connect=3.0))
-ai_client = OpenAI(api_key=ARTEMOX_API_KEY, base_url='https://api.artemox.com/v1', timeout=22.0, http_client=_http)
+ai_client = OpenAI(api_key=OPENROUTER_API_KEY, base_url='https://openrouter.ai/api/v1', timeout=22.0, http_client=_http)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -256,7 +257,7 @@ def handle_generate(conn, user_id, body):
 
     try:
         response = ai_client.chat.completions.create(
-            model='deepseek-chat',
+            model=LLAMA_MODEL,
             messages=[{'role': 'user', 'content': prompt}],
             max_tokens=2000,
             temperature=0.7
