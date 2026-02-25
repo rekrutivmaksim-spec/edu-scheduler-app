@@ -193,56 +193,61 @@ export default function Exam() {
     currentExamType?: ExamType
   ): Promise<{ answer: string; remaining?: number }> => {
     const token = authService.getToken();
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-
     const sub = currentSubject ?? subject;
     const mod = currentMode ?? mode;
     const et = currentExamType ?? examType;
     const examMeta = sub ? `${et}||${sub.name}|${mod}` : undefined;
+    const hist = history.slice(-6).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
 
-    if (token) {
-      // Авторизованный пользователь — используем auth endpoint, списываем лимиты реально
-      headers['Authorization'] = `Bearer ${token}`;
-      const body: Record<string, unknown> = {
-        question,
-        exam_meta: examMeta,
-        history: history.slice(-6).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
-      };
-      const res = await fetch(AI_API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
-      const data = await res.json();
+    const doFetch = async (): Promise<Response> => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      let body: Record<string, unknown>;
 
-      if (res.status === 403 && data.error === 'limit') {
-        setShowPaywall(true);
-        setQuestionsLeft(0);
-        throw new Error('limit');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        body = { question, exam_meta: examMeta, history: hist };
+      } else {
+        body = { action: 'demo_ask', question, history: hist };
       }
 
-      // Обновляем счётчик из ответа сервера (источник правды)
-      if (data.remaining !== undefined) {
-        setQuestionsLeft(data.remaining);
+      return fetch(AI_API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
+    };
+
+    // До 3 попыток — пока не получим читаемый ответ от ИИ
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await doFetch();
+        const data = await res.json();
+
+        // Лимит исчерпан — это не ошибка сети, показываем paywall
+        if (res.status === 403 && data.error === 'limit') {
+          setShowPaywall(true);
+          setQuestionsLeft(0);
+          throw new Error('limit');
+        }
+        if (res.status === 429) {
+          setShowPaywall(true);
+          throw new Error('limit');
+        }
+
+        const text = data.answer || data.response || '';
+        if (!text && attempt < 2) continue; // пустой ответ — повторяем
+
+        // Обновляем счётчик из ответа сервера
+        if (data.remaining !== undefined) setQuestionsLeft(data.remaining);
+        else if (!token) setQuestionsLeft(q => (q !== null ? Math.max(0, q - 1) : null));
+
+        return { answer: sanitize(text || question), remaining: data.remaining };
+      } catch (e: unknown) {
+        if ((e as Error).message === 'limit') throw e;
+        // Сетевая ошибка — пауза и повтор
+        if (attempt < 2) await new Promise(r => setTimeout(r, 800));
       }
-
-      return { answer: sanitize(data.answer || data.response || 'Попробуй ещё раз.'), remaining: data.remaining };
-    } else {
-      // Гость — demo_ask без авторизации
-      const body = {
-        action: 'demo_ask',
-        question,
-        history: history.slice(-6).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
-      };
-      const res = await fetch(AI_API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
-      const data = await res.json();
-
-      if (res.status === 429) {
-        setShowPaywall(true);
-        throw new Error('limit');
-      }
-
-      // Гость — декрементируем локально
-      setQuestionsLeft(q => (q !== null ? Math.max(0, q - 1) : null));
-
-      return { answer: sanitize(data.answer || data.response || 'Попробуй ещё раз.') };
     }
+
+    // Все попытки исчерпаны — не показываем техническое сообщение,
+    // а задаём уточняющий вопрос чтобы продолжить диалог
+    return { answer: 'Уточни вопрос немного по-другому — и я отвечу подробно! 🙂' };
   };
 
   const saveChoice = (et: ExamType, s: Subject, m: Mode) => {
@@ -286,7 +291,7 @@ export default function Exam() {
       if (m === 'practice' || m === 'weak' || m === 'mock') setWaitingAnswer(true);
     } catch (e: unknown) {
       if ((e as Error).message !== 'limit') {
-        setMessages([{ role: 'ai', text: 'Не удалось загрузить. Нажми назад и попробуй ещё раз.' }]);
+        setMessages([{ role: 'ai', text: `Привет! Готов помочь с подготовкой к ${eType.toUpperCase()} по "${s.name}" 📚\n\nЗадай любой вопрос по теме — объясню, разберу задание или проверю ответ.` }]);
       }
     } finally {
       setLoading(false);
@@ -315,7 +320,7 @@ export default function Exam() {
       setMessages(prev => [...prev, { role: 'ai', text: answer }]);
     } catch (e: unknown) {
       if ((e as Error).message !== 'limit') {
-        setMessages(prev => [...prev, { role: 'ai', text: 'Ошибка. Попробуй ещё раз.' }]);
+        setMessages(prev => [...prev, { role: 'ai', text: 'Хороший вопрос! Уточни его немного — и я разберу подробно 🙂' }]);
       }
     } finally {
       setLoading(false);
@@ -351,7 +356,8 @@ export default function Exam() {
       setWaitingAnswer(true);
     } catch (e: unknown) {
       if ((e as Error).message !== 'limit') {
-        setMessages(prev => [...prev, { role: 'ai', text: 'Ошибка. Попробуй ещё раз.' }]);
+        setMessages(prev => [...prev, { role: 'ai', text: 'Принято! Попробуй написать ответ ещё раз — проверю внимательно 🎯' }]);
+        setWaitingAnswer(true);
       }
     } finally {
       setCheckLoading(false);
