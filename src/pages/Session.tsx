@@ -98,6 +98,9 @@ export default function Session() {
   const [checkLoading, setCheckLoading] = useState(false);
   const [answerCorrect, setAnswerCorrect] = useState<boolean | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [correctAnswer, setCorrectAnswer] = useState('');
+  const [correctAnswerLoading, setCorrectAnswerLoading] = useState(false);
+  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
   const [startTime, setStartTime] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -232,6 +235,9 @@ export default function Session() {
     setCheckResult('');
     setAnswerCorrect(null);
     setRetryCount(0);
+    setCorrectAnswer('');
+    setCorrectAnswerLoading(false);
+    setShowCorrectAnswer(false);
     startLoaderPhrases(step.loaderPhrases);
 
     try {
@@ -321,8 +327,35 @@ export default function Session() {
     setRetryCount(r => r + 1);
   };
 
+  const handleShowCorrect = async () => {
+    if (correctAnswer) { setShowCorrectAnswer(true); return; }
+    setCorrectAnswerLoading(true);
+    try {
+      const token = authService.getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(AI_API_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'demo_ask',
+          question: `Задание: ${content}\n\nДай подробное правильное решение этого задания с объяснением каждого шага. Кратко и понятно.`,
+        }),
+      });
+      const data = await res.json();
+      const raw = sanitize(data.answer || data.response || '');
+      setCorrectAnswer(raw);
+      setShowCorrectAnswer(true);
+    } catch {
+      setCorrectAnswer('Не удалось загрузить решение. Попробуй позже.');
+      setShowCorrectAnswer(true);
+    } finally {
+      setCorrectAnswerLoading(false);
+    }
+  };
+
   const goNext = () => {
-    if (stepIdx === STEPS.length - 1 && checkResult && answerCorrect) {
+    if (stepIdx === STEPS.length - 1 && checkResult && (answerCorrect || showCorrectAnswer)) {
       if (timerRef.current) clearInterval(timerRef.current);
       window.dispatchEvent(new Event('session_completed'));
       if (navigator.vibrate) navigator.vibrate([80, 40, 120]);
@@ -704,15 +737,39 @@ export default function Session() {
               <p>{checkResult}</p>
             </div>
 
-            {/* Попробовать ещё раз — только при неверном */}
+            {/* Попробовать ещё раз + Показать правильный — только при неверном */}
             {!answerCorrect && (
-              <button
-                onClick={handleRetry}
-                className="mt-3 w-full bg-amber-100 hover:bg-amber-200 text-amber-700 font-semibold text-sm rounded-xl py-2.5 transition-colors flex items-center justify-center gap-2"
-              >
-                <Icon name="RotateCcw" size={14} />
-                Попробовать ещё раз
-              </button>
+              <div className="mt-3 flex flex-col gap-2">
+                <button
+                  onClick={handleRetry}
+                  className="w-full bg-amber-100 hover:bg-amber-200 text-amber-700 font-semibold text-sm rounded-xl py-2.5 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Icon name="RotateCcw" size={14} />
+                  Попробовать ещё раз
+                </button>
+                {!showCorrectAnswer && (
+                  <button
+                    onClick={handleShowCorrect}
+                    disabled={correctAnswerLoading}
+                    className="w-full bg-white border-2 border-amber-200 text-amber-600 font-semibold text-sm rounded-xl py-2.5 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {correctAnswerLoading
+                      ? <><Icon name="Loader2" size={14} className="animate-spin" /> Загружаю решение…</>
+                      : <><Icon name="Lightbulb" size={14} /> Показать правильный ответ</>
+                    }
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Правильный ответ */}
+            {showCorrectAnswer && correctAnswer && (
+              <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <Icon name="Lightbulb" size={12} /> Правильное решение
+                </p>
+                <p className="text-sm text-indigo-900 leading-relaxed whitespace-pre-line">{correctAnswer}</p>
+              </div>
             )}
           </div>
         )}
@@ -736,6 +793,13 @@ export default function Session() {
               className="w-full h-[52px] bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(34,197,94,0.35)] active:scale-[0.98] transition-all animate-in fade-in duration-300"
             >
               Завершить занятие 🎉
+            </Button>
+          ) : isTaskStep && showCorrectAnswer && showCheckResult ? (
+            <Button
+              onClick={goNext}
+              className="w-full h-[52px] bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(99,102,241,0.35)] active:scale-[0.98] transition-all animate-in fade-in duration-300"
+            >
+              Понятно, завершить <Icon name="ArrowRight" size={16} className="ml-1.5" />
             </Button>
           ) : isTaskStep && !checkResult && !showAnswerForm ? null : null}
         </div>
