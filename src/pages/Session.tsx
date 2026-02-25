@@ -447,18 +447,34 @@ export default function Session() {
           </div>
         </div>
 
-        <Button
-          onClick={startSession}
-          disabled={sessionAllowed === null}
-          className="w-full max-w-xs h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all mb-3 disabled:opacity-60"
-        >
-          {sessionAllowed === null
-            ? <><Icon name="Loader2" size={18} className="animate-spin mr-2 text-purple-400" />Загружаю...</>
-            : <>Начать <Icon name="ArrowRight" size={20} className="ml-1.5" /></>
-          }
-        </Button>
+        {sessionAllowed === false ? (
+          <div className="w-full max-w-xs mb-3">
+            <div className="bg-white/15 border border-white/20 rounded-2xl px-5 py-4 mb-3 text-center">
+              <p className="text-2xl mb-1">🚫</p>
+              <p className="text-white font-bold text-base mb-1">Занятие на сегодня использовано</p>
+              <p className="text-white/60 text-sm">Бесплатно — 1 занятие в день. Приходи завтра или подключи Premium.</p>
+            </div>
+            <button
+              onClick={() => navigate('/pricing')}
+              className="w-full h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all"
+            >
+              Безлимит — 449 ₽/мес →
+            </button>
+          </div>
+        ) : (
+          <Button
+            onClick={startSession}
+            disabled={sessionAllowed === null}
+            className="w-full max-w-xs h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all mb-3 disabled:opacity-60"
+          >
+            {sessionAllowed === null
+              ? <><Icon name="Loader2" size={18} className="animate-spin mr-2 text-purple-400" />Загружаю...</>
+              : <>Начать <Icon name="ArrowRight" size={20} className="ml-1.5" /></>
+            }
+          </Button>
+        )}
 
-        {streak >= 3 && (
+        {sessionAllowed !== false && streak >= 3 && (
           <div className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 w-full max-w-xs text-center mb-3">
             <p className="text-white font-bold text-sm mb-1">🔥 Ты занимаешься {streak} дней подряд!</p>
             <p className="text-white/60 text-xs mb-3">Убери ограничения — занимайся без лимита</p>
