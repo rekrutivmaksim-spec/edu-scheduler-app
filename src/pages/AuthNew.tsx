@@ -294,19 +294,10 @@ export default function AuthNew() {
     } catch (e) { console.warn('referral', e); }
   };
 
-  const afterLogin = async (data: { token: string; user: { full_name: string } }, fromRegister = false) => {
+  const afterLogin = async (data: { token: string; user: { full_name: string } }) => {
     authService.setToken(data.token);
     authService.setUser(data.user);
     await applyReferral(data.token);
-    if (fromRegister && demoCount > 0) {
-      // Возвращаем в демо-чат с приветственным сообщением
-      setDemoMessages(prev => [
-        ...prev,
-        { role: 'assistant', text: 'Аккаунт создан. Продолжаем 👇\nТеперь история сохраняется, задавай вопросы без ограничений.' },
-      ]);
-      setScreen('demo');
-      return;
-    }
     toast({ title: '✅ Вход выполнен!', description: `Добро пожаловать, ${data.user.full_name}!` });
     navigate('/');
   };
@@ -360,7 +351,7 @@ export default function AuthNew() {
       });
       const data = await res.json();
       if (res.ok && data.token) {
-        await afterLogin(data, true);
+        await afterLogin(data);
       } else {
         setFieldErrors({ email: data.error || 'Не удалось создать аккаунт' });
       }
