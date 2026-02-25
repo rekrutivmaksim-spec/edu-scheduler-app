@@ -189,9 +189,13 @@ def handler(event: dict, context) -> dict:
                     # Если пользователя нет - создаем автоматически
                     else:
                         device_id = body.get('device_id', '').strip()
-                        
-                        # ЗАЩИТА: если device_id передан — проверяем, был ли триал на этом устройстве
+                        browser_fp = body.get('browser_fp', '').strip()[:64]
+
+                        # --- МНОГОУРОВНЕВАЯ ЗАЩИТА ОТ ДУБЛИКАТОВ ---
                         trial_allowed = True
+                        block_reason = None
+
+                        # 1. Проверка по device_id
                         if device_id:
                             cur.execute("""
                                 SELECT id FROM users
@@ -200,7 +204,47 @@ def handler(event: dict, context) -> dict:
                             """, (device_id,))
                             if cur.fetchone():
                                 trial_allowed = False
-                                print(f"[AUTH] device_id {device_id} уже использовал триал — новый аккаунт без триала")
+                                block_reason = 'device_id'
+
+                        # 2. Проверка по browser fingerprint
+                        if trial_allowed and browser_fp:
+                            cur.execute("""
+                                SELECT COUNT(*) FROM users
+                                WHERE browser_fp = %s AND is_trial_used = TRUE
+                            """, (browser_fp,))
+                            fp_count = cur.fetchone()[0]
+                            if fp_count >= 1:
+                                trial_allowed = False
+                                block_reason = 'browser_fp'
+
+                        # 3. Проверка по IP — не более 2 триалов с одного IP
+                        if trial_allowed:
+                            cur.execute("""
+                                SELECT COUNT(*) FROM users
+                                WHERE reg_ip = %s AND is_trial_used = FALSE
+                                AND created_at > CURRENT_TIMESTAMP - INTERVAL '30 days'
+                            """, (client_ip,))
+                            ip_trial_count = cur.fetchone()[0]
+                            if ip_trial_count >= 2:
+                                trial_allowed = False
+                                block_reason = 'ip_limit'
+
+                        # 4. Cooldown: не более 3 регистраций с одного IP в сутки
+                        cur.execute("""
+                            SELECT COUNT(*) FROM users
+                            WHERE reg_ip = %s AND created_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                        """, (client_ip,))
+                        ip_reg_today = cur.fetchone()[0]
+                        if ip_reg_today >= 3:
+                            print(f"[AUTH] IP {client_ip} превысил лимит регистраций сегодня ({ip_reg_today})", flush=True)
+                            return {
+                                'statusCode': 429,
+                                'headers': headers,
+                                'body': json.dumps({'error': 'Слишком много регистраций с вашего IP. Попробуйте завтра.'})
+                            }
+
+                        if block_reason:
+                            print(f"[AUTH] Триал заблокирован: {block_reason} device={device_id} fp={browser_fp} ip={client_ip}", flush=True)
                         
                         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                         full_name = email.split('@')[0]
@@ -215,17 +259,17 @@ def handler(event: dict, context) -> dict:
                                     trial_ends_at, is_trial_used,
                                     ai_tokens_limit, ai_tokens_used, ai_tokens_reset_at,
                                     daily_questions_used, daily_questions_reset_at,
-                                    referral_code, device_id
+                                    referral_code, device_id, browser_fp, reg_ip
                                 )
                                 VALUES (
                                     %s, %s, %s, CURRENT_TIMESTAMP,
                                     CURRENT_TIMESTAMP + INTERVAL '7 days', FALSE,
                                     50000, 0, CURRENT_TIMESTAMP + INTERVAL '1 month',
                                     0, CURRENT_TIMESTAMP,
-                                    %s, %s
+                                    %s, %s, %s, %s
                                 )
                                 RETURNING id, email, full_name, university, faculty, course, trial_ends_at
-                            """, (email, password_hash, full_name, referral_code, device_id or None))
+                            """, (email, password_hash, full_name, referral_code, device_id or None, browser_fp or None, client_ip or None))
                         else:
                             cur.execute("""
                                 INSERT INTO users (
@@ -233,17 +277,17 @@ def handler(event: dict, context) -> dict:
                                     trial_ends_at, is_trial_used,
                                     ai_tokens_limit, ai_tokens_used, ai_tokens_reset_at,
                                     daily_questions_used, daily_questions_reset_at,
-                                    referral_code, device_id
+                                    referral_code, device_id, browser_fp, reg_ip
                                 )
                                 VALUES (
                                     %s, %s, %s, CURRENT_TIMESTAMP,
                                     NULL, TRUE,
                                     0, 0, CURRENT_TIMESTAMP + INTERVAL '1 month',
                                     0, CURRENT_TIMESTAMP,
-                                    %s, %s
+                                    %s, %s, %s, %s
                                 )
                                 RETURNING id, email, full_name, university, faculty, course, trial_ends_at
-                            """, (email, password_hash, full_name, referral_code, device_id or None))
+                            """, (email, password_hash, full_name, referral_code, device_id or None, browser_fp or None, client_ip or None))
                         
                         new_user = cur.fetchone()
                         conn.commit()

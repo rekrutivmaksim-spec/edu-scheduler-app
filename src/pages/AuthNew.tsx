@@ -17,6 +17,40 @@ async function getDeviceId(): Promise<string> {
   }
 }
 
+async function getBrowserFingerprint(): Promise<string> {
+  try {
+    const components = [
+      navigator.userAgent,
+      navigator.language,
+      screen.width + 'x' + screen.height + 'x' + screen.colorDepth,
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      navigator.hardwareConcurrency?.toString() || '',
+      (navigator as Navigator & { deviceMemory?: number }).deviceMemory?.toString() || '',
+      navigator.platform || '',
+    ];
+    // Canvas fingerprint
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillText('Studyfay🎓', 2, 2);
+        components.push(canvas.toDataURL().slice(-32));
+      }
+    } catch (_e) { /* canvas not supported */ }
+    const raw = components.join('|');
+    // Simple hash
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash).toString(16).padStart(8, '0');
+  } catch {
+    return '';
+  }
+}
+
 const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
@@ -342,12 +376,12 @@ export default function AuthNew() {
 
     setLoading(true);
     try {
-      const device_id = await getDeviceId();
+      const [device_id, browser_fp] = await Promise.all([getDeviceId(), getBrowserFingerprint()]);
       // Бэкенд использует action 'login' — если email новый, создаёт аккаунт автоматически
       const res = await fetch(AUTH_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', email, password, device_id }),
+        body: JSON.stringify({ action: 'login', email, password, device_id, browser_fp }),
       });
       const data = await res.json();
       if (res.ok && data.token) {
