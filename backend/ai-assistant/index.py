@@ -15,7 +15,7 @@ OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
 LLAMA_MODEL = 'meta-llama/llama-4-maverick'
-OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'  # v2
 
 _http = httpx.Client(timeout=httpx.Timeout(15.0, connect=4.0))
 _http_vision = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
