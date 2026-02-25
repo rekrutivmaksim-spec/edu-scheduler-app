@@ -73,12 +73,20 @@ function sanitize(text: string): string {
 
 function isCorrect(text: string) {
   const t = text.toLowerCase();
+  // Сначала проверяем явные маркеры неверного — они приоритетнее
+  if (t.startsWith('неверно') || t.startsWith('нет,') || t.startsWith('к сожалению') || t.startsWith('ошибк')) return false;
   return (
     t.startsWith('правильно') ||
+    t.startsWith('верно') ||
+    t.startsWith('отлично') ||
+    t.startsWith('молодец') ||
+    t.startsWith('совершенно верно') ||
+    t.startsWith('всё верно') ||
+    t.startsWith('все верно') ||
+    t.includes('правильно!') ||
     t.includes('верно!') ||
-    t.includes('молодец') ||
-    t.includes('отлично!') ||
-    t.includes('правильно!')
+    t.includes('молодец!') ||
+    t.includes('отлично!')
   );
 }
 
@@ -325,6 +333,9 @@ export default function Session() {
     setCheckTypingText('');
     setAnswerCorrect(null);
     setRetryCount(r => r + 1);
+    setShowCorrectAnswer(false);
+    setCorrectAnswer('');
+    setCorrectAnswerLoading(false);
   };
 
   const handleShowCorrect = async () => {
@@ -802,7 +813,7 @@ export default function Session() {
             >
               Понятно, завершить <Icon name="ArrowRight" size={16} className="ml-1.5" />
             </Button>
-          ) : isTaskStep && !checkResult && !showAnswerForm ? null : null}
+          ) : isTaskStep && answerCorrect === false && showCheckResult && !showCorrectAnswer ? null : null}
         </div>
       )}
 
