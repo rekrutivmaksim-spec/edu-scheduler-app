@@ -196,7 +196,7 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
     print(f"[MATERIALS] OpenRouter/Llama анализ начат, длина текста={len(full_text)}")
     
     try:
-        client = OpenAI(api_key=openrouter_key, base_url="https://openrouter.ai/api/v1", timeout=22.0)
+        client = OpenAI(api_key=openrouter_key, base_url="https://api.aitunnel.ru/v1/", timeout=22.0)
         # Берём больше текста для анализа (начало + середина + конец)
         text_start = full_text[:2500]
         text_middle = full_text[len(full_text)//2:len(full_text)//2+2500] if len(full_text) > 5000 else ""
@@ -212,7 +212,7 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
 {{"summary": "Подробное резюме документа (5-7 предложений, основные темы и концепции)", "subject": "Предмет", "title": "Название (макс 50 символов)", "tasks": [{{"title": "Задача", "deadline": "YYYY-MM-DD или null"}}]}}"""
         
         response = client.chat.completions.create(
-            model="meta-llama/llama-4-maverick",
+            model="deepseek-r1",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=500,
             response_format={"type": "json_object"})

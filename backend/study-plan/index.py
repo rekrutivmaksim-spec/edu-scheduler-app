@@ -14,11 +14,11 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
-LLAMA_MODEL = 'meta-llama/llama-4-maverick'
+LLAMA_MODEL = 'deepseek-r1'
 
 ai_client = OpenAI(
     api_key=OPENROUTER_API_KEY,
-    base_url='https://openrouter.ai/api/v1',
+    base_url='https://api.aitunnel.ru/v1/',
     timeout=22.0
 )
 
