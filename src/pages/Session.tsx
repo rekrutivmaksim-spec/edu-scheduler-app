@@ -362,8 +362,9 @@ export default function Session() {
       setScreen('correct_anim');
       setTimeout(() => {
         setScreen('done');
-        // Показываем paywall через 2 сек на экране завершения (только не-Premium)
+        // Показываем paywall через 2 сек — только при правильном ответе и не-Premium
         if (isPremium) return;
+        if (showCorrectAnswer) return; // не давить рекламой если не справился
         const token = authService.getToken();
         if (token && token !== 'guest_token') {
           setTimeout(() => {
