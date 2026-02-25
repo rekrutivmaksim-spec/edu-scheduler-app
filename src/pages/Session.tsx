@@ -5,94 +5,20 @@ import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import PaywallSheet from '@/components/PaywallSheet';
 import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
+import { getTodayTopic as getTodayTopicBase, TOPICS_BY_SUBJECT, DEFAULT_TOPICS } from '@/lib/topics';
 
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
-const TOPICS_BY_SUBJECT: Record<string, string[]> = {
-  'Математика (профиль)': [
-    'Квадратные уравнения', 'Производная функции', 'Интегралы',
-    'Логарифмы', 'Тригонометрия', 'Пределы', 'Матрицы и определители',
-    'Комбинаторика', 'Теория вероятностей', 'Геометрия: тела вращения',
-  ],
-  'Математика (база)': [
-    'Квадратные уравнения', 'Дроби и проценты', 'Линейные функции',
-    'Геометрия: площади', 'Степени и корни', 'Уравнения и неравенства',
-  ],
-  'Математика': [
-    'Квадратные уравнения', 'Производная функции', 'Логарифмы',
-    'Тригонометрия', 'Комбинаторика', 'Геометрия',
-  ],
-  'Физика': [
-    'Законы Ньютона', 'Электрическое поле', 'Магнетизм',
-    'Оптика', 'Термодинамика', 'Механические колебания', 'Ядерная физика',
-  ],
-  'Химия': [
-    'Реакции окисления-восстановления', 'Органические соединения',
-    'Периодическая система', 'Кислоты и основания', 'Электролиз',
-  ],
-  'Биология': [
-    'Клеточное строение', 'Генетика и наследственность',
-    'Эволюция', 'Экология', 'Обмен веществ', 'Размножение организмов',
-  ],
-  'Информатика': [
-    'Алгоритмы сортировки', 'Рекурсия', 'Логические операции',
-    'Базы данных', 'Сети и протоколы', 'Системы счисления',
-  ],
-  'История': [
-    'Петровские реформы', 'Вторая мировая война', 'Революция 1917 года',
-    'Эпоха Ивана Грозного', 'Отечественная война 1812 года', 'СССР в 1930-е годы',
-  ],
-  'Русский язык': [
-    'Причастие и деепричастие', 'Сложноподчинённые предложения',
-    'Орфография: корни с чередованием', 'Пунктуация', 'ЕГЭ: задание 27 (сочинение)',
-  ],
-  'Обществознание': [
-    'Конституция РФ', 'Рыночная экономика', 'Права человека',
-    'Политические системы', 'Социальные институты',
-  ],
-  'Литература': [
-    'Война и мир: образы', 'Мастер и Маргарита',
-    'Лирика Пушкина', 'Преступление и наказание', 'Мёртвые души',
-  ],
-  'Английский язык': [
-    'Present Perfect vs Past Simple', 'Условные предложения',
-    'Пассивный залог', 'Артикли', 'Модальные глаголы',
-  ],
-  'География': [
-    'Климатические пояса', 'Природные зоны России',
-    'Экономические районы', 'Демография', 'Гидросфера',
-  ],
-};
-
-const DEFAULT_TOPICS = [
-  { subject: 'Математика', topic: 'Квадратные уравнения' },
-  { subject: 'Русский язык', topic: 'Причастие и деепричастие' },
-  { subject: 'Физика', topic: 'Законы Ньютона' },
-  { subject: 'Химия', topic: 'Реакции окисления-восстановления' },
-  { subject: 'История', topic: 'Петровские реформы' },
-  { subject: 'Обществознание', topic: 'Конституция РФ' },
-];
-
-function simpleHash(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
-}
-
 function getTodayTopic(examSubject?: string | null): { subject: string; topic: string; number: number; total: number } {
-  const today = new Date().toISOString().slice(0, 10);
-  const hash = simpleHash(today);
+  const base = getTodayTopicBase(examSubject);
   if (examSubject && TOPICS_BY_SUBJECT[examSubject]) {
     const topics = TOPICS_BY_SUBJECT[examSubject];
-    const idx = hash % topics.length;
-    return { subject: examSubject, topic: topics[idx], number: idx + 1, total: topics.length };
+    const idx = topics.indexOf(base.topic);
+    return { ...base, number: (idx >= 0 ? idx : 0) + 1, total: topics.length };
   }
-  const idx = hash % DEFAULT_TOPICS.length;
-  const fallback = DEFAULT_TOPICS[idx];
-  return { ...fallback, number: idx + 1, total: DEFAULT_TOPICS.length };
+  const idx = DEFAULT_TOPICS.findIndex(t => t.topic === base.topic);
+  return { ...base, number: (idx >= 0 ? idx : 0) + 1, total: DEFAULT_TOPICS.length };
 }
 
 function getDaysToExam(examDate?: string | null): number {
