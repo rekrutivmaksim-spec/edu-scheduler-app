@@ -120,7 +120,7 @@ const quickActions = [
   { icon: '🔥', text: 'Объясни тему', action: 'send' },
   { icon: '🎯', text: 'Дай задание', action: 'send' },
   { icon: '📄', text: 'Разбери файл', action: 'navigate', path: '/university' },
-  { icon: '🎓', text: 'Подготовь к экзамену', action: 'navigate', path: '/exam' },
+  { icon: '🎓', text: 'Подготовь к экзамену', action: 'navigate', path: '/session' },
   { icon: '🏛', text: 'Помощь по вузу', action: 'navigate', path: '/university' },
 ];
 

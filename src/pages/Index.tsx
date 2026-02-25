@@ -12,7 +12,7 @@ import { getTodayTopic } from '@/lib/topics';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
 const QUICK_ACCESS_EGE = [
-  { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/exam', color: 'bg-indigo-50 text-indigo-600' },
+  { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/session', color: 'bg-indigo-50 text-indigo-600' },
   { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
   { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
 ];
