@@ -137,8 +137,9 @@ const Assistant = () => {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [aiUsed, setAiUsed] = useState<number | null>(null);
   const [aiMax, setAiMax] = useState<number | null>(null);
-  const [isTrial, setIsTrial] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+   
+  const isTrial = false;
   const [showMaterialPicker, setShowMaterialPicker] = useState(false);
   const [showLimitScreen, setShowLimitScreen] = useState(false);
   const [thinkingElapsed, setThinkingElapsed] = useState(0);
@@ -212,18 +213,15 @@ const Assistant = () => {
         const data = await resp.json();
         const ai = data.limits?.ai_questions;
         const sub = data.subscription_type;
-        const trial = data.is_trial;
         setIsPremium(sub === 'premium');
-        setIsTrial(!!trial);
-        if (ai) {
-          if (ai.max && ai.max < 999) {
-            setAiUsed(ai.used ?? 0);
-            setAiMax(ai.max);
-            setRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
-          } else if (trial || sub === 'premium') {
-            setAiUsed(ai.used ?? 0);
-            setAiMax(ai.max ?? null);
-          }
+        if (sub === 'premium' || !!data.is_trial) {
+          setAiUsed(ai?.used ?? 0);
+          setAiMax(20);
+          setRemaining(Math.max(0, 20 - (ai?.used ?? 0)));
+        } else if (ai) {
+          setAiUsed(ai.used ?? 0);
+          setAiMax(ai.max ?? 3);
+          setRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
         }
       }
     } catch { /* silent */ }
@@ -244,9 +242,9 @@ const Assistant = () => {
     setSelectedMaterials(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const limitsLoaded = isTrial || isPremium || remaining !== null;
-  const isLimitReached = !isTrial && !isPremium && remaining !== null && remaining <= 0;
-  const showFreeCounter = !isTrial && !isPremium && aiMax !== null && aiUsed !== null;
+  const limitsLoaded = isPremium || remaining !== null;
+  const isLimitReached = !isPremium && remaining !== null && remaining <= 0;
+  const showFreeCounter = !isPremium && aiMax !== null && aiUsed !== null;
   const freeLeft = aiMax !== null && aiUsed !== null ? Math.max(0, aiMax - aiUsed) : 0;
 
   const handleOk = useCallback(async (resp: Response) => {
@@ -308,7 +306,7 @@ const Assistant = () => {
         } else {
           setMessages(prev => [...prev, {
             role: 'assistant',
-            content: 'Произошла временная ошибка сети. Попробуй задать вопрос ещё раз.',
+            content: 'Уточни вопрос — и я отвечу подробно! 🙂',
             timestamp: new Date(),
           }]);
         }

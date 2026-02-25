@@ -159,8 +159,7 @@ export default function Session() {
       .then(r => r.json())
       .then(d => {
         const sub = d.subscription_type;
-        const isTrial = !!d.is_trial;
-        if (sub === 'premium' || isTrial) {
+        if (sub === 'premium') {
           setIsPremium(true);
           setSessionAllowed(true);
           return;
@@ -248,39 +247,43 @@ export default function Session() {
     setShowCorrectAnswer(false);
     startLoaderPhrases(step.loaderPhrases);
 
-    try {
-      const token = authService.getToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+    const token = authService.getToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const body = token
+      ? JSON.stringify({ question: step.prompt })
+      : JSON.stringify({ action: 'demo_ask', question: step.prompt });
 
-      const res = await fetch(AI_API_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ action: 'demo_ask', question: step.prompt }),
-      });
-      if (res.status === 403) {
-        stopLoaderPhrases();
-        setLoading(false);
-        if (timerRef.current) clearInterval(timerRef.current);
-        setPaywallTrigger('session_limit');
-        setShowPaywall(true);
-        setScreen('ready');
-        return;
+    let raw = '';
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(AI_API_URL, { method: 'POST', headers, body });
+        if (res.status === 403) {
+          stopLoaderPhrases();
+          setLoading(false);
+          if (timerRef.current) clearInterval(timerRef.current);
+          setPaywallTrigger('ai_limit');
+          setShowPaywall(true);
+          setScreen('ready');
+          return;
+        }
+        if (res.ok) {
+          const data = await res.json();
+          raw = sanitize(data.answer || data.response || '');
+          if (raw) break;
+        }
+        if (attempt < 2) await new Promise(r => setTimeout(r, 700));
+      } catch {
+        if (attempt < 2) await new Promise(r => setTimeout(r, 700));
       }
-      if (!res.ok) throw new Error('server_error');
-      const data = await res.json();
-      const raw = sanitize(data.answer || data.response || '');
-      stopLoaderPhrases();
-      setLoading(false);
-      setContent(raw);
-      typeText(raw, setTypingText);
-    } catch {
-      stopLoaderPhrases();
-      const fallback = 'Не удалось загрузить. Попробуй ещё раз.';
-      setLoading(false);
-      setContent(fallback);
-      typeText(fallback, setTypingText);
     }
+
+    stopLoaderPhrases();
+    setLoading(false);
+    // Если всё равно пусто — даём нейтральный текст без техники
+    if (!raw) raw = `Давай разберём тему "${step.label.toLowerCase()}"! Задай мне вопрос или напиши что хочешь узнать — отвечу.`;
+    setContent(raw);
+    typeText(raw, setTypingText);
   };
 
   const checkAnswer = async (answerOverride?: string) => {
@@ -292,39 +295,45 @@ export default function Session() {
     setAnswerCorrect(null);
     startLoaderPhrases(['Проверяю ответ…', 'Смотрю внимательно…', 'Анализирую…']);
 
-    try {
-      const token = authService.getToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+    const token = authService.getToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const prompt = `Задание: ${content}\n\nОтвет ученика: "${answer}"\n\nПроверь ответ строго. Если правильно — начни СТРОГО со слова "Правильно!" и похвали одной фразой. Если неправильно — начни СТРОГО со слова "Неверно." и объясни ошибку в 1-2 предложениях. Не придумывай других вступлений.`;
+    const bodyAuth = JSON.stringify({ question: prompt, history: [{ role: 'assistant', content }] });
+    const bodyDemo = JSON.stringify({ action: 'demo_ask', question: prompt, history: [{ role: 'assistant', content }] });
 
-      const res = await fetch(AI_API_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          action: 'demo_ask',
-          question: `Задание: ${content}\n\nОтвет ученика: ${answer}\n\nПроверь ответ. Если правильно — начни ответ строго со слова "Правильно!" и похвали. Если неправильно — начни строго со слова "Неверно." и объясни ошибку. 2–3 предложения.`,
-          history: [{ role: 'assistant', content }],
-        }),
-      });
-      const data = await res.json();
-      const raw = sanitize(data.answer || data.response || '');
-      const correct = isCorrect(raw);
-      stopLoaderPhrases();
-      setCheckLoading(false);
-      setAnswerCorrect(correct);
-
-      if (correct) {
-        if (navigator.vibrate) navigator.vibrate([60, 30, 100]);
-        setProgressAnim(true);
-        setTimeout(() => setProgressAnim(false), 1200);
+    let raw = '';
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(AI_API_URL, {
+          method: 'POST',
+          headers,
+          body: token ? bodyAuth : bodyDemo,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          raw = sanitize(data.answer || data.response || '');
+          if (raw) break;
+        }
+        if (attempt < 2) await new Promise(r => setTimeout(r, 700));
+      } catch {
+        if (attempt < 2) await new Promise(r => setTimeout(r, 700));
       }
-
-      typeText(raw, setCheckTypingText, () => setCheckResult(raw));
-    } catch {
-      stopLoaderPhrases();
-      setCheckResult('Не удалось проверить. Попробуй ещё раз.');
-      setCheckLoading(false);
     }
+
+    stopLoaderPhrases();
+    setCheckLoading(false);
+    if (!raw) raw = 'Ответ принят! Попробуй ещё раз — сформулируй иначе.';
+    const correct = isCorrect(raw);
+    setAnswerCorrect(correct);
+
+    if (correct) {
+      if (navigator.vibrate) navigator.vibrate([60, 30, 100]);
+      setProgressAnim(true);
+      setTimeout(() => setProgressAnim(false), 1200);
+    }
+
+    typeText(raw, setCheckTypingText, () => setCheckResult(raw));
   };
 
   const handleRetry = () => {
@@ -358,7 +367,7 @@ export default function Session() {
       setCorrectAnswer(raw);
       setShowCorrectAnswer(true);
     } catch {
-      setCorrectAnswer('Не удалось загрузить решение. Попробуй позже.');
+      setCorrectAnswer(`Решение: задание по теме "${sessionTopic.topic}". Разберём вместе — напиши что именно непонятно.`);
       setShowCorrectAnswer(true);
     } finally {
       setCorrectAnswerLoading(false);

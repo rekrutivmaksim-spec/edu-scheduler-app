@@ -109,10 +109,9 @@ export default function Exam() {
   const [mode, setMode] = useState<Mode>('explain');
 
   // Лимит вопросов
-  const [questionsLeft, setQuestionsLeft] = useState<number | null>(null); // null = ещё загружается
+  const [questionsLeft, setQuestionsLeft] = useState<number | null>(null);
   const [questionsLimit, setQuestionsLimit] = useState<number>(3);
   const [isPremium, setIsPremium] = useState(false);
-  const [isTrial, setIsTrial] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [subLoading, setSubLoading] = useState(true);
 
@@ -154,17 +153,13 @@ export default function Exam() {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const d = await res.json();
-      const premium = d.is_premium || false;
-      const trial = d.is_trial || false;
+      const premium = d.subscription_type === 'premium';
       setIsPremium(premium);
-      setIsTrial(trial);
 
-      if (trial || premium) {
-        // Безлимит или 20/день
+      if (premium) {
         const used = d.limits?.ai_questions?.used ?? d.daily_questions_used ?? 0;
-        const max = premium ? 20 : 999;
-        setQuestionsLimit(max);
-        setQuestionsLeft(trial ? 999 : Math.max(0, max - used));
+        setQuestionsLimit(20);
+        setQuestionsLeft(Math.max(0, 20 - used));
       } else {
         // Бесплатный: 3 вопроса в день + бонусные
         const used = d.daily_questions_used ?? d.limits?.ai_questions?.used ?? 0;
@@ -303,8 +298,7 @@ export default function Exam() {
     const msg = (text ?? input).trim();
     if (!msg || loading) return;
 
-    const isUnlimited = isPremium || isTrial;
-    if (!isUnlimited && questionsLeft !== null && questionsLeft <= 0) {
+    if (!isPremium && questionsLeft !== null && questionsLeft <= 0) {
       setShowPaywall(true);
       return;
     }
@@ -332,8 +326,7 @@ export default function Exam() {
     const text = userAnswer.trim();
     if (!text || checkLoading) return;
 
-    const isUnlimited = isPremium || isTrial;
-    if (!isUnlimited && questionsLeft !== null && questionsLeft <= 0) {
+    if (!isPremium && questionsLeft !== null && questionsLeft <= 0) {
       setShowPaywall(true);
       return;
     }
@@ -747,11 +740,6 @@ export default function Exam() {
         {/* Лимит вопросов */}
         {(() => {
           if (subLoading) return null;
-          if (isTrial) return (
-            <div className="px-4 py-2 bg-green-50 flex items-center justify-between">
-              <p className="text-xs font-semibold text-green-700">✨ Триал — безлимитные вопросы</p>
-            </div>
-          );
           if (isPremium) return (
             <div className="px-4 py-2 bg-indigo-50 flex items-center justify-between">
               <p className="text-xs font-semibold text-indigo-600">
