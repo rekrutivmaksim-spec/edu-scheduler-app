@@ -319,9 +319,6 @@ export default function Index() {
         <div className="bg-white rounded-3xl shadow-sm px-5 py-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-gray-800">Твоя подготовка</h3>
-            <button onClick={() => navigate('/exam')} className="text-xs text-indigo-500 font-medium flex items-center gap-0.5">
-              План <Icon name="ChevronRight" size={13} />
-            </button>
           </div>
 
           {/* XP прогресс */}
@@ -350,11 +347,11 @@ export default function Index() {
           </div>
 
           <button
-            onClick={() => navigate('/exam')}
+            onClick={() => navigate('/session')}
             className="mt-3 w-full flex items-center justify-center gap-2 border-2 border-dashed border-indigo-200 rounded-2xl py-2.5 text-indigo-500 text-sm font-medium hover:bg-indigo-50 transition-colors active:scale-[0.98]"
           >
-            <Icon name="Target" size={15} />
-            Посмотреть план подготовки
+            <Icon name="Zap" size={15} />
+            Начать занятие
           </button>
         </div>
 
