@@ -14,7 +14,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
-LLAMA_MODEL = 'deepseek-r1'
+LLAMA_MODEL = 'llama-4-maverick'
 
 ai_client = OpenAI(
     api_key=OPENROUTER_API_KEY,

@@ -14,7 +14,7 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
 
-LLAMA_MODEL = 'deepseek-r1'
+LLAMA_MODEL = 'llama-4-maverick'
 OPENROUTER_BASE_URL = 'https://api.aitunnel.ru/v1/'
 
 _http = httpx.Client(timeout=httpx.Timeout(15.0, connect=4.0))

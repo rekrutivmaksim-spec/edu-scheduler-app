@@ -212,7 +212,7 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
 {{"summary": "Подробное резюме документа (5-7 предложений, основные темы и концепции)", "subject": "Предмет", "title": "Название (макс 50 символов)", "tasks": [{{"title": "Задача", "deadline": "YYYY-MM-DD или null"}}]}}"""
         
         response = client.chat.completions.create(
-            model="deepseek-r1",
+            model="llama-4-maverick",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=500,
             response_format={"type": "json_object"})
