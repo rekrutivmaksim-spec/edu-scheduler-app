@@ -405,7 +405,7 @@ def sanitize_answer(text):
 _http_demo = httpx.Client(timeout=httpx.Timeout(10.0, connect=4.0))
 _http_fallback = httpx.Client(timeout=httpx.Timeout(8.0, connect=3.0))
 
-def _call_openai_compat(http_client, url: str, api_key: str, question: str, history: list = None, max_tokens: int = 250) -> str | None:
+def _call_openai_compat(http_client, url: str, api_key: str, question: str, history: list = None, max_tokens: int = 600) -> str | None:
     """Универсальный вызов OpenAI-совместимого API. Возвращает текст ответа или None."""
     try:
         messages = [{"role": "system", "content": DEMO_SYSTEM}]
@@ -415,7 +415,7 @@ def _call_openai_compat(http_client, url: str, api_key: str, question: str, hist
                 content = str(h.get('content', ''))[:300]
                 if role in ('user', 'assistant') and content:
                     messages.append({"role": role, "content": content})
-        messages.append({"role": "user", "content": question[:250]})
+        messages.append({"role": "user", "content": question[:800]})
         payload = {
             "model": "deepseek-chat",
             "messages": messages,
@@ -655,7 +655,7 @@ def build_smart_fallback(question, context):
         return "Привет! Я Studyfay — твой репетитор. Задавай любой вопрос — разберём вместе!"
     return "Сервер перегружен, попробуй отправить вопрос ещё раз — обычно со второго раза всё работает!"
 
-DEMO_SYSTEM = "Ты репетитор. Отвечай по-русски. Формат: Коротко: [1 предложение]. Пример: [пример]. Без LaTeX. До 4 предложений."
+DEMO_SYSTEM = "Ты репетитор по школьным предметам. Отвечай ТОЛЬКО по-русски. Без LaTeX и формул со спецсимволами — пиши формулы текстом (например x^2, sqrt(x)). Давай точные, правильные ответы. Если проверяешь задание — сначала реши его сам, потом сравни с ответом ученика. Объясняй ошибки чётко."
 
 DEMO_RATE_LIMIT: dict = {}
 
