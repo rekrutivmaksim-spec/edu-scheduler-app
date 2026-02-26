@@ -108,6 +108,10 @@ export default function Exam() {
   const [subject, setSubject] = useState<Subject | null>(null);
   const [mode, setMode] = useState<Mode>('explain');
 
+  // Данные пользователя
+  const [userGoal, setUserGoal] = useState<string>('');
+  const [userSubjectId, setUserSubjectId] = useState<string>('');
+
   // Лимит вопросов
   const [questionsLeft, setQuestionsLeft] = useState<number | null>(null);
   const [questionsLimit, setQuestionsLimit] = useState<number>(3);
@@ -138,7 +142,7 @@ export default function Exam() {
   const stats = SUBJECT_STATS[subjectId] ?? { progress: 0, level: 'Базовый', scoreForecast: 0 };
   const daysLeft = daysUntil(examType === 'ege' ? EGE_DATE : OGE_DATE);
 
-  // Загружаем подписку и реальный лимит вопросов
+  // Загружаем данные пользователя + подписку
   const loadSubscription = async () => {
     const token = authService.getToken();
     if (!token) {
@@ -147,6 +151,21 @@ export default function Exam() {
       setSubLoading(false);
       return;
     }
+
+    // Читаем данные пользователя для авто-выбора экзамена и предмета
+    try {
+      const user = await authService.verifyToken();
+      if (user) {
+        const goal = user.goal || '';
+        const subj = user.exam_subject || '';
+        setUserGoal(goal);
+        setUserSubjectId(subj);
+        // Авто-переключаем тип экзамена по цели пользователя
+        if (goal === 'oge') setExamType('oge');
+        else if (goal === 'ege') setExamType('ege');
+      }
+    } catch { /* silent */ }
+
     try {
       const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
         headers: { 'Authorization': `Bearer ${token}` },
@@ -158,12 +177,12 @@ export default function Exam() {
 
       const ai = d.limits?.ai_questions;
       if (premium || trial) {
-        const max = 20; // Premium/Trial — всегда 20 в день
+        const max = 20;
         const used = ai?.used ?? 0;
         setQuestionsLimit(max);
         setQuestionsLeft(Math.max(0, max - used));
       } else {
-        const max = 3; // Free — всегда 3 в день
+        const max = 3;
         const used = ai?.used ?? 0;
         setQuestionsLimit(max);
         setQuestionsLeft(Math.max(0, max - used));
@@ -402,6 +421,23 @@ export default function Exam() {
           );
         })()}
 
+        {/* Быстрый переход — если пользователь выбрал тип экзамена в профиле */}
+        {(userGoal === 'ege' || userGoal === 'oge') && (
+          <button
+            onClick={() => setScreen('pick_subject')}
+            className="w-full bg-white rounded-2xl px-5 py-4 text-left shadow-xl mb-3 active:scale-[0.97] transition-all border-2 border-yellow-300"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{userGoal === 'oge' ? '📋' : '🏆'}</span>
+              <div className="flex-1">
+                <p className="text-yellow-600 font-bold text-xs">Выбрано в профиле</p>
+                <p className="text-gray-800 font-extrabold">{userGoal.toUpperCase()} — перейти к предметам</p>
+              </div>
+              <Icon name="ChevronRight" size={18} className="text-yellow-400" />
+            </div>
+          </button>
+        )}
+
         {/* Кнопки выбора */}
         <div className="flex flex-col gap-3">
           <button
@@ -453,16 +489,18 @@ export default function Exam() {
   // ЭКРАН 2: Выбор предмета
   // ─────────────────────────────────────────────────────────────────────────────
   if (screen === 'pick_subject') {
-    // Последний предмет — первым
     const lastSubjectId = lastChoice?.examType === examType ? lastChoice?.subjectId : null;
+    // Приоритет сортировки: предмет пользователя > последний выбранный
     const sortedSubjects = (list: Subject[]) => {
-      if (!lastSubjectId) return list;
       return [...list].sort((a, b) => {
-        if (a.id === lastSubjectId) return -1;
-        if (b.id === lastSubjectId) return 1;
-        return 0;
+        const aUser = a.id === userSubjectId ? 2 : a.id === lastSubjectId ? 1 : 0;
+        const bUser = b.id === userSubjectId ? 2 : b.id === lastSubjectId ? 1 : 0;
+        return bUser - aUser;
       });
     };
+
+    // Предмет пользователя — может быть в обязательных или по выбору
+    const userSubject = userSubjectId ? subjects.find(s => s.id === userSubjectId) : null;
 
     return (
       <div className="min-h-screen bg-gray-50 pb-28">
@@ -479,25 +517,57 @@ export default function Exam() {
         </div>
 
         <div className="px-4 py-4">
+          {/* Блок «Твой основной предмет» — если задан в профиле */}
+          {userSubject && (
+            <div className="mb-5">
+              <p className="text-xs text-indigo-500 font-semibold uppercase tracking-wide mb-2">Твой основной предмет</p>
+              <button
+                onClick={() => { setSubject(userSubject); setScreen('pick_mode'); }}
+                className={`w-full bg-gradient-to-r ${userSubject.color} rounded-2xl p-4 text-left shadow-lg active:scale-[0.97] transition-all relative overflow-hidden border-2 border-white`}
+              >
+                <div className="absolute top-0 right-0 bg-white/25 rounded-bl-2xl px-3 py-1">
+                  <p className="text-white text-[10px] font-bold">⭐ Мой предмет</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{userSubject.icon}</span>
+                  <div className="flex-1">
+                    <p className="text-white font-extrabold text-base leading-tight">{userSubject.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 bg-white/20 rounded-full h-1.5">
+                        <div className="bg-white rounded-full h-1.5" style={{ width: `${SUBJECT_STATS[userSubject.id]?.progress ?? 0}%` }} />
+                      </div>
+                      <p className="text-white/80 text-[10px] flex-shrink-0">{SUBJECT_STATS[userSubject.id]?.progress ?? 0}%</p>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
           <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-3">Обязательные</p>
           <div className="grid grid-cols-2 gap-2.5 mb-5">
             {sortedSubjects(subjects.filter(s => s.required)).map(s => {
               const st = SUBJECT_STATS[s.id] ?? { progress: 0, level: 'Базовый', scoreForecast: 0 };
-              const isLast = s.id === lastSubjectId;
+              const isLast = s.id === lastSubjectId && s.id !== userSubjectId;
+              const isUser = s.id === userSubjectId;
               return (
                 <button
                   key={s.id}
                   onClick={() => { setSubject(s); setScreen('pick_mode'); }}
-                  className={`bg-gradient-to-br ${s.color} rounded-2xl p-4 text-left shadow-sm active:scale-[0.97] transition-all relative overflow-hidden`}
+                  className={`bg-gradient-to-br ${s.color} rounded-2xl p-4 text-left shadow-sm active:scale-[0.97] transition-all relative overflow-hidden ${isUser ? 'ring-2 ring-white ring-offset-1' : ''}`}
                 >
-                  {isLast && (
+                  {isUser && (
+                    <div className="absolute top-2 right-2 bg-white/30 rounded-full px-2 py-0.5">
+                      <p className="text-white text-[9px] font-bold">⭐ Мой</p>
+                    </div>
+                  )}
+                  {isLast && !isUser && (
                     <div className="absolute top-2 right-2 bg-white/30 rounded-full px-2 py-0.5">
                       <p className="text-white text-[9px] font-bold">Недавно</p>
                     </div>
                   )}
                   <span className="text-2xl block mb-2">{s.icon}</span>
                   <p className="text-white font-bold text-sm leading-tight mb-2">{s.name}</p>
-                  {/* Прогресс */}
                   <div className="w-full bg-white/20 rounded-full h-1.5 mb-1">
                     <div className="bg-white rounded-full h-1.5 transition-all" style={{ width: `${st.progress}%` }} />
                   </div>
@@ -516,22 +586,27 @@ export default function Exam() {
           <div className="grid grid-cols-2 gap-2.5">
             {sortedSubjects(subjects.filter(s => !s.required)).map(s => {
               const st = SUBJECT_STATS[s.id] ?? { progress: 0, level: 'Базовый', scoreForecast: 0 };
-              const isLast = s.id === lastSubjectId;
+              const isLast = s.id === lastSubjectId && s.id !== userSubjectId;
+              const isUser = s.id === userSubjectId;
               const topicsLeft = Math.round(s.topics * (1 - st.progress / 100));
               return (
                 <button
                   key={s.id}
                   onClick={() => { setSubject(s); setScreen('pick_mode'); }}
-                  className="bg-white rounded-2xl p-4 text-left shadow-sm border border-gray-100 active:scale-[0.97] transition-all relative"
+                  className={`rounded-2xl p-4 text-left shadow-sm border active:scale-[0.97] transition-all relative ${isUser ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-400' : 'bg-white border-gray-100'}`}
                 >
-                  {isLast && (
+                  {isUser && (
+                    <div className="absolute top-2 right-2 bg-indigo-100 rounded-full px-2 py-0.5">
+                      <p className="text-indigo-600 text-[9px] font-bold">⭐ Мой</p>
+                    </div>
+                  )}
+                  {isLast && !isUser && (
                     <div className="absolute top-2 right-2 bg-indigo-100 rounded-full px-2 py-0.5">
                       <p className="text-indigo-600 text-[9px] font-bold">Недавно</p>
                     </div>
                   )}
                   <span className="text-2xl block mb-2">{s.icon}</span>
                   <p className="text-gray-800 font-bold text-sm leading-tight mb-2">{s.name}</p>
-                  {/* Прогресс */}
                   <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1">
                     <div className="bg-indigo-500 rounded-full h-1.5 transition-all" style={{ width: `${st.progress}%` }} />
                   </div>
