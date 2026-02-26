@@ -37,10 +37,17 @@ export default function University() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [fileUsedToday, setFileUsedToday] = useState(true);
+  const [fileUsedToday, setFileUsedToday] = useState(false);
   const [aiRemaining, setAiRemaining] = useState<number | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      navigate('/auth');
+      return;
+    }
+  }, [navigate]);
 
   useEffect(() => {
     const loadLimits = async () => {
@@ -51,16 +58,21 @@ export default function University() {
         });
         if (res.ok) {
           const data = await res.json();
-          setIsPremium(data.subscription_type === 'premium' || !!data.is_trial);
+          const premium = data.subscription_type === 'premium' || !!data.is_trial;
+          setIsPremium(premium);
           const ai = data.limits?.ai_questions;
-          if (ai && ai.max && ai.max < 999) {
-            setAiRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
+          if (ai) {
+            if (ai.unlimited) {
+              setAiRemaining(null);
+            } else {
+              setAiRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
+            }
           }
-          const files = data.limits?.file_analysis;
-          if (data.is_trial || data.subscription_type === 'premium') {
+          const materials = data.limits?.materials;
+          if (premium) {
             setFileUsedToday(false);
-          } else if (files) {
-            setFileUsedToday((files.used ?? 0) >= (files.max ?? 1));
+          } else if (materials && !materials.unlimited) {
+            setFileUsedToday((materials.used ?? 0) >= (materials.max ?? 2));
           }
         }
       } catch { /* silent */ }
@@ -135,10 +147,10 @@ export default function University() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
-              title: file.name.replace(/\.[^.]+$/, ''),
-              file_base64: base64,
-              file_name: file.name,
-              file_type: file.type,
+              action: 'upload_direct',
+              filename: file.name,
+              fileType: file.type || 'application/octet-stream',
+              fileData: base64,
             }),
           });
 
@@ -376,8 +388,8 @@ export default function University() {
           <Icon name="ArrowLeft" size={18} />
           <span className="text-sm">Главная</span>
         </button>
-        <h1 className="text-white font-extrabold text-2xl mb-1">ВУЗ</h1>
-        <p className="text-white/60 text-sm">Разбор материалов и подготовка к сессии</p>
+        <h1 className="text-white font-extrabold text-2xl mb-1">Учёба</h1>
+        <p className="text-white/60 text-sm">Разбор материалов, файлов и подготовка</p>
       </div>
 
       <div className="px-4 -mt-4 space-y-3 max-w-xl mx-auto">
@@ -455,11 +467,11 @@ export default function University() {
             </div>
             <div className="space-y-2 mb-4">
               {[
-                'безлимит анализа файлов',
-                'помощь по билетам',
-                'ответы по лекциям',
-                'подготовка к сессии',
-                'история всех материалов',
+                'безлимит анализа файлов и конспектов',
+                '20 вопросов ИИ в день',
+                'разбор экзаменационных билетов',
+                'история всех загруженных материалов',
+                'подготовка к сессии и зачётам',
               ].map(f => (
                 <div key={f} className="flex items-center gap-2 text-white/85 text-sm">
                   <span className="text-white/60">✓</span>
