@@ -159,7 +159,8 @@ export default function Session() {
       .then(r => r.json())
       .then(d => {
         const sub = d.subscription_type;
-        if (sub === 'premium') {
+        const trial = !!d.is_trial;
+        if (sub === 'premium' || trial) {
           setIsPremium(true);
           setSessionAllowed(true);
           return;
@@ -843,7 +844,7 @@ export default function Session() {
             >
               Понятно, завершить <Icon name="ArrowRight" size={16} className="ml-1.5" />
             </Button>
-          ) : isTaskStep && answerCorrect === false && showCheckResult && !showCorrectAnswer ? null : null}
+          ) : null}
         </div>
       )}
 

@@ -242,9 +242,9 @@ const Assistant = () => {
     setSelectedMaterials(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const limitsLoaded = isPremium || remaining !== null;
-  const isLimitReached = !isPremium && remaining !== null && remaining <= 0;
-  const showFreeCounter = !isPremium && aiMax !== null && aiUsed !== null;
+  const limitsLoaded = isPremium || isTrial || remaining !== null;
+  const isLimitReached = !isPremium && !isTrial && remaining !== null && remaining <= 0;
+  const showFreeCounter = !isPremium && !isTrial && aiMax !== null && aiUsed !== null;
   const freeLeft = aiMax !== null && aiUsed !== null ? Math.max(0, aiMax - aiUsed) : 0;
 
   const handleOk = useCallback(async (resp: Response) => {

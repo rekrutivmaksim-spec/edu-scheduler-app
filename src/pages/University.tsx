@@ -72,7 +72,7 @@ export default function University() {
           if (premium) {
             setFileUsedToday(false);
           } else if (materials && !materials.unlimited) {
-            setFileUsedToday((materials.used ?? 0) >= (materials.max ?? 2));
+            setFileUsedToday((materials.used ?? 0) >= (materials.max ?? 1));
           }
         }
       } catch { /* silent */ }

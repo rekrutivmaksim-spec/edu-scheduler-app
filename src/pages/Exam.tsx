@@ -7,9 +7,9 @@ import BottomNav from '@/components/BottomNav';
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
-// Дата ЕГЭ 2025 — первый день основного периода
-const EGE_DATE = new Date('2025-05-23');
-const OGE_DATE = new Date('2025-05-20');
+// Дата ЕГЭ 2026 — первый день основного периода
+const EGE_DATE = new Date('2026-05-25');
+const OGE_DATE = new Date('2026-05-19');
 
 function daysUntil(date: Date): number {
   const now = new Date();
