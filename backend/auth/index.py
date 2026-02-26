@@ -91,7 +91,6 @@ def handler(event: dict, context) -> dict:
             is_login_allowed, attempts_left, locked_until = check_failed_login(client_ip, max_attempts=5, lockout_minutes=15)
             if not is_login_allowed:
                 minutes_left = int((locked_until - datetime.now()).seconds / 60) + 1
-                print(f"[AUTH] IP {client_ip} заблокирован до {locked_until} за брутфорс")
                 return {
                     'statusCode': 429,
                     'headers': headers,
@@ -149,7 +148,7 @@ def handler(event: dict, context) -> dict:
                             # КРИТИЧЕСКАЯ ЗАЩИТА: записываем неудачную попытку
                             record_failed_login(client_ip)
                             _, attempts_remaining, _ = check_failed_login(client_ip)
-                            print(f"[AUTH] Неверный пароль для {email} с IP {client_ip}, осталось попыток: {attempts_remaining}")
+
                             
                             return {
                                 'statusCode': 401,
@@ -166,7 +165,7 @@ def handler(event: dict, context) -> dict:
                         
                         # ЗАЩИТА: сбрасываем счетчик неудачных попыток при успешном входе
                         reset_failed_login(client_ip)
-                        print(f"[AUTH] Успешный вход для {email} с IP {client_ip}")
+
                         
                         token = generate_token(user['id'], user['email'])
                         
@@ -236,15 +235,13 @@ def handler(event: dict, context) -> dict:
                         """, (client_ip,))
                         ip_reg_today = cur.fetchone()['cnt']
                         if ip_reg_today >= 3:
-                            print(f"[AUTH] IP {client_ip} превысил лимит регистраций сегодня ({ip_reg_today})", flush=True)
                             return {
                                 'statusCode': 429,
                                 'headers': headers,
                                 'body': json.dumps({'error': 'Слишком много регистраций с вашего IP. Попробуйте завтра.'})
                             }
 
-                        if block_reason:
-                            print(f"[AUTH] Триал заблокирован: {block_reason} device={device_id} fp={browser_fp} ip={client_ip}", flush=True)
+
                         
                         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                         full_name = email.split('@')[0]
@@ -293,7 +290,6 @@ def handler(event: dict, context) -> dict:
                         conn.commit()
                         
                         reset_failed_login(client_ip)
-                        print(f"[AUTH] Новый пользователь {email} с IP {client_ip}, device_id={device_id}, trial={trial_allowed}")
                         
                         token = generate_token(new_user['id'], new_user['email'])
                         

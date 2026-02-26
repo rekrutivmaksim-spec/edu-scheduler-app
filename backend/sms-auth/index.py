@@ -14,7 +14,6 @@ SMS_RU_API_KEY = os.environ.get('SMS_RU_API_KEY', '')
 def send_sms(phone: str, code: str) -> bool:
     """Отправка SMS через SMS.RU (или тестовый режим)"""
     if not SMS_RU_API_KEY:
-        print(f'[TEST MODE] SMS код для {phone}: {code}')
         return True
     
     try:
@@ -33,8 +32,7 @@ def send_sms(phone: str, code: str) -> bool:
         data = json.loads(response.read().decode())
         
         return data.get('status') == 'OK'
-    except Exception as e:
-        print(f'Ошибка отправки SMS: {e}')
+    except Exception:
         return False
 
 def generate_code() -> str:

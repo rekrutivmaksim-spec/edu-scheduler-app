@@ -325,8 +325,7 @@ def get_context(conn, user_id, material_ids):
         cur.close()
         result = "\n\n".join(parts)
         return result[:6000]
-    except Exception as e:
-        print(f"[AI] context error: {e}", flush=True)
+    except Exception:
         cur.close()
         return ""
 
@@ -433,18 +432,12 @@ def _call_openai_compat(http_client, url: str, api_key: str, question: str, hist
         if r.status_code == 200:
             data = r.json()
             return sanitize_answer(data["choices"][0]["message"]["content"])
-        print(f"[DEMO] http {r.status_code}: {r.text[:200]}", flush=True)
         return None
-    except Exception as e:
-        print(f"[DEMO] call fail {type(e).__name__}: {str(e)[:200]}", flush=True)
+    except Exception:
         return None
 
 def ask_ai_demo(question: str, history: list = None) -> tuple:
     """Демо: Artemox → повтор Artemox × 2 → локальный ответ. Всегда возвращает ответ."""
-    import time as _t
-    t0 = _t.time()
-    print(f"[DEMO] start q:{question[:60]}", flush=True)
-
     for attempt in range(2):
         answer = _call_openai_compat(
             _http_demo if attempt == 0 else _http_fallback,
@@ -452,9 +445,7 @@ def ask_ai_demo(question: str, history: list = None) -> tuple:
             OPENROUTER_API_KEY, question, history, max_tokens=300
         )
         if answer:
-            print(f"[DEMO] artemox ok attempt:{attempt} time:{_t.time()-t0:.1f}s", flush=True)
             return answer, 1
-        print(f"[DEMO] artemox attempt:{attempt} failed time:{_t.time()-t0:.1f}s", flush=True)
 
     # Локальный ответ — всегда работает
     return _smart_demo_fallback(question), 0

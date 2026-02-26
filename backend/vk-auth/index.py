@@ -34,8 +34,7 @@ def get_vk_user_info(access_token: str) -> dict:
                 'avatar_url': user.get('photo_200', '')
             }
         return None
-    except Exception as e:
-        print(f'Ошибка получения данных VK: {e}')
+    except Exception:
         return None
 
 def handler(event: dict, context) -> dict:

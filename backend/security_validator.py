@@ -1,5 +1,6 @@
 """Валидаторы для защиты от SQL injection и других атак"""
 
+import os
 import re
 from typing import Any
 
@@ -74,7 +75,6 @@ def validate_string_field(value: str, field_name: str, max_length: int = 255, al
     
     for pattern in sql_patterns:
         if re.search(pattern, value, re.IGNORECASE):
-            print(f"[SECURITY] SQL injection attempt detected in {field_name}: {value[:50]}")
             return (False, f'{field_name} содержит недопустимые символы')
     
     return (True, None)
@@ -162,7 +162,6 @@ def check_ownership(conn, table: str, record_id: int, user_id: int) -> bool:
     # Whitelist допустимых таблиц
     allowed_tables = ['materials', 'schedule', 'tasks', 'payments']
     if table not in allowed_tables:
-        print(f"[SECURITY] Попытка доступа к недопустимой таблице: {table}")
         return False
     
     schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
@@ -180,9 +179,6 @@ def check_ownership(conn, table: str, record_id: int, user_id: int) -> bool:
     cursor.close()
     
     if not result:
-        print(f"[SECURITY] IDOR attempt: user {user_id} tried to access {table}.{record_id}")
         return False
     
     return True
-
-import os

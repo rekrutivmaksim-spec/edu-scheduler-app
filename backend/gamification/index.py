@@ -78,11 +78,9 @@ def send_push(endpoint, p256dh, auth, notification_data):
             vapid_claims={"sub": VAPID_EMAIL}
         )
         return True
-    except WebPushException as e:
-        print(f"Push failed for {endpoint}: {e}")
+    except WebPushException:
         return False
-    except Exception as e:
-        print(f"Push error: {e}")
+    except Exception:
         return False
 
 

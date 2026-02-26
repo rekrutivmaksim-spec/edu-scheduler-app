@@ -95,7 +95,7 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
         params['Recurrent'] = 'Y'
         params['CustomerKey'] = str(user_id)
 
-    print(f"[TINKOFF] Init user_id={user_id}, amount={amount}, order_id={order_id}, recurrent={recurrent}")
+
 
     token_params = {}
     for k, v in params.items():
@@ -108,12 +108,10 @@ def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description
     try:
         response = requests.post(f'{TINKOFF_API_URL}Init', json=params, timeout=10)
         response_data = response.json()
-        print(f"[TINKOFF] Init response: {json.dumps(response_data, ensure_ascii=False)}")
         if not response_data.get('Success'):
             return {'error': response_data.get('Message', 'Ошибка'), 'error_code': response_data.get('ErrorCode')}
         return response_data
     except Exception as e:
-        print(f"[TINKOFF] Init error: {str(e)}")
         return {'error': str(e)}
 
 def charge_recurrent(user_id: int, rebill_id: str, amount: int, order_id: str) -> dict:
@@ -131,12 +129,9 @@ def charge_recurrent(user_id: int, rebill_id: str, amount: int, order_id: str) -
     sorted_values = [token_params[k] for k in sorted(token_params.keys())]
     init_params['Token'] = generate_token(*sorted_values)
 
-    print(f"[RECURRENT] Init for user_id={user_id}, rebill_id={rebill_id}, amount={amount}")
-
     try:
         resp = requests.post(f'{TINKOFF_API_URL}Init', json=init_params, timeout=10)
         init_data = resp.json()
-        print(f"[RECURRENT] Init response: {json.dumps(init_data, ensure_ascii=False)}")
 
         if not init_data.get('Success'):
             return {'error': init_data.get('Message', 'Init failed')}
@@ -157,17 +152,14 @@ def charge_recurrent(user_id: int, rebill_id: str, amount: int, order_id: str) -
         sorted_vals = [charge_token_params[k] for k in sorted(charge_token_params.keys())]
         charge_params['Token'] = generate_token(*sorted_vals)
 
-        print(f"[RECURRENT] Charge PaymentId={payment_id}")
         charge_resp = requests.post(f'{TINKOFF_API_URL}Charge', json=charge_params, timeout=10)
         charge_data = charge_resp.json()
-        print(f"[RECURRENT] Charge response: {json.dumps(charge_data, ensure_ascii=False)}")
 
         if charge_data.get('Success') and charge_data.get('Status') == 'CONFIRMED':
             return {'success': True, 'payment_id': payment_id}
         else:
             return {'error': charge_data.get('Message', 'Charge failed'), 'status': charge_data.get('Status')}
     except Exception as e:
-        print(f"[RECURRENT] Error: {str(e)}")
         return {'error': str(e)}
 
 def check_tinkoff_payment(payment_id: str) -> dict:
@@ -186,8 +178,7 @@ def check_tinkoff_payment(payment_id: str) -> dict:
         response = requests.post(f'{TINKOFF_API_URL}GetState', json=params, timeout=10)
         response.raise_for_status()
         return response.json()
-    except Exception as e:
-        print(f"[TINKOFF] GetState error: {str(e)}")
+    except Exception:
         return None
 
 def create_payment(conn, user_id: int, plan_type: str) -> dict:
@@ -262,11 +253,9 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
 
         payment = cur.fetchone()
         if not payment:
-            print(f'[PAYMENT] Payment {payment_id} not found')
             return False
 
         if payment['payment_status'] != 'pending':
-            print(f'[PAYMENT] Payment {payment_id} already processed: {payment["payment_status"]}')
             return False
 
         plan_type = payment['plan_type']
@@ -343,7 +332,7 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                 SET bonus_questions = COALESCE(bonus_questions, 0) + 15
                 WHERE id = %s
             """, (payment['user_id'],))
-            print(f"[PAYMENT] +15 bonus questions for user {payment['user_id']}", flush=True)
+
 
         conn.commit()
         return True
@@ -399,10 +388,7 @@ def handle_notification(conn, body: dict) -> dict:
     pan = body.get('Pan', '')
     card_last4 = pan[-4:] if pan and len(pan) >= 4 else None
 
-    print(f"[WEBHOOK] Status={status}, OrderId={order_id}, RebillId={rebill_id}, Pan={pan}")
-
     if not order_id.startswith('studyfay_'):
-        print(f"[WEBHOOK] Unknown OrderId format: {order_id}")
         return {'success': True}
 
     local_payment_id = int(order_id.replace('studyfay_', ''))
@@ -410,7 +396,6 @@ def handle_notification(conn, body: dict) -> dict:
     if status == 'CONFIRMED':
         complete_payment(conn, local_payment_id, 'tinkoff', payment_id_tinkoff,
                         rebill_id=rebill_id, card_last4=card_last4)
-        print(f"[WEBHOOK] Payment {local_payment_id} completed, rebill_id={rebill_id}")
 
     return {'success': True}
 

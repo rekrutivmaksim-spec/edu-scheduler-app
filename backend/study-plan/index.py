@@ -129,8 +129,7 @@ def load_material_context(conn, user_id: int, subject: str) -> str:
         if rows:
             return '\n\n'.join(row[0] for row in rows if row[0])
         return ''
-    except Exception as e:
-        print(f"[STUDY-PLAN] Failed to load materials: {e}", flush=True)
+    except Exception:
         cur.close()
         return ''
 
@@ -161,8 +160,6 @@ def generate_plan_with_ai(subject: str, difficulty: str, days_left: int, context
         "]"
     )
 
-    print(f"[STUDY-PLAN] Generating plan: subject={subject}, difficulty={difficulty}, days={capped_days}", flush=True)
-
     response = ai_client.chat.completions.create(
         model=LLAMA_MODEL,
         messages=[
@@ -174,7 +171,6 @@ def generate_plan_with_ai(subject: str, difficulty: str, days_left: int, context
     )
 
     raw = response.choices[0].message.content.strip()
-    print(f"[STUDY-PLAN] AI raw response length: {len(raw)}", flush=True)
 
     # Try to extract JSON from the response (may be wrapped in ```json ... ```)
     json_match = re.search(r'\[.*\]', raw, re.DOTALL)
@@ -293,8 +289,7 @@ def handle_generate(conn, user_id: int, body: dict) -> dict:
     # Generate via AI
     try:
         ai_days = generate_plan_with_ai(subject, difficulty, capped_days, context)
-    except Exception as e:
-        print(f"[STUDY-PLAN] AI generation error: {e}", flush=True)
+    except Exception:
         return resp(500, {'error': 'Не удалось сгенерировать план. Попробуйте ещё раз.'})
 
     if not ai_days:
@@ -323,7 +318,6 @@ def handle_generate(conn, user_id: int, body: dict) -> dict:
     cur.close()
 
     plan['days'] = saved_days
-    print(f"[STUDY-PLAN] Plan created: id={plan['id']}, days={len(saved_days)}", flush=True)
     return resp(201, {'plan': plan})
 
 

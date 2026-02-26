@@ -37,7 +37,7 @@ def charge_recurrent(user_id, rebill_id, amount, order_id):
     sorted_values = [token_params[k] for k in sorted(token_params.keys())]
     init_params['Token'] = generate_token(*sorted_values)
 
-    print(f"[AUTO-CHARGE] Init user={user_id}, rebill={rebill_id}, amount={amount}")
+
 
     resp = requests.post(f'{TINKOFF_API_URL}Init', json=init_params, timeout=10)
     init_data = resp.json()
@@ -64,7 +64,7 @@ def charge_recurrent(user_id, rebill_id, amount, order_id):
     charge_resp = requests.post(f'{TINKOFF_API_URL}Charge', json=charge_params, timeout=10)
     charge_data = charge_resp.json()
 
-    print(f"[AUTO-CHARGE] Charge response: {json.dumps(charge_data, ensure_ascii=False)}")
+
 
     if charge_data.get('Success') and charge_data.get('Status') == 'CONFIRMED':
         return {'success': True, 'tinkoff_payment_id': str(payment_id)}
@@ -88,7 +88,7 @@ def process_renewals(conn):
         """)
         users_to_charge = cur.fetchall()
 
-    print(f"[AUTO-CHARGE] Found {len(users_to_charge)} users to renew")
+
 
     for user in users_to_charge:
         results['processed'] += 1
@@ -141,7 +141,6 @@ def process_renewals(conn):
 
                 results['success'] += 1
                 results['details'].append({'user_id': user_id, 'status': 'success', 'amount': plan['price']})
-                print(f"[AUTO-CHARGE] user={user_id} renewed until {new_expires}")
             else:
                 with conn.cursor() as cur:
                     cur.execute(f"""
@@ -162,7 +161,6 @@ def process_renewals(conn):
 
                 results['failed'] += 1
                 results['details'].append({'user_id': user_id, 'status': 'failed', 'error': result.get('error')})
-                print(f"[AUTO-CHARGE] user={user_id} FAILED: {result.get('error')}")
 
         except Exception as e:
             with conn.cursor() as cur:
@@ -175,7 +173,6 @@ def process_renewals(conn):
 
             results['failed'] += 1
             results['details'].append({'user_id': user_id, 'status': 'error', 'error': str(e)})
-            print(f"[AUTO-CHARGE] user={user_id} ERROR: {str(e)}")
 
     return results
 

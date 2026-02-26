@@ -86,8 +86,7 @@ def generate_presigned_upload_url(filename: str, file_type: str, user_id: int) -
         
         cdn_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
         return {'upload_url': presigned_url, 'file_key': key, 'cdn_url': cdn_url}
-    except Exception as e:
-        print(f"[MATERIALS] Ошибка presigned URL: {e}")
+    except Exception:
         return None
 
 
@@ -95,15 +94,9 @@ def download_file_from_s3(file_key: str) -> bytes:
     """Скачивает файл из S3 для обработки на бэкенде"""
     s3 = get_s3_client()
     try:
-        print(f"[MATERIALS] Скачиваю из S3: Bucket=files, Key={file_key}")
         response = s3.get_object(Bucket='files', Key=file_key)
-        data = response['Body'].read()
-        print(f"[MATERIALS] Скачано {len(data)} байт")
-        return data
-    except Exception as e:
-        print(f"[MATERIALS] Ошибка скачивания из S3: {e}")
-        import traceback
-        traceback.print_exc()
+        return response['Body'].read()
+    except Exception:
         return None
 
 
@@ -111,8 +104,7 @@ def extract_text_from_pdf(file_data: bytes) -> str:
     try:
         pdf_reader = PdfReader(io.BytesIO(file_data))
         return '\n\n'.join([page.extract_text() for page in pdf_reader.pages])
-    except Exception as e:
-        print(f"[MATERIALS] PDF ошибка: {e}")
+    except Exception:
         return ""
 
 
@@ -137,8 +129,7 @@ def extract_text_from_docx(file_data: bytes) -> str:
                 text_parts.append('\n[ТАБЛИЦА]\n' + '\n'.join(table_text) + '\n[/ТАБЛИЦА]\n')
         
         return '\n\n'.join(text_parts)
-    except Exception as e:
-        print(f"[MATERIALS] DOCX ошибка: {e}")
+    except Exception:
         return ""
 
 
@@ -193,7 +184,7 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
     if not openrouter_key or not full_text or len(full_text) < 10:
         return {'summary': 'Документ загружен', 'subject': 'Общее', 'title': filename[:50], 'tasks': []}
     
-    print(f"[MATERIALS] OpenRouter/Llama анализ начат, длина текста={len(full_text)}")
+
     
     try:
         client = OpenAI(api_key=openrouter_key, base_url="https://api.aitunnel.ru/v1/", timeout=22.0)
@@ -223,11 +214,8 @@ def analyze_document_with_deepseek(full_text: str, filename: str) -> dict:
         elif '```' in content:
             content = content.split('```')[1].split('```')[0].strip()
         
-        result = json.loads(content)
-        print(f"[MATERIALS] OpenRouter/Llama анализ завершен: title={result.get('title')}, subject={result.get('subject')}")
-        return result
-    except Exception as e:
-        print(f"[MATERIALS] Artemox ошибка: {e}")
+        return json.loads(content)
+    except Exception:
         return {'summary': 'Документ загружен (анализ недоступен)', 'subject': 'Общее', 'title': filename[:50], 'tasks': []}
 
 

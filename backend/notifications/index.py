@@ -188,8 +188,8 @@ def handle_send_test(conn, user_id: int) -> dict:
         try:
             send_push_notification(endpoint, p256dh, auth, notification_data)
             sent_count += 1
-        except Exception as e:
-            print(f'Failed to send to {endpoint}: {e}')
+        except Exception:
+            pass
     
     return {
         'statusCode': 200,
@@ -239,8 +239,8 @@ def handle_send_lesson_reminders(conn) -> dict:
             
             try:
                 send_push_notification(endpoint, p256dh, auth, notification_data)
-            except Exception as e:
-                print(f'Failed to send lesson reminder: {e}')
+            except Exception:
+                pass
     
     cursor.close()
     
