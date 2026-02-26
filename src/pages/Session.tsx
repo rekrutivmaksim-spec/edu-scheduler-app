@@ -10,15 +10,29 @@ import { getTodayTopic as getTodayTopicBase, TOPICS_BY_SUBJECT, DEFAULT_TOPICS }
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
-function getTodayTopic(examSubject?: string | null): { subject: string; topic: string; number: number; total: number } {
+function getTodayTopic(examSubject?: string | null, offset = 0): { subject: string; topic: string; number: number; total: number } {
   const base = getTodayTopicBase(examSubject);
   if (examSubject && TOPICS_BY_SUBJECT[examSubject]) {
     const topics = TOPICS_BY_SUBJECT[examSubject];
-    const idx = topics.indexOf(base.topic);
-    return { ...base, number: (idx >= 0 ? idx : 0) + 1, total: topics.length };
+    const baseIdx = topics.indexOf(base.topic);
+    const idx = (baseIdx + offset) % topics.length;
+    return { subject: examSubject, topic: topics[idx], number: idx + 1, total: topics.length };
   }
-  const idx = DEFAULT_TOPICS.findIndex(t => t.topic === base.topic);
-  return { ...base, number: (idx >= 0 ? idx : 0) + 1, total: DEFAULT_TOPICS.length };
+  const baseIdx = DEFAULT_TOPICS.findIndex(t => t.topic === base.topic);
+  const idx = (baseIdx + offset) % DEFAULT_TOPICS.length;
+  return { subject: DEFAULT_TOPICS[idx].subject, topic: DEFAULT_TOPICS[idx].topic, number: idx + 1, total: DEFAULT_TOPICS.length };
+}
+
+// Счётчик занятий за сегодня (для подбора разных тем)
+function getTodaySessionOffset(): number {
+  const key = `sessions_today_${new Date().toDateString()}`;
+  return parseInt(localStorage.getItem(key) || '0', 10);
+}
+
+function incrementTodaySessionOffset(): void {
+  const key = `sessions_today_${new Date().toDateString()}`;
+  const cur = parseInt(localStorage.getItem(key) || '0', 10);
+  localStorage.setItem(key, String(cur + 1));
 }
 
 function getDaysToExam(examDate?: string | null): number {
@@ -118,7 +132,9 @@ export default function Session() {
   const [paywallTrigger, setPaywallTrigger] = useState<'session_limit' | 'ai_limit' | 'after_session'>('after_session');
   const [sessionAllowed, setSessionAllowed] = useState<boolean | null>(null);
   const [isPremium, setIsPremium] = useState(false);
-  const [sessionTopic, setSessionTopic] = useState(() => getTodayTopic(authService.getUser()?.exam_subject));
+  const [sessionsLeft, setSessionsLeft] = useState<number | null>(null);
+  const [sessionsMax, setSessionsMax] = useState<number>(1);
+  const [sessionTopic, setSessionTopic] = useState(() => getTodayTopic(authService.getUser()?.exam_subject, getTodaySessionOffset()));
   const [daysToExam, setDaysToExam] = useState(() => getDaysToExam(authService.getUser()?.exam_date));
 
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -138,7 +154,7 @@ export default function Session() {
     // Верифицируем токен и получаем свежие данные пользователя
     authService.verifyToken().then(user => {
       if (user) {
-        const topic = getTodayTopic(user.exam_subject);
+        const topic = getTodayTopic(user.exam_subject, getTodaySessionOffset());
         setSessionTopic(topic);
         setDaysToExam(getDaysToExam(user.exam_date));
       }
@@ -160,15 +176,25 @@ export default function Session() {
       .then(d => {
         const sub = d.subscription_type;
         const trial = !!d.is_trial;
+        const sessions = d.limits?.sessions;
         if (sub === 'premium' || trial) {
           setIsPremium(true);
+          const max = sessions?.max ?? 5;
+          const used = sessions?.used ?? 0;
+          setSessionsMax(max);
+          setSessionsLeft(Math.max(0, max - used));
           setSessionAllowed(true);
           return;
         }
-        const sessions = d.limits?.sessions;
         if (sessions) {
-          setSessionAllowed((sessions.used ?? 0) < (sessions.max ?? 1));
+          const max = sessions.max ?? 1;
+          const used = sessions.used ?? 0;
+          setSessionsMax(max);
+          setSessionsLeft(Math.max(0, max - used));
+          setSessionAllowed(used < max);
         } else {
+          setSessionsMax(1);
+          setSessionsLeft(1);
           setSessionAllowed(true);
         }
       })
@@ -200,6 +226,7 @@ export default function Session() {
     }, 1000);
     setScreen('session');
     loadStep(0);
+    incrementTodaySessionOffset();
 
     // Записываем использование сессии
     const token = authService.getToken();
@@ -482,16 +509,25 @@ export default function Session() {
             </button>
           </div>
         ) : (
-          <Button
-            onClick={startSession}
-            disabled={sessionAllowed === null}
-            className="w-full max-w-xs h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all mb-3 disabled:opacity-60"
-          >
-            {sessionAllowed === null
-              ? <><Icon name="Loader2" size={18} className="animate-spin mr-2 text-purple-400" />Загружаю...</>
-              : <>Начать <Icon name="ArrowRight" size={20} className="ml-1.5" /></>
-            }
-          </Button>
+          <>
+            <Button
+              onClick={startSession}
+              disabled={sessionAllowed === null}
+              className="w-full max-w-xs h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all mb-2 disabled:opacity-60"
+            >
+              {sessionAllowed === null
+                ? <><Icon name="Loader2" size={18} className="animate-spin mr-2 text-purple-400" />Загружаю...</>
+                : <>Начать <Icon name="ArrowRight" size={20} className="ml-1.5" /></>
+              }
+            </Button>
+            {sessionsLeft !== null && (
+              <p className="text-white/50 text-xs mb-3">
+                {isPremium
+                  ? `Осталось занятий сегодня: ${sessionsLeft} из ${sessionsMax}`
+                  : 'Бесплатно: 1 занятие в день'}
+              </p>
+            )}
+          </>
         )}
 
         {sessionAllowed !== false && streak >= 3 && (

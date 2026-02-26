@@ -250,8 +250,10 @@ const Assistant = () => {
   const handleOk = useCallback(async (resp: Response) => {
     const data = await resp.json();
     if (data.remaining !== undefined) {
-      setRemaining(data.remaining);
-      if (aiMax !== null) setAiUsed(aiMax - data.remaining);
+      // Зажимаем по aiMax чтобы не показывать 999+ при unlimited
+      const capped = aiMax !== null ? Math.min(Math.max(0, data.remaining), aiMax) : Math.max(0, data.remaining);
+      setRemaining(capped);
+      if (aiMax !== null) setAiUsed(Math.max(0, aiMax - capped));
     }
     setMessages(prev => [...prev, { role: 'assistant', content: data.answer || '', timestamp: new Date() }]);
     loadSessions();
@@ -391,9 +393,9 @@ const Assistant = () => {
                 <p className="text-xs text-gray-400 leading-none">
                   {isLoading ? (
                     <span className="text-purple-600 font-medium">Думаю...</span>
-                  ) : isPremium || isTrial ? (
-                    <span className="text-emerald-600 font-medium">Безлимитный доступ активен 🔥</span>
-                  ) : remaining === null && !isPremium && !isTrial ? (
+                  ) : (isPremium || isTrial) && remaining !== null ? (
+                    <span className="text-emerald-600 font-medium">Осталось: {remaining} из {aiMax ?? 20} 🔥</span>
+                  ) : remaining === null ? (
                     <span className="text-gray-400">Загружаю лимиты...</span>
                   ) : showFreeCounter ? (
                     <span className={freeLeft === 0 ? 'text-red-500 font-medium' : freeLeft === 1 ? 'text-amber-600' : 'text-gray-400'}>
@@ -431,15 +433,34 @@ const Assistant = () => {
         </div>
       </header>
 
-      {/* Статус-бар с лимитом */}
+      {/* Статус-бар с лимитом — Premium */}
+      {(isPremium || isTrial) && remaining !== null && (
+        <div className="flex-shrink-0 px-4 py-2 border-b bg-emerald-50 border-emerald-100">
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-emerald-700">Premium: {remaining} из {aiMax ?? 20} вопросов</span>
+            </div>
+          </div>
+          <div className="max-w-2xl mx-auto mt-1">
+            <div className="h-1 bg-emerald-100 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500 bg-emerald-500"
+                style={{ width: `${((remaining) / (aiMax ?? 20)) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Статус-бар с лимитом — Free */}
       {showFreeCounter && (
         <div className={`flex-shrink-0 px-4 py-2 border-b ${freeLeft === 0 ? 'bg-red-50 border-red-100' : freeLeft === 1 ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-600">Сегодня доступно: {aiMax} вопроса</span>
+              <span className="text-xs font-medium text-gray-600">Бесплатно: {aiMax ?? 3} вопроса в день</span>
               <span className="text-gray-300">·</span>
               <span className={`text-xs font-bold ${freeLeft === 0 ? 'text-red-600' : freeLeft === 1 ? 'text-amber-600' : 'text-gray-700'}`}>
-                Осталось: {freeLeft} из {aiMax}
+                Осталось: {freeLeft}
               </span>
             </div>
             {freeLeft <= 1 && (

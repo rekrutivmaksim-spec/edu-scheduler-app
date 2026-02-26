@@ -158,13 +158,13 @@ export default function Exam() {
 
       const ai = d.limits?.ai_questions;
       if (premium || trial) {
+        const max = 20; // Premium/Trial — всегда 20 в день
         const used = ai?.used ?? 0;
-        const max = ai?.max ?? 20;
         setQuestionsLimit(max);
         setQuestionsLeft(Math.max(0, max - used));
       } else {
-        const used = ai?.used ?? ai?.daily_used ?? 0;
-        const max = ai?.max ?? 3;
+        const max = 3; // Free — всегда 3 в день
+        const used = ai?.used ?? 0;
         setQuestionsLimit(max);
         setQuestionsLeft(Math.max(0, max - used));
       }
@@ -228,9 +228,10 @@ export default function Exam() {
         const text = data.answer || data.response || '';
         if (!text && attempt < 2) continue; // пустой ответ — повторяем
 
-        // Обновляем счётчик из ответа сервера
-        if (data.remaining !== undefined) setQuestionsLeft(data.remaining);
-        else if (!token) setQuestionsLeft(q => (q !== null ? Math.max(0, q - 1) : null));
+        // Обновляем счётчик из ответа сервера (зажимаем до questionsLimit)
+        if (data.remaining !== undefined) {
+          setQuestionsLeft(q => Math.min(Math.max(0, data.remaining), questionsLimit || (q ?? 3)));
+        } else if (!token) setQuestionsLeft(q => (q !== null ? Math.max(0, q - 1) : null));
 
         return { answer: sanitize(text || question), remaining: data.remaining };
       } catch (e: unknown) {
