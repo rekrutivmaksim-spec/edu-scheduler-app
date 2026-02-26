@@ -64,22 +64,17 @@ const EXAM_INFO: Record<string, { ege: string; oge: string }> = {
   literature: { ege: '12 заданий: анализ лирики + анализ эпоса/драмы + сочинение.', oge: '8 заданий: работа с текстом + сочинение.' },
 };
 
-// Прогноз балла и уровень по предмету (заглушка, в будущем — из базы)
-const SUBJECT_STATS: Record<string, { progress: number; level: string; scoreForecast: number }> = {
-  ru: { progress: 42, level: 'Средний', scoreForecast: 68 },
-  math_base: { progress: 60, level: 'Хороший', scoreForecast: 74 },
-  math_prof: { progress: 28, level: 'Базовый', scoreForecast: 55 },
-  math: { progress: 55, level: 'Средний', scoreForecast: 54 },
-  physics: { progress: 20, level: 'Базовый', scoreForecast: 48 },
-  chemistry: { progress: 15, level: 'Базовый', scoreForecast: 42 },
-  biology: { progress: 35, level: 'Средний', scoreForecast: 62 },
-  history: { progress: 30, level: 'Базовый', scoreForecast: 52 },
-  social: { progress: 50, level: 'Средний', scoreForecast: 65 },
-  informatics: { progress: 45, level: 'Средний', scoreForecast: 66 },
-  english: { progress: 70, level: 'Хороший', scoreForecast: 78 },
-  geography: { progress: 25, level: 'Базовый', scoreForecast: 50 },
-  literature: { progress: 38, level: 'Средний', scoreForecast: 60 },
-};
+const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+
+function calcSubjectStats(examTasksDone: number, totalSessions: number): { progress: number; level: string; scoreForecast: number } {
+  const tasks = examTasksDone || 0;
+  const sessions = totalSessions || 0;
+  const raw = Math.min(100, tasks * 3 + sessions * 2);
+  const progress = Math.max(0, raw);
+  const level = progress >= 60 ? 'Хороший' : progress >= 30 ? 'Средний' : 'Базовый';
+  const scoreForecast = Math.min(100, 40 + Math.round(progress * 0.55));
+  return { progress, level, scoreForecast };
+}
 
 function sanitize(text: string): string {
   return text
@@ -111,6 +106,7 @@ export default function Exam() {
   // Данные пользователя
   const [userGoal, setUserGoal] = useState<string>('');
   const [userSubjectId, setUserSubjectId] = useState<string>('');
+  const [userStats, setUserStats] = useState<{ examTasksDone: number; totalSessions: number }>({ examTasksDone: 0, totalSessions: 0 });
 
   // Лимит вопросов
   const [questionsLeft, setQuestionsLeft] = useState<number | null>(null);
@@ -139,7 +135,7 @@ export default function Exam() {
   const subjects = examType === 'ege' ? EGE_SUBJECTS : OGE_SUBJECTS;
   const subjectId = subject?.id ?? '';
   const examInfo = EXAM_INFO[subjectId]?.[examType === 'ege' ? 'ege' : 'oge'] ?? '';
-  const stats = SUBJECT_STATS[subjectId] ?? { progress: 0, level: 'Базовый', scoreForecast: 0 };
+  const stats = calcSubjectStats(userStats.examTasksDone, userStats.totalSessions);
   const daysLeft = daysUntil(examType === 'ege' ? EGE_DATE : OGE_DATE);
 
   // Загружаем данные пользователя + подписку
@@ -160,9 +156,24 @@ export default function Exam() {
         const subj = user.exam_subject || '';
         setUserGoal(goal);
         setUserSubjectId(subj);
-        // Авто-переключаем тип экзамена по цели пользователя
         if (goal === 'oge') setExamType('oge');
         else if (goal === 'ege') setExamType('ege');
+      }
+    } catch { /* silent */ }
+
+    // Загружаем реальную статистику из gamification
+    try {
+      const res = await fetch(GAMIFICATION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'get_profile' }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setUserStats({
+          examTasksDone: d.stats?.total_exam_tasks ?? 0,
+          totalSessions: d.streak?.total_days ?? 0,
+        });
       }
     } catch { /* silent */ }
 
@@ -534,9 +545,9 @@ export default function Exam() {
                     <p className="text-white font-extrabold text-base leading-tight">{userSubject.name}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex-1 bg-white/20 rounded-full h-1.5">
-                        <div className="bg-white rounded-full h-1.5" style={{ width: `${SUBJECT_STATS[userSubject.id]?.progress ?? 0}%` }} />
+                        <div className="bg-white rounded-full h-1.5" style={{ width: `${stats.progress}%` }} />
                       </div>
-                      <p className="text-white/80 text-[10px] flex-shrink-0">{SUBJECT_STATS[userSubject.id]?.progress ?? 0}%</p>
+                      <p className="text-white/80 text-[10px] flex-shrink-0">{stats.progress}%</p>
                     </div>
                   </div>
                 </div>
@@ -547,9 +558,9 @@ export default function Exam() {
           <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-3">Обязательные</p>
           <div className="grid grid-cols-2 gap-2.5 mb-5">
             {sortedSubjects(subjects.filter(s => s.required)).map(s => {
-              const st = SUBJECT_STATS[s.id] ?? { progress: 0, level: 'Базовый', scoreForecast: 0 };
               const isLast = s.id === lastSubjectId && s.id !== userSubjectId;
               const isUser = s.id === userSubjectId;
+              const subjectProgress = isUser ? stats.progress : 0;
               return (
                 <button
                   key={s.id}
@@ -569,10 +580,10 @@ export default function Exam() {
                   <span className="text-2xl block mb-2">{s.icon}</span>
                   <p className="text-white font-bold text-sm leading-tight mb-2">{s.name}</p>
                   <div className="w-full bg-white/20 rounded-full h-1.5 mb-1">
-                    <div className="bg-white rounded-full h-1.5 transition-all" style={{ width: `${st.progress}%` }} />
+                    <div className="bg-white rounded-full h-1.5 transition-all" style={{ width: `${subjectProgress}%` }} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-white/80 text-[10px]">{st.progress}% готовности</p>
+                    <p className="text-white/80 text-[10px]">{isUser ? `${subjectProgress}% готовности` : 'Начать'}</p>
                     {s.weakTopics > 0 && (
                       <p className="text-white/90 text-[10px] bg-white/20 rounded-full px-1.5">🔥 {s.weakTopics}</p>
                     )}
@@ -585,10 +596,10 @@ export default function Exam() {
           <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-3">По выбору</p>
           <div className="grid grid-cols-2 gap-2.5">
             {sortedSubjects(subjects.filter(s => !s.required)).map(s => {
-              const st = SUBJECT_STATS[s.id] ?? { progress: 0, level: 'Базовый', scoreForecast: 0 };
               const isLast = s.id === lastSubjectId && s.id !== userSubjectId;
               const isUser = s.id === userSubjectId;
-              const topicsLeft = Math.round(s.topics * (1 - st.progress / 100));
+              const subjectProgress = isUser ? stats.progress : 0;
+              const topicsLeft = Math.round(s.topics * (1 - subjectProgress / 100));
               return (
                 <button
                   key={s.id}
@@ -608,10 +619,10 @@ export default function Exam() {
                   <span className="text-2xl block mb-2">{s.icon}</span>
                   <p className="text-gray-800 font-bold text-sm leading-tight mb-2">{s.name}</p>
                   <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1">
-                    <div className="bg-indigo-500 rounded-full h-1.5 transition-all" style={{ width: `${st.progress}%` }} />
+                    <div className="bg-indigo-500 rounded-full h-1.5 transition-all" style={{ width: `${subjectProgress}%` }} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-gray-400 text-[10px]">осталось {topicsLeft} тем</p>
+                    <p className="text-gray-400 text-[10px]">{isUser ? `осталось ${topicsLeft} тем` : 'Начать'}</p>
                     {s.weakTopics > 0 && (
                       <p className="text-orange-500 text-[10px]">🔥 {s.weakTopics} слабых</p>
                     )}

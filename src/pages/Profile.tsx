@@ -70,16 +70,21 @@ const Profile = () => {
     init();
   }, [navigate]);
 
+  const [totalExamTasks, setTotalExamTasks] = useState(0);
+
   const loadGamification = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(`${GAMIFICATION_URL}?action=profile`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(GAMIFICATION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'get_profile' }),
       });
       if (res.ok) {
         const d = await res.json();
         setStreak(d.streak?.current || 0);
         setTotalDays(d.streak?.total_days || 0);
+        setTotalExamTasks(d.stats?.total_exam_tasks || 0);
       }
     } catch { /* silent */ }
   };
@@ -175,6 +180,7 @@ const Profile = () => {
   const daysToExam = getDaysToExam(user?.exam_date);
   const savedMoney = totalDays * COST_PER_SESSION;
   const streakLabel = streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней';
+  const topicsDone = Math.min(totalDays, 24);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -399,7 +405,7 @@ const Profile = () => {
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-indigo-50 rounded-2xl p-3 text-center">
-              <p className="text-2xl font-extrabold text-indigo-600">{Math.min(totalDays, 24)}</p>
+              <p className="text-2xl font-extrabold text-indigo-600">{topicsDone}</p>
               <p className="text-gray-500 text-[11px] mt-0.5 leading-tight">тем пройдено</p>
             </div>
             <div className="bg-purple-50 rounded-2xl p-3 text-center">
@@ -407,8 +413,8 @@ const Profile = () => {
               <p className="text-gray-500 text-[11px] mt-0.5 leading-tight">занятий</p>
             </div>
             <div className="bg-pink-50 rounded-2xl p-3 text-center">
-              <p className="text-2xl font-extrabold text-pink-600">{Math.max(0, 4 - Math.floor(totalDays / 2))}</p>
-              <p className="text-gray-500 text-[11px] mt-0.5 leading-tight">слабых тем</p>
+              <p className="text-2xl font-extrabold text-pink-600">{totalExamTasks}</p>
+              <p className="text-gray-500 text-[11px] mt-0.5 leading-tight">заданий решено</p>
             </div>
           </div>
         </div>

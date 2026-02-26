@@ -866,20 +866,34 @@ export default function Session() {
             >
               Дальше <Icon name="ArrowRight" size={16} className="ml-1.5" />
             </Button>
-          ) : isTaskStep && answerCorrect === true && showCheckResult ? (
-            <Button
-              onClick={goNext}
-              className="w-full h-[52px] bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(34,197,94,0.35)] active:scale-[0.98] transition-all animate-in fade-in duration-300"
-            >
-              Завершить занятие 🎉
-            </Button>
-          ) : isTaskStep && showCorrectAnswer && showCheckResult ? (
-            <Button
-              onClick={goNext}
-              className="w-full h-[52px] bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(99,102,241,0.35)] active:scale-[0.98] transition-all animate-in fade-in duration-300"
-            >
-              Понятно, завершить <Icon name="ArrowRight" size={16} className="ml-1.5" />
-            </Button>
+          ) : isTaskStep && (answerCorrect === true || showCorrectAnswer) && showCheckResult ? (
+            <div className="flex flex-col gap-2 animate-in fade-in duration-300">
+              <Button
+                onClick={goNext}
+                className={`w-full h-[52px] font-bold text-base rounded-2xl active:scale-[0.98] transition-all ${
+                  answerCorrect
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-[0_4px_16px_rgba(34,197,94,0.35)]'
+                    : 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-[0_4px_16px_rgba(99,102,241,0.35)]'
+                }`}
+              >
+                {answerCorrect ? 'Завершить занятие 🎉' : 'Понятно, завершить'}
+              </Button>
+              {!isPremium && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+                  <span className="text-xl flex-shrink-0">🌙</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-amber-800 font-bold text-sm leading-tight">Занятие на сегодня окончено</p>
+                    <p className="text-amber-600 text-xs mt-0.5">Приходи завтра — или продолжи с Premium</p>
+                  </div>
+                  <button
+                    onClick={() => navigate('/pricing')}
+                    className="bg-amber-500 text-white text-xs font-bold px-3 py-2 rounded-xl flex-shrink-0 active:scale-95 transition-all"
+                  >
+                    Premium
+                  </button>
+                </div>
+              )}
+            </div>
           ) : null}
         </div>
       )}
