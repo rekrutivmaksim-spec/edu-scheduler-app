@@ -141,8 +141,25 @@ def get_limits(conn, user_id: int) -> dict:
         tasks_count = cur.fetchone()['count']
 
         # Проверяем soft landing (дни 8-10 после окончания триала)
-        cur.execute("SELECT trial_ends_at, daily_questions_used, bonus_questions FROM users WHERE id = %s", (user_id,))
+        cur.execute("""
+            SELECT trial_ends_at, daily_questions_used, bonus_questions,
+                   daily_sessions_used, daily_sessions_reset_at
+            FROM users WHERE id = %s
+        """, (user_id,))
         u = cur.fetchone()
+
+        # Сброс ежедневного счётчика сессий
+        if u and u.get('daily_sessions_reset_at'):
+            reset_naive = u['daily_sessions_reset_at'].replace(tzinfo=None) if u['daily_sessions_reset_at'].tzinfo else u['daily_sessions_reset_at']
+            if reset_naive < datetime.now():
+                cur.execute("""
+                    UPDATE users
+                    SET daily_sessions_used = 0,
+                        daily_sessions_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 day'
+                    WHERE id = %s
+                """, (user_id,))
+                conn.commit()
+                u['daily_sessions_used'] = 0
     
     is_soft_landing = False
     soft_landing_days_left = 0
@@ -155,6 +172,8 @@ def get_limits(conn, user_id: int) -> dict:
                 is_soft_landing = True
                 soft_landing_days_left = SOFT_LANDING_DAYS - days_since
 
+    sessions_used = (u['daily_sessions_used'] or 0) if u else 0
+
     if status['is_premium']:
         return {
             **status,
@@ -164,7 +183,8 @@ def get_limits(conn, user_id: int) -> dict:
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
                 'materials': {'used': status['materials_quota_used'], 'max': None, 'unlimited': True},
                 'ai_questions': {'used': status.get('daily_premium_questions_used', 0), 'max': 20, 'unlimited': False},
-                'exam_predictions': {'unlimited': True}
+                'exam_predictions': {'unlimited': True},
+                'sessions': {'used': sessions_used, 'max': 5, 'unlimited': False}
             }
         }
     elif status['is_trial']:
@@ -176,7 +196,8 @@ def get_limits(conn, user_id: int) -> dict:
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
                 'materials': {'used': status['materials_quota_used'], 'max': None, 'unlimited': True},
                 'ai_questions': {'used': 0, 'max': None, 'unlimited': True, 'daily_used': 0},
-                'exam_predictions': {'unlimited': True, 'available': True}
+                'exam_predictions': {'unlimited': True, 'available': True},
+                'sessions': {'used': sessions_used, 'max': 5, 'unlimited': False}
             }
         }
     elif is_soft_landing:
@@ -197,7 +218,8 @@ def get_limits(conn, user_id: int) -> dict:
                     'daily_limit': SOFT_LANDING_LIMIT,
                     'bonus_available': bonus
                 },
-                'exam_predictions': {'unlimited': False, 'available': False}
+                'exam_predictions': {'unlimited': False, 'available': False},
+                'sessions': {'used': sessions_used, 'max': 1, 'unlimited': False}
             }
         }
     else:
@@ -221,7 +243,8 @@ def get_limits(conn, user_id: int) -> dict:
                     'daily_limit': 3,
                     'bonus_available': bonus
                 },
-                'exam_predictions': {'unlimited': False, 'available': False}
+                'exam_predictions': {'unlimited': False, 'available': False},
+                'sessions': {'used': sessions_used, 'max': 1, 'unlimited': False}
             }
         }
 
@@ -463,6 +486,30 @@ def handler(event: dict, context) -> dict:
                         })
                     }
             
+            elif action == 'use_session':
+                # Записать использование одной сессии в день
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute("""
+                        UPDATE users
+                        SET daily_sessions_used = COALESCE(daily_sessions_used, 0) + 1,
+                            daily_sessions_reset_at = COALESCE(
+                                CASE WHEN daily_sessions_reset_at IS NULL OR daily_sessions_reset_at < CURRENT_TIMESTAMP
+                                     THEN CURRENT_TIMESTAMP + INTERVAL '1 day'
+                                     ELSE daily_sessions_reset_at
+                                END,
+                                CURRENT_TIMESTAMP + INTERVAL '1 day'
+                            )
+                        WHERE id = %s
+                        RETURNING daily_sessions_used, daily_sessions_reset_at
+                    """, (user_id,))
+                    row = cur.fetchone()
+                    conn.commit()
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({'sessions_used': row['daily_sessions_used'] if row else 1})
+                }
+
             elif action == 'upgrade_demo':
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute("SELECT is_trial_used, trial_ends_at, subscription_type, subscription_expires_at FROM users WHERE id = %s", (user_id,))

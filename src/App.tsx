@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/lib/theme-context";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
@@ -18,7 +18,6 @@ import Assistant from "./pages/Assistant";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Settings from "./pages/Settings";
-import Subscription from "./pages/Subscription";
 import Achievements from "./pages/Achievements";
 import Referral from "./pages/Referral";
 import StudyGroups from "./pages/StudyGroups";
@@ -58,7 +57,7 @@ const App = () => (
               <Route path="/terms" element={<Terms />} />
               <Route path="/app" element={<AppStore />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/subscription" element={<Subscription />} />
+              <Route path="/subscription" element={<Navigate to="/pricing" replace />} />
               <Route path="/achievements" element={<Achievements />} />
               <Route path="/referral" element={<Referral />} />
               <Route path="/groups" element={<StudyGroups />} />

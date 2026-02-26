@@ -199,6 +199,16 @@ export default function Session() {
     }, 1000);
     setScreen('session');
     loadStep(0);
+
+    // Записываем использование сессии
+    const token = authService.getToken();
+    if (token && token !== 'guest_token') {
+      fetch(SUBSCRIPTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'use_session' }),
+      }).catch(() => {});
+    }
   };
 
   const startLoaderPhrases = (phrases: string[]) => {
@@ -579,20 +589,6 @@ export default function Session() {
           </div>
         </div>
 
-        {/* Пейволл: 3+ дней */}
-        {newStreak >= 3 && (
-          <div className="bg-white rounded-3xl px-5 py-4 mb-3 shadow-xl">
-            <p className="text-purple-700 font-extrabold text-lg mb-1">🔥 Ты занимаешься {newStreak} дней подряд</p>
-            <p className="text-gray-500 text-sm mb-3">Хочешь заниматься без ограничений?</p>
-            <Button
-              onClick={() => navigate('/pricing')}
-              className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl"
-            >
-              Безлимит — 449 ₽/мес
-            </Button>
-          </div>
-        )}
-
         {/* Статистика */}
         <div className="bg-white/10 rounded-3xl px-5 py-3 mb-4 flex items-center justify-around">
           <div className="text-center">
@@ -611,9 +607,18 @@ export default function Session() {
           </div>
         </div>
 
+        {!isPremium && (
+          <button
+            onClick={() => navigate('/pricing')}
+            className="w-full h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl mb-3 active:scale-[0.97] transition-all"
+          >
+            ⚡ Получить Premium — 449 ₽/мес
+          </button>
+        )}
+
         <Button
           onClick={() => navigate('/')}
-          className="w-full h-14 bg-white text-purple-700 font-bold text-base rounded-2xl shadow-xl mb-3 active:scale-[0.98] transition-all"
+          className={`w-full h-14 font-bold text-base rounded-2xl shadow-xl mb-3 active:scale-[0.98] transition-all ${isPremium ? 'bg-white text-purple-700' : 'bg-white/20 text-white border border-white/30'}`}
         >
           На главную 🏠
         </Button>

@@ -1,0 +1,3 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS daily_sessions_used INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS daily_sessions_reset_at TIMESTAMP;
