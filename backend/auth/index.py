@@ -209,10 +209,10 @@ def handler(event: dict, context) -> dict:
                         # 2. Проверка по browser fingerprint
                         if trial_allowed and browser_fp:
                             cur.execute("""
-                                SELECT COUNT(*) FROM users
+                                SELECT COUNT(*) AS cnt FROM users
                                 WHERE browser_fp = %s AND is_trial_used = TRUE
                             """, (browser_fp,))
-                            fp_count = cur.fetchone()[0]
+                            fp_count = cur.fetchone()['cnt']
                             if fp_count >= 1:
                                 trial_allowed = False
                                 block_reason = 'browser_fp'
@@ -220,21 +220,21 @@ def handler(event: dict, context) -> dict:
                         # 3. Проверка по IP — не более 2 триалов с одного IP
                         if trial_allowed:
                             cur.execute("""
-                                SELECT COUNT(*) FROM users
+                                SELECT COUNT(*) AS cnt FROM users
                                 WHERE reg_ip = %s AND is_trial_used = FALSE
                                 AND created_at > CURRENT_TIMESTAMP - INTERVAL '30 days'
                             """, (client_ip,))
-                            ip_trial_count = cur.fetchone()[0]
+                            ip_trial_count = cur.fetchone()['cnt']
                             if ip_trial_count >= 2:
                                 trial_allowed = False
                                 block_reason = 'ip_limit'
 
                         # 4. Cooldown: не более 3 регистраций с одного IP в сутки
                         cur.execute("""
-                            SELECT COUNT(*) FROM users
+                            SELECT COUNT(*) AS cnt FROM users
                             WHERE reg_ip = %s AND created_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
                         """, (client_ip,))
-                        ip_reg_today = cur.fetchone()[0]
+                        ip_reg_today = cur.fetchone()['cnt']
                         if ip_reg_today >= 3:
                             print(f"[AUTH] IP {client_ip} превысил лимит регистраций сегодня ({ip_reg_today})", flush=True)
                             return {
