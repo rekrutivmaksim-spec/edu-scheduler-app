@@ -300,29 +300,34 @@ def handler(event: dict, context) -> dict:
             try:
                 conn = get_db_connection()
                 access = check_subscription_access(conn, user_id)
-                
-                # Проверяем лимит для Free пользователей (3 материала/месяц)
-                if not access['has_access']:
-                    message = '⏰ Подписка истекла' if access.get('reason') == 'subscription_expired' else '🔒 Требуется подписка'
+
+                schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(f'''
+                        SELECT materials_quota_used, materials_quota_reset_at
+                        FROM {schema}.users
+                        WHERE id = %s
+                    ''', (user_id,))
+                    quota_info = cur.fetchone()
+
+                quota_used = (quota_info.get('materials_quota_used') or 0) if quota_info else 0
+
+                # Лимиты загрузок по тарифу:
+                # Free:           1 файл/месяц
+                # Trial/Premium:  3 файла/месяц
+                if access.get('is_premium') or access.get('is_trial'):
+                    upload_limit = 3
+                else:
+                    upload_limit = 1
+
+                if quota_used >= upload_limit:
                     conn.close()
-                    return {'statusCode': 403, 'headers': headers, 'body': json.dumps({'error': 'subscription_required', 'message': message})}
-                
-                # Для Free проверяем месячный лимит (2 материала)
-                if not access.get('is_premium') and not access.get('is_trial'):
-                    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
-                    with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                        cur.execute(f'''
-                            SELECT materials_quota_used, materials_quota_reset_at 
-                            FROM {schema}.users 
-                            WHERE id = %s
-                        ''', (user_id,))
-                        quota_info = cur.fetchone()
-                        
-                        # Проверяем, не истек ли месячный лимит
-                        quota_used = quota_info.get('materials_quota_used', 0)
-                        if quota_used >= 2:
-                            conn.close()
-                            return {'statusCode': 403, 'headers': headers, 'body': json.dumps({'error': 'quota_exceeded', 'message': '📊 Лимит загрузок исчерпан (2/2). Перейдите на Premium для безлимитных материалов'})}
+                    return {'statusCode': 403, 'headers': headers, 'body': json.dumps({
+                        'error': 'quota_exceeded',
+                        'message': f'📊 Лимит загрузок исчерпан ({quota_used}/{upload_limit}). Перейдите на Premium для 3 загрузок в месяц',
+                        'used': quota_used,
+                        'max': upload_limit
+                    })}
                 
                 conn.close()
                 

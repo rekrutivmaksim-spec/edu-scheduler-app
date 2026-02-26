@@ -8,6 +8,7 @@ import { trackSession } from '@/lib/review';
 import { dailyCheckin } from '@/lib/gamification';
 import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 import { getTodayTopic } from '@/lib/topics';
+import { useLimits } from '@/hooks/useLimits';
 
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
@@ -64,6 +65,7 @@ export default function Index() {
   const [user, setUser] = useState(authService.getUser());
   const [gamification, setGamification] = useState<GamificationProfile | null>(null);
   const [todayLessons, setTodayLessons] = useState<Lesson[]>([]);
+  const limits = useLimits();
   // sessionDone — пользователь уже прошёл занятие сегодня (храним в localStorage)
   const [sessionDone, setSessionDone] = useState(() => {
     const key = `session_done_${new Date().toDateString()}`;
@@ -262,7 +264,9 @@ export default function Index() {
                 Объяснение → пример → задание → готово
               </p>
               <p className="text-center text-[11px] text-indigo-400 font-medium mt-1">
-                Сегодня доступно: 1 занятие бесплатно
+                {limits.isPremium || limits.isTrial
+                  ? `Сегодня: ${limits.sessionsRemaining()} из ${limits.data.limits.sessions.max} занятий`
+                  : 'Сегодня доступно: 1 занятие бесплатно'}
               </p>
             </div>
           </div>
@@ -346,6 +350,24 @@ export default function Index() {
             </div>
           </div>
 
+          {/* Строка лимитов */}
+          {!limits.loading && (
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="bg-purple-50 rounded-2xl px-2 py-2">
+                <p className="text-purple-700 font-bold text-sm">{limits.aiRemaining() >= 999 ? '∞' : limits.aiRemaining()}</p>
+                <p className="text-purple-400 text-[10px]">вопросов ИИ</p>
+              </div>
+              <div className="bg-indigo-50 rounded-2xl px-2 py-2">
+                <p className="text-indigo-700 font-bold text-sm">{limits.sessionsRemaining() >= 999 ? '∞' : limits.sessionsRemaining()}</p>
+                <p className="text-indigo-400 text-[10px]">занятий</p>
+              </div>
+              <div className="bg-pink-50 rounded-2xl px-2 py-2">
+                <p className="text-pink-700 font-bold text-sm">{limits.materialsRemaining() >= 999 ? '∞' : limits.materialsRemaining()}</p>
+                <p className="text-pink-400 text-[10px]">загрузок</p>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={() => navigate('/exam')}
             className="mt-3 w-full flex items-center justify-center gap-2 border-2 border-dashed border-indigo-200 rounded-2xl py-2.5 text-indigo-500 text-sm font-medium hover:bg-indigo-50 transition-colors active:scale-[0.98]"
@@ -355,8 +377,27 @@ export default function Index() {
           </button>
         </div>
 
-        {/* ===== БЛОК 4: МОНЕТИЗАЦИЯ (streak ≥ 5) ===== */}
-        {streak >= 5 && (
+        {/* ===== БЛОК АПГРЕЙДА (free, лимиты кончаются) ===== */}
+        {!limits.loading && !limits.isPremium && !limits.isTrial && (limits.aiRemaining() <= 0 || limits.sessionsRemaining() <= 0) && (
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl px-5 py-4 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">⚡</span>
+              <div>
+                <p className="text-white font-bold text-base">Лимиты на сегодня исчерпаны</p>
+                <p className="text-white/70 text-xs">Подключи Premium — продолжай без ограничений</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/pricing')}
+              className="w-full bg-white text-indigo-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
+            >
+              Premium — 449 ₽/мес
+            </button>
+          </div>
+        )}
+
+        {/* ===== БЛОК 4: МОНЕТИЗАЦИЯ (streak ≥ 5, есть лимиты) ===== */}
+        {streak >= 5 && (limits.isPremium || limits.isTrial || (limits.aiRemaining() > 0 && limits.sessionsRemaining() > 0)) && (
           <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-3xl px-5 py-4 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <span className="text-2xl">🚀</span>

@@ -174,6 +174,11 @@ def get_limits(conn, user_id: int) -> dict:
 
     sessions_used = (u['daily_sessions_used'] or 0) if u else 0
 
+    # Лимиты по тарифу:
+    # Free:    1 сессия/день, 3 AI вопроса/день, 1 загрузка файла/месяц
+    # Premium: 5 сессий/день, 20 AI вопросов/день, 3 загрузки файла/месяц
+    # Trial:   всё как Premium (5 сессий, 20 AI, 3 загрузки)
+
     if status['is_premium']:
         return {
             **status,
@@ -181,7 +186,7 @@ def get_limits(conn, user_id: int) -> dict:
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
-                'materials': {'used': status['materials_quota_used'], 'max': None, 'unlimited': True},
+                'materials': {'used': status['materials_quota_used'], 'max': 3, 'unlimited': False},
                 'ai_questions': {'used': status.get('daily_premium_questions_used', 0), 'max': 20, 'unlimited': False},
                 'exam_predictions': {'unlimited': True},
                 'sessions': {'used': sessions_used, 'max': 5, 'unlimited': False}
@@ -194,8 +199,8 @@ def get_limits(conn, user_id: int) -> dict:
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
-                'materials': {'used': status['materials_quota_used'], 'max': None, 'unlimited': True},
-                'ai_questions': {'used': 0, 'max': None, 'unlimited': True, 'daily_used': 0},
+                'materials': {'used': status['materials_quota_used'], 'max': 3, 'unlimited': False},
+                'ai_questions': {'used': status.get('daily_questions_used', 0), 'max': 20, 'unlimited': False},
                 'exam_predictions': {'unlimited': True, 'available': True},
                 'sessions': {'used': sessions_used, 'max': 5, 'unlimited': False}
             }
@@ -210,7 +215,7 @@ def get_limits(conn, user_id: int) -> dict:
             'limits': {
                 'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
                 'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
-                'materials': {'used': status['materials_quota_used'], 'max': 2, 'unlimited': False},
+                'materials': {'used': status['materials_quota_used'], 'max': 1, 'unlimited': False},
                 'ai_questions': {
                     'used': daily_used,
                     'max': SOFT_LANDING_LIMIT + bonus,
@@ -223,18 +228,18 @@ def get_limits(conn, user_id: int) -> dict:
             }
         }
     else:
-        # Free: 3 вопроса в день + бонус
+        # Free: 1 сессия/день, 3 AI вопроса/день + бонус, 1 загрузка файла/месяц
         daily_used = status.get('daily_questions_used', 0)
         bonus = status.get('bonus_questions', 0)
         total_available = 3 + bonus
-        
+
         return {
             **status,
             'is_soft_landing': False,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
                 'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
-                'materials': {'used': status['materials_quota_used'], 'max': 2, 'unlimited': False},
+                'materials': {'used': status['materials_quota_used'], 'max': 1, 'unlimited': False},
                 'ai_questions': {
                     'used': daily_used,
                     'max': total_available,

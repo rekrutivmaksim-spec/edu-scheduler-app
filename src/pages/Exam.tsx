@@ -142,7 +142,6 @@ export default function Exam() {
   const loadSubscription = async () => {
     const token = authService.getToken();
     if (!token) {
-      // Гость — demo режим, 10 запросов в час (на сервере)
       setQuestionsLeft(3);
       setQuestionsLimit(3);
       setSubLoading(false);
@@ -154,19 +153,20 @@ export default function Exam() {
       });
       const d = await res.json();
       const premium = d.subscription_type === 'premium';
-      setIsPremium(premium);
+      const trial = !!d.is_trial;
+      setIsPremium(premium || trial);
 
-      if (premium) {
-        const used = d.limits?.ai_questions?.used ?? d.daily_questions_used ?? 0;
-        setQuestionsLimit(20);
-        setQuestionsLeft(Math.max(0, 20 - used));
+      const ai = d.limits?.ai_questions;
+      if (premium || trial) {
+        const used = ai?.used ?? 0;
+        const max = ai?.max ?? 20;
+        setQuestionsLimit(max);
+        setQuestionsLeft(Math.max(0, max - used));
       } else {
-        // Бесплатный: 3 вопроса в день + бонусные
-        const used = d.daily_questions_used ?? d.limits?.ai_questions?.used ?? 0;
-        const bonus = d.bonus_questions ?? 0;
-        const total = 3 + bonus;
-        setQuestionsLimit(total);
-        setQuestionsLeft(Math.max(0, total - used));
+        const used = ai?.used ?? ai?.daily_used ?? 0;
+        const max = ai?.max ?? 3;
+        setQuestionsLimit(max);
+        setQuestionsLeft(Math.max(0, max - used));
       }
     } catch {
       setQuestionsLeft(3);

@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import BottomNav from '@/components/BottomNav';
 import { COMPANIONS, getCompanion, getCompanionStage, getCompanionFromStorage, type CompanionId } from '@/lib/companion';
+import { useLimits } from '@/hooks/useLimits';
 
 const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
@@ -38,6 +39,7 @@ const Profile = () => {
   const [isPremium, setIsPremium] = useState(false);
   const [streak, setStreak] = useState(0);
   const [totalDays, setTotalDays] = useState(0);
+  const limits = useLimits();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -307,15 +309,34 @@ const Profile = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl p-5 shadow-xl flex items-center gap-4 cursor-pointer" onClick={() => navigate('/subscription')}>
-            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-              <Icon name="Crown" size={24} className="text-yellow-300" />
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                <Icon name="Crown" size={24} className="text-yellow-300" />
+              </div>
+              <div className="flex-1">
+                <p className="text-white font-bold text-base">Premium активен ✓</p>
+                {limits.data.subscription_expires_at && (
+                  <p className="text-white/60 text-sm">
+                    до {new Date(limits.data.subscription_expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="flex-1">
-              <p className="text-white font-bold text-base">Premium активен ✓</p>
-              <p className="text-white/60 text-sm">Безлимитный доступ открыт</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-white/15 rounded-2xl px-2 py-2">
+                <p className="text-white font-bold text-sm">20</p>
+                <p className="text-white/60 text-[10px]">вопросов ИИ</p>
+              </div>
+              <div className="bg-white/15 rounded-2xl px-2 py-2">
+                <p className="text-white font-bold text-sm">5</p>
+                <p className="text-white/60 text-[10px]">занятий</p>
+              </div>
+              <div className="bg-white/15 rounded-2xl px-2 py-2">
+                <p className="text-white font-bold text-sm">3</p>
+                <p className="text-white/60 text-[10px]">загрузки</p>
+              </div>
             </div>
-            <Icon name="ChevronRight" size={20} className="text-white/40" />
           </div>
         )}
 
