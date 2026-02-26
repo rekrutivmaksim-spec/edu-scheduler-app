@@ -44,6 +44,7 @@ interface GamificationProfile {
   xp_progress: number;
   xp_needed: number;
   is_premium: boolean;
+  is_trial?: boolean;
   streak: {
     current: number;
     longest: number;
@@ -90,19 +91,20 @@ function getLevelEmoji(level: number): string {
 }
 
 const LEVEL_REWARDS: Record<number, string> = {
-  2: '+3 вопроса ИИ',
-  3: '+1 анализ файла',
-  4: '+5 вопросов ИИ',
-  5: '1 день Premium',
-  6: 'заморозка серии',
+  5: 'достижение «Уровень 5»',
+  10: 'достижение «Уровень 10»',
+  25: 'достижение «Уровень 25»',
+  50: 'достижение «Уровень 50»',
 };
 
 const STREAK_REWARDS_INFO = [
-  { days: 3, reward: '+3 вопроса ИИ' },
-  { days: 7, reward: '+10 вопросов' },
-  { days: 14, reward: '+1 анализ файла' },
-  { days: 30, reward: '1 день Premium' },
-  { days: 60, reward: '3 дня Premium' },
+  { days: 3, reward: '+5 вопросов ИИ' },
+  { days: 7, reward: '+10 вопросов ИИ' },
+  { days: 14, reward: '+20 вопросов ИИ' },
+  { days: 21, reward: '3 дня Premium' },
+  { days: 30, reward: '7 дней Premium' },
+  { days: 60, reward: '14 дней Premium' },
+  { days: 90, reward: '30 дней Premium' },
 ];
 
 const DEMO_ACHIEVEMENTS = [

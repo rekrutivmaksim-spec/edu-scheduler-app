@@ -325,7 +325,7 @@ export default function AuthNew() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'use_referral', referral_code: pending.toUpperCase() }),
       });
-    } catch (e) { console.warn('referral', e); }
+    } catch { /* silent */ }
   };
 
   const afterLogin = async (data: { token: string; user: { full_name: string } }) => {

@@ -87,7 +87,7 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 87, onC
               {daysToExam > 0 && (
                 <div className="bg-white/15 rounded-xl px-3 py-1.5 flex items-center gap-1.5">
                   <span className="text-sm">🎯</span>
-                  <span className="text-white text-xs font-semibold">До ЕГЭ {daysToExam} дней</span>
+                  <span className="text-white text-xs font-semibold">До экзамена {daysToExam} дней</span>
                 </div>
               )}
             </div>

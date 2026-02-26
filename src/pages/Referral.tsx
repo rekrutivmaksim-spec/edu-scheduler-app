@@ -54,8 +54,8 @@ export default function Referral() {
       if (resp.ok) {
         setData(await resp.json());
       }
-    } catch (e) {
-      console.error('Referral load error:', e);
+    } catch {
+      /* silent */
     } finally {
       setLoading(false);
     }
