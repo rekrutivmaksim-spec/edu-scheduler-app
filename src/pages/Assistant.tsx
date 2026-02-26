@@ -138,8 +138,7 @@ const Assistant = () => {
   const [aiUsed, setAiUsed] = useState<number | null>(null);
   const [aiMax, setAiMax] = useState<number | null>(null);
   const [isPremium, setIsPremium] = useState(false);
-   
-  const isTrial = false;
+  const [isTrial, setIsTrial] = useState(false);
   const [showMaterialPicker, setShowMaterialPicker] = useState(false);
   const [showLimitScreen, setShowLimitScreen] = useState(false);
   const [thinkingElapsed, setThinkingElapsed] = useState(0);
@@ -214,6 +213,7 @@ const Assistant = () => {
         const ai = data.limits?.ai_questions;
         const sub = data.subscription_type;
         setIsPremium(sub === 'premium');
+        setIsTrial(!!data.is_trial);
         if (sub === 'premium' || !!data.is_trial) {
           setAiUsed(ai?.used ?? 0);
           setAiMax(20);

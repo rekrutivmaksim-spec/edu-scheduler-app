@@ -69,7 +69,7 @@ const SUBJECT_STATS: Record<string, { progress: number; level: string; scoreFore
   ru: { progress: 42, level: 'Средний', scoreForecast: 68 },
   math_base: { progress: 60, level: 'Хороший', scoreForecast: 74 },
   math_prof: { progress: 28, level: 'Базовый', scoreForecast: 55 },
-  math: { progress: 55, level: 'Средний', scoreForecast: 4 },
+  math: { progress: 55, level: 'Средний', scoreForecast: 54 },
   physics: { progress: 20, level: 'Базовый', scoreForecast: 48 },
   chemistry: { progress: 15, level: 'Базовый', scoreForecast: 42 },
   biology: { progress: 35, level: 'Средний', scoreForecast: 62 },
@@ -660,7 +660,7 @@ export default function Exam() {
 
           {/* План на 7 дней — Premium */}
           <button
-            onClick={() => isPremium ? navigate('/study-plan') : setShowPaywall(true)}
+            onClick={() => isPremium ? navigate('/session') : setShowPaywall(true)}
             className={`rounded-2xl p-4 text-left shadow-sm border active:scale-[0.97] transition-all ${
               isPremium
                 ? 'bg-gradient-to-r from-amber-400 to-orange-500 border-orange-200'

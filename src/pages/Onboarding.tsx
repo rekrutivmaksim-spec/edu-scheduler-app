@@ -94,7 +94,7 @@ export default function Onboarding() {
             action: 'update_profile',
             full_name: authService.getUser()?.full_name || '',
             goal,
-            grade,
+            grade: grade === '—' ? null : grade,
             companion: companion || 'owl',
             exam_type: isExam ? goal : null,
             exam_subject: isExam ? subject : null,

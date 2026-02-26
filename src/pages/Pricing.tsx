@@ -61,7 +61,7 @@ const Pricing = () => {
       const res = await fetch(SUBSCRIPTION_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: 'create_payment', plan: planId }),
+        body: JSON.stringify({ action: 'create_payment', plan_type: planId }),
       });
       const data = await res.json();
       if (res.ok && data.payment_url) {
