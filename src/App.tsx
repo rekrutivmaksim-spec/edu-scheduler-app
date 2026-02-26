@@ -7,8 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/lib/theme-context";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
 import AuthNew from "./pages/AuthNew";
 import VKCallback from "./pages/VKCallback";
 import Onboarding from "./pages/Onboarding";
@@ -17,8 +15,6 @@ import Materials from "./pages/Materials";
 import Pomodoro from "./pages/Pomodoro";
 import Pricing from "./pages/Pricing";
 import Assistant from "./pages/Assistant";
-import Calendar from "./pages/Calendar";
-import Analytics from "./pages/Analytics";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Settings from "./pages/Settings";
@@ -34,6 +30,7 @@ import University from "./pages/University";
 import NotFound from "./pages/NotFound";
 import Screenshots from "./pages/Screenshots";
 import Session from "./pages/Session";
+import Flashcards from "./pages/Flashcards";
 
 const queryClient = new QueryClient();
 
@@ -47,9 +44,9 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
               <Route path="/auth" element={<AuthNew />} />
+              <Route path="/login" element={<AuthNew />} />
+              <Route path="/register" element={<AuthNew />} />
               <Route path="/auth/vk" element={<VKCallback />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/profile" element={<Profile />} />
@@ -57,8 +54,6 @@ const App = () => (
               <Route path="/pomodoro" element={<Pomodoro />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/assistant" element={<Assistant />} />
-              <Route path="/calendar" element={<Calendar />} />
-              <Route path="/analytics" element={<Analytics />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/app" element={<AppStore />} />
@@ -69,11 +64,11 @@ const App = () => (
               <Route path="/groups" element={<StudyGroups />} />
               <Route path="/widget" element={<Widget />} />
               <Route path="/dashboard" element={<Dashboard />} />
-
               <Route path="/exam" element={<Exam />} />
               <Route path="/university" element={<University />} />
               <Route path="/screenshots" element={<Screenshots />} />
               <Route path="/session" element={<Session />} />
+              <Route path="/flashcards" element={<Flashcards />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

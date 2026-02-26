@@ -95,7 +95,7 @@ export default function Settings() {
       toast({
         variant: 'destructive',
         title: 'Ошибка',
-        description: error.message || 'Не удалось сохранить настройки'
+        description: error instanceof Error ? error.message : 'Не удалось сохранить настройки'
       });
     } finally {
       setSaving(false);
@@ -122,7 +122,7 @@ export default function Settings() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate(-1)}
               className="rounded-xl hover:bg-purple-100/50 h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
             >
               <Icon name="ArrowLeft" size={20} className="text-purple-600 sm:w-6 sm:h-6" />
@@ -367,7 +367,7 @@ export default function Settings() {
             <div className="space-y-3 text-sm text-gray-700">
               <div className="flex items-start gap-2">
                 <Icon name="Info" size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <p><strong>Подписка не продлевается автоматически.</strong> Для продолжения использования ИИ-ассистента необходимо повторно оформить подписку после окончания срока действия.</p>
+                <p><strong>Подписка продлевается автоматически.</strong> Отключить автопродление можно в разделе «Подписка» — тогда доступ сохранится до конца оплаченного периода.</p>
               </div>
               <div className="flex items-start gap-2">
                 <Icon name="RotateCcw" size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
@@ -50,6 +50,13 @@ function daysUntil(dateStr: string): number {
 export default function Onboarding() {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      navigate('/auth');
+    }
+  }, [navigate]);
+
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState('');
   const [companion, setCompanion] = useState<CompanionId | ''>('');
@@ -91,7 +98,7 @@ export default function Onboarding() {
             companion: companion || 'owl',
             exam_type: isExam ? goal : null,
             exam_subject: isExam ? subject : null,
-            exam_date: isExam && examDate ? examDate : null,
+            exam_date: isExam && examDate && examDate !== 'custom' ? examDate : null,
             onboarding_completed: true,
           }),
         });

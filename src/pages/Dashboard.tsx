@@ -245,12 +245,12 @@ const Dashboard = () => {
               <div className="text-xs text-purple-200">{'Стрик дней'}</div>
             </div>
             {data.gpa !== null && data.gpa > 0 ? (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center cursor-pointer hover:bg-white/15 transition-colors" onClick={() => navigate('/gradebook')}>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center cursor-pointer hover:bg-white/15 transition-colors" onClick={() => navigate('/profile')}>
                 <div className="text-2xl font-bold">{data.gpa.toFixed(1)}</div>
                 <div className="text-xs text-purple-200">GPA</div>
               </div>
             ) : (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center cursor-pointer hover:bg-white/15 transition-colors" onClick={() => navigate('/gradebook')}>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center cursor-pointer hover:bg-white/15 transition-colors" onClick={() => navigate('/profile')}>
                 <div className="text-2xl font-bold">{'📚'}</div>
                 <div className="text-xs text-purple-200">{'Оценки'}</div>
               </div>
@@ -451,7 +451,7 @@ const Dashboard = () => {
                 <Icon name="BarChart3" size={16} className="text-blue-500" />
                 {'Оценки по предметам'}
               </h3>
-              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/gradebook')}>
+              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate('/profile')}>
                 <Icon name="ChevronRight" size={14} />
               </Button>
             </div>

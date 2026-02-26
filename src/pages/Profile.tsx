@@ -538,7 +538,7 @@ const Profile = () => {
             <div>
               <Label className="text-gray-500 text-xs font-medium uppercase tracking-wide">Цель</Label>
               <div className="flex gap-2 mt-1">
-                {(['ege', 'oge', 'vuz'] as const).map(g => (
+                {(['ege', 'oge', 'university'] as const).map(g => (
                   <button
                     key={g}
                     disabled={!isEditing}
@@ -562,7 +562,16 @@ const Profile = () => {
                 {isSaving ? <Icon name="Loader2" size={16} className="animate-spin" /> : 'Сохранить'}
               </Button>
               <Button
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  setFormData({
+                    full_name: user?.full_name || '',
+                    grade: user?.grade || '',
+                    goal: user?.goal || 'ege',
+                    exam_subject: user?.exam_subject || '',
+                    exam_date: user?.exam_date || '',
+                  });
+                  setIsEditing(false);
+                }}
                 variant="outline"
                 className="flex-1 h-11 rounded-2xl border-2 border-gray-200"
               >

@@ -615,7 +615,7 @@ export default function Session() {
           onClick={() => navigate('/')}
           className="w-full h-14 bg-white text-purple-700 font-bold text-base rounded-2xl shadow-xl mb-3 active:scale-[0.98] transition-all"
         >
-          Продолжим завтра 📅
+          На главную 🏠
         </Button>
         <button onClick={() => navigate('/assistant')} className="text-white/40 text-sm text-center w-full py-2">
           Задать дополнительный вопрос

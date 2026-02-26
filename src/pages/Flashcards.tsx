@@ -89,7 +89,7 @@ const Flashcards = () => {
     const token = authService.getToken();
     return {
       'Content-Type': 'application/json',
-      'X-Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${token}`,
     };
   }, []);
 
