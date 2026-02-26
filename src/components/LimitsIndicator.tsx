@@ -109,7 +109,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
                 />
               </div>
             </div>
-            <Button size="sm" variant="ghost" onClick={() => navigate('/subscription')} className="text-xs text-purple-600 h-7 px-2">
+            <Button size="sm" variant="ghost" onClick={() => navigate('/pricing')} className="text-xs text-purple-600 h-7 px-2">
               Докупить
             </Button>
           </div>
@@ -131,7 +131,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
               <Button
                 size="sm"
                 variant="default"
-                onClick={() => navigate('/subscription')}
+                onClick={() => navigate('/pricing')}
                 className="ml-auto text-xs bg-gradient-to-r from-purple-600 to-indigo-600 text-white animate-pulse h-7"
               >
                 <Icon name="Crown" size={13} className="mr-1" />
@@ -205,7 +205,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm text-gray-700 flex items-center gap-1">
                 <Icon name="Bot" size={14} />
-                AI-вопросы (в месяц)
+                AI-вопросы (в день)
               </span>
               <span className={`text-sm font-medium ${getColor(getPercentage(limits.ai_questions.used, limits.ai_questions.max))}`}>
                 {limits.ai_questions.used} / {limits.ai_questions.max}
@@ -222,7 +222,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
             Лимиты заканчиваются? Получи безлимитный доступ!
           </p>
           <Button
-            onClick={() => navigate('/subscription')}
+            onClick={() => navigate('/pricing')}
             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg"
             size="sm"
           >

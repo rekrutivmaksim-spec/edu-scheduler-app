@@ -196,7 +196,7 @@ const Materials = () => {
           description: errorData.message || 'Загрузка доступна только по подписке',
           variant: 'destructive'
         });
-        setTimeout(() => navigate('/subscription'), 2000);
+        setTimeout(() => navigate('/pricing'), 2000);
         setIsUploading(false);
         return;
       }

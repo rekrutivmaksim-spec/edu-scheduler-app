@@ -695,7 +695,7 @@ export default function Exam() {
               <h3 className="font-extrabold text-gray-800 text-xl text-center mb-2">Разблокируй Premium</h3>
               <p className="text-gray-500 text-sm text-center mb-6">Получи доступ к персональному плану, неограниченным вопросам и всем режимам</p>
               <button
-                onClick={() => navigate('/subscription')}
+                onClick={() => navigate('/pricing')}
                 className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-base mb-3"
               >
                 Подключить Premium

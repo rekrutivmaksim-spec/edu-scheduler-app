@@ -34,6 +34,7 @@ def check_subscription_status(user_id: int, conn) -> dict:
                    trial_ends_at, is_trial_used,
                    ai_questions_used, ai_questions_reset_at,
                    daily_questions_used, daily_questions_reset_at,
+                   daily_premium_questions_used, daily_premium_questions_reset_at,
                    bonus_questions
             FROM users
             WHERE id = %s
@@ -120,6 +121,7 @@ def check_subscription_status(user_id: int, conn) -> dict:
             'ai_questions_reset_at': user.get('ai_questions_reset_at').isoformat() if user.get('ai_questions_reset_at') else None,
             'daily_questions_used': user.get('daily_questions_used', 0) or 0,
             'daily_questions_reset_at': user.get('daily_questions_reset_at').isoformat() if user.get('daily_questions_reset_at') else None,
+            'daily_premium_questions_used': user.get('daily_premium_questions_used', 0) or 0,
             'bonus_questions': user.get('bonus_questions', 0) or 0
         }
 
@@ -161,7 +163,7 @@ def get_limits(conn, user_id: int) -> dict:
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
                 'materials': {'used': status['materials_quota_used'], 'max': None, 'unlimited': True},
-                'ai_questions': {'used': status.get('daily_questions_used', 0), 'max': 20, 'unlimited': False},
+                'ai_questions': {'used': status.get('daily_premium_questions_used', 0), 'max': 20, 'unlimited': False},
                 'exam_predictions': {'unlimited': True}
             }
         }

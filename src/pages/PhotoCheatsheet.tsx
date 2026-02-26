@@ -68,7 +68,7 @@ const PhotoCheatsheet = () => {
 
       if (response.status === 403) {
         toast({ title: 'Нужна подписка', description: data.message || 'Фото-шпаргалка доступна с Premium', variant: 'destructive' });
-        setTimeout(() => navigate('/subscription'), 1500);
+        setTimeout(() => navigate('/pricing'), 1500);
         return;
       }
 

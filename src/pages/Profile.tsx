@@ -288,7 +288,7 @@ const Profile = () => {
                 </div>
               )}
               <div className="flex items-center gap-3 mb-1">
-                <Button className="flex-1 h-12 bg-white text-purple-700 font-extrabold text-base rounded-2xl shadow-lg">
+                <Button onClick={() => navigate('/pricing')} className="flex-1 h-12 bg-white text-purple-700 font-extrabold text-base rounded-2xl shadow-lg">
                   Подключить Premium
                 </Button>
                 <div className="text-right flex-shrink-0">
