@@ -52,8 +52,7 @@ const LimitsIndicator = ({ compact = false }: LimitsIndicatorProps) => {
           setShowUpgradeButton(!!anyNearLimit);
         }
       }
-    } catch (error) {
-      console.error('Failed to load limits:', error);
+    } catch { /* silent */
     } finally {
       setLoading(false);
     }

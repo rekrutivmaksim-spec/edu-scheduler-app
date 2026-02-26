@@ -55,7 +55,7 @@ const SubscriptionStatus = ({
               <Icon name="Crown" size={24} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm sm:text-base font-bold text-gray-800">Premium активна</h3>
+              <h3 className="text-sm sm:text-base font-bold text-gray-800">Premium активен</h3>
               <p className="text-xs text-gray-600 mt-0.5">
                 До {new Date(expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
