@@ -66,9 +66,7 @@ const Sharing = () => {
         const data = await response.json();
         setMyShares(data.shares);
       }
-    } catch (error) {
-      console.error('Failed to load shares:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const loadSubscriptions = async () => {
@@ -81,9 +79,7 @@ const Sharing = () => {
         const data = await response.json();
         setSubscriptions(data.subscriptions);
       }
-    } catch (error) {
-      console.error('Failed to load subscriptions:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const handleCreateShare = async () => {

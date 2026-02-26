@@ -128,9 +128,7 @@ const StudyPlan = () => {
       } else {
         throw new Error('Failed to load plans');
       }
-    } catch (error) {
-      console.error('Failed to load plans:', error);
-    }
+    } catch { /* silent */ }
   }, [authHeaders]);
 
   const loadPlanDetail = useCallback(async (planId: number) => {
@@ -146,8 +144,7 @@ const StudyPlan = () => {
       } else {
         toast({ title: 'Ошибка', description: 'Не удалось загрузить план', variant: 'destructive' });
       }
-    } catch (error) {
-      console.error('Failed to load plan detail:', error);
+    } catch {
       toast({ title: 'Ошибка сети', description: 'Проверьте подключение', variant: 'destructive' });
     }
   }, [authHeaders, toast]);

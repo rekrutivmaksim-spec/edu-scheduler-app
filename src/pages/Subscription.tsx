@@ -135,9 +135,7 @@ const Subscription = () => {
         const data = await response.json();
         setPlans(data.plans);
       }
-    } catch (error) {
-      console.error('Failed to load plans:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const loadTokenPacks = async () => {
@@ -152,9 +150,7 @@ const Subscription = () => {
         setQuestionPacks(data.question_packs || []);
         setSeasonalPlans(data.seasonal_packs || []);
       }
-    } catch (error) {
-      console.error('Failed to load token packs:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const loadSubscriptionStatus = async () => {
@@ -167,9 +163,7 @@ const Subscription = () => {
         const data = await response.json();
         setSubscriptionStatus(data);
       }
-    } catch (error) {
-      console.error('Failed to load subscription:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const loadPaymentHistory = async () => {
@@ -182,9 +176,7 @@ const Subscription = () => {
         const data = await response.json();
         setPayments(data.payments);
       }
-    } catch (error) {
-      console.error('Failed to load payment history:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const loadAutoRenewInfo = async () => {
@@ -197,9 +189,7 @@ const Subscription = () => {
         const data = await response.json();
         setAutoRenewInfo(data);
       }
-    } catch (error) {
-      console.error('Failed to load auto renew info:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const handleToggleAutoRenew = async () => {
@@ -259,26 +249,19 @@ const Subscription = () => {
       }
 
       const createData = await createResponse.json();
-      
-      console.log('[PAYMENT] Ответ от backend:', createData);
-      
+
       if (createData.payment?.error) {
         throw new Error(createData.payment.error);
       }
-      
+
       const paymentId = createData.payment.id;
       const paymentUrl = createData.payment_url;
       const tinkoffPaymentId = createData.tinkoff_payment_id;
-
-      console.log('[PAYMENT] Payment URL:', paymentUrl);
-      console.log('[PAYMENT] Tinkoff Payment ID:', tinkoffPaymentId);
 
       if (!paymentUrl || !tinkoffPaymentId) {
         const errorMsg = createData.payment?.error || 'Ошибка при создании платежа в Т-кассе';
         throw new Error(errorMsg);
       }
-
-      console.log('[PAYMENT] Открываем окно оплаты:', paymentUrl);
 
       toast({
         title: 'Переход к оплате',
@@ -286,8 +269,6 @@ const Subscription = () => {
       });
 
       const paymentWindow = window.open(paymentUrl, '_blank');
-      
-      console.log('[PAYMENT] Window.open result:', paymentWindow);
 
       if (!paymentWindow) {
         toast({
@@ -345,22 +326,18 @@ const Subscription = () => {
               setSelectedPlan(null);
             }
           }
-        } catch (error) {
-          console.error('Ошибка проверки платежа:', error);
-        }
+        } catch { /* silent */ }
       }, 3000);
 
       setTimeout(() => {
         clearInterval(checkInterval);
-        if (isProcessing) {
-          setIsProcessing(false);
-          setSelectedPlan(null);
-          toast({
-            title: 'Время ожидания истекло',
-            description: 'Проверьте статус платежа позже',
-            variant: 'destructive'
-          });
-        }
+        setIsProcessing(false);
+        setSelectedPlan(null);
+        toast({
+          title: 'Время ожидания истекло',
+          description: 'Проверьте статус платежа позже',
+          variant: 'destructive'
+        });
       }, 600000);
 
     } catch (error) {

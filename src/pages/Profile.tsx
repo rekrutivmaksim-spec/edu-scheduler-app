@@ -81,7 +81,7 @@ const Profile = () => {
         setStreak(d.streak?.current || 0);
         setTotalDays(d.streak?.total_days || 0);
       }
-    } catch (e) { console.error(e); }
+    } catch { /* silent */ }
   };
 
   const loadSubscription = async () => {

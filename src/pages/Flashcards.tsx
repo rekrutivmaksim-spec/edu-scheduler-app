@@ -104,9 +104,7 @@ const Flashcards = () => {
         const totalDue = (data.sets || []).reduce((sum: number, s: FlashcardSet) => sum + (s.due_count || 0), 0);
         setReviewDueCount(totalDue);
       }
-    } catch (error) {
-      console.error('Failed to load sets:', error);
-    }
+    } catch { /* silent */ }
   }, [authHeaders]);
 
   const loadCards = useCallback(async (setId: number) => {
@@ -119,8 +117,7 @@ const Flashcards = () => {
       } else {
         toast({ title: 'Ошибка', description: 'Не удалось загрузить карточки', variant: 'destructive' });
       }
-    } catch (error) {
-      console.error('Failed to load cards:', error);
+    } catch {
       toast({ title: 'Ошибка сети', description: 'Проверьте подключение', variant: 'destructive' });
     } finally {
       setLoadingCards(false);
@@ -136,9 +133,8 @@ const Flashcards = () => {
         setCards(data.cards || []);
         setReviewDueCount(data.total_due || 0);
       }
-    } catch (error) {
-      console.error('Failed to load review cards:', error);
-    } finally {
+    } catch { /* silent */ }
+    finally {
       setLoadingCards(false);
     }
   }, [authHeaders]);
@@ -156,9 +152,7 @@ const Flashcards = () => {
         const data = await res.json();
         setMaterials(data.materials || []);
       }
-    } catch (error) {
-      console.error('Failed to load materials:', error);
-    }
+    } catch { /* silent */ }
   }, []);
 
   useEffect(() => {
@@ -228,8 +222,7 @@ const Flashcards = () => {
         const data = await res.json().catch(() => ({}));
         toast({ title: 'Ошибка', description: data.error || 'Не удалось создать карточки', variant: 'destructive' });
       }
-    } catch (error) {
-      console.error('Generate error:', error);
+    } catch {
       toast({ title: 'Ошибка сети', description: 'Проверьте подключение', variant: 'destructive' });
     } finally {
       setGenerating(false);
@@ -257,9 +250,7 @@ const Flashcards = () => {
         headers: authHeaders(),
         body: JSON.stringify({ action: 'answer', flashcard_id: card.id, quality }),
       });
-    } catch (error) {
-      console.error('Answer error:', error);
-    }
+    } catch { /* silent */ }
 
     setAnswering(false);
 
@@ -286,8 +277,8 @@ const Flashcards = () => {
       } else {
         toast({ title: 'Ошибка', description: 'Не удалось удалить набор', variant: 'destructive' });
       }
-    } catch (error) {
-      console.error('Delete error:', error);
+    } catch {
+      toast({ title: 'Ошибка сети', description: 'Не удалось удалить набор', variant: 'destructive' });
     } finally {
       setDeletingSetId(null);
     }

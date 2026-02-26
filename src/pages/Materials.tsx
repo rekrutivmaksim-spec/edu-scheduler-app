@@ -105,9 +105,7 @@ const Materials = () => {
         const data = await response.json();
         setMaterials(data.materials);
       }
-    } catch (error) {
-      console.error('Failed to load materials:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {

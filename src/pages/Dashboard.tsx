@@ -91,9 +91,7 @@ const Dashboard = () => {
         const d = await res.json();
         setTutorSavings(d.stats?.tutor_savings || 0);
       }
-    } catch (e) {
-      console.error('Tutor savings load failed:', e);
-    }
+    } catch { /* silent */ }
   };
 
   const loadDashboard = async () => {
@@ -105,9 +103,7 @@ const Dashboard = () => {
       if (res.ok) {
         setData(await res.json());
       }
-    } catch (e) {
-      console.error('Dashboard load failed:', e);
-    }
+    } catch { /* silent */ }
   };
 
   const loadSuggestions = async () => {
@@ -120,9 +116,7 @@ const Dashboard = () => {
         const d = await res.json();
         setSuggestions(d.suggestions || []);
       }
-    } catch (e) {
-      console.error('Suggestions load failed:', e);
-    }
+    } catch { /* silent */ }
   };
 
   const doCheckin = async () => {
@@ -160,9 +154,7 @@ const Dashboard = () => {
           toast({ title: 'Нет новых задач', description: 'Все подготовительные задачи уже созданы' });
         }
       }
-    } catch (e) {
-      console.error('Auto-tasks failed:', e);
-    }
+    } catch { /* silent */ }
   };
 
   const getLevelEmoji = (level: number) => {

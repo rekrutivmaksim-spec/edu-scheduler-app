@@ -59,8 +59,7 @@ export default function Settings() {
         const data = await response.json();
         setSettings(data.settings);
       }
-    } catch (error) {
-      console.error('Ошибка загрузки настроек:', error);
+    } catch { /* silent */
     } finally {
       setLoading(false);
     }

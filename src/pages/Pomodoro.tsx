@@ -98,9 +98,7 @@ const Pomodoro = () => {
         setCompletedSessions(data.total_sessions || 0);
         setTotalMinutes(data.total_minutes || 0);
       }
-    } catch (error) {
-      console.error('Failed to load stats:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const loadTasks = async () => {
@@ -113,9 +111,7 @@ const Pomodoro = () => {
         const data = await response.json();
         setTasks((data.tasks || []).filter((t: TaskItem) => !t.completed));
       }
-    } catch (e) {
-      console.error('Failed to load tasks:', e);
-    }
+    } catch { /* silent */ }
   };
 
   const loadSubjects = async () => {
@@ -129,9 +125,7 @@ const Pomodoro = () => {
         const unique = [...new Set((data.schedule || []).map((l: { subject: string }) => l.subject))] as string[];
         setSubjects(unique.length > 0 ? unique : ['Математика', 'Физика', 'Программирование', 'Английский', 'Другое']);
       }
-    } catch (e) {
-      console.error('Failed to load subjects:', e);
-    }
+    } catch { /* silent */ }
   };
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
@@ -195,9 +189,7 @@ const Pomodoro = () => {
         })
       });
       loadStats();
-    } catch (error) {
-      console.error('Failed to save session:', error);
-    }
+    } catch { /* silent */ }
   };
 
   const playNotificationSound = () => {
