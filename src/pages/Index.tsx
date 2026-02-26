@@ -104,7 +104,7 @@ export default function Index() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setGamification(await res.json());
-    } catch (e) { console.warn(e); }
+    } catch { /* silent */ }
   };
 
   const loadTodaySchedule = async () => {

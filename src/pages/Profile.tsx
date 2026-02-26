@@ -24,11 +24,7 @@ function getDaysToExam(examDate?: string | null): number {
   return Math.max(0, Math.ceil((d.getTime() - now.getTime()) / 86400000));
 }
 
-const LAST_SESSIONS = [
-  'Квадратные уравнения',
-  'Логарифмы',
-  'Производная функции',
-];
+
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -91,14 +87,14 @@ const Profile = () => {
   const loadSubscription = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(`${SUBSCRIPTION_URL}?action=status`, {
+      const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const d = await res.json();
-        setIsPremium(d.subscription_type === 'premium');
+        setIsPremium(d.subscription_type === 'premium' || !!d.is_trial);
       }
-    } catch (e) { console.error(e); }
+    } catch { /* silent */ }
   };
 
   const handleSave = async () => {
@@ -325,15 +321,15 @@ const Profile = () => {
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-white/15 rounded-2xl px-2 py-2">
-                <p className="text-white font-bold text-sm">20</p>
+                <p className="text-white font-bold text-sm">{limits.aiRemaining() >= 999 ? '∞' : limits.aiRemaining()}</p>
                 <p className="text-white/60 text-[10px]">вопросов ИИ</p>
               </div>
               <div className="bg-white/15 rounded-2xl px-2 py-2">
-                <p className="text-white font-bold text-sm">5</p>
+                <p className="text-white font-bold text-sm">{limits.sessionsRemaining() >= 999 ? '∞' : limits.sessionsRemaining()}</p>
                 <p className="text-white/60 text-[10px]">занятий</p>
               </div>
               <div className="bg-white/15 rounded-2xl px-2 py-2">
-                <p className="text-white font-bold text-sm">3</p>
+                <p className="text-white font-bold text-sm">{limits.materialsRemaining() >= 999 ? '∞' : limits.materialsRemaining()}</p>
                 <p className="text-white/60 text-[10px]">загрузки</p>
               </div>
             </div>
@@ -499,29 +495,32 @@ const Profile = () => {
           )}
         </div>
 
-        {/* 6. Последние занятия */}
+        {/* 6. Быстрые действия */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-xl">📚</span>
-            <h3 className="font-bold text-gray-800">Последние занятия</h3>
+            <span className="text-xl">⚡</span>
+            <h3 className="font-bold text-gray-800">Быстрые действия</h3>
           </div>
           <div className="space-y-2">
-            {LAST_SESSIONS.map((s, i) => (
-              <div key={s} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                <div className="w-7 h-7 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs text-indigo-500 font-bold">{i + 1}</span>
-                </div>
-                <span className="text-gray-700 text-sm">{s}</span>
-                <Icon name="Check" size={14} className="text-green-400 ml-auto" />
-              </div>
-            ))}
+            <button
+              onClick={() => navigate(formData.goal === 'university' ? '/university' : '/session')}
+              className="w-full flex items-center gap-3 py-3 px-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 transition-colors text-left"
+            >
+              <span className="text-xl">📖</span>
+              <span className="text-indigo-700 text-sm font-semibold">
+                {formData.goal === 'university' ? 'Открыть ВУЗ-помощник' : 'Начать занятие'}
+              </span>
+              <Icon name="ArrowRight" size={14} className="text-indigo-400 ml-auto" />
+            </button>
+            <button
+              onClick={() => navigate('/assistant')}
+              className="w-full flex items-center gap-3 py-3 px-3 rounded-2xl bg-purple-50 hover:bg-purple-100 transition-colors text-left"
+            >
+              <span className="text-xl">🤖</span>
+              <span className="text-purple-700 text-sm font-semibold">Задать вопрос ИИ</span>
+              <Icon name="ArrowRight" size={14} className="text-purple-400 ml-auto" />
+            </button>
           </div>
-          <button
-            onClick={() => navigate(formData.goal === 'university' ? '/university' : '/session')}
-            className="mt-3 w-full text-indigo-600 text-sm font-semibold text-center py-1"
-          >
-            {formData.goal === 'university' ? 'Открыть ВУЗ-помощник →' : 'Начать сегодняшнее занятие →'}
-          </button>
         </div>
 
         {/* 8. Данные пользователя */}
