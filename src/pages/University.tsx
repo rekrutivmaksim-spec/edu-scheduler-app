@@ -40,6 +40,8 @@ export default function University() {
   const [fileUsedToday, setFileUsedToday] = useState(false);
   const [aiRemaining, setAiRemaining] = useState<number | null>(null);
   const [isPremium, setIsPremium] = useState(false);
+  const [filesUsed, setFilesUsed] = useState(0);
+  const [filesMax, setFilesMax] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -69,10 +71,14 @@ export default function University() {
             }
           }
           const materials = data.limits?.materials;
-          if (premium) {
+          const maxFiles = premium ? 3 : 1;
+          setFilesMax(maxFiles);
+          if (materials) {
+            const used = materials.used ?? 0;
+            setFilesUsed(used);
+            setFileUsedToday(used >= maxFiles);
+          } else if (premium) {
             setFileUsedToday(false);
-          } else if (materials && !materials.unlimited) {
-            setFileUsedToday((materials.used ?? 0) >= (materials.max ?? 1));
           }
         }
       } catch { /* silent */ }
@@ -413,11 +419,15 @@ export default function University() {
             <div>
               <p className="font-extrabold text-gray-800 text-base">Разобрать файл</p>
               <p className="text-gray-500 text-sm mt-0.5">PDF, Word, TXT — анализ и конспект за минуту</p>
-              {!isPremium && fileUsedToday ? (
-                <p className="text-red-400 text-xs mt-1.5 font-medium">Лимит на сегодня использован → Premium</p>
+              {fileUsedToday ? (
+                <p className="text-red-400 text-xs mt-1.5 font-medium">
+                  Лимит в месяц исчерпан ({filesUsed}/{filesMax}) → Premium
+                </p>
               ) : (
                 <p className="text-indigo-500 text-xs mt-1.5 font-medium">
-                  {isPremium ? 'Безлимит файлов' : 'Бесплатно: 1 файл в день · Безлимит — в Premium'}
+                  {isPremium
+                    ? `Использовано ${filesUsed} из ${filesMax} файлов в месяц`
+                    : `Бесплатно: 1 файл/месяц · Использовано: ${filesUsed}/1`}
                 </p>
               )}
             </div>

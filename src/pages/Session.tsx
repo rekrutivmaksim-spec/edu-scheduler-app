@@ -11,15 +11,18 @@ const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
 function getTodayTopic(examSubject?: string | null, offset = 0): { subject: string; topic: string; number: number; total: number } {
-  const base = getTodayTopicBase(examSubject);
+  // Используем хеш даты как базовый индекс, offset сдвигает на каждое новое занятие
+  const today = new Date().toISOString().slice(0, 10);
+  let h = 0;
+  for (let i = 0; i < today.length; i++) h = (Math.imul(31, h) + today.charCodeAt(i)) | 0;
+  const dayHash = Math.abs(h);
+
   if (examSubject && TOPICS_BY_SUBJECT[examSubject]) {
     const topics = TOPICS_BY_SUBJECT[examSubject];
-    const baseIdx = topics.indexOf(base.topic);
-    const idx = (baseIdx + offset) % topics.length;
+    const idx = (dayHash + offset) % topics.length;
     return { subject: examSubject, topic: topics[idx], number: idx + 1, total: topics.length };
   }
-  const baseIdx = DEFAULT_TOPICS.findIndex(t => t.topic === base.topic);
-  const idx = (baseIdx + offset) % DEFAULT_TOPICS.length;
+  const idx = (dayHash + offset) % DEFAULT_TOPICS.length;
   return { subject: DEFAULT_TOPICS[idx].subject, topic: DEFAULT_TOPICS[idx].topic, number: idx + 1, total: DEFAULT_TOPICS.length };
 }
 
@@ -644,20 +647,64 @@ export default function Session() {
           </div>
         </div>
 
+        {/* Блок для бесплатных: сколько занятий осталось */}
         {!isPremium && (
+          <div className="bg-white/15 backdrop-blur rounded-3xl px-5 py-4 mb-3">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">🌙</span>
+              <div className="flex-1">
+                <p className="text-white font-bold text-base">
+                  {sessionsLeft !== null && sessionsLeft > 0
+                    ? `Ещё ${sessionsLeft} ${sessionsLeft === 1 ? 'занятие' : 'занятия'} сегодня`
+                    : 'Занятия на сегодня закончились'}
+                </p>
+                <p className="text-white/60 text-xs">
+                  {sessionsLeft !== null && sessionsLeft > 0
+                    ? 'Продолжай — пока есть возможность!'
+                    : 'Приходи завтра или подключи Premium'}
+                </p>
+              </div>
+            </div>
+            {sessionsLeft === 0 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigate('/')}
+                  className="flex-1 h-11 bg-white/20 text-white font-semibold text-sm rounded-2xl border border-white/30 active:scale-[0.97] transition-all"
+                >
+                  Приходи завтра 👋
+                </button>
+                <button
+                  onClick={() => navigate('/pricing')}
+                  className="flex-1 h-11 bg-white text-purple-700 font-extrabold text-sm rounded-2xl shadow-lg active:scale-[0.97] transition-all"
+                >
+                  Premium →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isPremium && sessionsLeft !== null && sessionsLeft > 0 && (
           <button
             onClick={() => navigate('/pricing')}
             className="w-full h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl mb-3 active:scale-[0.97] transition-all"
           >
-            ⚡ Получить Premium — 449 ₽/мес
+            ⚡ До 5 занятий в день — Premium 449 ₽/мес
           </button>
         )}
 
+        {isPremium && (
+          <div className="bg-white/15 rounded-3xl px-5 py-3 mb-3 flex items-center justify-between">
+            <p className="text-white/80 text-sm">Осталось занятий сегодня:</p>
+            <p className="text-white font-extrabold text-xl">{sessionsLeft ?? '...'} из {sessionsMax}</p>
+          </div>
+        )}
+
         <Button
-          onClick={() => navigate('/')}
-          className={`w-full h-14 font-bold text-base rounded-2xl shadow-xl mb-3 active:scale-[0.98] transition-all ${isPremium ? 'bg-white text-purple-700' : 'bg-white/20 text-white border border-white/30'}`}
+          onClick={() => navigate(sessionsLeft !== null && sessionsLeft > 0 ? '/session' : '/')}
+          className={`w-full h-14 font-bold text-base rounded-2xl shadow-xl mb-3 active:scale-[0.98] transition-all ${isPremium || (sessionsLeft !== null && sessionsLeft > 0) ? 'bg-white text-purple-700' : 'bg-white/20 text-white border border-white/30'}`}
         >
-          На главную 🏠
+          {sessionsLeft !== null && sessionsLeft > 0 ? 'Ещё занятие 🚀' : 'На главную 🏠'}
         </Button>
         <button onClick={() => navigate('/assistant')} className="text-white/40 text-sm text-center w-full py-2">
           Задать дополнительный вопрос

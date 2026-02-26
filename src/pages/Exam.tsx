@@ -108,12 +108,13 @@ export default function Exam() {
   const [userSubjectId, setUserSubjectId] = useState<string>('');
   const [userStats, setUserStats] = useState<{ examTasksDone: number; totalSessions: number }>({ examTasksDone: 0, totalSessions: 0 });
 
-  // Лимит вопросов
+  // Лимит вопросов (только вопросы пользователя, не первый промпт системы)
   const [questionsLeft, setQuestionsLeft] = useState<number | null>(null);
   const [questionsLimit, setQuestionsLimit] = useState<number>(3);
   const [isPremium, setIsPremium] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [subLoading, setSubLoading] = useState(true);
+  const [userMessageCount, setUserMessageCount] = useState(0); // только сообщения пользователя
 
   // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -329,10 +330,17 @@ export default function Exam() {
     const msg = (text ?? input).trim();
     if (!msg || loading) return;
 
+    // Жёсткая блокировка при исчерпании лимита
     if (!isPremium && questionsLeft !== null && questionsLeft <= 0) {
       setShowPaywall(true);
       return;
     }
+
+    // Декрементируем локально ДО запроса (вопрос считается с пользователя)
+    if (!isPremium && questionsLeft !== null && questionsLeft > 0) {
+      setQuestionsLeft(q => Math.max(0, (q ?? 1) - 1));
+    }
+    setUserMessageCount(c => c + 1);
 
     const newMessages: Message[] = [...messages, { role: 'user', text: msg }];
     setMessages(newMessages);
@@ -341,7 +349,11 @@ export default function Exam() {
     scrollBottom();
 
     try {
-      const { answer } = await askAI(msg, newMessages.slice(-6));
+      const { answer, remaining } = await askAI(msg, newMessages.slice(-6));
+      // Синхронизируем с сервером если пришёл remaining
+      if (remaining !== undefined && !isPremium) {
+        setQuestionsLeft(Math.max(0, remaining));
+      }
       setMessages(prev => [...prev, { role: 'ai', text: answer }]);
     } catch (e: unknown) {
       if ((e as Error).message !== 'limit') {
@@ -357,10 +369,17 @@ export default function Exam() {
     const text = userAnswer.trim();
     if (!text || checkLoading) return;
 
+    // Жёсткая блокировка при исчерпании лимита
     if (!isPremium && questionsLeft !== null && questionsLeft <= 0) {
       setShowPaywall(true);
       return;
     }
+
+    // Декрементируем с пользователя
+    if (!isPremium && questionsLeft !== null && questionsLeft > 0) {
+      setQuestionsLeft(q => Math.max(0, (q ?? 1) - 1));
+    }
+    setUserMessageCount(c => c + 1);
 
     const lastTask = [...messages].reverse().find(m => m.role === 'ai')?.text ?? '';
     const newMessages: Message[] = [...messages, { role: 'user', text }];
@@ -374,7 +393,10 @@ export default function Exam() {
 
     try {
       const prompt = `Задание: ${lastTask}\n\nОтвет ученика: ${text}\n\nПроверь ответ. Если правильно — начни "Правильно! ✅" и похвали одной фразой. Если неправильно — начни "Неверно ❌" и объясни правильное решение коротко. Потом дай задание №${nextNum} — новое типовое задание ${examType.toUpperCase()} по "${subject?.name}". Только условие, без ответа. В конце напиши "Жду ответ."`;
-      const { answer } = await askAI(prompt, newMessages.slice(-4));
+      const { answer, remaining } = await askAI(prompt, newMessages.slice(-4));
+      if (remaining !== undefined && !isPremium) {
+        setQuestionsLeft(Math.max(0, remaining));
+      }
       setMessages(prev => [...prev, { role: 'ai', text: answer }]);
       setTaskNum(nextNum);
       setWaitingAnswer(true);
@@ -920,8 +942,22 @@ export default function Exam() {
 
         {/* Ввод */}
         <div className="px-4 pb-8 pt-2 bg-white border-t border-gray-100">
-          {/* Практика / Слабые / Экзамен — поле ответа */}
-          {!isExplain && waitingAnswer ? (
+          {/* Лимит исчерпан — показываем заглушку вместо поля ввода */}
+          {!isPremium && questionsLeft !== null && questionsLeft <= 0 ? (
+            <div className="flex flex-col gap-2">
+              <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-center">
+                <p className="text-red-700 font-bold text-sm">Бесплатные вопросы закончились</p>
+                <p className="text-red-500 text-xs mt-0.5">Приходи завтра или подключи Premium</p>
+              </div>
+              <button
+                onClick={() => setShowPaywall(true)}
+                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl active:scale-[0.97] transition-all"
+              >
+                Подключить Premium 🔓
+              </button>
+            </div>
+          ) : !isExplain && waitingAnswer ? (
+            /* Практика / Слабые / Экзамен — поле ответа */
             <div className="flex flex-col gap-2">
               <textarea
                 value={userAnswer}

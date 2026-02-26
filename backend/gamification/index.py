@@ -16,15 +16,18 @@ VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_EMAIL = os.environ.get('VAPID_EMAIL', 'mailto:admin@studyfay.app')
 
 STREAK_REWARDS = [
-    {'streak_days': 3, 'reward_type': 'bonus_questions', 'value': 5, 'title': '3 дня подряд', 'description': '+5 вопросов к ИИ'},
-    {'streak_days': 7, 'reward_type': 'bonus_questions', 'value': 10, 'title': 'Неделя стрика', 'description': '+10 вопросов к ИИ'},
-    {'streak_days': 14, 'reward_type': 'bonus_questions', 'value': 20, 'title': '2 недели подряд', 'description': '+20 вопросов к ИИ'},
-    {'streak_days': 21, 'reward_type': 'premium_days', 'value': 3, 'title': '3 недели стрика', 'description': '3 дня Premium бесплатно'},
-    {'streak_days': 30, 'reward_type': 'premium_days', 'value': 7, 'title': 'Месяц стрика', 'description': '7 дней Premium бесплатно'},
-    {'streak_days': 60, 'reward_type': 'premium_days', 'value': 14, 'title': '2 месяца стрика', 'description': '14 дней Premium бесплатно'},
-    {'streak_days': 90, 'reward_type': 'premium_days', 'value': 30, 'title': '3 месяца стрика', 'description': '30 дней Premium бесплатно'},
-    {'streak_days': 180, 'reward_type': 'premium_days', 'value': 60, 'title': 'Полгода стрика', 'description': '60 дней Premium бесплатно'},
-    {'streak_days': 365, 'reward_type': 'premium_days', 'value': 180, 'title': 'Год стрика', 'description': '180 дней Premium бесплатно'},
+    # Бонусные вопросы — небольшие поощрения, не заменяют Premium
+    {'streak_days': 3, 'reward_type': 'bonus_questions', 'value': 3, 'title': '3 дня подряд 🔥', 'description': '+3 вопроса к ИИ сегодня'},
+    {'streak_days': 7, 'reward_type': 'bonus_questions', 'value': 5, 'title': 'Неделя стрика 💪', 'description': '+5 вопросов к ИИ сегодня'},
+    {'streak_days': 14, 'reward_type': 'bonus_questions', 'value': 7, 'title': '2 недели подряд 🏆', 'description': '+7 вопросов к ИИ сегодня'},
+    # Пробный день Premium — чтобы пользователь ощутил разницу и купил
+    {'streak_days': 21, 'reward_type': 'premium_days', 'value': 1, 'title': '21 день! Попробуй Premium 🎁', 'description': '1 день Premium — почувствуй разницу'},
+    {'streak_days': 30, 'reward_type': 'bonus_questions', 'value': 10, 'title': 'Месяц стрика 🥇', 'description': '+10 вопросов к ИИ сегодня'},
+    {'streak_days': 60, 'reward_type': 'bonus_questions', 'value': 15, 'title': '2 месяца стрика ⚡', 'description': '+15 вопросов к ИИ сегодня'},
+    # Ещё один пробный день Premium на большом стрике
+    {'streak_days': 90, 'reward_type': 'premium_days', 'value': 1, 'title': '90 дней! Снова Premium 🌟', 'description': '1 день Premium в подарок'},
+    {'streak_days': 180, 'reward_type': 'bonus_questions', 'value': 20, 'title': 'Полгода стрика 🚀', 'description': '+20 вопросов к ИИ сегодня'},
+    {'streak_days': 365, 'reward_type': 'bonus_questions', 'value': 30, 'title': 'Год стрика 👑', 'description': '+30 вопросов к ИИ сегодня'},
 ]
 
 QUEST_POOL = [
