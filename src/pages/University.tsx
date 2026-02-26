@@ -186,7 +186,7 @@ export default function University() {
           <p className="text-white/60 text-sm mt-1">Задай вопрос — отвечу за секунды</p>
           {!isPremium && aiRemaining !== null && (
             <div className="mt-2 inline-block bg-white/15 rounded-full px-3 py-1">
-              <span className="text-white/80 text-xs">Осталось вопросов: {aiRemaining}</span>
+              <span className="text-white/80 text-xs">Осталось: {aiRemaining} {aiRemaining === 1 ? 'вопрос' : aiRemaining && aiRemaining < 5 ? 'вопроса' : 'вопросов'}</span>
             </div>
           )}
         </div>
@@ -400,7 +400,7 @@ export default function University() {
             </div>
             <div>
               <p className="font-extrabold text-gray-800 text-base">Разобрать файл</p>
-              <p className="text-gray-500 text-sm mt-0.5">PDF, Word, TXT — конспект за 30 секунд</p>
+              <p className="text-gray-500 text-sm mt-0.5">PDF, Word, TXT — анализ и конспект за минуту</p>
               {!isPremium && fileUsedToday ? (
                 <p className="text-red-400 text-xs mt-1.5 font-medium">Лимит на сегодня использован → Premium</p>
               ) : (
@@ -441,7 +441,7 @@ export default function University() {
           </div>
           {!isPremium && aiRemaining !== null && (
             <p className="text-gray-400 text-xs mt-3 text-center">
-              Бесплатно: 3 вопроса в день · Осталось: {aiRemaining}
+              Бесплатно: 3 вопроса в день · Осталось сегодня: {aiRemaining}
             </p>
           )}
         </div>
@@ -471,7 +471,7 @@ export default function University() {
               onClick={() => navigate('/pricing')}
               className="w-full py-3 bg-white text-purple-700 font-extrabold rounded-2xl text-sm active:scale-[0.98] transition-all shadow-lg"
             >
-              Попробовать бесплатно
+              Подключить Premium — 449 ₽/мес
             </button>
           </div>
         )}

@@ -191,7 +191,7 @@ export default function Achievements() {
           data: {
             streakDays,
             reward: data.reward_description || `+${streakDays} бонус-вопросов ИИ`,
-            nextReward: nextReward ? `${nextReward.days} дне: ${nextReward.reward}` : undefined,
+            nextReward: nextReward ? `через ${nextReward.days} дн.: ${nextReward.reward}` : undefined,
           },
         });
       } else if (res.status === 403) {

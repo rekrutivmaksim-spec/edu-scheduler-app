@@ -230,7 +230,7 @@ export default function Index() {
               <div className="flex items-center justify-between mb-1">
                 <span className="text-white/80 text-xs font-medium uppercase tracking-wide">Сегодняшняя сессия</span>
                 <span className="text-white/80 text-xs flex items-center gap-1 bg-white/20 rounded-lg px-2 py-0.5">
-                  <Icon name="Zap" size={11} /> 2–3 мин
+                  <Icon name="Zap" size={11} /> 2 мин
                 </span>
               </div>
               <h2 className="text-white font-bold text-lg leading-tight">{topic.topic}</h2>
@@ -371,7 +371,7 @@ export default function Index() {
               onClick={() => navigate('/pricing')}
               className="w-full bg-white text-orange-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
             >
-              {isExamGoal ? 'Безлимит занятий — подробнее' : 'Premium — 449 ₽/мес'}
+              {isExamGoal ? 'Безлимит занятий — 449 ₽/мес' : 'Premium — 449 ₽/мес'}
             </button>
           </div>
         )}

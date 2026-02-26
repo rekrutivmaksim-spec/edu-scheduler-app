@@ -103,7 +103,7 @@ const LimitScreen = ({ onClose, navigate }: { onClose: () => void; navigate: (p:
       <div className="px-5 pb-8 space-y-3">
         <button
           onClick={() => { onClose(); navigate('/pricing'); }}
-          className="w-full h-13 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.98] transition-all"
+          className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.98] transition-all"
         >
           Подключить Premium
         </button>

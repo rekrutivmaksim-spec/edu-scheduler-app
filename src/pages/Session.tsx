@@ -22,7 +22,7 @@ function getTodayTopic(examSubject?: string | null): { subject: string; topic: s
 }
 
 function getDaysToExam(examDate?: string | null): number {
-  if (!examDate || examDate === 'custom') return 87;
+  if (!examDate || examDate === 'custom') return 0;
   const d = new Date(examDate);
   const now = new Date();
   return Math.max(0, Math.ceil((d.getTime() - now.getTime()) / 86400000));
@@ -488,7 +488,7 @@ export default function Session() {
             <p className="text-white font-bold text-sm mb-1">🔥 Ты занимаешься {streak} дней подряд!</p>
             <p className="text-white/60 text-xs mb-3">Убери ограничения — занимайся без лимита</p>
             <button onClick={() => navigate('/pricing')} className="bg-white text-purple-700 font-bold text-sm px-5 py-2 rounded-xl w-full">
-              Безлимит 449₽ →
+              Безлимит — 449 ₽/мес →
             </button>
           </div>
         )}
@@ -588,7 +588,7 @@ export default function Session() {
               onClick={() => navigate('/pricing')}
               className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl"
             >
-              Безлимит 449₽
+              Безлимит — 449 ₽/мес
             </Button>
           </div>
         )}

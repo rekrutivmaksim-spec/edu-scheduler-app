@@ -202,7 +202,7 @@ const Pricing = () => {
               <div className="mt-2 space-y-1">
                 {[
                   'всё из Premium',
-                  'экономия vs оплаты помесячно',
+                  'выгоднее помесячной оплаты',
                   'непрерывный прогресс',
                 ].map(f => (
                   <div key={f} className="flex items-center gap-1.5 text-gray-500 text-xs">

@@ -612,7 +612,7 @@ export default function AuthNew() {
             <div className="flex flex-col gap-2">
               <Button
                 onClick={() => setScreen('register')}
-                className="w-full h-13 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-xl shadow-[0_6px_24px_rgba(99,102,241,0.45)] hover:opacity-95 active:scale-[0.98] transition-all"
+                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-xl shadow-[0_6px_24px_rgba(99,102,241,0.45)] hover:opacity-95 active:scale-[0.98] transition-all"
               >
                 Создать аккаунт
               </Button>
