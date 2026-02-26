@@ -65,26 +65,9 @@ def check_subscription_status(user_id: int, conn) -> dict:
             else:
                 is_premium = True
         
-        # Проверяем триал период (если нет активной премиум подписки)
-        # КРИТИЧЕСКИ ВАЖНО: проверяем is_trial_used чтобы нельзя было использовать триал повторно
-        if not is_premium and user.get('trial_ends_at') and not user.get('is_trial_used'):
-            trial_ends_naive = user['trial_ends_at'].replace(tzinfo=None) if user['trial_ends_at'].tzinfo else user['trial_ends_at']
-            if trial_ends_naive > now:
-                is_trial = True
-                trial_ends_at = user['trial_ends_at']
-            else:
-                # Триал закончился - помечаем как использованный (защита от накрутки)
-                cur.execute("""
-                    UPDATE users 
-                    SET is_trial_used = TRUE
-                    WHERE id = %s AND is_trial_used = FALSE
-                """, (user_id,))
-                conn.commit()
-        # Если is_trial_used = TRUE, то триал уже был использован - не даем доступ повторно
-        elif not is_premium and user.get('is_trial_used'):
-            # Триал уже использован - предотвращаем повторное использование
-            is_trial = False
-            trial_ends_at = None
+        # Триал отключён — новые пользователи сразу получают бесплатный тариф
+        is_trial = False
+        trial_ends_at = None
         
         if user['materials_quota_reset_at'] and user['materials_quota_reset_at'] < datetime.now():
             cur.execute("""

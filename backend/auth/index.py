@@ -249,26 +249,7 @@ def handler(event: dict, context) -> dict:
                         import secrets as _sec
                         referral_code = _sec.token_hex(4).upper()
                         
-                        if trial_allowed:
-                            cur.execute("""
-                                INSERT INTO users (
-                                    email, password_hash, full_name, last_login_at,
-                                    trial_ends_at, is_trial_used,
-                                    ai_tokens_limit, ai_tokens_used, ai_tokens_reset_at,
-                                    daily_questions_used, daily_questions_reset_at,
-                                    referral_code, device_id, browser_fp, reg_ip
-                                )
-                                VALUES (
-                                    %s, %s, %s, CURRENT_TIMESTAMP,
-                                    CURRENT_TIMESTAMP + INTERVAL '7 days', FALSE,
-                                    50000, 0, CURRENT_TIMESTAMP + INTERVAL '1 month',
-                                    0, CURRENT_TIMESTAMP,
-                                    %s, %s, %s, %s
-                                )
-                                RETURNING id, email, full_name, university, faculty, course, trial_ends_at
-                            """, (email, password_hash, full_name, referral_code, device_id or None, browser_fp or None, client_ip or None))
-                        else:
-                            cur.execute("""
+                        cur.execute("""
                                 INSERT INTO users (
                                     email, password_hash, full_name, last_login_at,
                                     trial_ends_at, is_trial_used,
