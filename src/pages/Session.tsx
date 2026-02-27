@@ -6,6 +6,7 @@ import { authService } from '@/lib/auth';
 import PaywallSheet from '@/components/PaywallSheet';
 import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 import { getTodayTopic as getTodayTopicBase, TOPICS_BY_SUBJECT, DEFAULT_TOPICS } from '@/lib/topics';
+import { trackActivity } from '@/lib/gamification';
 
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
@@ -372,6 +373,8 @@ export default function Session() {
       if (navigator.vibrate) navigator.vibrate([60, 30, 100]);
       setProgressAnim(true);
       setTimeout(() => setProgressAnim(false), 1200);
+      // Трекинг выполненного задания
+      trackActivity('exam_tasks_done', 1).catch(() => {});
     }
 
     typeText(raw, setCheckTypingText, () => setCheckResult(raw));

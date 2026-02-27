@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import BottomNav from '@/components/BottomNav';
+import { trackActivity } from '@/lib/gamification';
 
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
@@ -396,6 +397,12 @@ export default function Exam() {
       const { answer, remaining } = await askAI(prompt, newMessages.slice(-4));
       if (remaining !== undefined && !isPremium) {
         setQuestionsLeft(Math.max(0, remaining));
+      }
+      // Трекинг: считаем задание выполненным при правильном ответе
+      const answerLower = answer.toLowerCase();
+      const wasCorrect = answerLower.startsWith('правильно') || answerLower.includes('правильно!');
+      if (wasCorrect) {
+        trackActivity('exam_tasks_done', 1).catch(() => {});
       }
       setMessages(prev => [...prev, { role: 'ai', text: answer }]);
       setTaskNum(nextNum);
