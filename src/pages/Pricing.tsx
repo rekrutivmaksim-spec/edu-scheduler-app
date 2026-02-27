@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
 
 const PREMIUM_FEATURES = [
   { icon: '📅', text: 'До 5 занятий в день (вместо 1)' },
@@ -58,10 +59,12 @@ const Pricing = () => {
     setLoading(planId);
     try {
       const token = authService.getToken();
-      const res = await fetch(SUBSCRIPTION_URL, {
+      // Преобразуем 12months → 1year для совместимости с бэкендом
+      const backendPlanId = planId === '12months' ? '1year' : planId;
+      const res = await fetch(PAYMENTS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: 'create_payment', plan_type: planId }),
+        body: JSON.stringify({ action: 'create_payment', plan_type: backendPlanId }),
       });
       const data = await res.json();
       if (res.ok && data.payment_url) {

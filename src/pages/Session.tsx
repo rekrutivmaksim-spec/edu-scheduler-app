@@ -221,7 +221,7 @@ export default function Session() {
       body: JSON.stringify({ action: 'get_profile' }),
     })
       .then(r => r.json())
-      .then(d => { if (d?.streak?.current_streak) setStreak(d.streak.current_streak); })
+      .then(d => { if (d?.streak?.current != null) setStreak(d.streak.current); })
       .catch(() => {});
 
     fetch(`${SUBSCRIPTION_URL}?action=limits`, {

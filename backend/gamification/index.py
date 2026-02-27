@@ -784,7 +784,13 @@ def handler(event: dict, context) -> dict:
             body = json.loads(event.get('body', '{}'))
             action = body.get('action', '')
 
-            if action == 'track':
+            if action == 'get_profile':
+                profile = get_profile_data(conn, user_id)
+                if not profile:
+                    return {'statusCode': 404, 'headers': headers, 'body': json.dumps({'error': 'Пользователь не найден'})}
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps(profile, default=str)}
+
+            elif action == 'track':
                 activity_type = body.get('type', '')
                 value = min(int(body.get('value', 1)), 100)
                 valid_types = ['tasks_completed', 'pomodoro_minutes', 'ai_questions_asked', 'materials_uploaded', 'schedule_views', 'exam_tasks_done']

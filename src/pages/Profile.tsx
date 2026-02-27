@@ -111,7 +111,7 @@ const Profile = () => {
     try {
       const token = authService.getToken();
       const res = await fetch(API_URL, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           action: 'update_profile',
@@ -168,7 +168,7 @@ const Profile = () => {
     try {
       const token = authService.getToken();
       await fetch(API_URL, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'update_profile', companion: id }),
       });
