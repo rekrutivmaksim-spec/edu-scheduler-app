@@ -8,7 +8,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import BottomNav from '@/components/BottomNav';
-import { COMPANIONS, getCompanion, getCompanionStage, getCompanionFromStorage, type CompanionId } from '@/lib/companion';
+import { COMPANIONS, getCompanion, getCompanionStage, getCompanionFromStorage, saveCompanionToStorage, type CompanionId } from '@/lib/companion';
 import { useLimits } from '@/hooks/useLimits';
 
 const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
@@ -164,9 +164,7 @@ const Profile = () => {
   const changeCompanion = async (id: CompanionId) => {
     setCompanionId(id);
     setShowCompanionPicker(false);
-    const userData = JSON.parse(localStorage.getItem('user') || '{}');
-    userData.companion = id;
-    localStorage.setItem('user', JSON.stringify(userData));
+    saveCompanionToStorage(id);
     try {
       const token = authService.getToken();
       await fetch(API_URL, {

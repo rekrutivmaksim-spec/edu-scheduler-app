@@ -65,8 +65,10 @@ const ProfileAvatar = ({ userName, size = 'md', showBadge = true }: ProfileAvata
       try {
         const token = authService.getToken();
         if (!token) return;
-        const response = await fetch(`${GAMIFICATION_URL}?action=profile`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const response = await fetch(GAMIFICATION_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ action: 'get_profile' }),
         });
         if (response.ok) {
           const data = await response.json();

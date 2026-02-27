@@ -138,6 +138,7 @@ export default function Session() {
   const [isPremium, setIsPremium] = useState(false);
   const [sessionsLeft, setSessionsLeft] = useState<number | null>(null);
   const [sessionsMax, setSessionsMax] = useState<number>(1);
+  const [currentDateStr, setCurrentDateStr] = useState(() => new Date().toDateString());
   const [sessionTopic, setSessionTopic] = useState(() => getTodayTopic(authService.getUser()?.exam_subject, getTodaySessionOffset()));
   const [daysToExam, setDaysToExam] = useState(() => getDaysToExam(authService.getUser()?.exam_date));
 
@@ -150,6 +151,56 @@ export default function Session() {
   const currentStep = STEPS[stepIdx];
   const progressPct = Math.round(((stepIdx + (checkResult ? 1 : 0)) / STEPS.length) * 100);
   const elapsedMin = Math.max(1, Math.round(elapsedSec / 60));
+
+  // Сброс при смене дня (если приложение оставили открытым)
+  useEffect(() => {
+    const checkDay = () => {
+      const today = new Date().toDateString();
+      if (today !== currentDateStr) {
+        setCurrentDateStr(today);
+        setSessionAllowed(null);
+        setSessionsLeft(null);
+        // Пересчитываем тему для нового дня
+        const user = authService.getUser();
+        setSessionTopic(getTodayTopic(user?.exam_subject, 0));
+        setDaysToExam(getDaysToExam(user?.exam_date));
+        // Перезагружаем лимиты
+        const token = authService.getToken();
+        if (token && token !== 'guest_token') {
+          fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then(r => r.json()).then(d => {
+            const sub = d.subscription_type;
+            const trial = !!d.is_trial;
+            const sessions = d.limits?.sessions;
+            if (sub === 'premium' || trial) {
+              setIsPremium(true);
+              const max = sessions?.max ?? 5;
+              const used = sessions?.used ?? 0;
+              setSessionsMax(max);
+              setSessionsLeft(Math.max(0, max - used));
+              setSessionAllowed(true);
+            } else if (sessions) {
+              const max = sessions.max ?? 1;
+              const used = sessions.used ?? 0;
+              setSessionsMax(max);
+              setSessionsLeft(Math.max(0, max - used));
+              setSessionAllowed(used < max);
+            } else {
+              setSessionsLeft(1);
+              setSessionAllowed(true);
+            }
+          }).catch(() => setSessionAllowed(true));
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', checkDay);
+    const interval = setInterval(checkDay, 60000);
+    return () => {
+      document.removeEventListener('visibilitychange', checkDay);
+      clearInterval(interval);
+    };
+  }, [currentDateStr]);
 
   useEffect(() => {
     const token = authService.getToken();

@@ -93,9 +93,10 @@ const Pricing = () => {
 
         {/* Заголовок */}
         <div className="text-center pt-2 pb-2">
-          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Учись без ограничений с Studyfay</h2>
+          <div className="text-4xl mb-2">🚀</div>
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Сдай ЕГЭ/ОГЭ лучше с Studyfay</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
-            ИИ объясняет темы, подбирает задания и помогает готовиться<br />к экзаменам и сессии каждый день.
+            ИИ-репетитор объясняет, проверяет ответы и ведёт по<br />темам каждый день — дешевле в 20 раз чем репетитор.
           </p>
         </div>
 
@@ -287,18 +288,35 @@ const Pricing = () => {
 
         {/* Почему выгодно */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-5">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-4">
             <span className="text-xl">💰</span>
             <h3 className="font-bold text-white">Почему это выгодно</h3>
           </div>
-          <p className="text-gray-300 text-sm leading-relaxed">
-            1 занятие с репетитором стоит <span className="text-white font-bold">800–1500 ₽</span>
-          </p>
-          <p className="text-gray-300 text-sm mt-1">
-            Studyfay — от <span className="text-white font-bold">449 ₽ в месяц</span>
-          </p>
-          <div className="mt-3 bg-white/10 rounded-2xl px-4 py-3">
-            <p className="text-yellow-300 font-bold text-base">Экономия до 5000 ₽ ежемесячно</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between bg-white/10 rounded-2xl px-4 py-3">
+              <div>
+                <p className="text-gray-300 text-xs">Репетитор (1 занятие)</p>
+                <p className="text-white font-bold text-base">800–1500 ₽</p>
+              </div>
+              <div className="text-right">
+                <p className="text-gray-300 text-xs">В месяц</p>
+                <p className="text-red-400 font-bold text-base">~16 000 ₽</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between bg-indigo-500/30 rounded-2xl px-4 py-3 border border-indigo-400/30">
+              <div>
+                <p className="text-indigo-200 text-xs">Studyfay Premium</p>
+                <p className="text-white font-bold text-base">449 ₽</p>
+              </div>
+              <div className="text-right">
+                <p className="text-indigo-200 text-xs">В месяц</p>
+                <p className="text-green-400 font-bold text-base">≈ 15 ₽/день</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 bg-yellow-400/20 rounded-2xl px-4 py-3 flex items-center gap-2">
+            <span className="text-yellow-300 text-xl">🏆</span>
+            <p className="text-yellow-300 font-bold text-sm">Экономия от 15 000 ₽ в месяц</p>
           </div>
         </div>
 

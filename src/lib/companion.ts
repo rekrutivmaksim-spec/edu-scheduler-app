@@ -100,7 +100,20 @@ export function getCompanionStage(companion: Companion, level: number): Companio
 
 export function getCompanionFromStorage(): CompanionId | null {
   try {
+    // Сначала проверяем отдельный ключ (более надёжный)
+    const direct = localStorage.getItem('companion_id') as CompanionId | null;
+    if (direct && COMPANIONS.find(c => c.id === direct)) return direct;
+    // Фолбэк — из объекта пользователя
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     return user.companion || null;
   } catch { return null; }
+}
+
+export function saveCompanionToStorage(id: CompanionId): void {
+  try {
+    localStorage.setItem('companion_id', id);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    user.companion = id;
+    localStorage.setItem('user', JSON.stringify(user));
+  } catch { /* silent */ }
 }

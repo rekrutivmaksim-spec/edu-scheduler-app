@@ -100,8 +100,10 @@ export default function Index() {
   const loadGamification = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(`${GAMIFICATION_URL}?action=profile`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(GAMIFICATION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'get_profile' }),
       });
       if (res.ok) setGamification(await res.json());
     } catch { /* silent */ }
@@ -133,35 +135,58 @@ export default function Index() {
             <p className="text-white/70 text-sm">Привет, {firstName} 👋</p>
             <h1 className="text-white font-bold text-xl">Сегодня — {todayName}</h1>
           </div>
-          <button onClick={() => navigate('/profile')} className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-            <Icon name="User" size={18} className="text-white" />
-          </button>
+          {(() => {
+            const companionId = getCompanionFromStorage();
+            const comp = getCompanion(companionId);
+            const lvl = gamification?.level ?? 1;
+            const stage = getCompanionStage(comp, lvl);
+            return (
+              <button
+                onClick={() => navigate('/profile')}
+                className="relative flex-shrink-0"
+              >
+                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-xl shadow-lg border-2 border-white/30`}>
+                  {stage.emoji}
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-white rounded-full px-1.5 py-0.5 shadow text-[9px] font-extrabold text-purple-700 leading-none">
+                  {lvl}
+                </div>
+              </button>
+            );
+          })()}
         </div>
       </div>
 
       <div className="px-4 -mt-3 flex flex-col gap-4">
 
-        {/* ===== КОМПАНЬОН ===== */}
+        {/* ===== КОМПАНЬОН + XP ===== */}
         {(() => {
           const companionId = getCompanionFromStorage();
           const comp = getCompanion(companionId);
           const lvl = gamification?.level ?? 1;
           const stage = getCompanionStage(comp, lvl);
+          const xpPct = gamification && gamification.xp_needed > 0
+            ? Math.round((gamification.xp_progress / gamification.xp_needed) * 100) : 0;
           return (
             <button
               onClick={() => navigate('/achievements')}
-              className="bg-white rounded-3xl shadow-sm px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
+              className={`bg-gradient-to-br ${comp.style} rounded-3xl shadow-lg px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all`}
             >
-              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-2xl flex-shrink-0 shadow-sm`}>
+              <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-3xl flex-shrink-0 shadow-sm border border-white/30">
                 {stage.emoji}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-800 text-sm">{comp.name} · {stage.title}</p>
-                <p className="text-gray-400 text-xs truncate">"{stage.phrase}"</p>
+                <p className="font-extrabold text-white text-sm">{comp.name} · {stage.title}</p>
+                <p className="text-white/70 text-xs truncate">"{stage.phrase}"</p>
+                <div className="mt-1.5 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-white rounded-full transition-all duration-700" style={{ width: `${xpPct}%` }} />
+                </div>
               </div>
               <div className="flex-shrink-0 text-right">
-                <p className="text-purple-600 font-bold text-xs">Ур. {lvl}</p>
-                <p className="text-gray-300 text-[10px]">→ прогресс</p>
+                <div className="bg-white/25 rounded-xl px-2 py-1">
+                  <p className="text-white font-extrabold text-sm leading-none">Ур.{lvl}</p>
+                  <p className="text-white/70 text-[9px] mt-0.5">{gamification?.xp_progress ?? 0} XP</p>
+                </div>
               </div>
             </button>
           );
@@ -325,22 +350,6 @@ export default function Index() {
             <h3 className="font-bold text-gray-800">Твоя подготовка</h3>
           </div>
 
-          {/* XP прогресс */}
-          {gamification && (
-            <div className="mb-3">
-              <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-gray-600 font-medium">Уровень {gamification.level}</span>
-                <span className="text-purple-500 font-semibold">{gamification.xp_progress} / {gamification.xp_needed} XP</span>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700"
-                  style={{ width: `${gamification.xp_needed > 0 ? Math.round((gamification.xp_progress / gamification.xp_needed) * 100) : 0}%` }}
-                />
-              </div>
-            </div>
-          )}
-
           {/* Тема дня */}
           <div className="bg-indigo-50 rounded-2xl px-4 py-3 flex items-center gap-3">
             <span className="text-xl">📚</span>
@@ -454,24 +463,34 @@ export default function Index() {
           </div>
         )}
 
-        {/* ===== ВТОРОСТЕПЕННЫЕ ===== */}
-        <div>
-          <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 px-1">Ещё</p>
-          <div className="bg-white rounded-3xl shadow-sm overflow-hidden divide-y divide-gray-50">
-            {SECONDARY.map(item => (
-              <button
-                key={item.label}
-                onClick={() => navigate(item.path)}
-                className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
-              >
-                <div className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center">
-                  <Icon name={item.icon} size={16} className="text-gray-500" />
-                </div>
-                <span className="text-gray-700 text-sm font-medium flex-1">{item.label}</span>
-                <Icon name="ChevronRight" size={14} className="text-gray-300" />
-              </button>
-            ))}
-          </div>
+        {/* ===== ПОМОДОРО + ДОСТИЖЕНИЯ — яркие карточки ===== */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => navigate('/pomodoro')}
+            className="bg-gradient-to-br from-red-500 to-orange-500 rounded-3xl p-4 flex flex-col items-start gap-2 shadow-lg active:scale-[0.97] transition-all"
+          >
+            <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl">🍅</div>
+            <div>
+              <p className="text-white font-extrabold text-sm">Помодоро</p>
+              <p className="text-white/70 text-xs">фокус 25 мин</p>
+            </div>
+            <div className="bg-white/20 rounded-xl px-2 py-0.5 mt-0.5">
+              <p className="text-white text-[10px] font-bold">+10 XP за сессию</p>
+            </div>
+          </button>
+          <button
+            onClick={() => navigate('/achievements')}
+            className="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-3xl p-4 flex flex-col items-start gap-2 shadow-lg active:scale-[0.97] transition-all"
+          >
+            <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl">🏆</div>
+            <div>
+              <p className="text-white font-extrabold text-sm">Достижения</p>
+              <p className="text-white/70 text-xs">прогресс и рейтинг</p>
+            </div>
+            <div className="bg-white/20 rounded-xl px-2 py-0.5 mt-0.5">
+              <p className="text-white text-[10px] font-bold">{streak > 0 ? `🔥 Серия ${streak} дн.` : 'Начни серию!'}</p>
+            </div>
+          </button>
         </div>
 
         <div className="h-2" />
