@@ -486,35 +486,57 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
         et = parts[0] if len(parts) > 0 else ''
         sl = parts[2] if len(parts) > 2 else ''
         mode = parts[3] if len(parts) > 3 else 'explain'
-        el = 'EGE' if et == 'ege' else 'OGE'
+        el = 'ЕГЭ' if et == 'ege' else 'ОГЭ'
         if mode == 'practice':
             system = (
-                "You are Studyfay, a friendly student tutor for Russian school exams. "
-                "Respond ONLY in Russian. Use emojis naturally (1-3 per response). No LaTeX. Plain text only.\n\n"
-                "PRACTICE MODE RULES — follow strictly:\n"
-                "1. When the student selects a task topic — give ONE concrete exam-style task for that topic. End with a question mark.\n"
-                "2. When the student writes an answer to your task — evaluate it: say if correct or wrong, explain briefly, then ask if they want another task or a different topic.\n"
-                "3. NEVER ignore the student's answer. NEVER switch to a new task without evaluating the previous answer first.\n"
-                "4. If the student's message looks like an answer (a number, word, sentence, formula) — treat it as their answer to your last task and check it.\n"
-                f"Exam: {el}, Subject: {sl}."
+                f"Ты Studyfay — опытный репетитор по предмету «{sl}» для подготовки к {el}. "
+                "Отвечай ТОЛЬКО на русском языке. Используй 1-2 эмодзи уместно. Без LaTeX и формул со спецсимволами.\n\n"
+                "РЕЖИМ ПРАКТИКИ — строгие правила:\n"
+                f"1. Давай задания СТРОГО в формате реального {el} — точные формулировки, как в КИМ.\n"
+                "2. Когда ученик даёт ответ — СНАЧАЛА проверь его: начни «Правильно! ✅» или «Неверно ❌», потом кратко объясни.\n"
+                "3. НИКОГДА не игнорируй ответ ученика. Сначала проверка — потом следующее задание.\n"
+                "4. Если сообщение ученика похоже на ответ (число, слово, формула) — считай это ответом и проверяй.\n"
+                "5. После проверки предлагай следующее задание или другую тему.\n"
+                "6. Задания должны быть разнообразными: не повторяй одно и то же подряд."
+            )
+        elif mode == 'explain':
+            system = (
+                f"Ты Studyfay — лучший репетитор по предмету «{sl}» для {el}. "
+                "Объясняй ПОНЯТНО и ТОЧНО — как хороший учитель, а не справочник. "
+                "Отвечай по-русски. Структурируй: сначала суть, потом пример, потом совет для экзамена. "
+                "1-2 эмодзи уместно. Без LaTeX. Формулы пиши текстом (x^2, sqrt(x)). "
+                "Максимум 5-7 предложений если не просят подробнее."
+            )
+        elif mode == 'weak':
+            system = (
+                f"Ты Studyfay — репетитор по «{sl}» для {el}. Специализируешься на слабых местах. "
+                "Разбирай типичные ошибки и сложные темы. Давай чёткие правила-запоминалки. "
+                "После объяснения ВСЕГДА давай тренировочное задание. "
+                "Отвечай по-русски. 1-2 эмодзи. Без LaTeX."
+            )
+        elif mode == 'mock':
+            system = (
+                f"Ты строгий экзаменатор {el} по предмету «{sl}». "
+                "Имитируй реальный экзамен: задавай задания в точном формате КИМ по порядку. "
+                "При ответе ученика: оцени строго (Правильно/Неверно), дай краткое объяснение, переходи к следующему. "
+                "Без лирики. Только задание → проверка → следующее задание."
             )
         else:
             system = (
-                "You are Studyfay, a friendly student tutor. "
-                "Respond in Russian. Be concise — 3-5 sentences max unless more is truly needed. "
-                "Use relevant emojis naturally (1-3 per response) to make answers friendly and clear. "
-                "No LaTeX. Plain text only. No lengthy introductions.\n"
-                f"Exam: {el}, Subject: {sl}."
+                f"Ты Studyfay — репетитор по «{sl}» для {el}. "
+                "Отвечай по-русски точно и понятно. 1-2 эмодзи. Без LaTeX."
             )
-        user_content = question[:500]
+        user_content = question[:800]
     else:
         system = (
-            "You are Studyfay, a friendly student tutor. "
-            "Respond in Russian. Be concise — 3-5 sentences max unless more is truly needed. "
-            "Use relevant emojis naturally (1-3 per response) to make answers friendly and clear. "
-            "No LaTeX. Plain text only. No lengthy introductions."
+            "Ты Studyfay — персональный репетитор для школьников и студентов. "
+            "Отвечай ТОЛЬКО по-русски. Давай точные, проверенные ответы. "
+            "Структура: суть → пример → подсказка (если нужно). "
+            "1-2 эмодзи уместно. Без LaTeX — формулы текстом (x^2, sqrt(x)). "
+            "Если проверяешь задание — сначала реши сам, потом сравни с ответом ученика. "
+            "Объясняй ошибки чётко и доброжелательно. Максимум 6 предложений если не просят подробнее."
         )
-        user_content = question[:500]
+        user_content = question[:800]
 
     if has_context:
         system += f"\n\nMaterials:\n{ctx_trimmed}"
@@ -538,8 +560,8 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
             resp = client.chat.completions.create(
                 model=LLAMA_MODEL,
                 messages=messages_list,
-                temperature=0.5,
-                max_tokens=350,
+                temperature=0.6,
+                max_tokens=600,
             )
             answer = resp.choices[0].message.content
             tokens = resp.usage.total_tokens if resp.usage else 0
@@ -657,7 +679,7 @@ def build_smart_fallback(question, context):
         return "Готов порешать! ✏️\nНапиши тему задания конкретнее — и я дам задачу уровня ЕГЭ с разбором."
     return "Хороший вопрос! 🤔\nУточни тему или предмет — отвечу подробно с примером."
 
-DEMO_SYSTEM = "Ты репетитор по школьным предметам. Отвечай ТОЛЬКО по-русски. Без LaTeX и формул со спецсимволами — пиши формулы текстом (например x^2, sqrt(x)). Давай точные, правильные ответы. Если проверяешь задание — сначала реши его сам, потом сравни с ответом ученика. Объясняй ошибки чётко."
+DEMO_SYSTEM = "Ты Studyfay — репетитор по школьным предметам. Отвечай ТОЛЬКО по-русски. Без LaTeX и формул со спецсимволами — пиши формулы текстом (например x^2, sqrt(x)). Давай точные, правильные ответы. Структура: суть → пример → совет. Если проверяешь задание — сначала реши его сам, потом сравни с ответом ученика. Объясняй ошибки чётко и доброжелательно. 1-2 эмодзи уместно."
 
 DEMO_RATE_LIMIT: dict = {}
 
@@ -855,11 +877,22 @@ def handler(event: dict, context) -> dict:
             image_base64 = body.get('image_base64', None)
             exam_meta = body.get('exam_meta', None)
             history = body.get('history', [])
+            # system_only=true — системный промпт (шаги сессии, первый промпт экзамена)
+            # НЕ тратит лимит пользователя
+            system_only = body.get('system_only', False)
 
             if not question and not image_base64:
                 return err(400, {'error': 'Введи вопрос'})
 
-            print(f"[AI] User:{user_id} Q:{question[:60]} M:{material_ids}", flush=True)
+            print(f"[AI] User:{user_id} Q:{question[:60]} M:{material_ids} sys_only:{system_only}", flush=True)
+
+            # Системные промпты (шаги сессии, стартовый промпт экзамена) не тратят лимит
+            if system_only:
+                ctx = get_context(conn, user_id, material_ids)
+                answer, tokens = ask_ai(question, ctx, image_base64, exam_meta=exam_meta, history=history)
+                sid = get_session(conn, user_id)
+                save_msg(conn, sid, user_id, 'assistant', answer, material_ids, tokens, False)
+                return ok({'answer': answer, 'remaining': None, 'system_only': True})
 
             access = check_access(conn, user_id)
             if not access.get('has_access'):

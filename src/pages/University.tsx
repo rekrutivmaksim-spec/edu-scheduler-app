@@ -394,8 +394,13 @@ export default function University() {
           <Icon name="ArrowLeft" size={18} />
           <span className="text-sm">Главная</span>
         </button>
-        <h1 className="text-white font-extrabold text-2xl mb-1">Учёба</h1>
-        <p className="text-white/60 text-sm">Разбор материалов, файлов и подготовка</p>
+        <h1 className="text-white font-extrabold text-2xl mb-1">Помощь с учёбой</h1>
+        <p className="text-white/60 text-sm">ИИ-репетитор для вуза, колледжа и экзаменов</p>
+        {!isPremium && aiRemaining !== null && (
+          <div className="mt-3 inline-block bg-white/15 rounded-full px-3 py-1">
+            <span className="text-white/80 text-xs">Осталось вопросов: {aiRemaining}</span>
+          </div>
+        )}
       </div>
 
       <div className="px-4 -mt-4 space-y-3 max-w-xl mx-auto">
@@ -418,16 +423,16 @@ export default function University() {
             </div>
             <div>
               <p className="font-extrabold text-gray-800 text-base">Разобрать файл</p>
-              <p className="text-gray-500 text-sm mt-0.5">PDF, Word, TXT — анализ и конспект за минуту</p>
+              <p className="text-gray-500 text-sm mt-0.5">PDF, Word, TXT — ИИ сделает конспект за минуту</p>
               {fileUsedToday ? (
                 <p className="text-red-400 text-xs mt-1.5 font-medium">
-                  Лимит в месяц исчерпан ({filesUsed}/{filesMax}) → Premium
+                  Лимит на сегодня исчерпан ({filesUsed}/{filesMax}) → Premium 3/день
                 </p>
               ) : (
                 <p className="text-indigo-500 text-xs mt-1.5 font-medium">
                   {isPremium
-                    ? `Использовано ${filesUsed} из ${filesMax} файлов в месяц`
-                    : `Бесплатно: 1 файл/месяц · Использовано: ${filesUsed}/1`}
+                    ? `Загружено сегодня: ${filesUsed} из ${filesMax} файлов`
+                    : `Бесплатно: 1 файл в день · Загружено: ${filesUsed}/1`}
                 </p>
               )}
             </div>
@@ -444,10 +449,11 @@ export default function University() {
 
         {/* Быстрые действия */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">
-          <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2">
             <Icon name="Zap" size={16} className="text-amber-500" />
-            Быстрая подготовка
+            Задай вопрос ИИ
           </h3>
+          <p className="text-gray-400 text-xs mb-3">Получи подробный ответ за секунды</p>
           <div className="space-y-2">
             {QUICK_ACTIONS.map((qa, i) => (
               <button
@@ -462,29 +468,37 @@ export default function University() {
             ))}
           </div>
           {!isPremium && aiRemaining !== null && (
-            <p className="text-gray-400 text-xs mt-3 text-center">
-              Бесплатно: 3 вопроса в день · Осталось сегодня: {aiRemaining}
-            </p>
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-gray-400 text-xs">
+                Осталось сегодня: <span className="font-medium text-gray-600">{aiRemaining} из 3 вопросов</span>
+              </p>
+              {aiRemaining <= 0 && (
+                <button onClick={() => navigate('/pricing')} className="text-xs text-purple-600 font-medium">
+                  Купить +20 →
+                </button>
+              )}
+            </div>
           )}
         </div>
 
         {/* Premium блок */}
         {!isPremium && (
           <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 rounded-3xl p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xl">🔥</span>
-              <h3 className="font-bold text-white">Premium для студентов</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xl">🎓</span>
+              <h3 className="font-bold text-white">Premium для учёбы</h3>
             </div>
+            <p className="text-white/60 text-xs mb-3">Всё для подготовки без ограничений:</p>
             <div className="space-y-2 mb-4">
               {[
-                'безлимит анализа файлов и конспектов',
-                '20 вопросов ИИ в день',
-                'разбор экзаменационных билетов',
-                'история всех загруженных материалов',
-                'подготовка к сессии и зачётам',
+                '20 вопросов к ИИ в день (вместо 3)',
+                '3 загрузки файлов в день (вместо 1)',
+                'Разбор экзаменационных билетов',
+                'История всех конспектов и вопросов',
+                'Подготовка к сессии, зачётам и ЕГЭ',
               ].map(f => (
                 <div key={f} className="flex items-center gap-2 text-white/85 text-sm">
-                  <span className="text-white/60">✓</span>
+                  <span className="text-white/50">✓</span>
                   {f}
                 </div>
               ))}
@@ -493,7 +507,7 @@ export default function University() {
               onClick={() => navigate('/pricing')}
               className="w-full py-3 bg-white text-purple-700 font-extrabold rounded-2xl text-sm active:scale-[0.98] transition-all shadow-lg"
             >
-              Подключить Premium — 449 ₽/мес
+              Подключить Premium — от 299 ₽/мес
             </button>
           </div>
         )}
@@ -513,8 +527,8 @@ export default function University() {
             <Icon name="MessageCircle" size={18} className="text-purple-600" />
           </div>
           <div className="text-left flex-1">
-            <p className="text-purple-800 font-bold text-sm">Полный ИИ-чат по вузу</p>
-            <p className="text-purple-400 text-xs mt-0.5">Все материалы и история вопросов</p>
+            <p className="text-purple-800 font-bold text-sm">Открыть полный чат с ИИ</p>
+            <p className="text-purple-400 text-xs mt-0.5">История, загруженные материалы, любые вопросы</p>
           </div>
           {aiRemaining !== null && aiRemaining <= 0 && !isPremium
             ? <Icon name="Lock" size={16} className="text-gray-300" />

@@ -60,19 +60,19 @@ function buildSteps(topic: string, subject: string): StepDef[] {
     {
       label: 'Объяснение',
       icon: 'Lightbulb',
-      prompt: `Объясни тему "${topic}" (${subject}) очень коротко — 2–3 предложения простыми словами, без формул и терминов. Как для человека, который первый раз слышит.`,
+      prompt: `Объясни тему "${topic}" по предмету ${subject} ясно и по делу: сначала суть в 1-2 предложениях простыми словами, потом ключевое правило или формулу текстом (без LaTeX), потом почему это важно для экзамена. Максимум 4-5 предложений. Без воды.`,
       loaderPhrases: ['Разбираю тему…', 'Подбираю слова…', 'Готовлю объяснение…', 'Почти готово…'],
     },
     {
       label: 'Пример',
       icon: 'BookOpen',
-      prompt: `Дай один конкретный пример по теме "${topic}" — покажи как это работает на простом числе или ситуации. Только пример, без длинных объяснений.`,
+      prompt: `Покажи конкретный пример применения темы "${topic}" по ${subject}. Возьми реальную задачу или ситуацию, разбери пошагово с числами или фактами. Кратко и наглядно — 3-5 шагов максимум.`,
       loaderPhrases: ['Ищу хороший пример…', 'Подбираю числа…', 'Формирую пример…'],
     },
     {
       label: 'Задание',
       icon: 'PenLine',
-      prompt: `Дай одно короткое задание по теме "${topic}" уровня базового ЕГЭ. Только условие задачи, без решения.`,
+      prompt: `Составь одно тренировочное задание по теме "${topic}" (${subject}) в стиле ЕГЭ/ОГЭ. Задание должно быть конкретным, с чёткими данными. Только условие — без ответа и подсказок. В конце напиши: "Жду твой ответ."`,
       loaderPhrases: ['Составляю задание…', 'Подбираю сложность…', 'Готовлю условие…'],
     },
   ];
@@ -343,8 +343,9 @@ export default function Session() {
     const token = authService.getToken();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    // system_only=true — шаги сессии не тратят лимит пользователя
     const body = token
-      ? JSON.stringify({ question: step.prompt })
+      ? JSON.stringify({ question: step.prompt, system_only: true })
       : JSON.stringify({ action: 'demo_ask', question: step.prompt });
 
     let raw = '';
@@ -391,7 +392,7 @@ export default function Session() {
     const token = authService.getToken();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const prompt = `Задание: ${content}\n\nОтвет ученика: "${answer}"\n\nПроверь ответ строго. Если правильно — начни СТРОГО со слова "Правильно!" и похвали одной фразой. Если неправильно — начни СТРОГО со слова "Неверно." и объясни ошибку в 1-2 предложениях. Не придумывай других вступлений.`;
+    const prompt = `Задание: ${content}\n\nОтвет ученика: "${answer}"\n\nПроверь ответ. Сначала реши задание сам, потом сравни с ответом ученика.\nЕсли правильно — начни СТРОГО: "Правильно! ✅" и одной фразой похвали или уточни детали.\nЕсли неправильно — начни СТРОГО: "Неверно ❌" затем в 2-3 предложениях объясни где ошибка и как правильно. Покажи верный ответ.\nНе придумывай других вступлений.`;
     const bodyAuth = JSON.stringify({ question: prompt, history: [{ role: 'assistant', content }] });
     const bodyDemo = JSON.stringify({ action: 'demo_ask', question: prompt, history: [{ role: 'assistant', content }] });
 
@@ -449,13 +450,13 @@ export default function Session() {
       const token = authService.getToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
+      const solutionPrompt = `Задание: ${content}\n\nДай подробное правильное решение этого задания с объяснением каждого шага. Кратко и понятно.`;
       const res = await fetch(AI_API_URL, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          action: 'demo_ask',
-          question: `Задание: ${content}\n\nДай подробное правильное решение этого задания с объяснением каждого шага. Кратко и понятно.`,
-        }),
+        body: token
+          ? JSON.stringify({ question: solutionPrompt, system_only: true })
+          : JSON.stringify({ action: 'demo_ask', question: solutionPrompt }),
       });
       const data = await res.json();
       const raw = sanitize(data.answer || data.response || '');

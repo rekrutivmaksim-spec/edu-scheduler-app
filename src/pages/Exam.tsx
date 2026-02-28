@@ -217,7 +217,8 @@ export default function Exam() {
     history: Message[] = [],
     currentSubject?: Subject | null,
     currentMode?: Mode,
-    currentExamType?: ExamType
+    currentExamType?: ExamType,
+    isSystemPrompt: boolean = false
   ): Promise<{ answer: string; remaining?: number }> => {
     const token = authService.getToken();
     const sub = currentSubject ?? subject;
@@ -232,7 +233,7 @@ export default function Exam() {
 
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
-        body = { question, exam_meta: examMeta, history: hist };
+        body = { question, exam_meta: examMeta, history: hist, system_only: isSystemPrompt };
       } else {
         body = { action: 'demo_ask', question, history: hist };
       }
@@ -312,7 +313,7 @@ export default function Exam() {
     }
 
     try {
-      const { answer } = await askAI(prompt, [], s, m, eType);
+      const { answer } = await askAI(prompt, [], s, m, eType, true);
       const msg: Message = { role: 'ai', text: answer };
       if (quickReplies.length) msg.quickReplies = quickReplies;
       setMessages([msg]);

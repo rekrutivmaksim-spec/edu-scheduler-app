@@ -35,7 +35,8 @@ def check_subscription_status(user_id: int, conn) -> dict:
                    ai_questions_used, ai_questions_reset_at,
                    daily_questions_used, daily_questions_reset_at,
                    daily_premium_questions_used, daily_premium_questions_reset_at,
-                   bonus_questions
+                   bonus_questions,
+                   files_uploaded_today, files_daily_reset_at
             FROM users
             WHERE id = %s
         """, (user_id,))
@@ -69,15 +70,16 @@ def check_subscription_status(user_id: int, conn) -> dict:
         is_trial = False
         trial_ends_at = None
         
-        if user['materials_quota_reset_at'] and user['materials_quota_reset_at'] < datetime.now():
+        # Сброс дневного счётчика файлов
+        if user.get('files_daily_reset_at') and user['files_daily_reset_at'] < datetime.now():
             cur.execute("""
-                UPDATE users 
-                SET materials_quota_used = 0,
-                    materials_quota_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 month'
+                UPDATE users
+                SET files_uploaded_today = 0,
+                    files_daily_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 day'
                 WHERE id = %s
             """, (user_id,))
             conn.commit()
-            user['materials_quota_used'] = 0
+            user['files_uploaded_today'] = 0
         
         # Сброс дневных вопросов каждый день
         if user.get('daily_questions_reset_at'):
@@ -100,6 +102,7 @@ def check_subscription_status(user_id: int, conn) -> dict:
             'trial_ends_at': trial_ends_at.isoformat() if trial_ends_at else None,
             'materials_quota_used': user['materials_quota_used'] or 0,
             'materials_quota_reset_at': user['materials_quota_reset_at'].isoformat() if user['materials_quota_reset_at'] else None,
+            'files_uploaded_today': user.get('files_uploaded_today') or 0,
             'ai_questions_used': user.get('ai_questions_used', 0) or 0,
             'ai_questions_reset_at': user.get('ai_questions_reset_at').isoformat() if user.get('ai_questions_reset_at') else None,
             'daily_questions_used': user.get('daily_questions_used', 0) or 0,
@@ -126,7 +129,8 @@ def get_limits(conn, user_id: int) -> dict:
         # Проверяем soft landing (дни 8-10 после окончания триала)
         cur.execute("""
             SELECT trial_ends_at, daily_questions_used, bonus_questions,
-                   daily_sessions_used, daily_sessions_reset_at
+                   daily_sessions_used, daily_sessions_reset_at,
+                   files_uploaded_today, files_daily_reset_at
             FROM users WHERE id = %s
         """, (user_id,))
         u = cur.fetchone()
@@ -158,19 +162,35 @@ def get_limits(conn, user_id: int) -> dict:
     sessions_used = (u['daily_sessions_used'] or 0) if u else 0
 
     # Лимиты по тарифу:
-    # Free:    1 сессия/день, 3 AI вопроса/день, 1 загрузка файла/месяц
-    # Premium: 5 сессий/день, 20 AI вопросов/день, 3 загрузки файла/месяц
+    # Free:    1 сессия/день, 3 AI вопроса/день, 1 загрузка файла/ДЕНЬ
+    # Premium: 5 сессий/день, 20 AI вопросов/день, 3 загрузки файла/ДЕНЬ
     # Trial:   всё как Premium (5 сессий, 20 AI, 3 загрузки)
 
+    files_today = (u.get('files_uploaded_today') or 0) if u else 0
+
+    # Сброс дневного счётчика файлов в get_limits тоже
+    if u and u.get('files_daily_reset_at'):
+        reset_f = u['files_daily_reset_at'].replace(tzinfo=None) if u['files_daily_reset_at'].tzinfo else u['files_daily_reset_at']
+        if reset_f < datetime.now():
+            files_today = 0
+
     if status['is_premium']:
+        bonus = status.get('bonus_questions', 0) or 0
+        prem_used = status.get('daily_premium_questions_used', 0) or 0
         return {
             **status,
             'is_soft_landing': False,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
-                'materials': {'used': status['materials_quota_used'], 'max': 3, 'unlimited': False},
-                'ai_questions': {'used': status.get('daily_premium_questions_used', 0), 'max': 20, 'unlimited': False},
+                'materials': {'used': files_today, 'max': 3, 'unlimited': False},
+                'ai_questions': {
+                    'used': prem_used,
+                    'max': 20 + bonus,
+                    'unlimited': False,
+                    'daily_limit': 20,
+                    'bonus_available': bonus
+                },
                 'exam_predictions': {'unlimited': True},
                 'sessions': {'used': sessions_used, 'max': 5, 'unlimited': False}
             }
@@ -182,7 +202,7 @@ def get_limits(conn, user_id: int) -> dict:
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
-                'materials': {'used': status['materials_quota_used'], 'max': 3, 'unlimited': False},
+                'materials': {'used': files_today, 'max': 3, 'unlimited': False},
                 'ai_questions': {'used': status.get('daily_questions_used', 0), 'max': 20, 'unlimited': False},
                 'exam_predictions': {'unlimited': True, 'available': True},
                 'sessions': {'used': sessions_used, 'max': 5, 'unlimited': False}
@@ -198,7 +218,7 @@ def get_limits(conn, user_id: int) -> dict:
             'limits': {
                 'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
                 'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
-                'materials': {'used': status['materials_quota_used'], 'max': 1, 'unlimited': False},
+                'materials': {'used': files_today, 'max': 1, 'unlimited': False},
                 'ai_questions': {
                     'used': daily_used,
                     'max': SOFT_LANDING_LIMIT + bonus,
@@ -211,7 +231,7 @@ def get_limits(conn, user_id: int) -> dict:
             }
         }
     else:
-        # Free: 1 сессия/день, 3 AI вопроса/день + бонус, 1 загрузка файла/месяц
+        # Free: 1 сессия/день, 3 AI вопроса/день + бонус, 1 загрузка файла/день
         daily_used = status.get('daily_questions_used', 0)
         bonus = status.get('bonus_questions', 0)
         total_available = 3 + bonus
@@ -222,7 +242,7 @@ def get_limits(conn, user_id: int) -> dict:
             'limits': {
                 'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
                 'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
-                'materials': {'used': status['materials_quota_used'], 'max': 1, 'unlimited': False},
+                'materials': {'used': files_today, 'max': 1, 'unlimited': False},
                 'ai_questions': {
                     'used': daily_used,
                     'max': total_available,

@@ -461,7 +461,7 @@ def get_profile_data(conn, user_id: int):
     """Полный профиль геймификации"""
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    cur.execute("SELECT xp_total, level, referral_count, subscription_type, subscription_expires_at FROM users WHERE id = %s", (user_id,))
+    cur.execute("SELECT xp_total, level, referral_count, subscription_type, subscription_expires_at, bonus_questions FROM users WHERE id = %s", (user_id,))
     user = cur.fetchone()
     if not user:
         cur.close()
@@ -574,6 +574,7 @@ def get_profile_data(conn, user_id: int):
         'xp_progress': xp_progress,
         'xp_needed': xp_needed,
         'is_premium': is_premium,
+        'bonus_questions': user.get('bonus_questions') or 0,
         'streak': {
             'current': streak['current_streak'] if streak else 0,
             'longest': streak['longest_streak'] if streak else 0,

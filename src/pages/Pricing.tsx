@@ -10,32 +10,46 @@ const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
 
 const PREMIUM_FEATURES = [
-  { icon: '📅', text: 'До 5 занятий в день (вместо 1)' },
-  { icon: '🤖', text: '20 вопросов ИИ в день (вместо 3)' },
-  { icon: '📄', text: '3 загрузки файлов в месяц (вместо 1)' },
+  { icon: '🤖', text: '20 вопросов к ИИ в день (вместо 3)' },
+  { icon: '📚', text: 'До 5 занятий в день (вместо 1)' },
+  { icon: '📄', text: '3 загрузки файлов в день (вместо 1)' },
   { icon: '🎓', text: 'Подготовка к ЕГЭ и ОГЭ по всем предметам' },
-  { icon: '💬', text: 'Объяснение тем и разбор ошибок' },
-  { icon: '✅', text: 'Проверка заданий с правильными решениями' },
-  { icon: '🏛️', text: 'Помощь по учёбе в вузе и анализ конспектов' },
-  { icon: '🔥', text: 'Серийные награды и бонусы за стрик' },
+  { icon: '✅', text: 'Проверка ответов с разбором ошибок' },
+  { icon: '💬', text: 'Объяснение тем и решение задач' },
+  { icon: '🏛️', text: 'Помощь с вузом: билеты, конспекты, сессия' },
+  { icon: '🔥', text: 'Бонусы за стрик и ежедневные квесты' },
 ];
 
-const STUDENT_FEATURES = [
-  'Разбор лекций',
-  'Помощь по билетам',
-  'Ответы на вопросы по конспектам',
+const FREE_FEATURES = [
+  '1 занятие в день',
+  '3 вопроса к ИИ в день',
+  '1 загрузка файла в день',
+  'Базовая подготовка к экзаменам',
 ];
 
 const GUARANTEE_FEATURES = [
-  'Безопасная оплата через RuStore',
+  'Безопасная оплата через Т-банк',
   'Возврат средств в течение 14 дней',
   'Отмена подписки в любой момент',
 ];
 
 const FAQ = [
-  { q: 'Как работает подписка?', a: 'После подключения открывается полный доступ к занятиям и ИИ.' },
-  { q: 'Можно отменить?', a: 'Да, в профиле в любой момент.' },
-  { q: 'Будут списания автоматически?', a: 'Только при включённом автопродлении.' },
+  {
+    q: 'Чем отличается Premium от бесплатного?',
+    a: 'Premium даёт 20 вопросов ИИ в день вместо 3, до 5 занятий, 3 загрузки файлов, доступ ко всем режимам подготовки к ЕГЭ/ОГЭ и бонусы за активность.',
+  },
+  {
+    q: 'Что такое пакет вопросов?',
+    a: '20 дополнительных вопросов к ИИ — не зависят от тарифа. Подходит если израсходовал дневной лимит и хочешь продолжить сегодня.',
+  },
+  {
+    q: 'Как работает автопродление?',
+    a: 'Подписка продлевается автоматически в дату окончания. Отключить можно в Профиле — в разделе «Подписка».',
+  },
+  {
+    q: 'Можно отменить в любой момент?',
+    a: 'Да. Зайди в Профиль → Подписка → Отменить. Доступ сохранится до конца оплаченного периода.',
+  },
 ];
 
 const Pricing = () => {
@@ -44,6 +58,7 @@ const Pricing = () => {
   const [loading, setLoading] = useState<string | null>(null);
   const [currentPlan, setCurrentPlan] = useState('free');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [bonusQuestions, setBonusQuestions] = useState(0);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/auth'); return; }
@@ -51,7 +66,12 @@ const Pricing = () => {
       headers: { Authorization: `Bearer ${authService.getToken()}` },
     })
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setCurrentPlan(d.subscription_type || 'free'); })
+      .then(d => {
+        if (d) {
+          setCurrentPlan(d.subscription_type || 'free');
+          setBonusQuestions(d.bonus_questions || 0);
+        }
+      })
       .catch(() => {});
   }, [navigate]);
 
@@ -59,7 +79,6 @@ const Pricing = () => {
     setLoading(planId);
     try {
       const token = authService.getToken();
-      // Преобразуем 12months → 1year для совместимости с бэкендом
       const backendPlanId = planId === '12months' ? '1year' : planId;
       const res = await fetch(PAYMENTS_URL, {
         method: 'POST',
@@ -92,14 +111,14 @@ const Pricing = () => {
         <h1 className="font-bold text-gray-900">Тарифы</h1>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-6 pb-16 space-y-4">
+      <div className="max-w-md mx-auto px-4 py-6 pb-24 space-y-4">
 
         {/* Заголовок */}
         <div className="text-center pt-2 pb-2">
           <div className="text-4xl mb-2">🚀</div>
-          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Сдай ЕГЭ/ОГЭ лучше с Studyfay</h2>
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Studyfay Premium</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
-            ИИ-репетитор объясняет, проверяет ответы и ведёт по<br />темам каждый день — дешевле в 20 раз чем репетитор.
+            ИИ-репетитор объясняет темы, проверяет ответы и готовит<br />к ЕГЭ/ОГЭ каждый день — в 20 раз дешевле репетитора.
           </p>
         </div>
 
@@ -113,12 +132,7 @@ const Pricing = () => {
             <span className="text-gray-400 font-bold text-lg">0 ₽</span>
           </div>
           <div className="space-y-2">
-            {[
-              '1 занятие в день',
-              '3 вопроса ИИ в день',
-              '1 загрузка файла в месяц',
-              'базовая подготовка к экзаменам',
-            ].map(f => (
+            {FREE_FEATURES.map(f => (
               <div key={f} className="flex items-center gap-2 text-gray-600 text-sm">
                 <Icon name="Check" size={14} className="text-gray-400 flex-shrink-0" />
                 {f}
@@ -143,8 +157,8 @@ const Pricing = () => {
                 </div>
                 <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Рекомендуем</span>
               </div>
-              <p className="text-white/70 text-sm mb-1">449 ₽ / месяц</p>
-              <p className="text-white/60 text-xs mb-4">Подготовка к учёбе без ограничений:</p>
+              <p className="text-white/70 text-sm mb-1">от 299 ₽ / месяц</p>
+              <p className="text-white/60 text-xs mb-4">Всё необходимое для подготовки без ограничений:</p>
 
               <div className="space-y-2.5 mb-5">
                 {PREMIUM_FEATURES.map(f => (
@@ -167,18 +181,18 @@ const Pricing = () => {
                   }
                 </Button>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-white font-extrabold text-xl leading-none">449 ₽</p>
+                  <p className="text-white font-extrabold text-xl leading-none">299 ₽</p>
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>
-              <p className="text-white/50 text-xs text-center">Отмена в любой момент</p>
+              <p className="text-white/50 text-xs text-center">Отмена в любой момент · Автопродление</p>
             </div>
 
-            {/* Ограничение */}
+            {/* Подсказка */}
             <div className="bg-purple-900 px-5 py-3 flex items-center gap-2">
               <span className="text-yellow-400 text-sm">⚡</span>
               <p className="text-white/70 text-xs">
-                Сегодня доступно бесплатно: <span className="text-white font-semibold">1 занятие.</span> Дальше — продолжение с Premium
+                Бесплатно сегодня: <span className="text-white font-semibold">1 занятие и 3 вопроса.</span> Premium снимает все ограничения.
               </p>
             </div>
           </div>
@@ -189,10 +203,52 @@ const Pricing = () => {
             </div>
             <div>
               <p className="text-white font-bold text-base">Premium активен ✓</p>
-              <p className="text-white/60 text-sm">Безлимитный доступ открыт</p>
+              <p className="text-white/60 text-sm">Полный доступ открыт</p>
+              {bonusQuestions > 0 && (
+                <p className="text-green-300 text-xs mt-0.5">+{bonusQuestions} бонусных вопросов</p>
+              )}
             </div>
           </div>
         )}
+
+        {/* Пакет вопросов — для всех */}
+        <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-green-100 relative">
+          <div className="absolute -top-3 left-5">
+            <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">⚡ Быстрый доступ</span>
+          </div>
+          <div className="flex items-start justify-between pt-1">
+            <div>
+              <h3 className="font-extrabold text-gray-900 text-lg">+20 вопросов к ИИ</h3>
+              <p className="text-gray-500 text-xs mt-0.5">Работает с любым тарифом — сегодня же</p>
+              <div className="mt-2 space-y-1">
+                {[
+                  'Добавляются к текущему лимиту',
+                  'Не сгорают на следующий день',
+                  'Для экзамена, ассистента, вуза',
+                ].map(f => (
+                  <div key={f} className="flex items-center gap-1.5 text-gray-500 text-xs">
+                    <Icon name="Check" size={12} className="text-green-400 flex-shrink-0" />
+                    {f}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="text-right flex-shrink-0 ml-3">
+              <p className="text-gray-900 font-extrabold text-2xl leading-none">149 ₽</p>
+              <p className="text-gray-400 text-xs mt-0.5">разово</p>
+            </div>
+          </div>
+          <Button
+            onClick={() => handleBuy('questions_20')}
+            disabled={!!loading}
+            className="w-full h-11 mt-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-2xl disabled:opacity-50"
+          >
+            {loading === 'questions_20'
+              ? <Icon name="Loader2" size={16} className="animate-spin" />
+              : 'Купить 20 вопросов — 149 ₽'
+            }
+          </Button>
+        </div>
 
         {/* 6 месяцев — самый выгодный */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-orange-200 relative">
@@ -201,13 +257,13 @@ const Pricing = () => {
           </div>
           <div className="flex items-start justify-between pt-1">
             <div>
-              <h3 className="font-extrabold text-gray-900 text-lg">6 месяцев</h3>
-              <p className="text-gray-500 text-xs mt-0.5">Лучший вариант для подготовки к экзаменам</p>
+              <h3 className="font-extrabold text-gray-900 text-lg">6 месяцев Premium</h3>
+              <p className="text-gray-500 text-xs mt-0.5">Лучший выбор для подготовки к ЕГЭ/ОГЭ</p>
               <div className="mt-2 space-y-1">
                 {[
-                  'всё из Premium',
-                  'выгоднее помесячной оплаты',
-                  'непрерывный прогресс',
+                  'Всё из Premium',
+                  'Выгоднее помесячной оплаты на 36%',
+                  'Непрерывный прогресс до экзамена',
                 ].map(f => (
                   <div key={f} className="flex items-center gap-1.5 text-gray-500 text-xs">
                     <Icon name="Check" size={12} className="text-orange-400 flex-shrink-0" />
@@ -217,8 +273,8 @@ const Pricing = () => {
               </div>
             </div>
             <div className="text-right flex-shrink-0 ml-3">
-              <p className="text-gray-900 font-extrabold text-xl leading-none">2290 ₽</p>
-              <p className="text-gray-400 text-xs mt-0.5">≈ 382 ₽/мес</p>
+              <p className="text-gray-900 font-extrabold text-xl leading-none">1499 ₽</p>
+              <p className="text-gray-400 text-xs mt-0.5">≈ 250 ₽/мес</p>
             </div>
           </div>
           <Button
@@ -240,12 +296,12 @@ const Pricing = () => {
           </div>
           <div className="flex items-start justify-between pt-1">
             <div>
-              <h3 className="font-extrabold text-gray-900 text-lg">12 месяцев</h3>
-              <p className="text-gray-500 text-xs mt-0.5">Максимальная экономия</p>
+              <h3 className="font-extrabold text-gray-900 text-lg">12 месяцев Premium</h3>
+              <p className="text-gray-500 text-xs mt-0.5">Максимальная экономия на весь учебный год</p>
               <div className="mt-2 space-y-1">
                 {[
-                  'всё из Premium',
-                  'подходит для долгой подготовки',
+                  'Всё из Premium',
+                  'Дешевле в 2 раза чем помесячно',
                 ].map(f => (
                   <div key={f} className="flex items-center gap-1.5 text-gray-500 text-xs">
                     <Icon name="Check" size={12} className="text-blue-400 flex-shrink-0" />
@@ -255,8 +311,8 @@ const Pricing = () => {
               </div>
             </div>
             <div className="text-right flex-shrink-0 ml-3">
-              <p className="text-gray-900 font-extrabold text-xl leading-none">3990 ₽</p>
-              <p className="text-gray-400 text-xs mt-0.5">≈ 333 ₽/мес</p>
+              <p className="text-gray-900 font-extrabold text-xl leading-none">2399 ₽</p>
+              <p className="text-gray-400 text-xs mt-0.5">≈ 200 ₽/мес</p>
             </div>
           </div>
           <Button
@@ -271,25 +327,7 @@ const Pricing = () => {
           </Button>
         </div>
 
-        {/* Для студентов */}
-        <div className="bg-indigo-50 rounded-3xl p-5 border border-indigo-100">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xl">🎓</span>
-            <h3 className="font-bold text-indigo-800">Для студентов</h3>
-            <span className="ml-auto text-xs text-indigo-400 bg-indigo-100 px-2 py-0.5 rounded-full">входит в Premium</span>
-          </div>
-          <p className="text-indigo-700 text-sm font-medium mb-2">Подготовка к сессии:</p>
-          <div className="space-y-1.5">
-            {STUDENT_FEATURES.map(f => (
-              <div key={f} className="flex items-center gap-2 text-indigo-700 text-sm">
-                <Icon name="Check" size={13} className="text-indigo-400 flex-shrink-0" />
-                {f}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Почему выгодно */}
+        {/* Сравнение с репетитором */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xl">💰</span>
@@ -299,27 +337,27 @@ const Pricing = () => {
             <div className="flex items-center justify-between bg-white/10 rounded-2xl px-4 py-3">
               <div>
                 <p className="text-gray-300 text-xs">Репетитор (1 занятие)</p>
-                <p className="text-white font-bold text-base">800–1500 ₽</p>
+                <p className="text-white font-bold text-base">800–2000 ₽</p>
               </div>
               <div className="text-right">
                 <p className="text-gray-300 text-xs">В месяц</p>
-                <p className="text-red-400 font-bold text-base">~16 000 ₽</p>
+                <p className="text-red-400 font-bold text-base">от 12 000 ₽</p>
               </div>
             </div>
             <div className="flex items-center justify-between bg-indigo-500/30 rounded-2xl px-4 py-3 border border-indigo-400/30">
               <div>
                 <p className="text-indigo-200 text-xs">Studyfay Premium</p>
-                <p className="text-white font-bold text-base">449 ₽</p>
+                <p className="text-white font-bold text-base">299 ₽</p>
               </div>
               <div className="text-right">
                 <p className="text-indigo-200 text-xs">В месяц</p>
-                <p className="text-green-400 font-bold text-base">≈ 15 ₽/день</p>
+                <p className="text-green-400 font-bold text-base">≈ 10 ₽/день</p>
               </div>
             </div>
           </div>
           <div className="mt-3 bg-yellow-400/20 rounded-2xl px-4 py-3 flex items-center gap-2">
             <span className="text-yellow-300 text-xl">🏆</span>
-            <p className="text-yellow-300 font-bold text-sm">Экономия от 15 000 ₽ в месяц</p>
+            <p className="text-yellow-300 font-bold text-sm">Экономия от 11 700 ₽ в месяц</p>
           </div>
         </div>
 

@@ -40,6 +40,11 @@ PLANS = {
 TOKEN_PACKS = {}
 
 QUESTION_PACKS = {
+    'questions_20': {
+        'price': 149,
+        'questions': 20,
+        'name': '+20 вопросов'
+    },
     'questions_15': {
         'price': 150,
         'questions': 15,

@@ -34,37 +34,67 @@ def verify_token(token: str) -> dict:
         return None
 
 
+FREE_DAILY_FILES = 1
+PREMIUM_DAILY_FILES = 3
+
+
 def check_subscription_access(conn, user_id: int) -> dict:
     schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute(f'''
-        SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used 
+        SELECT subscription_type, subscription_expires_at, trial_ends_at, is_trial_used,
+               files_uploaded_today, files_daily_reset_at
         FROM {schema}.users 
         WHERE id = %s
     ''', (user_id,))
     user = cursor.fetchone()
-    cursor.close()
-    
+
     if not user:
+        cursor.close()
         return {'has_access': False, 'reason': 'user_not_found'}
-    
+
     now = datetime.now()
-    
-    # Проверяем премиум подписку
+    from datetime import timedelta
+
+    is_premium = False
+    is_trial = False
+
     if user.get('subscription_type') == 'premium':
         if user.get('subscription_expires_at') and user['subscription_expires_at'].replace(tzinfo=None) > now:
-            return {'has_access': True, 'is_premium': True, 'is_trial': False}
-    
-    # Проверяем триал период
-    trial_ends = user.get('trial_ends_at')
-    is_trial_used = user.get('is_trial_used')
-    
-    if trial_ends and not is_trial_used:
-        trial_ends_naive = trial_ends.replace(tzinfo=None) if trial_ends.tzinfo else trial_ends
-        if trial_ends_naive > now:
-            return {'has_access': True, 'is_premium': False, 'is_trial': True, 'trial_ends_at': trial_ends}
-    
-    return {'has_access': False, 'reason': 'no_subscription'}
+            is_premium = True
+
+    if not is_premium:
+        trial_ends = user.get('trial_ends_at')
+        is_trial_used = user.get('is_trial_used')
+        if trial_ends and not is_trial_used:
+            trial_ends_naive = trial_ends.replace(tzinfo=None) if trial_ends.tzinfo else trial_ends
+            if trial_ends_naive > now:
+                is_trial = True
+
+    # Дневной лимит файлов
+    daily_limit = PREMIUM_DAILY_FILES if (is_premium or is_trial) else FREE_DAILY_FILES
+
+    # Сбрасываем дневной счётчик если прошли сутки
+    files_today = user.get('files_uploaded_today') or 0
+    reset_at = user.get('files_daily_reset_at')
+    if reset_at:
+        reset_naive = reset_at.replace(tzinfo=None) if hasattr(reset_at, 'tzinfo') and reset_at.tzinfo else reset_at
+        if reset_naive < now:
+            cur2 = conn.cursor()
+            cur2.execute(f'UPDATE {schema}.users SET files_uploaded_today=0, files_daily_reset_at=%s WHERE id=%s',
+                         (now + timedelta(days=1), user_id))
+            conn.commit()
+            cur2.close()
+            files_today = 0
+
+    cursor.close()
+    return {
+        'has_access': True,
+        'is_premium': is_premium,
+        'is_trial': is_trial,
+        'files_today': files_today,
+        'daily_limit': daily_limit
+    }
 
 
 def get_s3_client():
@@ -289,32 +319,19 @@ def handler(event: dict, context) -> dict:
                 conn = get_db_connection()
                 access = check_subscription_access(conn, user_id)
 
-                schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
-                with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    cur.execute(f'''
-                        SELECT materials_quota_used, materials_quota_reset_at
-                        FROM {schema}.users
-                        WHERE id = %s
-                    ''', (user_id,))
-                    quota_info = cur.fetchone()
+                files_today = access.get('files_today', 0)
+                daily_limit = access.get('daily_limit', FREE_DAILY_FILES)
 
-                quota_used = (quota_info.get('materials_quota_used') or 0) if quota_info else 0
-
-                # Лимиты загрузок по тарифу:
-                # Free:           1 файл/месяц
-                # Trial/Premium:  3 файла/месяц
-                if access.get('is_premium') or access.get('is_trial'):
-                    upload_limit = 3
-                else:
-                    upload_limit = 1
-
-                if quota_used >= upload_limit:
+                if files_today >= daily_limit:
                     conn.close()
+                    is_prem = access.get('is_premium') or access.get('is_trial')
+                    msg = (f'Лимит загрузок на сегодня исчерпан ({files_today}/{daily_limit}). '
+                           f'{"Завтра откроется снова." if is_prem else "Перейди на Premium — 3 загрузки в день."}')
                     return {'statusCode': 403, 'headers': headers, 'body': json.dumps({
                         'error': 'quota_exceeded',
-                        'message': f'📊 Лимит загрузок исчерпан ({quota_used}/{upload_limit}). Перейдите на Premium для 3 загрузок в месяц',
-                        'used': quota_used,
-                        'max': upload_limit
+                        'message': msg,
+                        'used': files_today,
+                        'max': daily_limit
                     })}
                 
                 conn.close()
@@ -390,12 +407,13 @@ def handler(event: dict, context) -> dict:
                             cur.execute("INSERT INTO document_chunks (material_id, chunk_index, chunk_text) VALUES (%s, %s, %s)", (material_id, idx, chunk))
                         print(f"[MATERIALS] Вставлено {len(chunks)} чанков")
                         
-                        # Увеличиваем счетчик использованных материалов для Free
+                        # Увеличиваем дневной счётчик загрузок для всех тарифов
                         schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
                         cur.execute(f'''
                             UPDATE {schema}.users 
-                            SET materials_quota_used = materials_quota_used + 1
-                            WHERE id = %s AND subscription_type = 'free'
+                            SET files_uploaded_today = COALESCE(files_uploaded_today, 0) + 1,
+                                files_daily_reset_at = COALESCE(files_daily_reset_at, NOW() + INTERVAL '1 day')
+                            WHERE id = %s
                         ''', (user_id,))
                         
                         conn.commit()

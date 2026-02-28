@@ -45,6 +45,7 @@ interface GamificationProfile {
   xp_needed: number;
   is_premium: boolean;
   is_trial?: boolean;
+  bonus_questions?: number;
   streak: {
     current: number;
     longest: number;
@@ -367,6 +368,18 @@ export default function Achievements() {
                 <p className="text-gray-400 text-xs mt-2 pl-2">Дальше награды повторяются.</p>
               </div>
             </div>
+
+            {/* Бонусные вопросы */}
+            {(profile?.bonus_questions ?? 0) > 0 && (
+              <div className="bg-green-50 border border-green-100 rounded-3xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">⚡</div>
+                <div>
+                  <p className="font-bold text-green-800 text-sm">Бонусные вопросы</p>
+                  <p className="text-green-600 text-xs">+{profile!.bonus_questions} дополнительных вопросов к ИИ</p>
+                </div>
+                <span className="ml-auto font-extrabold text-green-700 text-xl">{profile!.bonus_questions}</span>
+              </div>
+            )}
 
             {/* Серия */}
             <div className="bg-white rounded-3xl p-5 shadow-sm">

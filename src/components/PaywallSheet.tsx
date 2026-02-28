@@ -13,20 +13,23 @@ const TRIGGER_COPY = {
   session_limit: {
     emoji: '🚫',
     title: 'Занятие на сегодня закончилось',
-    subtitle: 'Бесплатно — 1 занятие в день. Хочешь продолжить?',
+    subtitle: 'Бесплатно — 1 занятие в день. Premium даёт 5 занятий.',
     urgency: 'Без Premium придётся ждать до завтра',
+    showPack: false,
   },
   ai_limit: {
     emoji: '⏸️',
     title: 'Лимит вопросов исчерпан',
-    subtitle: 'Бесплатно — 3 вопроса в день. Задавай без ограничений.',
-    urgency: 'Следующий вопрос — только завтра',
+    subtitle: '3 вопроса в день на бесплатном. Купи +20 вопросов или подключи Premium.',
+    urgency: 'Продолжить можно прямо сейчас',
+    showPack: true,
   },
   after_session: {
     emoji: '🎉',
     title: 'Занятие завершено!',
     subtitle: 'Хочешь заниматься каждый день без ограничений?',
     urgency: null,
+    showPack: false,
   },
 };
 
@@ -107,14 +110,22 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 87, onC
         </div>
 
         {/* CTA */}
-        <div className="px-5 pb-8">
+        <div className="px-5 pb-8 space-y-2">
+          {copy.showPack && (
+            <Button
+              onClick={() => { onClose(); navigate('/pricing'); }}
+              className="w-full h-12 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-base rounded-2xl active:scale-[0.98] transition-all"
+            >
+              ⚡ Купить +20 вопросов — 149 ₽
+            </Button>
+          )}
           <Button
             onClick={() => { onClose(); navigate('/pricing'); }}
-            className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-lg rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.4)] active:scale-[0.98] transition-all"
+            className={`w-full ${copy.showPack ? 'h-11' : 'h-14'} bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold ${copy.showPack ? 'text-base' : 'text-lg'} rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.4)] active:scale-[0.98] transition-all`}
           >
-            Подключить Premium — 449 ₽/мес
+            Подключить Premium — от 299 ₽/мес
           </Button>
-          <p className="text-gray-400 text-xs text-center mt-2">🔓 Отмена в любой момент</p>
+          <p className="text-gray-400 text-xs text-center mt-1">🔓 Отмена в любой момент</p>
         </div>
       </div>
 
