@@ -30,6 +30,7 @@ import NotFound from "./pages/NotFound";
 import Screenshots from "./pages/Screenshots";
 import Session from "./pages/Session";
 import Flashcards from "./pages/Flashcards";
+import PhotoSolve from "./pages/PhotoSolve";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="/screenshots" element={<Screenshots />} />
               <Route path="/session" element={<Session />} />
               <Route path="/flashcards" element={<Flashcards />} />
+              <Route path="/photo-solve" element={<PhotoSolve />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

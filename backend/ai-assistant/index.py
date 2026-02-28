@@ -407,6 +407,159 @@ def sanitize_answer(text):
 _http_demo = httpx.Client(timeout=httpx.Timeout(5.0, connect=3.0))
 _http_fallback = httpx.Client(timeout=httpx.Timeout(5.0, connect=2.5))
 
+# ── PHOTO SOLVE ──────────────────────────────────────────────────────────────
+FREE_DAILY_PHOTOS = 1
+PREMIUM_DAILY_PHOTOS = 5
+
+def _check_photo_limit(conn, user_id: int) -> dict:
+    from datetime import timedelta as _td
+    now = datetime.now()
+    cur = conn.cursor()
+    cur.execute(f'''
+        SELECT subscription_type, subscription_expires_at,
+               photos_uploaded_today, photos_daily_reset_at, bonus_photos
+        FROM {SCHEMA_NAME}.users WHERE id = %s
+    ''', (user_id,))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        return {'has_access': False, 'reason': 'not_found'}
+    sub_type, expires, photos_today, reset_at, bonus = row
+    photos_today = photos_today or 0
+    bonus = bonus or 0
+    is_premium = sub_type == 'premium' and expires and expires.replace(tzinfo=None) > now if hasattr(expires, 'tzinfo') else (sub_type == 'premium' and expires and expires > now)
+    daily_limit = PREMIUM_DAILY_PHOTOS if is_premium else FREE_DAILY_PHOTOS
+    if reset_at:
+        reset_naive = reset_at.replace(tzinfo=None) if hasattr(reset_at, 'tzinfo') and reset_at.tzinfo else reset_at
+        if reset_naive < now:
+            cur2 = conn.cursor()
+            cur2.execute(f'UPDATE {SCHEMA_NAME}.users SET photos_uploaded_today=0, photos_daily_reset_at=%s WHERE id=%s',
+                         (now + _td(days=1), user_id))
+            conn.commit()
+            cur2.close()
+            photos_today = 0
+    if photos_today >= daily_limit:
+        if bonus > 0:
+            return {'has_access': True, 'is_premium': is_premium, 'used': photos_today, 'limit': daily_limit, 'from_bonus': True, 'bonus_remaining': bonus}
+        return {'has_access': False, 'reason': 'limit', 'is_premium': is_premium, 'used': photos_today, 'limit': daily_limit, 'bonus_remaining': 0}
+    return {'has_access': True, 'is_premium': is_premium, 'used': photos_today, 'limit': daily_limit, 'from_bonus': False, 'bonus_remaining': bonus}
+
+def _increment_photo_count(conn, user_id: int, from_bonus: bool):
+    from datetime import timedelta as _td
+    now = datetime.now()
+    cur = conn.cursor()
+    if from_bonus:
+        cur.execute(f'UPDATE {SCHEMA_NAME}.users SET bonus_photos=GREATEST(0,bonus_photos-1),updated_at=CURRENT_TIMESTAMP WHERE id=%s AND bonus_photos>0', (user_id,))
+    else:
+        cur.execute(f'UPDATE {SCHEMA_NAME}.users SET photos_uploaded_today=COALESCE(photos_uploaded_today,0)+1, photos_daily_reset_at=COALESCE(photos_daily_reset_at,%s),updated_at=CURRENT_TIMESTAMP WHERE id=%s',
+                    (now + _td(days=1), user_id))
+    conn.commit()
+    cur.close()
+
+def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
+    """OCR через DeepSeek Vision → решение через Llama-4-Maverick."""
+    recognized_text = None
+
+    # Шаг 1: OCR через DeepSeek Vision (если есть ключ)
+    if DEEPSEEK_API_KEY:
+        try:
+            ocr_payload = {
+                "model": "deepseek-vl2",
+                "messages": [{"role": "user", "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+                    {"type": "text", "text": (
+                        "Это фото с учебным заданием. Точно распознай и перепиши ВЕСЬ текст дословно, "
+                        "включая цифры, формулы, условия, варианты ответов. Отвечай только текстом, без комментариев."
+                    )}
+                ]}],
+                "temperature": 0.1, "max_tokens": 1500
+            }
+            with httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0)) as h:
+                r = h.post("https://api.deepseek.com/v1/chat/completions", json=ocr_payload,
+                           headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"})
+                if r.status_code == 200:
+                    recognized_text = r.json()["choices"][0]["message"]["content"].strip()
+                    print(f"[PHOTO] OCR deepseek ok: {recognized_text[:80]}", flush=True)
+        except Exception as e:
+            print(f"[PHOTO] OCR deepseek error: {e}", flush=True)
+
+    # Фолбек: Llama Vision через aitunnel
+    if not recognized_text and OPENROUTER_API_KEY:
+        try:
+            with httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0)) as h:
+                r2 = h.post("https://api.aitunnel.ru/v1/chat/completions", json={
+                    "model": "meta-llama/llama-4-maverick",
+                    "messages": [{"role": "user", "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+                        {"type": "text", "text": "Распознай и перепиши весь текст задачи с этого фото точно дословно."}
+                    ]}],
+                    "temperature": 0.1, "max_tokens": 1000
+                }, headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"})
+                if r2.status_code == 200:
+                    recognized_text = r2.json()["choices"][0]["message"]["content"].strip()
+                    print(f"[PHOTO] OCR llama ok: {recognized_text[:80]}", flush=True)
+        except Exception as e2:
+            print(f"[PHOTO] OCR llama error: {e2}", flush=True)
+
+    if not recognized_text:
+        return {'recognized_text': '', 'solution': 'Не удалось распознать текст. Сфотографируй чётче при хорошем освещении.', 'subject': 'Неизвестно'}
+
+    # Шаг 2: Решение через Llama-4-Maverick
+    hint_text = f"\nДополнительно от ученика: {hint}" if hint else ""
+    solve_prompt = (
+        f"Задание с фото:{hint_text}\n\n{recognized_text}\n\n"
+        "Реши это задание пошагово. Формат:\n"
+        "1. Определи предмет и тип задачи\n"
+        "2. Реши полностью, показывая ВСЕ шаги\n"
+        "3. Чётко напиши: 'Ответ: ...'\n"
+        "4. Если тест — объясни почему правильный вариант именно тот\n"
+        "Формулы текстом (x^2, sqrt(x), a/b). Отвечай по-русски."
+    )
+    solution = None
+    try:
+        resp_s = client.chat.completions.create(
+            model=LLAMA_MODEL,
+            messages=[
+                {"role": "system", "content": (
+                    "Ты лучший репетитор и решатель задач для российских школьников и студентов. "
+                    "Решай задания ЕГЭ/ОГЭ/вузовские точно и пошагово, с проверкой каждого шага. "
+                    "Всегда определяй предмет. Формулы пиши текстом. Отвечай только по-русски."
+                )},
+                {"role": "user", "content": solve_prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1200,
+        )
+        solution = sanitize_answer(resp_s.choices[0].message.content)
+        print(f"[PHOTO] Solve llama ok: {solution[:80]}", flush=True)
+    except Exception as es:
+        print(f"[PHOTO] Solve error: {es}", flush=True)
+
+    if not solution:
+        solution = f"Задание распознано:\n\n{recognized_text}\n\nПопробуй задать вопрос в разделе «Ассистент»."
+
+    sol_lower = (solution + recognized_text).lower()
+    subject = 'Общее'
+    if any(w in sol_lower for w in ['математика', 'уравнение', 'функция', 'интеграл', 'производная', 'геометрия', 'треугольник']):
+        subject = 'Математика'
+    elif any(w in sol_lower for w in ['физика', 'сила', 'скорость', 'ускорение', 'масса', 'энергия', 'ток', 'напряжение']):
+        subject = 'Физика'
+    elif any(w in sol_lower for w in ['химия', 'реакция', 'элемент', 'молекула', 'кислота', 'валентность']):
+        subject = 'Химия'
+    elif any(w in sol_lower for w in ['биология', 'клетка', 'днк', 'фотосинтез', 'организм']):
+        subject = 'Биология'
+    elif any(w in sol_lower for w in ['история', 'война', 'революция', 'царь', 'дата', 'событие']):
+        subject = 'История'
+    elif any(w in sol_lower for w in ['обществознание', 'право', 'конституция', 'государство']):
+        subject = 'Обществознание'
+    elif any(w in sol_lower for w in ['русский', 'орфография', 'пунктуация', 'предложение', 'грамматика']):
+        subject = 'Русский язык'
+    elif any(w in sol_lower for w in ['english', 'verb', 'grammar', 'sentence', 'английский']):
+        subject = 'Английский'
+
+    return {'recognized_text': recognized_text, 'solution': solution, 'subject': subject}
+# ── END PHOTO SOLVE ──────────────────────────────────────────────────────────
+
 def _call_openai_compat(http_client, url: str, api_key: str, question: str, history: list = None, max_tokens: int = 600) -> str | None:
     """Универсальный вызов OpenAI-совместимого API. Возвращает текст ответа или None."""
     try:
@@ -812,6 +965,55 @@ def handler(event: dict, context) -> dict:
             body_demo = json.loads(body_raw)
         except Exception:
             body_demo = {}
+
+        # --- PHOTO SOLVE (требует авторизации, но обрабатывается до demo check) ---
+        if body_demo.get('action') == 'photo_solve':
+            token_ps = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
+            uid_ps = get_user_id(token_ps)
+            if not uid_ps:
+                return err(401, {'error': 'Требуется авторизация'})
+            image_b64 = body_demo.get('image_base64', '').strip()
+            hint_ps = body_demo.get('hint', '').strip()[:300]
+            if not image_b64:
+                return err(400, {'error': 'Нет фото. Передай image_base64'})
+            if len(image_b64) > 14_000_000:
+                return err(400, {'error': 'Фото слишком большое. Максимум 10 МБ'})
+            conn_ps = psycopg2.connect(DATABASE_URL)
+            try:
+                limit_info_ps = _check_photo_limit(conn_ps, uid_ps)
+                if not limit_info_ps['has_access']:
+                    used_ps = limit_info_ps.get('used', 0)
+                    lim_ps = limit_info_ps.get('limit', FREE_DAILY_PHOTOS)
+                    is_prem_ps = limit_info_ps.get('is_premium', False)
+                    return err(403, {
+                        'error': 'limit',
+                        'message': (
+                            f'Лимит фото на сегодня исчерпан ({used_ps}/{lim_ps}). '
+                            f'{"Купи пакет или подожди завтра." if is_prem_ps else "Подключи Premium (5 фото/день) или купи пакет."}'
+                        ),
+                        'used': used_ps, 'limit': lim_ps,
+                        'is_premium': is_prem_ps,
+                        'bonus_remaining': limit_info_ps.get('bonus_remaining', 0)
+                    })
+                from_bonus_ps = limit_info_ps.get('from_bonus', False)
+                _increment_photo_count(conn_ps, uid_ps, from_bonus_ps)
+                new_used_ps = limit_info_ps['used'] + (0 if from_bonus_ps else 1)
+                new_bonus_ps = max(0, limit_info_ps['bonus_remaining'] - (1 if from_bonus_ps else 0))
+                daily_left_ps = max(0, limit_info_ps['limit'] - new_used_ps)
+            finally:
+                conn_ps.close()
+            print(f"[PHOTO] User:{uid_ps} solving photo hint={hint_ps[:30]}", flush=True)
+            result_ps = _ocr_and_solve(image_b64, hint_ps)
+            return ok({
+                'recognized_text': result_ps['recognized_text'],
+                'solution': result_ps['solution'],
+                'subject': result_ps['subject'],
+                'remaining': daily_left_ps + new_bonus_ps,
+                'used': new_used_ps,
+                'limit': limit_info_ps['limit'],
+                'bonus_remaining': new_bonus_ps,
+            })
+
         if body_demo.get('action') == 'demo_ask':
             question = body_demo.get('question', '').strip()
             if not question:
