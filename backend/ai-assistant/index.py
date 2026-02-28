@@ -44,7 +44,7 @@ def get_user_id(token: str):
         return None
 
 PREMIUM_DAILY_LIMIT = 20
-FREE_DAILY_LIMIT = 5
+FREE_DAILY_LIMIT = 3
 
 SOFT_LANDING_LIMIT = 10  # вопросов/день в переходный период (дни 8-10 после регистрации)
 SOFT_LANDING_DAYS = 3   # сколько дней длится переходный период
@@ -457,53 +457,83 @@ def _increment_photo_count(conn, user_id: int, from_bonus: bool):
     cur.close()
 
 def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
-    """OCR через DeepSeek Vision → решение через Llama (текст)."""
-    hint_text = f"\nПодсказка: {hint}" if hint else ""
-
-    # Шаг 1: OCR через DeepSeek Vision
+    """OCR через DeepSeek Vision → решение через Llama-4-Maverick."""
     recognized_text = None
-    try:
-        with httpx.Client(timeout=httpx.Timeout(15.0, connect=5.0)) as h:
-            r = h.post("https://api.deepseek.com/v1/chat/completions", json={
+
+    # Шаг 1: OCR через DeepSeek Vision (если есть ключ)
+    if DEEPSEEK_API_KEY:
+        try:
+            ocr_payload = {
                 "model": "deepseek-vl2",
                 "messages": [{"role": "user", "content": [
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
-                    {"type": "text", "text": "Перепиши весь текст задачи с этого фото дословно, включая цифры, формулы и условия. Только текст, без пояснений."}
+                    {"type": "text", "text": (
+                        "Это фото с учебным заданием. Точно распознай и перепиши ВЕСЬ текст дословно, "
+                        "включая цифры, формулы, условия, варианты ответов. Отвечай только текстом, без комментариев."
+                    )}
                 ]}],
-                "temperature": 0.1, "max_tokens": 800
-            }, headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"})
-            print(f"[PHOTO] OCR status:{r.status_code}", flush=True)
-            if r.status_code == 200:
-                recognized_text = r.json()["choices"][0]["message"]["content"].strip()
-                print(f"[PHOTO] OCR ok: {recognized_text[:80]}", flush=True)
-            else:
-                print(f"[PHOTO] OCR error: {r.text[:200]}", flush=True)
-    except Exception as e:
-        print(f"[PHOTO] OCR exception: {e}", flush=True)
+                "temperature": 0.1, "max_tokens": 1500
+            }
+            with httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0)) as h:
+                r = h.post("https://api.deepseek.com/v1/chat/completions", json=ocr_payload,
+                           headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"})
+                if r.status_code == 200:
+                    recognized_text = r.json()["choices"][0]["message"]["content"].strip()
+                    print(f"[PHOTO] OCR deepseek ok: {recognized_text[:80]}", flush=True)
+        except Exception as e:
+            print(f"[PHOTO] OCR deepseek error: {e}", flush=True)
+
+    # Фолбек: Llama Vision через aitunnel
+    if not recognized_text and OPENROUTER_API_KEY:
+        try:
+            with httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0)) as h:
+                r2 = h.post("https://api.aitunnel.ru/v1/chat/completions", json={
+                    "model": "meta-llama/llama-4-maverick",
+                    "messages": [{"role": "user", "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+                        {"type": "text", "text": "Распознай и перепиши весь текст задачи с этого фото точно дословно."}
+                    ]}],
+                    "temperature": 0.1, "max_tokens": 1000
+                }, headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"})
+                if r2.status_code == 200:
+                    recognized_text = r2.json()["choices"][0]["message"]["content"].strip()
+                    print(f"[PHOTO] OCR llama ok: {recognized_text[:80]}", flush=True)
+        except Exception as e2:
+            print(f"[PHOTO] OCR llama error: {e2}", flush=True)
 
     if not recognized_text:
         return {'recognized_text': '', 'solution': 'Не удалось распознать текст. Сфотографируй чётче при хорошем освещении.', 'subject': 'Неизвестно'}
 
-    # Шаг 2: Решение через Llama (текстовый запрос — быстро и надёжно)
-    solution = None
+    # Шаг 2: Решение через Llama-4-Maverick
+    hint_text = f"\nДополнительно от ученика: {hint}" if hint else ""
     solve_prompt = (
-        f"Задание:{hint_text}\n\n{recognized_text}\n\n"
-        "Реши пошагово. Покажи все шаги. В конце напиши 'Ответ: ...'. "
-        "Формулы текстом: x^2, sqrt(x), a/b. Только по-русски."
+        f"Задание с фото:{hint_text}\n\n{recognized_text}\n\n"
+        "Реши это задание пошагово. Формат:\n"
+        "1. Определи предмет и тип задачи\n"
+        "2. Реши полностью, показывая ВСЕ шаги\n"
+        "3. Чётко напиши: 'Ответ: ...'\n"
+        "4. Если тест — объясни почему правильный вариант именно тот\n"
+        "Формулы текстом (x^2, sqrt(x), a/b). Отвечай по-русски."
     )
+    solution = None
     try:
-        resp = client.chat.completions.create(
+        resp_s = client.chat.completions.create(
             model=LLAMA_MODEL,
             messages=[
-                {"role": "system", "content": "Ты лучший репетитор для российских школьников. Решай задания ЕГЭ/ОГЭ пошагово. Формулы текстом. Только по-русски."},
+                {"role": "system", "content": (
+                    "Ты лучший репетитор и решатель задач для российских школьников и студентов. "
+                    "Решай задания ЕГЭ/ОГЭ/вузовские точно и пошагово, с проверкой каждого шага. "
+                    "Всегда определяй предмет. Формулы пиши текстом. Отвечай только по-русски."
+                )},
                 {"role": "user", "content": solve_prompt}
             ],
-            temperature=0.3, max_tokens=1000,
+            temperature=0.3,
+            max_tokens=1200,
         )
-        solution = sanitize_answer(resp.choices[0].message.content)
-        print(f"[PHOTO] Solve ok: {solution[:80]}", flush=True)
-    except Exception as e:
-        print(f"[PHOTO] Solve exception: {e}", flush=True)
+        solution = sanitize_answer(resp_s.choices[0].message.content)
+        print(f"[PHOTO] Solve llama ok: {solution[:80]}", flush=True)
+    except Exception as es:
+        print(f"[PHOTO] Solve error: {es}", flush=True)
 
     if not solution:
         solution = f"Задание распознано:\n\n{recognized_text}\n\nПопробуй задать вопрос в разделе «Ассистент»."

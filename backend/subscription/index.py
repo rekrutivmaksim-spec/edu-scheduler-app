@@ -231,10 +231,10 @@ def get_limits(conn, user_id: int) -> dict:
             }
         }
     else:
-        # Free: 1 сессия/день, 5 AI вопросов/день + бонус, 1 загрузка файла/день
+        # Free: 1 сессия/день, 3 AI вопроса/день + бонус, 1 загрузка файла/день
         daily_used = status.get('daily_questions_used', 0)
         bonus = status.get('bonus_questions', 0)
-        total_available = 5 + bonus
+        total_available = 3 + bonus
 
         return {
             **status,
@@ -248,7 +248,7 @@ def get_limits(conn, user_id: int) -> dict:
                     'max': total_available,
                     'unlimited': False,
                     'daily_used': daily_used,
-                    'daily_limit': 5,
+                    'daily_limit': 3,
                     'bonus_available': bonus
                 },
                 'exam_predictions': {'unlimited': False, 'available': False},
