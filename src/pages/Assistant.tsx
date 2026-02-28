@@ -220,8 +220,8 @@ const Assistant = () => {
           setRemaining(Math.max(0, 20 - (ai?.used ?? 0)));
         } else if (ai) {
           setAiUsed(ai.used ?? 0);
-          setAiMax(ai.max ?? 3);
-          setRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
+          setAiMax(ai.max ?? 5);
+          setRemaining(Math.max(0, (ai.max ?? 5) - (ai.used ?? 0)));
         }
       }
     } catch { /* silent */ }

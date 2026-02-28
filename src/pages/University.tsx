@@ -67,7 +67,7 @@ export default function University() {
             if (ai.unlimited) {
               setAiRemaining(null);
             } else {
-              setAiRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
+              setAiRemaining(Math.max(0, (ai.max ?? 5) - (ai.used ?? 0)));
             }
           }
           const materials = data.limits?.materials;
