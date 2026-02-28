@@ -44,7 +44,7 @@ def get_user_id(token: str):
         return None
 
 PREMIUM_DAILY_LIMIT = 20
-FREE_DAILY_LIMIT = 3
+FREE_DAILY_LIMIT = 5
 
 SOFT_LANDING_LIMIT = 10  # вопросов/день в переходный период (дни 8-10 после регистрации)
 SOFT_LANDING_DAYS = 3   # сколько дней длится переходный период

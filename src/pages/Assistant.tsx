@@ -220,8 +220,8 @@ const Assistant = () => {
           setRemaining(Math.max(0, 20 - (ai?.used ?? 0)));
         } else if (ai) {
           setAiUsed(ai.used ?? 0);
-          setAiMax(ai.max ?? 3);
-          setRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
+          setAiMax(ai.max ?? 5);
+          setRemaining(Math.max(0, (ai.max ?? 5) - (ai.used ?? 0)));
         }
       }
     } catch { /* silent */ }
@@ -457,7 +457,7 @@ const Assistant = () => {
         <div className={`flex-shrink-0 px-4 py-2 border-b ${freeLeft === 0 ? 'bg-red-50 border-red-100' : freeLeft === 1 ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-600">Бесплатно: {aiMax ?? 3} вопроса в день</span>
+              <span className="text-xs font-medium text-gray-600">Бесплатно: {aiMax ?? 5} вопросов в день</span>
               <span className="text-gray-300">·</span>
               <span className={`text-xs font-bold ${freeLeft === 0 ? 'text-red-600' : freeLeft === 1 ? 'text-amber-600' : 'text-gray-700'}`}>
                 Осталось: {freeLeft}

@@ -67,7 +67,7 @@ export default function University() {
             if (ai.unlimited) {
               setAiRemaining(null);
             } else {
-              setAiRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
+              setAiRemaining(Math.max(0, (ai.max ?? 5) - (ai.used ?? 0)));
             }
           }
           const materials = data.limits?.materials;
@@ -470,7 +470,7 @@ export default function University() {
           {!isPremium && aiRemaining !== null && (
             <div className="mt-3 flex items-center justify-between">
               <p className="text-gray-400 text-xs">
-                Осталось сегодня: <span className="font-medium text-gray-600">{aiRemaining} из 3 вопросов</span>
+                Осталось сегодня: <span className="font-medium text-gray-600">{aiRemaining} из 5 вопросов</span>
               </p>
               {aiRemaining <= 0 && (
                 <button onClick={() => navigate('/pricing')} className="text-xs text-purple-600 font-medium">
@@ -491,7 +491,7 @@ export default function University() {
             <p className="text-white/60 text-xs mb-3">Всё для подготовки без ограничений:</p>
             <div className="space-y-2 mb-4">
               {[
-                '20 вопросов к ИИ в день (вместо 3)',
+                '20 вопросов к ИИ в день (вместо 5)',
                 '3 загрузки файлов в день (вместо 1)',
                 'Разбор экзаменационных билетов',
                 'История всех конспектов и вопросов',

@@ -15,18 +15,18 @@ const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-
 const QUICK_ACCESS_EGE = [
   { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/exam', color: 'bg-indigo-50 text-indigo-600' },
   { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
-  { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
+  { icon: 'Camera', label: 'Решить по фото', path: '/photo-solve', color: 'bg-emerald-50 text-emerald-600' },
 ];
 
 const QUICK_ACCESS_UNI = [
   { icon: 'GraduationCap', label: 'ВУЗ и конспекты', path: '/university', color: 'bg-indigo-50 text-indigo-600' },
   { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
-  { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
+  { icon: 'Camera', label: 'Решить по фото', path: '/photo-solve', color: 'bg-emerald-50 text-emerald-600' },
 ];
 
 const QUICK_ACCESS_OTHER = [
   { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
-  { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
+  { icon: 'Camera', label: 'Решить по фото', path: '/photo-solve', color: 'bg-emerald-50 text-emerald-600' },
   { icon: 'Trophy', label: 'Достижения', path: '/achievements', color: 'bg-amber-50 text-amber-600' },
 ];
 
@@ -296,6 +296,21 @@ export default function Index() {
             </div>
           </div>
         )}
+
+        {/* ===== БЛОК РЕШИТЬ ПО ФОТО ===== */}
+        <button
+          onClick={() => navigate('/photo-solve')}
+          className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl px-5 py-4 flex items-center gap-4 shadow-sm active:scale-[0.98] transition-all"
+        >
+          <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Icon name="Camera" size={24} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold text-base leading-tight">Решить задачу по фото</p>
+            <p className="text-white/70 text-xs mt-0.5">Сфотографируй — ИИ решит пошагово</p>
+          </div>
+          <Icon name="ArrowRight" size={18} className="text-white/60 flex-shrink-0" />
+        </button>
 
         {/* ===== БЛОК 2: STREAK ===== */}
         <button onClick={() => navigate('/achievements')} className="bg-white rounded-3xl shadow-sm px-5 py-4 w-full text-left active:scale-[0.98] transition-all">
