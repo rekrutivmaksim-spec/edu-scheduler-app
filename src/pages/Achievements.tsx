@@ -473,17 +473,17 @@ export default function Achievements() {
                   <p className="text-gray-500 text-xs">Награда за все задания:</p>
                   <div className="flex gap-2">
                     <span className="text-purple-600 text-xs font-bold">+10 XP</span>
-                    <span className="text-orange-500 text-xs font-bold">+2 бонус-вопроса</span>
+                    <span className="text-orange-500 text-xs font-bold">+2 бонусных вопроса</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Бонус-вопросы */}
+            {/* Бонусные вопросы */}
             <div className="bg-indigo-50 rounded-3xl p-5 border border-indigo-100">
               <h3 className="font-bold text-indigo-800 mb-2 flex items-center gap-2">
                 <span>💬</span>
-                Бонус-вопросы
+                Бонусные вопросы
               </h3>
               <p className="text-indigo-700 text-sm mb-3">Бонусы дают доступ к ИИ сверх бесплатного лимита.</p>
               <p className="text-indigo-600 text-xs font-medium mb-2">Получить можно:</p>

@@ -174,7 +174,7 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
             </ul>
             <div className="mt-4 pt-4 border-t border-indigo-200 flex items-end justify-between">
               <div>
-                <p className="text-2xl font-bold text-indigo-600">449 &#8381;/мес</p>
+                <p className="text-2xl font-bold text-indigo-600">499 &#8381;/мес</p>
                 <p className="text-xs text-gray-600">7 дней бесплатно, далее автопродление</p>
               </div>
               <p className="text-xs text-gray-500 line-through">10 &#8381;/день</p>

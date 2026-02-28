@@ -97,7 +97,7 @@ const LimitScreen = ({ onClose, navigate }: { onClose: () => void; navigate: (p:
           ))}
         </div>
         <div className="mt-3 bg-white/20 rounded-xl px-4 py-2 inline-block">
-          <span className="text-white font-bold">449 ₽ в месяц</span>
+          <span className="text-white font-bold">499 ₽/мес</span>
         </div>
       </div>
       <div className="px-5 pb-8 space-y-3">
