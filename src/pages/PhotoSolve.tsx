@@ -60,20 +60,41 @@ export default function PhotoSolve() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [limitInfo, setLimitInfo] = useState<{ used: number; limit: number; bonus: number } | null>(null);
 
+  const compressImage = (dataUrl: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.75));
+      };
+      img.src = dataUrl;
+    });
+  };
+
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
       toast({ title: 'Нужно фото', description: 'Загрузи изображение (jpg, png, heic)', variant: 'destructive' });
       return;
     }
-    if (file.size > 15 * 1024 * 1024) {
-      toast({ title: 'Файл слишком большой', description: 'Максимум 15 МБ', variant: 'destructive' });
+    if (file.size > 30 * 1024 * 1024) {
+      toast({ title: 'Файл слишком большой', description: 'Максимум 30 МБ', variant: 'destructive' });
       return;
     }
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const dataUrl = e.target?.result as string;
       setImagePreview(dataUrl);
-      const b64 = dataUrl.split(',')[1];
+      const compressed = await compressImage(dataUrl);
+      const b64 = compressed.split(',')[1];
       setImageBase64(b64);
       setResult(null);
       setShowOcr(false);

@@ -457,84 +457,50 @@ def _increment_photo_count(conn, user_id: int, from_bonus: bool):
     cur.close()
 
 def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
-    """Решение задачи с фото: один запрос Llama-4 Vision (OCR + решение одновременно)."""
-    hint_text = f"\nПодсказка от ученика: {hint}" if hint else ""
+    """Решение задачи с фото: один запрос Llama-4 Vision."""
+    hint_text = f"\nПодсказка: {hint}" if hint else ""
     prompt_text = (
         f"На фото учебное задание.{hint_text}\n\n"
-        "Сделай два блока:\n"
-        "РАСПОЗНАННЫЙ ТЕКСТ:\n[перепиши дословно весь текст с фото]\n\n"
-        "РЕШЕНИЕ:\n[реши задание пошагово, покажи все шаги, в конце напиши 'Ответ: ...']\n\n"
-        "Формулы пиши текстом: x^2, sqrt(x), a/b. Отвечай только по-русски."
+        "Ответь двумя блоками:\n"
+        "РАСПОЗНАННЫЙ ТЕКСТ:\n[точно перепиши текст задачи с фото]\n\n"
+        "РЕШЕНИЕ:\n[реши пошагово, в конце напиши 'Ответ: ...']\n\n"
+        "Формулы текстом: x^2, sqrt(x). Только по-русски."
     )
 
     recognized_text = None
     solution = None
 
-    # Попытка 1: Llama-4 Maverick Vision через aitunnel (быстро, один запрос)
-    if OPENROUTER_API_KEY:
-        try:
-            with httpx.Client(timeout=httpx.Timeout(25.0, connect=5.0)) as h:
-                r = h.post("https://api.aitunnel.ru/v1/chat/completions", json={
-                    "model": "meta-llama/llama-4-maverick",
-                    "messages": [{"role": "user", "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
-                        {"type": "text", "text": prompt_text}
-                    ]}],
-                    "temperature": 0.2, "max_tokens": 1500
-                }, headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"})
-                if r.status_code == 200:
-                    full = r.json()["choices"][0]["message"]["content"].strip()
-                    print(f"[PHOTO] Llama Vision ok: {full[:100]}", flush=True)
-                    if "РЕШЕНИЕ:" in full:
-                        parts = full.split("РЕШЕНИЕ:", 1)
-                        ocr_part = parts[0].replace("РАСПОЗНАННЫЙ ТЕКСТ:", "").strip()
-                        recognized_text = ocr_part if ocr_part else full
-                        solution = sanitize_answer("РЕШЕНИЕ:\n" + parts[1].strip())
-                    else:
-                        recognized_text = full[:500]
-                        solution = sanitize_answer(full)
+    try:
+        with httpx.Client(timeout=httpx.Timeout(30.0, connect=6.0)) as h:
+            r = h.post("https://api.aitunnel.ru/v1/chat/completions", json={
+                "model": "meta-llama/llama-4-maverick",
+                "messages": [{"role": "user", "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+                    {"type": "text", "text": prompt_text}
+                ]}],
+                "temperature": 0.2, "max_tokens": 1200
+            }, headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"})
+            print(f"[PHOTO] Llama Vision status:{r.status_code}", flush=True)
+            if r.status_code == 200:
+                full = r.json()["choices"][0]["message"]["content"].strip()
+                print(f"[PHOTO] Llama Vision ok: {full[:100]}", flush=True)
+                if "РЕШЕНИЕ:" in full:
+                    parts = full.split("РЕШЕНИЕ:", 1)
+                    recognized_text = parts[0].replace("РАСПОЗНАННЫЙ ТЕКСТ:", "").strip() or full[:400]
+                    solution = sanitize_answer(parts[1].strip())
                 else:
-                    print(f"[PHOTO] Llama Vision status:{r.status_code} {r.text[:200]}", flush=True)
-        except Exception as e:
-            print(f"[PHOTO] Llama Vision error: {e}", flush=True)
-
-    # Попытка 2: DeepSeek Vision OCR + текстовое решение (fallback)
-    if not solution and DEEPSEEK_API_KEY:
-        try:
-            with httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0)) as h:
-                r2 = h.post("https://api.deepseek.com/v1/chat/completions", json={
-                    "model": "deepseek-vl2",
-                    "messages": [{"role": "user", "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
-                        {"type": "text", "text": "Перепиши весь текст задачи с этого фото дословно. Только текст, без пояснений."}
-                    ]}],
-                    "temperature": 0.1, "max_tokens": 800
-                }, headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"})
-                if r2.status_code == 200:
-                    recognized_text = r2.json()["choices"][0]["message"]["content"].strip()
-                    print(f"[PHOTO] DeepSeek OCR ok: {recognized_text[:80]}", flush=True)
-                    solve_prompt = (
-                        f"Задание:{hint_text}\n\n{recognized_text}\n\n"
-                        "Реши пошагово. В конце напиши 'Ответ: ...'. Формулы текстом. Только по-русски."
-                    )
-                    resp_s = client.chat.completions.create(
-                        model=LLAMA_MODEL,
-                        messages=[
-                            {"role": "system", "content": "Ты репетитор. Решай задания ЕГЭ/ОГЭ пошагово. Формулы текстом. Только по-русски."},
-                            {"role": "user", "content": solve_prompt}
-                        ],
-                        temperature=0.3, max_tokens=1000,
-                    )
-                    solution = sanitize_answer(resp_s.choices[0].message.content)
-                    print(f"[PHOTO] DeepSeek+Llama solve ok", flush=True)
-        except Exception as e2:
-            print(f"[PHOTO] DeepSeek fallback error: {e2}", flush=True)
-
-    if not recognized_text and not solution:
-        return {'recognized_text': '', 'solution': 'Не удалось распознать текст. Сфотографируй чётче при хорошем освещении.', 'subject': 'Неизвестно'}
+                    recognized_text = full[:400]
+                    solution = sanitize_answer(full)
+            else:
+                print(f"[PHOTO] Llama Vision error: {r.text[:300]}", flush=True)
+    except Exception as e:
+        print(f"[PHOTO] Llama Vision exception: {e}", flush=True)
 
     if not solution:
-        solution = f"Задание распознано:\n\n{recognized_text}\n\nПопробуй задать вопрос в разделе «Ассистент»."
+        return {'recognized_text': recognized_text or '', 'solution': 'Не удалось решить задачу. Сфотографируй чётче и попробуй снова.', 'subject': 'Неизвестно'}
+
+    if not recognized_text:
+        recognized_text = ''
 
     sol_lower = (solution + recognized_text).lower()
     subject = 'Общее'
