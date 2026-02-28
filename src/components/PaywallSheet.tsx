@@ -20,7 +20,7 @@ const TRIGGER_COPY = {
   ai_limit: {
     emoji: '⏸️',
     title: 'Лимит вопросов исчерпан',
-    subtitle: '3 вопроса в день на бесплатном. Купи +20 вопросов или подключи Premium.',
+    subtitle: '5 вопросов в день на бесплатном. Купи +20 вопросов или подключи Premium.',
     urgency: 'Продолжить можно прямо сейчас',
     showPack: true,
   },
@@ -123,7 +123,7 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 87, onC
             onClick={() => { onClose(); navigate('/pricing'); }}
             className={`w-full ${copy.showPack ? 'h-11' : 'h-14'} bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold ${copy.showPack ? 'text-base' : 'text-lg'} rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.4)] active:scale-[0.98] transition-all`}
           >
-            Подключить Premium — от 299 ₽/мес
+            Подключить Premium — 499 ₽/мес
           </Button>
           <p className="text-gray-400 text-xs text-center mt-1">🔓 Отмена в любой момент</p>
         </div>

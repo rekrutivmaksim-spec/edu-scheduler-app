@@ -400,7 +400,7 @@ export default function Index() {
               onClick={() => navigate('/pricing')}
               className="w-full bg-white text-indigo-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
             >
-              Premium — 449 ₽/мес
+              Premium — 499 ₽/мес
             </button>
           </div>
         )}
@@ -421,7 +421,7 @@ export default function Index() {
               onClick={() => navigate('/pricing')}
               className="w-full bg-white text-orange-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
             >
-              {isExamGoal ? 'Безлимит занятий — 449 ₽/мес' : 'Premium — 449 ₽/мес'}
+              {isExamGoal ? 'Безлимит занятий — 499 ₽/мес' : 'Premium — 499 ₽/мес'}
             </button>
           </div>
         )}

@@ -10,7 +10,7 @@ const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
 
 const PREMIUM_FEATURES = [
-  { icon: '🤖', text: '20 вопросов к ИИ в день (вместо 3)' },
+  { icon: '🤖', text: '20 вопросов к ИИ в день (вместо 5)' },
   { icon: '📚', text: 'До 5 занятий в день (вместо 1)' },
   { icon: '📄', text: '3 загрузки файлов в день (вместо 1)' },
   { icon: '🎓', text: 'Подготовка к ЕГЭ и ОГЭ по всем предметам' },
@@ -22,7 +22,7 @@ const PREMIUM_FEATURES = [
 
 const FREE_FEATURES = [
   '1 занятие в день',
-  '3 вопроса к ИИ в день',
+  '5 вопросов к ИИ в день',
   '1 загрузка файла в день',
   'Базовая подготовка к экзаменам',
 ];
@@ -36,7 +36,7 @@ const GUARANTEE_FEATURES = [
 const FAQ = [
   {
     q: 'Чем отличается Premium от бесплатного?',
-    a: 'Premium даёт 20 вопросов ИИ в день вместо 3, до 5 занятий, 3 загрузки файлов, доступ ко всем режимам подготовки к ЕГЭ/ОГЭ и бонусы за активность.',
+    a: 'Premium даёт 20 вопросов ИИ в день вместо 5, до 5 занятий, 3 загрузки файлов, доступ ко всем режимам подготовки к ЕГЭ/ОГЭ и бонусы за активность.',
   },
   {
     q: 'Что такое пакет вопросов?',
@@ -157,7 +157,7 @@ const Pricing = () => {
                 </div>
                 <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Рекомендуем</span>
               </div>
-              <p className="text-white/70 text-sm mb-1">от 299 ₽ / месяц</p>
+              <p className="text-white/70 text-sm mb-1">499 ₽ / месяц</p>
               <p className="text-white/60 text-xs mb-4">Всё необходимое для подготовки без ограничений:</p>
 
               <div className="space-y-2.5 mb-5">
@@ -181,7 +181,7 @@ const Pricing = () => {
                   }
                 </Button>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-white font-extrabold text-xl leading-none">299 ₽</p>
+                  <p className="text-white font-extrabold text-xl leading-none">499 ₽</p>
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>
@@ -192,7 +192,7 @@ const Pricing = () => {
             <div className="bg-purple-900 px-5 py-3 flex items-center gap-2">
               <span className="text-yellow-400 text-sm">⚡</span>
               <p className="text-white/70 text-xs">
-                Бесплатно сегодня: <span className="text-white font-semibold">1 занятие и 3 вопроса.</span> Premium снимает все ограничения.
+                Бесплатно сегодня: <span className="text-white font-semibold">1 занятие и 5 вопросов.</span> Premium снимает все ограничения.
               </p>
             </div>
           </div>
@@ -273,8 +273,8 @@ const Pricing = () => {
               </div>
             </div>
             <div className="text-right flex-shrink-0 ml-3">
-              <p className="text-gray-900 font-extrabold text-xl leading-none">1499 ₽</p>
-              <p className="text-gray-400 text-xs mt-0.5">≈ 250 ₽/мес</p>
+              <p className="text-gray-900 font-extrabold text-xl leading-none">1990 ₽</p>
+              <p className="text-gray-400 text-xs mt-0.5">≈ 332 ₽/мес</p>
             </div>
           </div>
           <Button
@@ -311,8 +311,8 @@ const Pricing = () => {
               </div>
             </div>
             <div className="text-right flex-shrink-0 ml-3">
-              <p className="text-gray-900 font-extrabold text-xl leading-none">2399 ₽</p>
-              <p className="text-gray-400 text-xs mt-0.5">≈ 200 ₽/мес</p>
+              <p className="text-gray-900 font-extrabold text-xl leading-none">2990 ₽</p>
+              <p className="text-gray-400 text-xs mt-0.5">≈ 249 ₽/мес</p>
             </div>
           </div>
           <Button
@@ -347,7 +347,7 @@ const Pricing = () => {
             <div className="flex items-center justify-between bg-indigo-500/30 rounded-2xl px-4 py-3 border border-indigo-400/30">
               <div>
                 <p className="text-indigo-200 text-xs">Studyfay Premium</p>
-                <p className="text-white font-bold text-base">299 ₽</p>
+                <p className="text-white font-bold text-base">499 ₽</p>
               </div>
               <div className="text-right">
                 <p className="text-indigo-200 text-xs">В месяц</p>
