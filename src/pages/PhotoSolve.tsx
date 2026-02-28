@@ -159,7 +159,7 @@ export default function PhotoSolve() {
   const subjectIcon = result ? (SUBJECT_ICONS[result.subject] || 'Brain') : '';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-blue-50 pb-24">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-violet-50 via-white to-blue-50 pb-nav">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-violet-100 px-4 py-3 flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-violet-50 transition-colors">

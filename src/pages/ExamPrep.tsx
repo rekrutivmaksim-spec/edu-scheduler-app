@@ -205,7 +205,7 @@ export default function ExamPrep() {
 
   if (!examType) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-24">
+      <div className="min-h-[100dvh] bg-gray-50 pb-nav">
         <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 px-4 pt-12 pb-8">
           <h1 className="text-white font-extrabold text-2xl mb-1">Подготовка к экзамену</h1>
           <p className="text-white/60 text-sm">Персональный план под твой предмет и дату</p>
@@ -253,7 +253,7 @@ export default function ExamPrep() {
 
   if (!selectedSubject) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-24">
+      <div className="min-h-[100dvh] bg-gray-50 pb-nav">
         <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 px-4 pt-12 pb-6">
           <button onClick={() => setExamType(null)} className="flex items-center gap-2 text-white/70 mb-3">
             <Icon name="ArrowLeft" size={18} />
@@ -290,7 +290,7 @@ export default function ExamPrep() {
   const needsDate = !profileExamDate || daysLeft <= 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-[100dvh] bg-gray-50 pb-nav">
       <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 px-4 pt-12 pb-6">
         <button onClick={() => setSelectedSubject(null)} className="flex items-center gap-2 text-white/70 mb-3">
           <Icon name="ArrowLeft" size={18} />

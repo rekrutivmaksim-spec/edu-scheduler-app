@@ -136,7 +136,7 @@ export default function Referral() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 pb-24">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 pb-nav">
       <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 text-white px-4 pt-12 pb-8">
         <div className="max-w-lg mx-auto">
           <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1 text-white/80 hover:text-white text-sm">

@@ -90,7 +90,7 @@ const PhotoCheatsheet = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 pb-24">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-purple-50 via-white to-indigo-50 pb-nav">
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-purple-100 px-4 py-3 flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-purple-50">
           <Icon name="ArrowLeft" size={20} className="text-gray-600" />

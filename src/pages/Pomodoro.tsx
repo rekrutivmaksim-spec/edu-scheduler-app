@@ -311,7 +311,7 @@ const Pomodoro = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-rose-100 p-3 sm:p-4 pb-24">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-red-50 via-pink-50 to-rose-100 p-3 sm:p-4 pb-nav">
       <audio ref={audioRef} src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGnuTwum0" preload="auto" />
 
       <div className="max-w-6xl mx-auto">

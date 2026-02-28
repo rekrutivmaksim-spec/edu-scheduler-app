@@ -126,7 +126,7 @@ export default function Index() {
   const quickAccess = isExamGoal ? QUICK_ACCESS_EGE : isUniGoal ? QUICK_ACCESS_UNI : QUICK_ACCESS_OTHER;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-[100dvh] bg-gray-50 pb-nav">
 
       {/* Шапка */}
       <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 px-4 pt-12 pb-5">

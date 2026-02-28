@@ -157,9 +157,8 @@ body::-webkit-scrollbar {
   }
 
   /* Безопасная зона для устройств с вырезами (iPhone X+, etc) */
+  /* Только горизонтальные отступы — вертикальные управляются компонентами */
   body {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
@@ -305,6 +304,25 @@ body::-webkit-scrollbar {
 }
 
 @layer utilities {
+  /* Утилиты для safe-area и мобильной адаптации */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pb-nav {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Минимальный touch target */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   @keyframes fade-in-up {
     from {
       opacity: 0;

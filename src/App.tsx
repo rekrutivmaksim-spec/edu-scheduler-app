@@ -31,6 +31,7 @@ import Screenshots from "./pages/Screenshots";
 import Session from "./pages/Session";
 import Flashcards from "./pages/Flashcards";
 import PhotoSolve from "./pages/PhotoSolve";
+import DeleteAccount from "./pages/DeleteAccount";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/session" element={<Session />} />
               <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/photo-solve" element={<PhotoSolve />} />
+              <Route path="/delete-account" element={<DeleteAccount />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -53,7 +53,7 @@ const FAQ_ITEMS = [
   { q: 'Подписка продлевается автоматически?', a: 'Да, подписка продлевается автоматически. Ты можешь отключить автопродление в любой момент.' },
   { q: 'Как отключить автопродление?', a: 'В разделе «Подписка» переключи тумблер «Автопродление». Подписка доработает до конца оплаченного периода.' },
   { q: 'Могу ли я вернуть деньги?', a: '14 дней на возврат, если не использовал(а) платные функции.' },
-  { q: 'Что будет после окончания?', a: 'Без автопродления базовые функции остаются + 3 бесплатных вопроса ИИ в день.' },
+  { q: 'Что будет после окончания?', a: 'Без автопродления базовые функции остаются + 5 бесплатных вопросов ИИ в день.' },
   { q: 'Какие способы оплаты?', a: 'Карты МИР/Visa/MC, СБП, SberPay.' },
 ];
 
@@ -395,7 +395,7 @@ const Subscription = () => {
   const trialEndsAt = subscriptionStatus?.trial_ends_at;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -417,7 +417,7 @@ const Subscription = () => {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-24 md:pb-8 space-y-4 sm:space-y-6">
+      <main className="max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-nav md:pb-8 space-y-4 sm:space-y-6">
 
         {/* Кнопка активации пробного периода */}
         {!isPremium && !isTrial && (

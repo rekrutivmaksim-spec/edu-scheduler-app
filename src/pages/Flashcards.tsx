@@ -312,8 +312,8 @@ const Flashcards = () => {
   // --- SETS LIST ---
 
   const renderSetsView = () => (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
-      <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
+    <div className="min-h-[100dvh] bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+      <div className="max-w-lg mx-auto px-4 pt-6 pb-nav">
         {renderHeader('Флеш-карточки')}
 
         {/* Review banner */}
@@ -452,8 +452,8 @@ const Flashcards = () => {
   // --- MATERIAL SELECTOR ---
 
   const renderMaterialSelector = () => (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
-      <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
+    <div className="min-h-[100dvh] bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+      <div className="max-w-lg mx-auto px-4 pt-6 pb-nav">
         {renderHeader('Выбор материалов', true)}
 
         {generating ? (
@@ -560,8 +560,8 @@ const Flashcards = () => {
 
     if (cards.length === 0) {
       return (
-        <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
-          <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
+        <div className="min-h-[100dvh] bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+          <div className="max-w-lg mx-auto px-4 pt-6 pb-nav">
             {renderHeader(view === 'review' ? 'Повторение' : 'Изучение', true)}
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center mb-4">
@@ -581,8 +581,8 @@ const Flashcards = () => {
     const progress = ((currentIndex + 1) / cards.length) * 100;
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
-        <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
+      <div className="min-h-[100dvh] bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+        <div className="max-w-lg mx-auto px-4 pt-6 pb-nav">
           {/* Header */}
           <div className="flex items-center gap-3 mb-4">
             <button
@@ -729,8 +729,8 @@ const Flashcards = () => {
     const easyPercent = total > 0 ? Math.round((studyResults.easy / total) * 100) : 0;
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
-        <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
+      <div className="min-h-[100dvh] bg-gradient-to-b from-purple-50 via-white to-purple-50/30">
+        <div className="max-w-lg mx-auto px-4 pt-6 pb-nav">
           <div className="flex flex-col items-center justify-center py-8">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center mb-5">
               <Icon name="Trophy" size={36} className="text-purple-600" />

@@ -194,7 +194,7 @@ export default function University() {
   // === Режим: вопрос ===
   if (mode === 'question') {
     return (
-      <div className="min-h-screen bg-gray-50 pb-24 flex flex-col">
+      <div className="min-h-[100dvh] bg-gray-50 pb-nav flex flex-col">
         <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 px-4 pt-12 pb-6">
           <button onClick={() => { setMode('home'); setAnswer(''); }} className="flex items-center gap-2 text-white/70 mb-3">
             <Icon name="ArrowLeft" size={18} />
@@ -270,7 +270,7 @@ export default function University() {
   // === Режим: файл ===
   if (mode === 'file') {
     return (
-      <div className="min-h-screen bg-gray-50 pb-24">
+      <div className="min-h-[100dvh] bg-gray-50 pb-nav">
         <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 px-4 pt-12 pb-6">
           <button onClick={() => { setMode('home'); setUploadedFile(null); setAnalysis(null); setQuestion(''); setAnswer(''); }} className="flex items-center gap-2 text-white/70 mb-3">
             <Icon name="ArrowLeft" size={18} />
@@ -388,7 +388,7 @@ export default function University() {
 
   // === Главный экран ===
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-[100dvh] bg-gray-50 pb-nav">
       <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 px-4 pt-12 pb-8">
         <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-white/70 mb-3 hover:text-white transition-colors">
           <Icon name="ArrowLeft" size={18} />

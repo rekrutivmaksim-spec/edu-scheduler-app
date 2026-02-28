@@ -94,7 +94,16 @@ export default function Privacy() {
               </ul>
             </section>
 
-
+            <section>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">4. Правовые основания обработки данных</h2>
+              <p>Обработка персональных данных осуществляется на следующих правовых основаниях:</p>
+              <ul className="list-disc pl-6 space-y-2">
+                <li><strong>Согласие пользователя</strong> — при регистрации в Приложении (ст. 9 Федерального закона № 152-ФЗ)</li>
+                <li><strong>Исполнение договора</strong> — предоставление услуг, указанных в Пользовательском соглашении</li>
+                <li><strong>Законные интересы</strong> — обеспечение безопасности и улучшение качества Сервиса</li>
+                <li><strong>Соблюдение законодательства</strong> — выполнение требований законодательства РФ</li>
+              </ul>
+            </section>
 
             <section>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">5. Передача данных третьим лицам</h2>
@@ -123,11 +132,11 @@ export default function Privacy() {
               <h2 className="text-2xl font-bold text-gray-900 mb-4">7. Ваши права</h2>
               <p>Вы имеете право:</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li><strong>Доступ:</strong> Запросить копию ваших персональных данных</li>
-                <li><strong>Изменение:</strong> Обновить или исправить данные в разделе "Профиль"</li>
-                <li><strong>Удаление:</strong> Удалить аккаунт и все связанные данные</li>
-                <li><strong>Отзыв согласия:</strong> Отключить SMS-уведомления в настройках</li>
-                <li><strong>Жалоба:</strong> Обратиться в Роскомнадзор при нарушении прав</li>
+                <li><strong>Доступ:</strong> Запросить копию ваших персональных данных, написав на <a href="mailto:rekrutiw@yandex.ru" className="text-blue-600 hover:underline">rekrutiw@yandex.ru</a></li>
+                <li><strong>Изменение:</strong> Обновить или исправить данные в разделе «Профиль»</li>
+                <li><strong>Удаление аккаунта:</strong> Удалить аккаунт и все связанные данные через <a href="/delete-account" className="text-blue-600 hover:underline">форму удаления аккаунта</a> или в разделе «Профиль → Удалить аккаунт». Данные удаляются в течение 30 дней</li>
+                <li><strong>Отзыв согласия:</strong> Отключить уведомления в настройках или удалить аккаунт</li>
+                <li><strong>Жалоба:</strong> Обратиться в Роскомнадзор при нарушении прав (www.rkn.gov.ru)</li>
               </ul>
             </section>
 
@@ -158,11 +167,11 @@ export default function Privacy() {
 
             <section>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">10. Контакты</h2>
-              <p>По вопросам обработки персональных данных:</p>
+              <p>По вопросам обработки персональных данных обращайтесь по электронной почте:</p>
               <ul className="list-none space-y-2 mt-4">
-                <li><strong>Email поддержки:</strong> support@studyfay.app</li>
-                <li><strong>Telegram:</strong> <a href="https://t.me/+QgiLIa1gFRY4Y2Iy" className="text-blue-600 hover:underline">@studyfay_support</a></li>
+                <li><strong>Email поддержки:</strong> <a href="mailto:rekrutiw@yandex.ru" className="text-blue-600 hover:underline">rekrutiw@yandex.ru</a></li>
               </ul>
+              <p className="mt-4 text-sm text-gray-500">Мы отвечаем на запросы в течение 3 рабочих дней.</p>
             </section>
 
             <div className="bg-gray-100 p-6 rounded-xl mt-8">

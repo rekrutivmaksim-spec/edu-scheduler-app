@@ -106,10 +106,11 @@ export default function Terms() {
               <h2 className="text-2xl font-bold text-gray-900 mb-4">6. Платные функции</h2>
               <p>Базовый функционал Приложения бесплатен. Премиум-подписка включает:</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Безлимитные обращения к ИИ-ассистенту</li>
-                <li>Расширенное хранилище материалов</li>
+                <li>До 20 вопросов к ИИ-ассистенту в день (вместо 5 в бесплатной версии)</li>
+                <li>До 5 учебных занятий в день (вместо 1 в бесплатной версии)</li>
+                <li>До 3 загрузок файлов в день (вместо 1 в бесплатной версии)</li>
+                <li>Подготовка к ЕГЭ/ОГЭ по всем предметам</li>
                 <li>Детальную аналитику продуктивности</li>
-                <li>Отключение рекламы (при её наличии)</li>
               </ul>
               <p className="mt-4">
                 <strong>Условия подписки:</strong>
@@ -143,8 +144,8 @@ export default function Terms() {
               <h2 className="text-2xl font-bold text-gray-900 mb-4">8. Прекращение использования</h2>
               <p><strong>Вы можете:</strong></p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Удалить аккаунт в любой момент через настройки профиля</li>
-                <li>При удалении все данные будут удалены в течение 30 дней</li>
+                <li>Удалить аккаунт в любой момент через <a href="/delete-account" className="text-blue-600 hover:underline">страницу удаления аккаунта</a> или в разделе «Профиль»</li>
+                <li>При удалении все данные будут удалены с серверов в течение 30 дней</li>
               </ul>
               <p className="mt-4"><strong>Мы можем заблокировать ваш аккаунт при:</strong></p>
               <ul className="list-disc pl-6 space-y-2">
@@ -176,10 +177,11 @@ export default function Terms() {
 
             <section>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">11. Контакты</h2>
-              <p>По вопросам работы Приложения:</p>
+              <p>По вопросам работы Приложения и условий Соглашения:</p>
               <ul className="list-none space-y-2 mt-4">
-                <li><strong>Email поддержки:</strong> support@studyfay.app</li>
+                <li><strong>Email поддержки:</strong> <a href="mailto:rekrutiw@yandex.ru" className="text-blue-600 hover:underline">rekrutiw@yandex.ru</a></li>
               </ul>
+              <p className="mt-4 text-sm text-gray-500">Мы отвечаем на обращения в течение 3 рабочих дней.</p>
             </section>
 
             <div className="bg-gray-100 p-6 rounded-xl mt-8">

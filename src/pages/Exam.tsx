@@ -423,7 +423,7 @@ export default function Exam() {
     const ogeLeft = daysUntil(OGE_DATE);
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 flex flex-col px-5 pb-28 pt-14">
+      <div className="min-h-[100dvh] bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 flex flex-col px-5 pb-nav pt-14">
         {/* Шапка */}
         <div className="flex flex-col items-center text-center mb-8">
           <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center text-3xl mb-4">🎓</div>
@@ -540,7 +540,7 @@ export default function Exam() {
     const userSubject = userSubjectId ? subjects.find(s => s.id === userSubjectId) : null;
 
     return (
-      <div className="min-h-screen bg-gray-50 pb-28">
+      <div className="min-h-[100dvh] bg-gray-50 pb-nav">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 pt-12 pb-5">
           <div className="flex items-center gap-3 mb-3">
             <button onClick={() => setScreen('pick_exam')} className="text-white/70 hover:text-white p-1">
@@ -668,7 +668,7 @@ export default function Exam() {
   // ─────────────────────────────────────────────────────────────────────────────
   if (screen === 'pick_mode' && subject) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col pb-28">
+      <div className="min-h-[100dvh] bg-gray-50 flex flex-col pb-nav">
         <div className={`bg-gradient-to-r ${subject.color} px-4 pt-12 pb-6`}>
           <div className="flex items-center gap-3 mb-4">
             <button onClick={() => setScreen('pick_subject')} className="text-white/70 hover:text-white p-1">
@@ -835,7 +835,7 @@ export default function Exam() {
     };
 
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-[100dvh] bg-gray-50 flex flex-col">
         {/* Шапка */}
         <div className={`bg-gradient-to-r ${subject.color} px-4 pt-12 pb-3`}>
           <div className="flex items-center gap-3">

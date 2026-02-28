@@ -181,7 +181,7 @@ const Analytics = () => {
   const isEmpty = schedule.length === 0 && tasks.length === 0 && materials.length === 0 && !gam;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 pb-24">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 pb-nav">
       {/* Header */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-purple-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4 flex items-center gap-3">

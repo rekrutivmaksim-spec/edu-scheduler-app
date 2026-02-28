@@ -208,7 +208,7 @@ const Dashboard = () => {
   const taskCompletionRate = data.tasks.total > 0 ? Math.round((data.tasks.completed / data.tasks.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 pb-24">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 pb-nav">
       <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white px-4 pt-6 pb-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-4">
