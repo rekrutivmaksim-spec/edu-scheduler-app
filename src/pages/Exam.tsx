@@ -111,7 +111,7 @@ export default function Exam() {
 
   // Лимит вопросов (только вопросы пользователя, не первый промпт системы)
   const [questionsLeft, setQuestionsLeft] = useState<number | null>(null);
-  const [questionsLimit, setQuestionsLimit] = useState<number>(3);
+  const [questionsLimit, setQuestionsLimit] = useState<number>(5);
   const [isPremium, setIsPremium] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [subLoading, setSubLoading] = useState(true);
@@ -144,8 +144,8 @@ export default function Exam() {
   const loadSubscription = async () => {
     const token = authService.getToken();
     if (!token) {
-      setQuestionsLeft(3);
-      setQuestionsLimit(3);
+      setQuestionsLeft(5);
+      setQuestionsLimit(5);
       setSubLoading(false);
       return;
     }
@@ -195,14 +195,14 @@ export default function Exam() {
         setQuestionsLimit(max);
         setQuestionsLeft(Math.max(0, max - used));
       } else {
-        const max = 3;
+        const max = 5;
         const used = ai?.used ?? 0;
         setQuestionsLimit(max);
         setQuestionsLeft(Math.max(0, max - used));
       }
     } catch {
-      setQuestionsLeft(3);
-      setQuestionsLimit(3);
+      setQuestionsLeft(5);
+      setQuestionsLimit(5);
     } finally {
       setSubLoading(false);
     }
@@ -260,11 +260,6 @@ export default function Exam() {
 
         const text = data.answer || data.response || '';
         if (!text && attempt < 2) continue; // пустой ответ — повторяем
-
-        // Обновляем счётчик из ответа сервера (зажимаем до questionsLimit)
-        if (data.remaining !== undefined) {
-          setQuestionsLeft(q => Math.min(Math.max(0, data.remaining), questionsLimit || (q ?? 3)));
-        } else if (!token) setQuestionsLeft(q => (q !== null ? Math.max(0, q - 1) : null));
 
         return { answer: sanitize(text || question), remaining: data.remaining };
       } catch (e: unknown) {
@@ -338,10 +333,6 @@ export default function Exam() {
       return;
     }
 
-    // Декрементируем локально ДО запроса (вопрос считается с пользователя)
-    if (!isPremium && questionsLeft !== null && questionsLeft > 0) {
-      setQuestionsLeft(q => Math.max(0, (q ?? 1) - 1));
-    }
     setUserMessageCount(c => c + 1);
 
     const newMessages: Message[] = [...messages, { role: 'user', text: msg }];
@@ -352,9 +343,13 @@ export default function Exam() {
 
     try {
       const { answer, remaining } = await askAI(msg, newMessages.slice(-6));
-      // Синхронизируем с сервером если пришёл remaining
-      if (remaining !== undefined && !isPremium) {
-        setQuestionsLeft(Math.max(0, remaining));
+      // Списываем вопрос только после получения ответа ИИ
+      if (!isPremium && questionsLeft !== null) {
+        if (remaining !== undefined) {
+          setQuestionsLeft(Math.max(0, remaining));
+        } else {
+          setQuestionsLeft(q => Math.max(0, (q ?? 1) - 1));
+        }
       }
       setMessages(prev => [...prev, { role: 'ai', text: answer }]);
     } catch (e: unknown) {
@@ -377,10 +372,6 @@ export default function Exam() {
       return;
     }
 
-    // Декрементируем с пользователя
-    if (!isPremium && questionsLeft !== null && questionsLeft > 0) {
-      setQuestionsLeft(q => Math.max(0, (q ?? 1) - 1));
-    }
     setUserMessageCount(c => c + 1);
 
     const lastTask = [...messages].reverse().find(m => m.role === 'ai')?.text ?? '';
@@ -396,8 +387,13 @@ export default function Exam() {
     try {
       const prompt = `Задание: ${lastTask}\n\nОтвет ученика: ${text}\n\nПроверь ответ. Если правильно — начни "Правильно! ✅" и похвали одной фразой. Если неправильно — начни "Неверно ❌" и объясни правильное решение коротко. Потом дай задание №${nextNum} — новое типовое задание ${examType.toUpperCase()} по "${subject?.name}". Только условие, без ответа. В конце напиши "Жду ответ."`;
       const { answer, remaining } = await askAI(prompt, newMessages.slice(-4));
-      if (remaining !== undefined && !isPremium) {
-        setQuestionsLeft(Math.max(0, remaining));
+      // Списываем вопрос только после получения ответа ИИ
+      if (!isPremium && questionsLeft !== null) {
+        if (remaining !== undefined) {
+          setQuestionsLeft(Math.max(0, remaining));
+        } else {
+          setQuestionsLeft(q => Math.max(0, (q ?? 1) - 1));
+        }
       }
       // Трекинг: считаем задание выполненным при правильном ответе
       const answerLower = answer.toLowerCase();
