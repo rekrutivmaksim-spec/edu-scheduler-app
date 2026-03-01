@@ -744,7 +744,7 @@ export default function Session() {
             onClick={() => navigate('/pricing')}
             className="w-full h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl mb-3 active:scale-[0.97] transition-all"
           >
-            ⚡ До 5 занятий в день — Premium 449 ₽/мес
+            ⚡ До 5 занятий в день — Premium 499 ₽/мес
           </button>
         )}
 

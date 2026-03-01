@@ -195,14 +195,14 @@ export default function Exam() {
         setQuestionsLimit(max);
         setQuestionsLeft(Math.max(0, max - used));
       } else {
-        const max = 5;
+        const max = ai?.max ?? 3;
         const used = ai?.used ?? 0;
         setQuestionsLimit(max);
         setQuestionsLeft(Math.max(0, max - used));
       }
     } catch {
-      setQuestionsLeft(5);
-      setQuestionsLimit(5);
+      setQuestionsLeft(3);
+      setQuestionsLimit(3);
     } finally {
       setSubLoading(false);
     }

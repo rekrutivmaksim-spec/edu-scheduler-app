@@ -8,7 +8,6 @@ import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 
-// TODO: set after deploy
 const FLASHCARDS_URL = 'https://functions.poehali.dev/81b8e2fb-95cd-4dc8-97db-7e1c255471d0';
 const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
 
