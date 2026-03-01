@@ -236,7 +236,7 @@ def handle_generate(conn, user_id, body):
     for mid, title, subj, text, summary in materials:
         if not subject and subj:
             subject = subj
-        content = summary or (text[:3000] if text else '')
+        content = summary or (text[:2000] if text else '')
         if content:
             texts.append(f"# {title or 'Документ'}\n{content}")
 
@@ -244,7 +244,7 @@ def handle_generate(conn, user_id, body):
         cur.close()
         return err(400, {'error': 'Материалы не содержат текста'})
 
-    combined_text = '\n\n'.join(texts)[:6000]
+    combined_text = '\n\n'.join(texts)[:4000]
     subject = subject or 'Общее'
 
     # Вызываем ИИ для генерации карточек
@@ -259,8 +259,8 @@ def handle_generate(conn, user_id, body):
         response = ai_client.chat.completions.create(
             model=LLAMA_MODEL,
             messages=[{'role': 'user', 'content': prompt}],
-            max_tokens=2000,
-            temperature=0.7
+            max_tokens=1200,
+            temperature=0.6
         )
         ai_text = response.choices[0].message.content.strip()
     except Exception as e:

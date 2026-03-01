@@ -140,7 +140,7 @@ def generate_plan_with_ai(subject: str, difficulty: str, days_left: int, context
 
     difficulty_label = {'easy': 'Лёгкая', 'medium': 'Средняя', 'hard': 'Высокая'}.get(difficulty, 'Средняя')
 
-    context_section = context.strip()[:3000] if context else 'Нет загруженных материалов'
+    context_section = context.strip()[:2000] if context else 'Нет загруженных материалов'
 
     system_prompt = (
         "Ты — ИИ-репетитор. Создай пошаговый план подготовки к экзамену.\n\n"
@@ -166,8 +166,8 @@ def generate_plan_with_ai(subject: str, difficulty: str, days_left: int, context
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': f'Создай план подготовки к экзамену по предмету "{subject}" на {capped_days} дней.'},
         ],
-        temperature=0.7,
-        max_tokens=2000,
+        temperature=0.6,
+        max_tokens=1200,
     )
 
     raw = response.choices[0].message.content.strip()

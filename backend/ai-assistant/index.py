@@ -528,7 +528,7 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
                 {"role": "user", "content": solve_prompt}
             ],
             temperature=0.3,
-            max_tokens=1200,
+            max_tokens=800,
         )
         solution = sanitize_answer(resp_s.choices[0].message.content)
         print(f"[PHOTO] Solve llama ok: {solution[:80]}", flush=True)
@@ -718,11 +718,11 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
 
     messages_list = [{"role": "system", "content": system}]
     if history:
-        for h in history[-8:]:
+        for h in history[-6:]:
             role = h.get('role', 'user')
             content = h.get('content', '')
             if role in ('user', 'assistant') and content:
-                messages_list.append({"role": role, "content": content[:600]})
+                messages_list.append({"role": role, "content": content[:400]})
     messages_list.append({"role": "user", "content": user_content})
 
     for attempt in range(3):
@@ -732,7 +732,7 @@ def ask_ai(question, context, image_base64=None, exam_meta=None, history=None):
                 model=LLAMA_MODEL,
                 messages=messages_list,
                 temperature=0.5,
-                max_tokens=900,
+                max_tokens=800,
             )
             answer = resp.choices[0].message.content
             tokens = resp.usage.total_tokens if resp.usage else 0
@@ -818,10 +818,10 @@ def ask_ai_vision(question, system, image_base64):
                 model=LLAMA_MODEL,
                 messages=[
                     {"role": "system", "content": system},
-                    {"role": "user", "content": combined[:1200]}
+                    {"role": "user", "content": combined[:1000]}
                 ],
-                temperature=0.7,
-                max_tokens=1500,
+                temperature=0.5,
+                max_tokens=900,
             )
             answer = resp.choices[0].message.content
             tokens = resp.usage.total_tokens if resp.usage else 0
