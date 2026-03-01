@@ -381,8 +381,32 @@ def extract_title(question, action):
             return question[idx:].strip()[:200]
     return question[:100]
 
+def _convert_ascii_table(text):
+    """Конвертирует ASCII-таблицы с черточками в читаемый текст"""
+    import re
+    lines = text.split('\n')
+    result = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        # Определяем строку-разделитель типа |---|---|
+        if re.match(r'^\s*\|[\s\-\|:]+\|\s*$', line):
+            i += 1
+            continue
+        # Определяем строку таблицы с | ... | ... |
+        if re.match(r'^\s*\|.+\|', line):
+            cells = [c.strip() for c in line.strip().strip('|').split('|')]
+            if len(cells) > 1:
+                result.append('  '.join(cells))
+                i += 1
+                continue
+        result.append(line)
+        i += 1
+    return '\n'.join(result)
+
+
 def sanitize_answer(text):
-    """Убирает LaTeX-разметку и иероглифы из ответа ИИ"""
+    """Убирает LaTeX, псевдографику и форматирует ответ ИИ"""
     import re
     if not text:
         return text
@@ -398,6 +422,12 @@ def sanitize_answer(text):
     text = re.sub(r'\\[a-zA-Z]+', '', text)
     # Убираем фигурные скобки LaTeX
     text = re.sub(r'\{([^}]*)\}', r'\1', text)
+    # Конвертируем ASCII-таблицы в читаемый вид
+    text = _convert_ascii_table(text)
+    # Убираем псевдографику: ^ как степень оставляем, убираем декоративные символы
+    text = re.sub(r'[│├┤┬┴┼╔╗╚╝║═╠╣╦╩╬┌┐└┘─]', '', text)
+    # Убираем подчёркивания-разделители типа _____ или ------- стоящие отдельной строкой
+    text = re.sub(r'^\s*[-_=]{3,}\s*$', '', text, flags=re.MULTILINE)
     # Чистим лишние пробелы
     text = re.sub(r' {2,}', ' ', text)
     text = re.sub(r'\n{3,}', '\n\n', text)

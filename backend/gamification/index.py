@@ -16,19 +16,18 @@ VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_EMAIL = os.environ.get('VAPID_EMAIL', 'mailto:admin@studyfay.app')
 
 STREAK_REWARDS = [
-    # Бонусные вопросы — небольшие поощрения, не заменяют Premium
-    {'streak_days': 3, 'reward_type': 'bonus_questions', 'value': 3, 'title': '3 дня подряд 🔥', 'description': '+3 вопроса к ИИ сегодня'},
-    {'streak_days': 7, 'reward_type': 'bonus_questions', 'value': 5, 'title': 'Неделя стрика 💪', 'description': '+5 вопросов к ИИ сегодня'},
-    {'streak_days': 14, 'reward_type': 'bonus_questions', 'value': 7, 'title': '2 недели подряд 🏆', 'description': '+7 вопросов к ИИ сегодня'},
-    # Пробный день Premium — чтобы пользователь ощутил разницу и купил
-    {'streak_days': 21, 'reward_type': 'premium_days', 'value': 1, 'title': '21 день! Попробуй Premium 🎁', 'description': '1 день Premium — почувствуй разницу'},
-    {'streak_days': 30, 'reward_type': 'bonus_questions', 'value': 10, 'title': 'Месяц стрика 🥇', 'description': '+10 вопросов к ИИ сегодня'},
-    {'streak_days': 60, 'reward_type': 'bonus_questions', 'value': 15, 'title': '2 месяца стрика ⚡', 'description': '+15 вопросов к ИИ сегодня'},
-    # Ещё один пробный день Premium на большом стрике
-    {'streak_days': 90, 'reward_type': 'premium_days', 'value': 1, 'title': '90 дней! Снова Premium 🌟', 'description': '1 день Premium в подарок'},
-    {'streak_days': 180, 'reward_type': 'bonus_questions', 'value': 20, 'title': 'Полгода стрика 🚀', 'description': '+20 вопросов к ИИ сегодня'},
-    {'streak_days': 365, 'reward_type': 'bonus_questions', 'value': 30, 'title': 'Год стрика 👑', 'description': '+30 вопросов к ИИ сегодня'},
+    {'streak_days': 3,   'reward_type': 'bonus_questions', 'value': 3,  'title': '3 дня подряд 🔥',      'description': '+3 вопроса к ИИ'},
+    {'streak_days': 7,   'reward_type': 'bonus_questions', 'value': 5,  'title': 'Неделя стрика 💪',      'description': '+5 вопросов к ИИ'},
+    {'streak_days': 14,  'reward_type': 'bonus_questions', 'value': 5,  'title': '2 недели подряд 🏆',    'description': '+5 вопросов к ИИ'},
+    {'streak_days': 21,  'reward_type': 'bonus_questions', 'value': 5,  'title': '21 день упорства!',     'description': '+5 вопросов к ИИ'},
+    {'streak_days': 30,  'reward_type': 'bonus_questions', 'value': 5,  'title': 'Месяц стрика 🥇',       'description': '+5 вопросов к ИИ'},
+    {'streak_days': 60,  'reward_type': 'bonus_questions', 'value': 5,  'title': '2 месяца стрика ⚡',    'description': '+5 вопросов к ИИ'},
+    {'streak_days': 90,  'reward_type': 'bonus_questions', 'value': 5,  'title': '90 дней! Легенда 🌟',   'description': '+5 вопросов к ИИ'},
+    {'streak_days': 180, 'reward_type': 'bonus_questions', 'value': 5,  'title': 'Полгода стрика 🚀',     'description': '+5 вопросов к ИИ'},
+    {'streak_days': 365, 'reward_type': 'bonus_questions', 'value': 5,  'title': 'Год стрика 👑',         'description': '+5 вопросов к ИИ'},
 ]
+
+BONUS_QUESTIONS_MAX = 15
 
 QUEST_POOL = [
     {'type': 'complete_tasks', 'title': 'Выполни {n} задач', 'min': 1, 'max': 3, 'xp_min': 20, 'xp_max': 40, 'premium_only': False},
@@ -940,15 +939,8 @@ def handler(event: dict, context) -> dict:
 
                 if reward_def['reward_type'] == 'bonus_questions':
                     cur.execute("""
-                        UPDATE users SET bonus_questions = bonus_questions + %s WHERE id = %s
-                    """, (reward_def['value'], user_id))
-                elif reward_def['reward_type'] == 'premium_days':
-                    cur.execute("""
-                        UPDATE users
-                        SET subscription_type = 'premium',
-                            subscription_expires_at = GREATEST(COALESCE(subscription_expires_at, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) + interval '%s days'
-                        WHERE id = %s
-                    """ % (int(reward_def['value']), int(user_id)))
+                        UPDATE users SET bonus_questions = LEAST(COALESCE(bonus_questions, 0) + %s, %s) WHERE id = %s
+                    """, (reward_def['value'], BONUS_QUESTIONS_MAX, user_id))
 
                 cur.execute("""
                     INSERT INTO streak_reward_claims (user_id, streak_days, reward_type, reward_value)
