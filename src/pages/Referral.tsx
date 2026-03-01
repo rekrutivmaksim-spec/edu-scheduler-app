@@ -71,7 +71,7 @@ export default function Referral() {
 
   const handleShare = async () => {
     if (!data) return;
-    const text = `Я учусь в Studyfay — ИИ-помощник для студентов. Присоединяйся по моей ссылке и получи +5 бонусных вопросов к ИИ!`;
+    const text = `Я учусь в Studyfay — ИИ-помощник для студентов. Присоединяйся по моей ссылке и получи бонусные вопросы к ИИ!`;
     
     if (navigator.share) {
       try {
@@ -192,7 +192,7 @@ export default function Referral() {
           <div className="space-y-3 mt-3">
             {[
               { step: '1', text: 'Отправь ссылку другу', icon: 'Send' },
-              { step: '2', text: 'Друг регистрируется и получает +5 вопросов', icon: 'UserPlus' },
+              { step: '2', text: 'Друг регистрируется и получает бонусные вопросы', icon: 'UserPlus' },
               { step: '3', text: 'Ты получаешь +7 дней Premium', icon: 'Crown' },
             ].map((s) => (
               <div key={s.step} className="flex items-center gap-3">

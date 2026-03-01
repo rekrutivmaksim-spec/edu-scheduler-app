@@ -37,7 +37,7 @@ const DEFAULT_LIMITS: LimitsData = {
   subscription_expires_at: null,
   trial_ends_at: null,
   limits: {
-    ai_questions: { used: 0, max: 5, unlimited: false },
+    ai_questions: { used: 0, max: 3, unlimited: false },
     sessions: { used: 0, max: 1, unlimited: false },
     materials: { used: 0, max: 1, unlimited: false },
     exam_predictions: { unlimited: false, available: false },
@@ -75,7 +75,7 @@ export function useLimits() {
   const canUseAI = (): boolean => {
     const ai = data.limits.ai_questions;
     if (ai.unlimited) return true;
-    return (ai.used ?? 0) < (ai.max ?? 5);
+    return (ai.used ?? 0) < (ai.max ?? 3);
   };
 
   const canStartSession = (): boolean => {
@@ -97,7 +97,7 @@ export function useLimits() {
   const aiRemaining = (): number => {
     const ai = data.limits.ai_questions;
     if (ai.unlimited) return 999;
-    return Math.max(0, (ai.max ?? 5) - (ai.used ?? 0));
+    return Math.max(0, (ai.max ?? 3) - (ai.used ?? 0));
   };
 
   const sessionsRemaining = (): number => {

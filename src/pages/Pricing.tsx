@@ -10,7 +10,7 @@ const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
 
 const PREMIUM_FEATURES = [
-  { icon: '🤖', text: '20 вопросов к ИИ в день (вместо 5)' },
+  { icon: '🤖', text: '20 вопросов к ИИ в день (вместо 3)' },
   { icon: '📚', text: 'До 5 занятий в день (вместо 1)' },
   { icon: '📄', text: '3 загрузки файлов в день (вместо 1)' },
   { icon: '🎓', text: 'Подготовка к ЕГЭ и ОГЭ по всем предметам' },
@@ -22,7 +22,7 @@ const PREMIUM_FEATURES = [
 
 const FREE_FEATURES = [
   '1 занятие в день',
-  '5 вопросов к ИИ в день',
+  '3 вопроса к ИИ в день',
   '1 загрузка файла в день',
   'Базовая подготовка к экзаменам',
 ];
@@ -36,7 +36,7 @@ const GUARANTEE_FEATURES = [
 const FAQ = [
   {
     q: 'Чем отличается Premium от бесплатного?',
-    a: 'Premium даёт 20 вопросов ИИ в день вместо 5, до 5 занятий, 3 загрузки файлов, доступ ко всем режимам подготовки к ЕГЭ/ОГЭ и бонусы за активность.',
+    a: 'Premium даёт 20 вопросов ИИ в день вместо 3, до 5 занятий, 3 загрузки файлов, доступ ко всем режимам подготовки к ЕГЭ/ОГЭ и бонусы за активность.',
   },
   {
     q: 'Что такое пакет вопросов?',
@@ -192,7 +192,7 @@ const Pricing = () => {
             <div className="bg-purple-900 px-5 py-3 flex items-center gap-2">
               <span className="text-yellow-400 text-sm">⚡</span>
               <p className="text-white/70 text-xs">
-                Бесплатно сегодня: <span className="text-white font-semibold">1 занятие и 5 вопросов.</span> Premium снимает все ограничения.
+                Бесплатно сегодня: <span className="text-white font-semibold">1 занятие и 3 вопроса.</span> Premium снимает все ограничения.
               </p>
             </div>
           </div>

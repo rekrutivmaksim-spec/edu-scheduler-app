@@ -44,10 +44,12 @@ def get_user_id(token: str):
         return None
 
 PREMIUM_DAILY_LIMIT = 20
-FREE_DAILY_LIMIT = 5
+FREE_DAILY_LIMIT_NEW = 10   # первые 3 дня после регистрации
+FREE_DAILY_LIMIT = 3        # после 3 дней
+FREE_HOOK_DAYS = 3          # сколько дней действует щедрый лимит
 
-SOFT_LANDING_LIMIT = 10  # вопросов/день в переходный период (дни 8-10 после регистрации)
-SOFT_LANDING_DAYS = 3   # сколько дней длится переходный период
+SOFT_LANDING_LIMIT = 10  # вопросов/день в переходный период после триала
+SOFT_LANDING_DAYS = 3
 
 
 def check_access(conn, user_id: int) -> dict:
@@ -153,10 +155,14 @@ def check_access(conn, user_id: int) -> dict:
         cur2.close()
         daily_used = 0
 
-    total = FREE_DAILY_LIMIT + bonus
+    days_since_reg = (now - created_at).days if created_at else 999
+    current_free_limit = FREE_DAILY_LIMIT_NEW if days_since_reg < FREE_HOOK_DAYS else FREE_DAILY_LIMIT
+    is_newcomer = days_since_reg < FREE_HOOK_DAYS
+
+    total = current_free_limit + bonus
     if daily_used >= total:
-        return {'has_access': False, 'reason': 'limit', 'used': daily_used, 'limit': FREE_DAILY_LIMIT, 'is_free': True}
-    return {'has_access': True, 'is_free': True, 'used': daily_used, 'limit': FREE_DAILY_LIMIT, 'remaining': total - daily_used}
+        return {'has_access': False, 'reason': 'limit', 'used': daily_used, 'limit': current_free_limit, 'is_free': True, 'is_newcomer': is_newcomer}
+    return {'has_access': True, 'is_free': True, 'used': daily_used, 'limit': current_free_limit, 'remaining': total - daily_used, 'is_newcomer': is_newcomer}
 
 def increment_questions(conn, user_id: int, access_info: dict = None):
     """Списываем вопрос после успешного ответа ИИ.

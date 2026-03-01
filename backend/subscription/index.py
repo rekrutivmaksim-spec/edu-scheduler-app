@@ -162,7 +162,8 @@ def get_limits(conn, user_id: int) -> dict:
     sessions_used = (u['daily_sessions_used'] or 0) if u else 0
 
     # Лимиты по тарифу:
-    # Free:    1 сессия/день, 3 AI вопроса/день, 1 загрузка файла/ДЕНЬ
+    # Free (дни 1-3): 1 сессия/день, 10 AI вопросов/день, 1 загрузка файла/ДЕНЬ
+    # Free (день 4+): 1 сессия/день, 3 AI вопроса/день, 1 загрузка файла/ДЕНЬ
     # Premium: 5 сессий/день, 20 AI вопросов/день, 3 загрузки файла/ДЕНЬ
     # Trial:   всё как Premium (5 сессий, 20 AI, 3 загрузки)
 
@@ -231,10 +232,18 @@ def get_limits(conn, user_id: int) -> dict:
             }
         }
     else:
-        # Free: 1 сессия/день, 5 AI вопросов/день + бонус, 1 загрузка файла/день
         daily_used = status.get('daily_questions_used', 0)
         bonus = status.get('bonus_questions', 0)
-        total_available = 5 + bonus
+
+        created_at = None
+        with conn.cursor(cursor_factory=RealDictCursor) as cur2:
+            cur2.execute("SELECT created_at FROM users WHERE id = %s", (user_id,))
+            row2 = cur2.fetchone()
+            if row2:
+                created_at = row2['created_at']
+        days_since_reg = (datetime.now() - created_at.replace(tzinfo=None)).days if created_at else 999
+        free_limit = 10 if days_since_reg < 3 else 3
+        total_available = free_limit + bonus
 
         return {
             **status,
@@ -248,7 +257,7 @@ def get_limits(conn, user_id: int) -> dict:
                     'max': total_available,
                     'unlimited': False,
                     'daily_used': daily_used,
-                    'daily_limit': 5,
+                    'daily_limit': free_limit,
                     'bonus_available': bonus
                 },
                 'exam_predictions': {'unlimited': False, 'available': False},
