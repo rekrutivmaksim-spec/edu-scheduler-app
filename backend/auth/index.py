@@ -194,8 +194,40 @@ def handler(event: dict, context) -> dict:
                         trial_allowed = True
                         block_reason = None
 
-                        # 1. Проверка по device_id
+                        # 1. Блокировка по browser fingerprint — макс 2 аккаунта
+                        if browser_fp:
+                            cur.execute("""
+                                SELECT COUNT(*) AS cnt FROM users
+                                WHERE browser_fp = %s
+                            """, (browser_fp,))
+                            fp_total = cur.fetchone()['cnt']
+                            if fp_total >= 2:
+                                return {
+                                    'statusCode': 429,
+                                    'headers': headers,
+                                    'body': json.dumps({'error': 'Достигнут лимит аккаунтов. Войдите в существующий аккаунт.'})
+                                }
+                            cur.execute("""
+                                SELECT COUNT(*) AS cnt FROM users
+                                WHERE browser_fp = %s AND is_trial_used = TRUE
+                            """, (browser_fp,))
+                            if cur.fetchone()['cnt'] >= 1:
+                                trial_allowed = False
+                                block_reason = 'browser_fp'
+
+                        # 2. Блокировка по device_id — макс 2 аккаунта
                         if device_id:
+                            cur.execute("""
+                                SELECT COUNT(*) AS cnt FROM users
+                                WHERE device_id = %s
+                            """, (device_id,))
+                            dev_total = cur.fetchone()['cnt']
+                            if dev_total >= 2:
+                                return {
+                                    'statusCode': 429,
+                                    'headers': headers,
+                                    'body': json.dumps({'error': 'Достигнут лимит аккаунтов на устройстве. Войдите в существующий аккаунт.'})
+                                }
                             cur.execute("""
                                 SELECT id FROM users
                                 WHERE device_id = %s AND is_trial_used = TRUE
@@ -205,19 +237,8 @@ def handler(event: dict, context) -> dict:
                                 trial_allowed = False
                                 block_reason = 'device_id'
 
-                        # 2. Проверка по browser fingerprint
-                        if trial_allowed and browser_fp:
-                            cur.execute("""
-                                SELECT COUNT(*) AS cnt FROM users
-                                WHERE browser_fp = %s AND is_trial_used = TRUE
-                            """, (browser_fp,))
-                            fp_count = cur.fetchone()['cnt']
-                            if fp_count >= 1:
-                                trial_allowed = False
-                                block_reason = 'browser_fp'
-
-                        # 3. Проверка по IP — не более 2 триалов с одного IP
-                        if trial_allowed:
+                        # 3. IP: макс 3 аккаунта за 30 дней, макс 2 триала
+                        if trial_allowed and client_ip:
                             cur.execute("""
                                 SELECT COUNT(*) AS cnt FROM users
                                 WHERE reg_ip = %s AND is_trial_used = FALSE
@@ -228,18 +249,19 @@ def handler(event: dict, context) -> dict:
                                 trial_allowed = False
                                 block_reason = 'ip_limit'
 
-                        # 4. Cooldown: не более 3 регистраций с одного IP в сутки
-                        cur.execute("""
-                            SELECT COUNT(*) AS cnt FROM users
-                            WHERE reg_ip = %s AND created_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
-                        """, (client_ip,))
-                        ip_reg_today = cur.fetchone()['cnt']
-                        if ip_reg_today >= 3:
-                            return {
-                                'statusCode': 429,
-                                'headers': headers,
-                                'body': json.dumps({'error': 'Слишком много регистраций с вашего IP. Попробуйте завтра.'})
-                            }
+                        # 4. Cooldown: макс 2 регистрации с одного IP в сутки
+                        if client_ip:
+                            cur.execute("""
+                                SELECT COUNT(*) AS cnt FROM users
+                                WHERE reg_ip = %s AND created_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                            """, (client_ip,))
+                            ip_reg_today = cur.fetchone()['cnt']
+                            if ip_reg_today >= 2:
+                                return {
+                                    'statusCode': 429,
+                                    'headers': headers,
+                                    'body': json.dumps({'error': 'Слишком много регистраций. Попробуйте позже или войдите в существующий аккаунт.'})
+                                }
 
 
                         
