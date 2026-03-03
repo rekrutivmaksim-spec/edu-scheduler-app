@@ -65,6 +65,153 @@ const EXAM_INFO: Record<string, { ege: string; oge: string }> = {
   literature: { ege: '12 заданий: анализ лирики + анализ эпоса/драмы + сочинение.', oge: '8 заданий: работа с текстом + сочинение.' },
 };
 
+const EXAM_EXAMPLES: Record<string, { ege: Array<{num: string; type: string; text: string}>; oge: Array<{num: string; type: string; text: string}> }> = {
+  ru: {
+    ege: [
+      { num: 'Задание 1', type: 'Тест', text: 'Определите главную информацию, содержащуюся в тексте.' },
+      { num: 'Задание 9', type: 'Тест', text: 'Укажите варианты ответов, в которых во всех словах одного ряда пропущена одна и та же буква.' },
+      { num: 'Задание 27', type: 'Сочинение', text: 'Напишите сочинение по прочитанному тексту. Сформулируйте проблему и позицию автора.' },
+    ],
+    oge: [
+      { num: 'Задание 1', type: 'Изложение', text: 'Прослушайте текст и напишите сжатое изложение (не менее 70 слов).' },
+      { num: 'Задание 2', type: 'Тест', text: 'Выполните синтаксический анализ предложения. Укажите верные характеристики.' },
+      { num: 'Задание 9', type: 'Сочинение', text: 'Напишите сочинение-рассуждение. Объясните значение слова или фразы из текста.' },
+    ],
+  },
+  math_base: {
+    ege: [
+      { num: 'Задание 1', type: 'Расчёт', text: 'Найдите значение выражения 0,7 * (-50). Вычислите результат.' },
+      { num: 'Задание 10', type: 'Расчёт', text: 'В магазине скидка 20%. Товар стоил 3500 рублей. Какова цена после скидки?' },
+      { num: 'Задание 17', type: 'Расчёт', text: 'Решите неравенство x^2 - 5x + 6 < 0 и укажите множество решений.' },
+    ],
+    oge: [],
+  },
+  math_prof: {
+    ege: [
+      { num: 'Задание 1', type: 'Тест', text: 'Планка длиной 2 м прислонена к стене. Нижний конец отстоит от стены на 1,2 м. Найдите высоту.' },
+      { num: 'Задание 7', type: 'Расчёт', text: 'Найдите производную функции f(x) = x^3 - 6x^2 + 9x + 1 в точке x = 2.' },
+      { num: 'Задание 18', type: 'Развёрнутый ответ', text: 'Решите неравенство log по основанию 2 от (x - 1) + log по основанию 2 от (x + 3) <= 3.' },
+    ],
+    oge: [],
+  },
+  math: {
+    ege: [],
+    oge: [
+      { num: 'Задание 1', type: 'Расчёт', text: 'Найдите значение выражения (5/6 - 1/3) * 12. Запишите ответ в виде числа.' },
+      { num: 'Задание 6', type: 'Расчёт', text: 'Решите уравнение x^2 - 7x + 10 = 0. Если корней несколько, запишите больший.' },
+      { num: 'Задание 22', type: 'Развёрнутый ответ', text: 'Первый рабочий делает деталь за 8 часов, второй за 12 часов. За сколько часов сделают вместе?' },
+    ],
+  },
+  physics: {
+    ege: [
+      { num: 'Задание 1', type: 'Тест', text: 'Тело движется по окружности. Как изменится центростремительное ускорение при увеличении скорости вдвое?' },
+      { num: 'Задание 8', type: 'Расчёт', text: 'Идеальному газу передано 300 Дж теплоты, газ совершил работу 100 Дж. Найдите изменение внутренней энергии.' },
+      { num: 'Задание 27', type: 'Развёрнутый ответ', text: 'Конденсатор ёмкостью 2 мкФ заряжен до 100 В. Определите энергию, выделяемую при разряде.' },
+    ],
+    oge: [
+      { num: 'Задание 2', type: 'Тест', text: 'Установите соответствие между физической величиной и единицей измерения в СИ.' },
+      { num: 'Задание 10', type: 'Расчёт', text: 'Какое количество теплоты нужно для нагревания 2 кг воды от 20 до 70 градусов?' },
+      { num: 'Задание 17', type: 'Развёрнутый ответ', text: 'Проведите лабораторную работу: измерьте сопротивление резистора с помощью амперметра и вольтметра.' },
+    ],
+  },
+  chemistry: {
+    ege: [
+      { num: 'Задание 1', type: 'Тест', text: 'Определите, атомы каких из указанных элементов имеют одинаковую конфигурацию внешнего энергетического уровня.' },
+      { num: 'Задание 17', type: 'Тест', text: 'Определите, к какому типу относится реакция: 2Na + Cl2 = 2NaCl.' },
+      { num: 'Задание 34', type: 'Развёрнутый ответ', text: 'При сжигании 4,4 г органического вещества получено 8,8 г CO2 и 3,6 г H2O. Определите формулу.' },
+    ],
+    oge: [
+      { num: 'Задание 1', type: 'Тест', text: 'Выберите два утверждения, которые верно характеризуют строение атома фосфора.' },
+      { num: 'Задание 12', type: 'Тест', text: 'Какие из перечисленных веществ реагируют с раствором соляной кислоты?' },
+      { num: 'Задание 21', type: 'Развёрнутый ответ', text: 'Проведите реакцию: определите вещество и запишите уравнение реакции с наблюдениями.' },
+    ],
+  },
+  biology: {
+    ege: [
+      { num: 'Задание 2', type: 'Тест', text: 'Выберите три признака, характерных для митоза. Запишите цифры в порядке возрастания.' },
+      { num: 'Задание 8', type: 'Тест', text: 'Установите соответствие между характеристикой и органоидом клетки.' },
+      { num: 'Задание 27', type: 'Развёрнутый ответ', text: 'Фрагмент цепи ДНК: ТАЦ-ГГА-ЦАТ. Определите последовательность аминокислот в белке.' },
+    ],
+    oge: [
+      { num: 'Задание 1', type: 'Тест', text: 'Какой из перечисленных признаков характерен для всех живых организмов?' },
+      { num: 'Задание 13', type: 'Тест', text: 'Установите соответствие между функцией и отделом головного мозга человека.' },
+      { num: 'Задание 29', type: 'Развёрнутый ответ', text: 'Используя таблицу калорийности, составьте рацион с учётом энергозатрат подростка.' },
+    ],
+  },
+  history: {
+    ege: [
+      { num: 'Задание 3', type: 'Тест', text: 'Установите соответствие между событиями и годами: Крещение Руси, Куликовская битва, Полтавская битва.' },
+      { num: 'Задание 13', type: 'Тест', text: 'Рассмотрите карту военных действий. Укажите название войны и год начала.' },
+      { num: 'Задание 21', type: 'Развёрнутый ответ', text: 'Приведите три причины победы большевиков в Гражданской войне. Аргументируйте каждую.' },
+    ],
+    oge: [
+      { num: 'Задание 2', type: 'Тест', text: 'Расположите в хронологической последовательности: Ледовое побоище, Невская битва, Стояние на Угре.' },
+      { num: 'Задание 8', type: 'Тест', text: 'Рассмотрите карту. Какое событие обозначено на карте? В каком веке оно произошло?' },
+      { num: 'Задание 24', type: 'Развёрнутый ответ', text: 'Сравните реформы Петра I и Александра II. Укажите общие черты и различия.' },
+    ],
+  },
+  social: {
+    ege: [
+      { num: 'Задание 2', type: 'Тест', text: 'Выберите верные суждения о функциях государства и запишите цифры.' },
+      { num: 'Задание 10', type: 'Тест', text: 'На графике показано изменение спроса на товар. Что из перечисленного могло вызвать этот сдвиг?' },
+      { num: 'Задание 25', type: 'Развёрнутый ответ', text: 'Обоснуйте необходимость политического плюрализма в демократическом государстве.' },
+    ],
+    oge: [
+      { num: 'Задание 2', type: 'Тест', text: 'Какие из перечисленных признаков характеризуют рыночную экономику? Выберите два.' },
+      { num: 'Задание 9', type: 'Тест', text: 'Верны ли суждения о правах и обязанностях гражданина РФ?' },
+      { num: 'Задание 12', type: 'Развёрнутый ответ', text: 'Прочитайте текст о социальных нормах. Назовите два вида норм и приведите примеры.' },
+    ],
+  },
+  informatics: {
+    ege: [
+      { num: 'Задание 1', type: 'Тест', text: 'Определите количество натуральных чисел, удовлетворяющих неравенству: 110111 в двоичной < x < DC в шестнадцатеричной.' },
+      { num: 'Задание 6', type: 'Расчёт', text: 'Определите, что будет выведено в результате работы программы (Python). Фрагмент: for i in range(1, 6): s = s + i*i.' },
+      { num: 'Задание 27', type: 'Развёрнутый ответ', text: 'Напишите программу, которая находит среди чисел те, что делятся на 3 и не делятся на 7.' },
+    ],
+    oge: [
+      { num: 'Задание 1', type: 'Тест', text: 'Статья содержит 30 страниц, 40 строк на странице, 60 символов в строке. Определите объём в КБ (1 символ = 8 бит).' },
+      { num: 'Задание 5', type: 'Тест', text: 'У исполнителя Робот есть команды вверх, вниз, влево, вправо. Составьте алгоритм прохода лабиринта.' },
+      { num: 'Задание 13', type: 'Развёрнутый ответ', text: 'Напишите программу, которая вводит число и определяет, является ли оно палиндромом.' },
+    ],
+  },
+  english: {
+    ege: [
+      { num: 'Задание 3', type: 'Тест', text: 'Прослушайте высказывания. Установите соответствие между говорящими и утверждениями.' },
+      { num: 'Задание 19', type: 'Тест', text: 'Прочитайте текст. Преобразуйте слово так, чтобы оно грамматически соответствовало содержанию.' },
+      { num: 'Задание 40', type: 'Развёрнутый ответ', text: 'Напишите эссе на тему "Some people think online education is the future". Выразите своё мнение.' },
+    ],
+    oge: [
+      { num: 'Задание 1', type: 'Тест', text: 'Прослушайте диалог. Выберите правильный ответ на каждый из вопросов.' },
+      { num: 'Задание 6', type: 'Тест', text: 'Прочитайте текст. Определите, какие утверждения True, False или Not stated.' },
+      { num: 'Задание 35', type: 'Развёрнутый ответ', text: 'Напишите письмо другу, который спрашивает о вашем любимом школьном предмете.' },
+    ],
+  },
+  geography: {
+    ege: [
+      { num: 'Задание 3', type: 'Тест', text: 'Какие из перечисленных стран являются крупнейшими по площади территории? Выберите три.' },
+      { num: 'Задание 13', type: 'Расчёт', text: 'Определите географические координаты точки, расположенной на пересечении 40 с.ш. и 30 в.д.' },
+      { num: 'Задание 29', type: 'Развёрнутый ответ', text: 'Объясните, почему в городе Мурманске наблюдается полярная ночь, а в Москве нет.' },
+    ],
+    oge: [
+      { num: 'Задание 1', type: 'Тест', text: 'Какой из перечисленных городов расположен в зоне тайги?' },
+      { num: 'Задание 9', type: 'Расчёт', text: 'Определите по карте расстояние от точки А до точки Б. Масштаб карты 1:50000.' },
+      { num: 'Задание 30', type: 'Развёрнутый ответ', text: 'Определите регион России по его краткому описанию: "Граничит с двумя зарубежными странами..."' },
+    ],
+  },
+  literature: {
+    ege: [
+      { num: 'Задание 1', type: 'Тест', text: 'К какому литературному роду относится произведение? Укажите жанр.' },
+      { num: 'Задание 5', type: 'Развёрнутый ответ', text: 'Как в стихотворении Пушкина раскрывается тема свободы? Приведите примеры из текста.' },
+      { num: 'Задание 12', type: 'Сочинение', text: 'Напишите сочинение на одну из тем. Объём не менее 250 слов. Аргументируйте с опорой на произведения.' },
+    ],
+    oge: [
+      { num: 'Задание 1', type: 'Тест', text: 'Укажите название художественного приёма: "Мёртвые души". Как называется такой приём?' },
+      { num: 'Задание 3', type: 'Развёрнутый ответ', text: 'Как в данном фрагменте раскрывается характер главного героя? Приведите два примера.' },
+      { num: 'Задание 5', type: 'Сочинение', text: 'Напишите сочинение на одну из предложенных тем. Объём не менее 200 слов.' },
+    ],
+  },
+};
+
 const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
 
 function calcSubjectStats(examTasksDone: number, totalSessions: number): { progress: number; level: string; scoreForecast: number } {
@@ -125,6 +272,7 @@ export default function Exam() {
   const [userAnswer, setUserAnswer] = useState('');
   const [waitingAnswer, setWaitingAnswer] = useState(false);
   const [checkLoading, setCheckLoading] = useState(false);
+  const [showExamples, setShowExamples] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -559,7 +707,7 @@ export default function Exam() {
             <div className="mb-5">
               <p className="text-xs text-indigo-500 font-semibold uppercase tracking-wide mb-2">Твой основной предмет</p>
               <button
-                onClick={() => { setSubject(userSubject); setScreen('pick_mode'); }}
+                onClick={() => { setSubject(userSubject); setShowExamples(false); setScreen('pick_mode'); }}
                 className={`w-full bg-gradient-to-r ${userSubject.color} rounded-2xl p-4 text-left shadow-lg active:scale-[0.97] transition-all relative overflow-hidden border-2 border-white`}
               >
                 <div className="absolute top-0 right-0 bg-white/25 rounded-bl-2xl px-3 py-1">
@@ -590,7 +738,7 @@ export default function Exam() {
               return (
                 <button
                   key={s.id}
-                  onClick={() => { setSubject(s); setScreen('pick_mode'); }}
+                  onClick={() => { setSubject(s); setShowExamples(false); setScreen('pick_mode'); }}
                   className={`bg-gradient-to-br ${s.color} rounded-2xl p-4 text-left shadow-sm active:scale-[0.97] transition-all relative overflow-hidden ${isUser ? 'ring-2 ring-white ring-offset-1' : ''}`}
                 >
                   {isUser && (
@@ -629,7 +777,7 @@ export default function Exam() {
               return (
                 <button
                   key={s.id}
-                  onClick={() => { setSubject(s); setScreen('pick_mode'); }}
+                  onClick={() => { setSubject(s); setShowExamples(false); setScreen('pick_mode'); }}
                   className={`rounded-2xl p-4 text-left shadow-sm border active:scale-[0.97] transition-all relative ${isUser ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-400' : 'bg-white border-gray-100'}`}
                 >
                   {isUser && (
@@ -706,6 +854,45 @@ export default function Exam() {
               <p className="text-indigo-700 text-xs leading-relaxed">{examInfo}</p>
             </div>
           )}
+
+          {(() => {
+            const examples = EXAM_EXAMPLES[subjectId]?.[examType] || [];
+            if (examples.length === 0) return null;
+            return (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <button
+                  onClick={() => setShowExamples(!showExamples)}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left"
+                >
+                  <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0">📋</div>
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-800 text-sm">Какие задания будут?</p>
+                    <p className="text-gray-400 text-xs">Примеры реальных заданий {examType.toUpperCase()}</p>
+                  </div>
+                  <Icon name={showExamples ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-gray-300" />
+                </button>
+                {showExamples && (
+                  <div className="px-4 pb-4 flex flex-col gap-2.5">
+                    {examples.map((ex, i) => (
+                      <div key={i} className="bg-gray-50 rounded-xl px-3.5 py-3 border border-gray-100">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">{ex.num}</span>
+                          <span className="text-xs text-gray-400 font-medium">{ex.type}</span>
+                        </div>
+                        <p className="text-gray-700 text-sm leading-relaxed">{ex.text}</p>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => startSession(subject!, 'practice')}
+                      className={`mt-1 w-full py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r ${subject!.color} active:scale-[0.97] transition-all`}
+                    >
+                      Попробовать решить →
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Выбери режим</p>
 
