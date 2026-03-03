@@ -44,9 +44,14 @@ def get_user_id(token: str):
         return None
 
 PREMIUM_DAILY_LIMIT = 20
-FREE_DAILY_LIMIT_NEW = 10   # первые 4 дня после регистрации
-FREE_DAILY_LIMIT = 3        # после 4 дней
-FREE_HOOK_DAYS = 4          # сколько дней действует щедрый лимит
+
+FREE_LIMITS_SCHEDULE = {
+    0: 10, 1: 10, 2: 10, 3: 10,
+    4: 7,
+    5: 5,
+    6: 3,
+}
+FREE_DAILY_LIMIT_DEFAULT = 3
 
 SOFT_LANDING_LIMIT = 10  # вопросов/день в переходный период после триала
 SOFT_LANDING_DAYS = 3
@@ -156,8 +161,8 @@ def check_access(conn, user_id: int) -> dict:
         daily_used = 0
 
     days_since_reg = (now - created_at).days if created_at else 999
-    current_free_limit = FREE_DAILY_LIMIT_NEW if days_since_reg < FREE_HOOK_DAYS else FREE_DAILY_LIMIT
-    is_newcomer = days_since_reg < FREE_HOOK_DAYS
+    current_free_limit = FREE_LIMITS_SCHEDULE.get(days_since_reg, FREE_DAILY_LIMIT_DEFAULT)
+    is_newcomer = days_since_reg <= 3
 
     total = current_free_limit + bonus
     if daily_used >= total:
