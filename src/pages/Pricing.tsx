@@ -21,7 +21,7 @@ const PREMIUM_FEATURES = [
 ];
 
 const FREE_FEATURES = [
-  '10 вопросов к ИИ в первые 3 дня',
+  '10 вопросов к ИИ в первые 4 дня',
   'Затем 3 вопроса в день',
   '1 занятие и 1 файл в день',
   'Базовая подготовка к экзаменам',
@@ -36,7 +36,7 @@ const GUARANTEE_FEATURES = [
 const FAQ = [
   {
     q: 'Чем отличается Premium от бесплатного?',
-    a: 'Бесплатно: 10 вопросов в первые 3 дня, потом 3 в день. Premium даёт 20 вопросов в день, до 5 занятий, 3 загрузки файлов и полный доступ к подготовке.',
+    a: 'Бесплатно: 10 вопросов в первые 4 дня, потом 3 в день. Premium даёт 20 вопросов в день, до 5 занятий, 3 загрузки файлов и полный доступ к подготовке.',
   },
   {
     q: 'Что такое пакет вопросов?',
@@ -192,7 +192,7 @@ const Pricing = () => {
             <div className="bg-purple-900 px-5 py-3 flex items-center gap-2">
               <span className="text-yellow-400 text-sm">⚡</span>
               <p className="text-white/70 text-xs">
-                Первые 3 дня — <span className="text-white font-semibold">10 вопросов бесплатно,</span> потом 3 в день. Premium снимает все ограничения.
+                Первые 4 дня — <span className="text-white font-semibold">10 вопросов бесплатно,</span> потом 3 в день. Premium снимает все ограничения.
               </p>
             </div>
           </div>

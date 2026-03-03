@@ -44,9 +44,9 @@ def get_user_id(token: str):
         return None
 
 PREMIUM_DAILY_LIMIT = 20
-FREE_DAILY_LIMIT_NEW = 10   # первые 3 дня после регистрации
-FREE_DAILY_LIMIT = 3        # после 3 дней
-FREE_HOOK_DAYS = 3          # сколько дней действует щедрый лимит
+FREE_DAILY_LIMIT_NEW = 10   # первые 4 дня после регистрации
+FREE_DAILY_LIMIT = 3        # после 4 дней
+FREE_HOOK_DAYS = 4          # сколько дней действует щедрый лимит
 
 SOFT_LANDING_LIMIT = 10  # вопросов/день в переходный период после триала
 SOFT_LANDING_DAYS = 3
