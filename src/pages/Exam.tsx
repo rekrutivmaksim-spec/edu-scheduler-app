@@ -65,6 +65,134 @@ const EXAM_INFO: Record<string, { ege: string; oge: string }> = {
   literature: { ege: '12 заданий: анализ лирики + анализ эпоса/драмы + сочинение.', oge: '8 заданий: работа с текстом + сочинение.' },
 };
 
+const EXAM_SCORING: Record<string, { ege?: { max: number; pass: number; parts: Array<{name: string; tasks: string; points: string; tip: string}> }; oge?: { max: number; pass: number; parts: Array<{name: string; tasks: string; points: string; tip: string}> } }> = {
+  ru: {
+    ege: { max: 50, pass: 24, parts: [
+      { name: 'Тестовая часть', tasks: '№1–26', points: '29 баллов', tip: 'Каждое задание — 1 балл, кроме №8 (до 3)' },
+      { name: 'Сочинение', tasks: '№27', points: '21 балл', tip: 'Оценивается по 12 критериям: проблема, комментарий, позиция, аргументы, речь' },
+    ]},
+    oge: { max: 33, pass: 15, parts: [
+      { name: 'Изложение', tasks: '№1', points: '7 баллов', tip: 'Сжатое изложение — оценивается содержание и сжатие' },
+      { name: 'Тест', tasks: '№2–8', points: '7 баллов', tip: 'По 1 баллу за каждое задание' },
+      { name: 'Сочинение', tasks: '№9', points: '9 баллов', tip: 'Аргументация, логика, грамотность' },
+      { name: 'Грамотность', tasks: 'ГК1–ГК4', points: '10 баллов', tip: 'Орфография, пунктуация, речь, фактическая точность' },
+    ]},
+  },
+  math_base: {
+    ege: { max: 21, pass: 7, parts: [
+      { name: 'Все задания', tasks: '№1–21', points: '21 балл', tip: 'По 1 баллу за каждое. Нет развёрнутых ответов. Оценка — от 2 до 5' },
+    ]},
+  },
+  math_prof: {
+    ege: { max: 32, pass: 27, parts: [
+      { name: 'Краткий ответ', tasks: '№1–12', points: '12 баллов', tip: 'По 1 баллу. Алгебра, геометрия, вероятности' },
+      { name: 'Развёрнутый ответ', tasks: '№13–19', points: '20 баллов', tip: 'От 2 до 4 баллов за задание. Важно оформление решения' },
+    ]},
+  },
+  math: {
+    oge: { max: 31, pass: 8, parts: [
+      { name: 'Алгебра', tasks: '№1–14', points: '14 баллов', tip: 'По 1 баллу. Нужно минимум 4 балла из этой части' },
+      { name: 'Геометрия', tasks: '№15–19', points: '5 баллов', tip: 'По 1 баллу. Нужно минимум 2 балла' },
+      { name: 'Реальная математика', tasks: '№20–25', points: '12 баллов', tip: 'Задания с развёрнутым ответом — до 2 баллов каждое' },
+    ]},
+  },
+  physics: {
+    ege: { max: 54, pass: 36, parts: [
+      { name: 'Краткий ответ', tasks: '№1–23', points: '34 балла', tip: 'Тесты и расчёты — от 1 до 2 баллов' },
+      { name: 'Развёрнутый ответ', tasks: '№24–30', points: '20 баллов', tip: 'Задачи с полным решением — от 2 до 4 баллов' },
+    ]},
+    oge: { max: 45, pass: 11, parts: [
+      { name: 'Тест и расчёты', tasks: '№1–19', points: '30 баллов', tip: 'Короткие ответы — от 1 до 2 баллов' },
+      { name: 'Лаб. работа и задачи', tasks: '№20–26', points: '15 баллов', tip: 'Развёрнутые ответы — от 2 до 3 баллов' },
+    ]},
+  },
+  chemistry: {
+    ege: { max: 56, pass: 36, parts: [
+      { name: 'Краткий ответ', tasks: '№1–28', points: '38 баллов', tip: 'Тесты — от 1 до 2 баллов за задание' },
+      { name: 'Развёрнутый ответ', tasks: '№29–34', points: '18 баллов', tip: 'Расчётные задачи и цепочки — от 2 до 4 баллов' },
+    ]},
+    oge: { max: 40, pass: 10, parts: [
+      { name: 'Тест', tasks: '№1–16', points: '22 балла', tip: 'Короткие ответы — от 1 до 2 баллов' },
+      { name: 'Задачи и практика', tasks: '№17–22', points: '18 баллов', tip: 'Развёрнутые ответы и реальный эксперимент' },
+    ]},
+  },
+  biology: {
+    ege: { max: 59, pass: 36, parts: [
+      { name: 'Краткий ответ', tasks: '№1–22', points: '38 баллов', tip: 'Тесты и соответствия — от 1 до 3 баллов' },
+      { name: 'Развёрнутый ответ', tasks: '№23–29', points: '21 балл', tip: 'Задачи по генетике, анализ текста — от 2 до 3 баллов' },
+    ]},
+    oge: { max: 48, pass: 13, parts: [
+      { name: 'Тест', tasks: '№1–24', points: '32 балла', tip: 'Короткие ответы — от 1 до 2 баллов' },
+      { name: 'Развёрнутый ответ', tasks: '№25–32', points: '16 баллов', tip: 'Анализ текста, таблицы — от 2 до 3 баллов' },
+    ]},
+  },
+  history: {
+    ege: { max: 42, pass: 32, parts: [
+      { name: 'Краткий ответ', tasks: '№1–12', points: '22 балла', tip: 'Хронология, соответствия, карта — от 1 до 3 баллов' },
+      { name: 'Развёрнутый ответ', tasks: '№13–21', points: '20 баллов', tip: 'Аргументация, анализ источников — от 2 до 3 баллов' },
+    ]},
+    oge: { max: 37, pass: 10, parts: [
+      { name: 'Тест', tasks: '№1–18', points: '24 балла', tip: 'Даты, события, карта — от 1 до 2 баллов' },
+      { name: 'Развёрнутый ответ', tasks: '№19–24', points: '13 баллов', tip: 'Работа с документами, сравнение — от 2 до 3 баллов' },
+    ]},
+  },
+  social: {
+    ege: { max: 58, pass: 42, parts: [
+      { name: 'Краткий ответ', tasks: '№1–16', points: '28 баллов', tip: 'Тесты, графики, суждения — от 1 до 2 баллов' },
+      { name: 'Развёрнутый ответ', tasks: '№17–25', points: '30 баллов', tip: 'План, аргументация, эссе — от 2 до 6 баллов' },
+    ]},
+    oge: { max: 37, pass: 14, parts: [
+      { name: 'Тест', tasks: '№1–20', points: '25 баллов', tip: 'Короткие ответы — по 1 баллу за задание' },
+      { name: 'Развёрнутый ответ', tasks: '№21–26', points: '12 баллов', tip: 'Текст, план, аргументы — от 2 до 4 баллов' },
+    ]},
+  },
+  informatics: {
+    ege: { max: 29, pass: 40, parts: [
+      { name: 'Теория', tasks: '№1–12', points: '12 баллов', tip: 'По 1 баллу — логика, системы счисления, графы' },
+      { name: 'Практика на ПК', tasks: '№13–27', points: '17 баллов', tip: 'Программирование, электронные таблицы — по 1 баллу' },
+    ]},
+    oge: { max: 19, pass: 5, parts: [
+      { name: 'Тест', tasks: '№1–10', points: '10 баллов', tip: 'По 1 баллу — теория, кодирование, алгоритмы' },
+      { name: 'Практика на ПК', tasks: '№11–15', points: '9 баллов', tip: 'Программирование и работа с таблицами — от 1 до 2 баллов' },
+    ]},
+  },
+  english: {
+    ege: { max: 86, pass: 22, parts: [
+      { name: 'Аудирование + чтение', tasks: '№1–18', points: '32 балла', tip: 'Понимание на слух и текста — от 1 до 3 баллов' },
+      { name: 'Грамматика и лексика', tasks: '№19–36', points: '18 баллов', tip: 'По 1 баллу — словообразование, грамматические формы' },
+      { name: 'Письмо и эссе', tasks: '№37–38', points: '20 баллов', tip: 'Письмо (6 б.) + эссе (14 б.) — критерии: содержание, язык, организация' },
+      { name: 'Говорение', tasks: '№39–42', points: '16 баллов', tip: 'Устная часть — чтение, вопросы, описание, сравнение' },
+    ]},
+    oge: { max: 68, pass: 29, parts: [
+      { name: 'Аудирование + чтение', tasks: '№1–13', points: '23 балла', tip: 'Короткие ответы — от 1 до 2 баллов' },
+      { name: 'Грамматика и лексика', tasks: '№14–27', points: '14 баллов', tip: 'По 1 баллу за каждое задание' },
+      { name: 'Письмо', tasks: '№35', points: '10 баллов', tip: 'Личное письмо — содержание, организация, язык' },
+      { name: 'Говорение', tasks: '№36–38', points: '15 баллов', tip: 'Чтение вслух, диалог, монолог' },
+    ]},
+  },
+  geography: {
+    ege: { max: 43, pass: 37, parts: [
+      { name: 'Краткий ответ', tasks: '№1–22', points: '29 баллов', tip: 'Карты, климат, координаты — от 1 до 2 баллов' },
+      { name: 'Развёрнутый ответ', tasks: '№23–31', points: '14 баллов', tip: 'Объяснения и расчёты — от 1 до 2 баллов' },
+    ]},
+    oge: { max: 32, pass: 12, parts: [
+      { name: 'Тест', tasks: '№1–23', points: '23 балла', tip: 'Короткие ответы — по 1 баллу' },
+      { name: 'Развёрнутый ответ', tasks: '№24–30', points: '9 баллов', tip: 'Работа с картой, объяснения — от 1 до 2 баллов' },
+    ]},
+  },
+  literature: {
+    ege: { max: 48, pass: 32, parts: [
+      { name: 'Анализ произведений', tasks: '№1–11', points: '24 балла', tip: 'Анализ лирики и эпоса — от 1 до 4 баллов' },
+      { name: 'Сочинение', tasks: '№12', points: '24 балла', tip: 'Большое сочинение — 8 критериев: тема, аргументы, композиция, речь' },
+    ]},
+    oge: { max: 42, pass: 14, parts: [
+      { name: 'Анализ текста', tasks: '№1–4', points: '18 баллов', tip: 'Работа с отрывком произведения — от 2 до 6 баллов' },
+      { name: 'Сочинение', tasks: '№5', points: '16 баллов', tip: 'Сочинение на одну из тем — содержание, логика, грамотность' },
+      { name: 'Грамотность', tasks: 'ГК1–ГК3', points: '8 баллов', tip: 'Орфография, пунктуация, речевые нормы' },
+    ]},
+  },
+};
+
 const EXAM_EXAMPLES: Record<string, { ege: Array<{num: string; type: string; text: string}>; oge: Array<{num: string; type: string; text: string}> }> = {
   ru: {
     ege: [
@@ -273,6 +401,7 @@ export default function Exam() {
   const [waitingAnswer, setWaitingAnswer] = useState(false);
   const [checkLoading, setCheckLoading] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
+  const [showScoring, setShowScoring] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -707,7 +836,7 @@ export default function Exam() {
             <div className="mb-5">
               <p className="text-xs text-indigo-500 font-semibold uppercase tracking-wide mb-2">Твой основной предмет</p>
               <button
-                onClick={() => { setSubject(userSubject); setShowExamples(false); setScreen('pick_mode'); }}
+                onClick={() => { setSubject(userSubject); setShowExamples(false); setShowScoring(false); setScreen('pick_mode'); }}
                 className={`w-full bg-gradient-to-r ${userSubject.color} rounded-2xl p-4 text-left shadow-lg active:scale-[0.97] transition-all relative overflow-hidden border-2 border-white`}
               >
                 <div className="absolute top-0 right-0 bg-white/25 rounded-bl-2xl px-3 py-1">
@@ -738,7 +867,7 @@ export default function Exam() {
               return (
                 <button
                   key={s.id}
-                  onClick={() => { setSubject(s); setShowExamples(false); setScreen('pick_mode'); }}
+                  onClick={() => { setSubject(s); setShowExamples(false); setShowScoring(false); setScreen('pick_mode'); }}
                   className={`bg-gradient-to-br ${s.color} rounded-2xl p-4 text-left shadow-sm active:scale-[0.97] transition-all relative overflow-hidden ${isUser ? 'ring-2 ring-white ring-offset-1' : ''}`}
                 >
                   {isUser && (
@@ -777,7 +906,7 @@ export default function Exam() {
               return (
                 <button
                   key={s.id}
-                  onClick={() => { setSubject(s); setShowExamples(false); setScreen('pick_mode'); }}
+                  onClick={() => { setSubject(s); setShowExamples(false); setShowScoring(false); setScreen('pick_mode'); }}
                   className={`rounded-2xl p-4 text-left shadow-sm border active:scale-[0.97] transition-all relative ${isUser ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-400' : 'bg-white border-gray-100'}`}
                 >
                   {isUser && (
@@ -888,6 +1017,54 @@ export default function Exam() {
                     >
                       Попробовать решить →
                     </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const scoring = EXAM_SCORING[subjectId]?.[examType];
+            if (!scoring) return null;
+            return (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <button
+                  onClick={() => setShowScoring(!showScoring)}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left"
+                >
+                  <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0">🏆</div>
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-800 text-sm">Как оценивается?</p>
+                    <p className="text-gray-400 text-xs">Максимум {scoring.max} баллов · проходной {scoring.pass}</p>
+                  </div>
+                  <Icon name={showScoring ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-gray-300" />
+                </button>
+                {showScoring && (
+                  <div className="px-4 pb-4 flex flex-col gap-2.5">
+                    <div className="flex gap-2">
+                      <div className="flex-1 bg-emerald-50 rounded-xl px-3 py-2.5 text-center border border-emerald-100">
+                        <p className="text-emerald-700 font-bold text-lg">{scoring.max}</p>
+                        <p className="text-emerald-600 text-[10px]">максимум</p>
+                      </div>
+                      <div className="flex-1 bg-amber-50 rounded-xl px-3 py-2.5 text-center border border-amber-100">
+                        <p className="text-amber-700 font-bold text-lg">{scoring.pass}</p>
+                        <p className="text-amber-600 text-[10px]">проходной</p>
+                      </div>
+                      <div className="flex-1 bg-indigo-50 rounded-xl px-3 py-2.5 text-center border border-indigo-100">
+                        <p className="text-indigo-700 font-bold text-lg">{scoring.parts.length}</p>
+                        <p className="text-indigo-600 text-[10px]">{scoring.parts.length === 1 ? 'часть' : scoring.parts.length < 5 ? 'части' : 'частей'}</p>
+                      </div>
+                    </div>
+                    {scoring.parts.map((part, i) => (
+                      <div key={i} className="bg-gray-50 rounded-xl px-3.5 py-3 border border-gray-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-bold text-gray-800">{part.name}</span>
+                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{part.points}</span>
+                        </div>
+                        <p className="text-gray-400 text-xs mb-1">{part.tasks}</p>
+                        <p className="text-gray-600 text-xs leading-relaxed">{part.tip}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
