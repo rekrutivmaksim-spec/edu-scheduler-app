@@ -938,6 +938,39 @@ export default function Exam() {
           </button>
         </div>
 
+        <div className="mt-6 flex flex-col gap-2">
+          <button onClick={() => navigate('/mock-exam')} className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">📝</span>
+              <div className="flex-1">
+                <p className="text-white font-bold text-sm">Пробный тест</p>
+                <p className="text-white/50 text-xs">Реальные задания с таймером и баллами</p>
+              </div>
+              <Icon name="ChevronRight" size={16} className="text-white/30" />
+            </div>
+          </button>
+          <button onClick={() => navigate('/calculator')} className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🔢</span>
+              <div className="flex-1">
+                <p className="text-white font-bold text-sm">Калькулятор баллов</p>
+                <p className="text-white/50 text-xs">Переведи первичные баллы во вторичные</p>
+              </div>
+              <Icon name="ChevronRight" size={16} className="text-white/30" />
+            </div>
+          </button>
+          <button onClick={() => navigate('/universities')} className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🏛️</span>
+              <div className="flex-1">
+                <p className="text-white font-bold text-sm">Подобрать вуз</p>
+                <p className="text-white/50 text-xs">Куда можно поступить с твоими баллами</p>
+              </div>
+              <Icon name="ChevronRight" size={16} className="text-white/30" />
+            </div>
+          </button>
+        </div>
+
         <button onClick={() => navigate('/')} className="text-white/40 text-sm mt-8 text-center">Вернуться</button>
         <BottomNav />
       </div>

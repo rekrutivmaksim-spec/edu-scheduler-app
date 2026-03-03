@@ -30,6 +30,13 @@ const QUICK_ACCESS_OTHER = [
   { icon: 'Trophy', label: 'Достижения', path: '/achievements', color: 'bg-amber-50 text-amber-600' },
 ];
 
+const SECONDARY_EGE = [
+  { icon: 'FileText', label: 'Пробный тест', path: '/mock-exam' },
+  { icon: 'Calculator', label: 'Баллы ЕГЭ', path: '/calculator' },
+  { icon: 'Building2', label: 'Подбор вузов', path: '/universities' },
+  { icon: 'Timer', label: 'Помодоро', path: '/pomodoro' },
+];
+
 const SECONDARY = [
   { icon: 'Timer', label: 'Помодоро', path: '/pomodoro' },
   { icon: 'Trophy', label: 'Достижения', path: '/achievements' },
@@ -458,6 +465,26 @@ export default function Index() {
                     <p className="text-gray-400 text-xs">{lesson.start_time} – {lesson.end_time}{lesson.room ? ` · ауд. ${lesson.room}` : ''}</p>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(user?.goal === 'ege' || user?.goal === 'oge') && (
+          <div>
+            <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 px-1">Инструменты ЕГЭ</p>
+            <div className="grid grid-cols-3 gap-2.5">
+              {SECONDARY_EGE.map(item => (
+                <button
+                  key={item.label}
+                  onClick={() => navigate(item.path)}
+                  className="bg-white rounded-2xl shadow-sm p-3.5 flex flex-col items-center gap-2 active:scale-[0.96] transition-all"
+                >
+                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                    <Icon name={item.icon} size={18} />
+                  </div>
+                  <span className="text-gray-700 text-xs font-medium text-center leading-tight">{item.label}</span>
+                </button>
               ))}
             </div>
           </div>
