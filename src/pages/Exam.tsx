@@ -193,6 +193,150 @@ const EXAM_SCORING: Record<string, { ege?: { max: number; pass: number; parts: A
   },
 };
 
+const EXAM_PRIORITIES: Record<string, { ege?: Array<{topic: string; weight: string; reason: string}>; oge?: Array<{topic: string; weight: string; reason: string}> }> = {
+  ru: {
+    ege: [
+      { topic: 'Орфография и пунктуация', weight: '~12 баллов', reason: 'Задания 9–21 — почти половина тестовой части' },
+      { topic: 'Сочинение (№27)', weight: '21 балл', reason: 'Самое дорогое задание — 42% от максимума' },
+      { topic: 'Языковые нормы', weight: '~5 баллов', reason: 'Задания 4–8: ударения, паронимы, грамматика' },
+    ],
+    oge: [
+      { topic: 'Грамотность (ГК1–ГК4)', weight: '10 баллов', reason: 'Оценивается во всех письменных ответах' },
+      { topic: 'Сочинение (№9)', weight: '9 баллов', reason: 'Самое объёмное задание — нужна аргументация' },
+      { topic: 'Изложение (№1)', weight: '7 баллов', reason: 'Сжатие текста — тренируй приёмы компрессии' },
+    ],
+  },
+  math_base: {
+    ege: [
+      { topic: 'Геометрия', weight: '~5 заданий', reason: 'Часто теряют баллы — повторяй формулы площадей и объёмов' },
+      { topic: 'Вероятность и статистика', weight: '~3 задания', reason: 'Новый блок — многие к нему не готовы' },
+      { topic: 'Текстовые задачи', weight: '~4 задания', reason: 'Проценты, скидки, движение — нужна практика' },
+    ],
+  },
+  math_prof: {
+    ege: [
+      { topic: 'Задания №13–15', weight: '6 баллов', reason: 'Уравнения, неравенства, геометрия — самые решаемые из части 2' },
+      { topic: 'Параметры (№18)', weight: '4 балла', reason: 'Самое сложное задание — но даёт 4 балла сразу' },
+      { topic: 'Стереометрия', weight: '~4 балла', reason: 'Задания 5, 14 — часто теряют из-за невнимательности' },
+    ],
+  },
+  math: {
+    oge: [
+      { topic: 'Алгебра (№1–14)', weight: '14 баллов', reason: 'Основа — нужно минимум 4 балла для сдачи' },
+      { topic: 'Геометрия (№15–19)', weight: '5 баллов', reason: 'Нужно минимум 2 балла — учи основные теоремы' },
+      { topic: 'Уравнения и неравенства', weight: '~5 заданий', reason: 'Квадратные уравнения, системы — основа экзамена' },
+    ],
+  },
+  physics: {
+    ege: [
+      { topic: 'Механика', weight: '~10 заданий', reason: 'Самый большой раздел — законы Ньютона, энергия, импульс' },
+      { topic: 'Задачи части 2', weight: '20 баллов', reason: '7 задач с развёрнутым ответом — важно оформление' },
+      { topic: 'Электродинамика', weight: '~7 заданий', reason: 'Закон Ома, конденсаторы, индукция — часто путают' },
+    ],
+    oge: [
+      { topic: 'Механика и тепловые явления', weight: '~12 заданий', reason: 'Базовые формулы — скорость, давление, теплота' },
+      { topic: 'Лабораторная работа', weight: '~3 балла', reason: 'Реальный эксперимент — тренируйся на практике' },
+      { topic: 'Электричество', weight: '~6 заданий', reason: 'Закон Ома, сопротивление, мощность' },
+    ],
+  },
+  chemistry: {
+    ege: [
+      { topic: 'Органическая химия', weight: '~10 заданий', reason: 'Задания 17–23 — большой блок, нужно знать классы' },
+      { topic: 'Расчётные задачи', weight: '~8 баллов', reason: 'Задания 33–34 — дают много баллов за правильное решение' },
+      { topic: 'Реакции и свойства веществ', weight: '~10 заданий', reason: 'ОВР, гидролиз, электролиз — основа экзамена' },
+    ],
+    oge: [
+      { topic: 'Строение атома и связи', weight: '~5 заданий', reason: 'Базовая теория — часто теряют лёгкие баллы' },
+      { topic: 'Реальный эксперимент', weight: '~4 балла', reason: 'Практическая часть — тренируйся определять вещества' },
+      { topic: 'Типы реакций', weight: '~4 задания', reason: 'Замещение, обмен, ОВР — учи признаки' },
+    ],
+  },
+  biology: {
+    ege: [
+      { topic: 'Генетика', weight: '~5 заданий', reason: 'Задачи на скрещивание, группы крови — дают много баллов' },
+      { topic: 'Клетка и обмен веществ', weight: '~6 заданий', reason: 'Митоз, мейоз, фотосинтез — путают детали' },
+      { topic: 'Эволюция и экология', weight: '~5 заданий', reason: 'Движущие силы эволюции, цепи питания' },
+    ],
+    oge: [
+      { topic: 'Человек и его здоровье', weight: '~10 заданий', reason: 'Самый большой раздел — органы, системы, рефлексы' },
+      { topic: 'Растения и животные', weight: '~8 заданий', reason: 'Классификация, строение, жизнедеятельность' },
+      { topic: 'Работа с таблицами и текстом', weight: '~5 заданий', reason: 'Часть 2 — нужно уметь анализировать информацию' },
+    ],
+  },
+  history: {
+    ege: [
+      { topic: 'XX–XXI век', weight: '~8 заданий', reason: 'Революции, войны, СССР — много событий и дат' },
+      { topic: 'Работа с картой', weight: '~3 задания', reason: 'Задания 13–15 — нужно знать географию военных действий' },
+      { topic: 'Аргументация (№21)', weight: '3 балла', reason: 'Самое сложное — приводить аргументы за и против' },
+    ],
+    oge: [
+      { topic: 'История России до XVII в.', weight: '~10 заданий', reason: 'Даты, правители, события — основа экзамена' },
+      { topic: 'Работа с источниками', weight: '~5 заданий', reason: 'Анализ документов, определение периода' },
+      { topic: 'XIX–XX век', weight: '~8 заданий', reason: 'Реформы, революции, войны — много материала' },
+    ],
+  },
+  social: {
+    ege: [
+      { topic: 'Право', weight: '~7 заданий', reason: 'Конституция, отрасли права — часто путают нормы' },
+      { topic: 'План и аргументация', weight: '~10 баллов', reason: 'Задания 24–25 — самые дорогие в части 2' },
+      { topic: 'Экономика', weight: '~5 заданий', reason: 'Спрос/предложение, налоги, безработица' },
+    ],
+    oge: [
+      { topic: 'Право и государство', weight: '~8 заданий', reason: 'Конституция, права и обязанности граждан' },
+      { topic: 'Экономика', weight: '~6 заданий', reason: 'Рыночные механизмы, деньги, собственность' },
+      { topic: 'Работа с текстом', weight: '~4 балла', reason: 'Часть 2 — анализ, определения, примеры' },
+    ],
+  },
+  informatics: {
+    ege: [
+      { topic: 'Программирование', weight: '~10 заданий', reason: 'Python — циклы, массивы, функции. Больше всего баллов' },
+      { topic: 'Логика и системы счисления', weight: '~4 задания', reason: 'Задания 2, 14, 15 — нужна тренировка' },
+      { topic: 'Электронные таблицы', weight: '~3 задания', reason: 'Формулы Excel, сортировка, фильтры' },
+    ],
+    oge: [
+      { topic: 'Программирование', weight: '~4 задания', reason: 'Алгоритмы, циклы, условия — решай на практике' },
+      { topic: 'Кодирование информации', weight: '~3 задания', reason: 'Объём данных, скорость передачи' },
+      { topic: 'Практика на компьютере', weight: '9 баллов', reason: 'Задания 11–15 — почти половина баллов' },
+    ],
+  },
+  english: {
+    ege: [
+      { topic: 'Эссе (№40)', weight: '14 баллов', reason: 'Самое дорогое задание — структура, лексика, грамматика' },
+      { topic: 'Аудирование', weight: '~12 баллов', reason: 'Задания 1–9 — тренируй слух каждый день' },
+      { topic: 'Говорение', weight: '16 баллов', reason: 'Устная часть — описание и сравнение фото' },
+    ],
+    oge: [
+      { topic: 'Говорение', weight: '15 баллов', reason: 'Чтение вслух, диалог, монолог — тренируй речь' },
+      { topic: 'Личное письмо', weight: '10 баллов', reason: 'Структура, вопросы, объём 100–120 слов' },
+      { topic: 'Грамматика и лексика', weight: '14 баллов', reason: 'Словообразование, времена — нужна система' },
+    ],
+  },
+  geography: {
+    ege: [
+      { topic: 'Природа и климат', weight: '~8 заданий', reason: 'Климатические пояса, явления, факторы' },
+      { topic: 'Население и хозяйство', weight: '~10 заданий', reason: 'Демография, промышленность, сельское хозяйство' },
+      { topic: 'Работа с картой', weight: '~5 заданий', reason: 'Координаты, масштаб, азимут — нужна практика' },
+    ],
+    oge: [
+      { topic: 'Природа России', weight: '~8 заданий', reason: 'Рельеф, климат, природные зоны' },
+      { topic: 'Население', weight: '~5 заданий', reason: 'Миграции, урбанизация, народы' },
+      { topic: 'Работа с картой и планом', weight: '~5 заданий', reason: 'Чтение топографической карты, расчёты' },
+    ],
+  },
+  literature: {
+    ege: [
+      { topic: 'Сочинение (№12)', weight: '24 балла', reason: 'Половина всех баллов — тренируй структуру и аргументы' },
+      { topic: 'Лирика', weight: '~8 заданий', reason: 'Анализ стихов: средства, размер, рифма, тема' },
+      { topic: 'Эпос и драма', weight: '~4 задания', reason: 'Знание текстов произведений обязательно' },
+    ],
+    oge: [
+      { topic: 'Сочинение (№5)', weight: '16 баллов', reason: 'Самое дорогое — выбери тему, которую знаешь лучше' },
+      { topic: 'Анализ отрывка', weight: '~12 баллов', reason: 'Задания 1–4: герои, сюжет, средства выразительности' },
+      { topic: 'Грамотность', weight: '8 баллов', reason: 'Орфография и пунктуация в сочинении' },
+    ],
+  },
+};
+
 const EXAM_EXAMPLES: Record<string, { ege: Array<{num: string; type: string; text: string}>; oge: Array<{num: string; type: string; text: string}> }> = {
   ru: {
     ege: [
@@ -402,6 +546,7 @@ export default function Exam() {
   const [checkLoading, setCheckLoading] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
   const [showScoring, setShowScoring] = useState(false);
+  const [showPriorities, setShowPriorities] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -836,7 +981,7 @@ export default function Exam() {
             <div className="mb-5">
               <p className="text-xs text-indigo-500 font-semibold uppercase tracking-wide mb-2">Твой основной предмет</p>
               <button
-                onClick={() => { setSubject(userSubject); setShowExamples(false); setShowScoring(false); setScreen('pick_mode'); }}
+                onClick={() => { setSubject(userSubject); setShowExamples(false); setShowScoring(false); setShowPriorities(false); setScreen('pick_mode'); }}
                 className={`w-full bg-gradient-to-r ${userSubject.color} rounded-2xl p-4 text-left shadow-lg active:scale-[0.97] transition-all relative overflow-hidden border-2 border-white`}
               >
                 <div className="absolute top-0 right-0 bg-white/25 rounded-bl-2xl px-3 py-1">
@@ -867,7 +1012,7 @@ export default function Exam() {
               return (
                 <button
                   key={s.id}
-                  onClick={() => { setSubject(s); setShowExamples(false); setShowScoring(false); setScreen('pick_mode'); }}
+                  onClick={() => { setSubject(s); setShowExamples(false); setShowScoring(false); setShowPriorities(false); setScreen('pick_mode'); }}
                   className={`bg-gradient-to-br ${s.color} rounded-2xl p-4 text-left shadow-sm active:scale-[0.97] transition-all relative overflow-hidden ${isUser ? 'ring-2 ring-white ring-offset-1' : ''}`}
                 >
                   {isUser && (
@@ -906,7 +1051,7 @@ export default function Exam() {
               return (
                 <button
                   key={s.id}
-                  onClick={() => { setSubject(s); setShowExamples(false); setShowScoring(false); setScreen('pick_mode'); }}
+                  onClick={() => { setSubject(s); setShowExamples(false); setShowScoring(false); setShowPriorities(false); setScreen('pick_mode'); }}
                   className={`rounded-2xl p-4 text-left shadow-sm border active:scale-[0.97] transition-all relative ${isUser ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-400' : 'bg-white border-gray-100'}`}
                 >
                   {isUser && (
@@ -1065,6 +1210,48 @@ export default function Exam() {
                         <p className="text-gray-600 text-xs leading-relaxed">{part.tip}</p>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const priorities = EXAM_PRIORITIES[subjectId]?.[examType];
+            if (!priorities) return null;
+            return (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <button
+                  onClick={() => setShowPriorities(!showPriorities)}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left"
+                >
+                  <div className="w-9 h-9 bg-rose-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0">🎯</div>
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-800 text-sm">Что повторить в первую очередь?</p>
+                    <p className="text-gray-400 text-xs">Темы, которые дают больше всего баллов</p>
+                  </div>
+                  <Icon name={showPriorities ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-gray-300" />
+                </button>
+                {showPriorities && (
+                  <div className="px-4 pb-4 flex flex-col gap-2.5">
+                    {priorities.map((p, i) => (
+                      <div key={i} className="bg-gray-50 rounded-xl px-3.5 py-3 border border-gray-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
+                            <span className="text-sm font-bold text-gray-800">{p.topic}</span>
+                          </div>
+                          <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">{p.weight}</span>
+                        </div>
+                        <p className="text-gray-600 text-xs leading-relaxed ml-7">{p.reason}</p>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => startSession(subject!, 'weak')}
+                      className="mt-1 w-full py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-orange-500 to-red-500 active:scale-[0.97] transition-all"
+                    >
+                      Начать с слабых тем →
+                    </button>
                   </div>
                 )}
               </div>
