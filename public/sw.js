@@ -1,13 +1,16 @@
-const CACHE_NAME = 'studyfay-v2';
-const OFFLINE_URLS = [
+const CACHE_NAME = 'studyfay-v3';
+const PRE_CACHE_URLS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/offline.html'
 ];
+
+const ICON_URL = 'https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/e02aeca1-8f46-4788-8a7f-53368a18dea9.jpg';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(OFFLINE_URLS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRE_CACHE_URLS))
   );
   self.skipWaiting();
 });
@@ -16,43 +19,90 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
+
+function isNavigationRequest(request) {
+  return request.mode === 'navigate';
+}
+
+function isApiRequest(url) {
+  return url.hostname === 'functions.poehali.dev';
+}
+
+function isStaticAsset(url) {
+  return /\.(js|css|png|jpg|jpeg|svg|gif|webp|ico|woff|woff2|ttf|eot)(\?.*)?$/i.test(url.pathname);
+}
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  if (url.origin === 'https://functions.poehali.dev') {
+  if (isNavigationRequest(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match('/offline.html'))
+    );
+    return;
+  }
+
+  if (isApiRequest(url)) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
           if (response.ok && event.request.method === 'GET') {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone);
-            });
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => {
+          if (event.request.method === 'GET') {
+            return caches.match(event.request);
+          }
+          return new Response(JSON.stringify({ error: 'offline' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        })
     );
     return;
   }
 
-  if (event.request.method === 'GET') {
+  if (isStaticAsset(url) && event.request.method === 'GET') {
     event.respondWith(
       caches.match(event.request).then((cached) => {
-        const fetched = fetch(event.request).then((response) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
           if (response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
           return response;
         });
-        return cached || fetched;
       })
+    );
+    return;
+  }
+
+  if (event.request.method === 'GET') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
   }
 });
@@ -63,8 +113,8 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.body,
-    icon: 'https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/ac9b225a-aef2-4cf4-b96e-2103e5a5a3b7.jpg',
-    badge: 'https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/ac9b225a-aef2-4cf4-b96e-2103e5a5a3b7.jpg',
+    icon: ICON_URL,
+    badge: ICON_URL,
     vibrate: [200, 100, 200],
     tag: data.tag || 'notification',
     requireInteraction: false,

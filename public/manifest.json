@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "Studyfay",
   "short_name": "Studyfay",
   "description": "Расписание пар, ИИ-репетитор, трекер задач и помодоро-таймер для студентов вузов и колледжей. Геймификация учёбы, зачётная книжка, сканирование конспектов.",
@@ -11,21 +12,22 @@
   "lang": "ru",
   "dir": "ltr",
   "prefer_related_applications": false,
+  "handle_links": "preferred",
   "icons": [
     {
-      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/ac9b225a-aef2-4cf4-b96e-2103e5a5a3b7.jpg",
+      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/e02aeca1-8f46-4788-8a7f-53368a18dea9.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/ac9b225a-aef2-4cf4-b96e-2103e5a5a3b7.jpg",
+      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/e02aeca1-8f46-4788-8a7f-53368a18dea9.jpg",
       "sizes": "192x192",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/ac9b225a-aef2-4cf4-b96e-2103e5a5a3b7.jpg",
+      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/e02aeca1-8f46-4788-8a7f-53368a18dea9.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "maskable"
@@ -34,18 +36,25 @@
   "categories": ["education", "productivity"],
   "screenshots": [
     {
-      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/d8375537-4959-49cb-9e75-e898c5ca2f9f.jpg",
-      "sizes": "1024x1024",
+      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/682d6a15-c1d2-4b38-b3cb-c16f6528a4c5.jpg",
+      "sizes": "1080x1920",
       "type": "image/jpeg",
       "form_factor": "narrow",
-      "label": "ИИ-репетитор для подготовки к экзаменам"
+      "label": "Расписание и задачи"
     },
     {
-      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/2ad1ea59-a4f6-43b5-b90a-b3fe09efe110.jpg",
-      "sizes": "1024x1024",
+      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/db0659f5-389a-4a84-a6fa-2f8f61d2313a.jpg",
+      "sizes": "1080x1920",
       "type": "image/jpeg",
       "form_factor": "narrow",
-      "label": "Расписание пар, задачи и помодоро-таймер"
+      "label": "ИИ-репетитор"
+    },
+    {
+      "src": "https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/9287f26f-07c6-4264-af9d-4d54a7f44154.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Достижения и геймификация"
     }
   ],
   "shortcuts": [
@@ -75,5 +84,8 @@
     }
   ],
   "related_applications": [],
-  "iarc_rating_id": ""
+  "iarc_rating_id": "",
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }

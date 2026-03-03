@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/lib/theme-context";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import InstallPWA from "@/components/InstallPWA";
 import Index from "./pages/Index";
 import AuthNew from "./pages/AuthNew";
 import VKCallback from "./pages/VKCallback";
@@ -32,6 +33,10 @@ import Session from "./pages/Session";
 import Flashcards from "./pages/Flashcards";
 import PhotoSolve from "./pages/PhotoSolve";
 import DeleteAccount from "./pages/DeleteAccount";
+import MockExam from "./pages/MockExam";
+import ScoreCalculator from "./pages/ScoreCalculator";
+import UniversityFinder from "./pages/UniversityFinder";
+import RuStoreInfo from "./pages/RuStoreInfo";
 
 const queryClient = new QueryClient();
 
@@ -72,9 +77,14 @@ const App = () => (
               <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/photo-solve" element={<PhotoSolve />} />
               <Route path="/delete-account" element={<DeleteAccount />} />
+              <Route path="/mock-exam" element={<MockExam />} />
+              <Route path="/calculator" element={<ScoreCalculator />} />
+              <Route path="/universities" element={<UniversityFinder />} />
+              <Route path="/rustore-info" element={<RuStoreInfo />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <InstallPWA />
           </BrowserRouter>
         </TooltipProvider>
       </ThemeProvider>

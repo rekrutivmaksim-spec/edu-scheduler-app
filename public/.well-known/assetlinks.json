@@ -2,7 +2,7 @@
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "app.studyfay.android",
-    "sha256_cert_fingerprints": ["__SHA256_FINGERPRINT__"]
+    "package_name": "dev.studyfay.app.twa",
+    "sha256_cert_fingerprints": ["PLACEHOLDER_SHA256_FINGERPRINT"]
   }
 }]

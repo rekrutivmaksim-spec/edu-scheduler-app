@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studyfay — Нет подключения</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #ffffff;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            display: block;
+        }
+        .title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+        .subtitle {
+            font-size: 15px;
+            color: #6b7280;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+        .retry-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+        }
+        .retry-button:active {
+            transform: scale(0.97);
+        }
+        .brand {
+            margin-top: 48px;
+            font-size: 13px;
+            color: #d1d5db;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="icon" aria-hidden="true">&#9992;&#65039;</span>
+        <h1 class="title">Нет подключения к интернету</h1>
+        <p class="subtitle">Проверьте соединение и попробуйте снова</p>
+        <button class="retry-button" onclick="window.location.reload()">Попробовать снова</button>
+        <p class="brand">Studyfay</p>
+    </div>
+</body>
+</html>
