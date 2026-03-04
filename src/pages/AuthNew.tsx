@@ -405,7 +405,7 @@ export default function AuthNew() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'get_auth_url',
-          redirect_uri: `${window.location.origin}/auth/vk`
+          redirect_uri: 'https://studyfay.ru/auth/vk'
         })
       });
       const data = await res.json();

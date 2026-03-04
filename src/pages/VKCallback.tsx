@@ -47,7 +47,7 @@ export default function VKCallback() {
           body: JSON.stringify({
             action: 'exchange_code',
             code: code,
-            redirect_uri: `${window.location.origin}/auth/vk`
+            redirect_uri: 'https://studyfay.ru/auth/vk'
           })
         });
 
