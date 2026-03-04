@@ -1,13 +1,16 @@
-"""API для обработки платежей и управления подписками с автопродлением"""
+"""API для обработки платежей и управления подписками с автопродлением (Tinkoff + RuStore)"""
 
 import json
 import os
+import time
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import jwt
 import hashlib
 import requests
+import urllib.request
+import urllib.error
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
@@ -15,6 +18,10 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 TINKOFF_TERMINAL_KEY = os.environ.get('TINKOFF_TERMINAL_KEY', '')
 TINKOFF_PASSWORD = os.environ.get('TINKOFF_TERMINAL_PASSWORD', '')
 TINKOFF_API_URL = 'https://securepay.tinkoff.ru/v2/'
+RUSTORE_COMPANY_ID = os.environ.get('RUSTORE_COMPANY_ID', '')
+RUSTORE_APP_ID = os.environ.get('RUSTORE_APP_ID', '')
+RUSTORE_PRIVATE_KEY = os.environ.get('RUSTORE_PRIVATE_KEY', '')
+RUSTORE_API = 'https://public-api.rustore.ru'
 
 PLANS = {
     '1month': {
@@ -404,8 +411,86 @@ def handle_notification(conn, body: dict) -> dict:
 
     return {'success': True}
 
+def get_rustore_jwt():
+    """JWT для авторизации в RuStore Public API"""
+    if not RUSTORE_PRIVATE_KEY or not RUSTORE_COMPANY_ID:
+        return None
+    key = RUSTORE_PRIVATE_KEY.replace('\\n', '\n')
+    now = int(time.time())
+    payload = {'iss': RUSTORE_COMPANY_ID, 'jti': f'{RUSTORE_COMPANY_ID}_{now}', 'iat': now, 'exp': now + 600}
+    return jwt.encode(payload, key, algorithm='RS256')
+
+def rustore_api_request(method, path, body=None):
+    """Запрос к RuStore Public API"""
+    token = get_rustore_jwt()
+    if not token:
+        print("[RUSTORE] Failed to generate JWT")
+        return None
+    url = f'{RUSTORE_API}{path}'
+    headers_dict = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json', 'Public-Token': token}
+    print(f"[RUSTORE] {method} {url}")
+    try:
+        if method == 'GET':
+            req = urllib.request.Request(url, headers=headers_dict)
+        else:
+            data = json.dumps(body).encode('utf-8') if body else None
+            req = urllib.request.Request(url, data=data, headers=headers_dict, method=method)
+        response = urllib.request.urlopen(req, timeout=10)
+        result = json.loads(response.read().decode())
+        print(f"[RUSTORE] OK: {str(result)[:300]}")
+        return result
+    except urllib.error.HTTPError as e:
+        print(f"[RUSTORE] Error {e.code}: {e.read().decode()[:300]}")
+        return None
+    except Exception as e:
+        print(f"[RUSTORE] Exception: {e}")
+        return None
+
+def rustore_validate_purchase(purchase_token):
+    """Валидирует покупку через RuStore API"""
+    result = rustore_api_request('POST', f'/public/purchase/subscription/v2/{RUSTORE_APP_ID}/token', {'subscriptionToken': purchase_token})
+    if not result:
+        result = rustore_api_request('GET', f'/public/purchase/{RUSTORE_APP_ID}/{purchase_token}')
+    return result
+
+def rustore_activate_subscription(conn, user_id, plan_type, purchase_token):
+    """Активирует подписку после RuStore валидации"""
+    plan_key = plan_type.replace('premium_', '') if plan_type.startswith('premium_') else plan_type
+    plan = PLANS.get(plan_key)
+    if not plan:
+        return False
+
+    expires_at = datetime.now() + timedelta(days=plan['duration_days'])
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(f"SELECT id FROM {SCHEMA_NAME}.payments WHERE user_id = %s AND payment_id = %s AND payment_status = 'completed'", (user_id, purchase_token))
+        if cur.fetchone():
+            return True
+
+        cur.execute(f"""
+            INSERT INTO {SCHEMA_NAME}.payments
+            (user_id, amount, plan_type, payment_status, payment_method, payment_id, expires_at, completed_at)
+            VALUES (%s, %s, %s, 'completed', 'rustore', %s, %s, CURRENT_TIMESTAMP)
+        """, (user_id, plan['price'], plan_key, purchase_token, expires_at))
+        conn.commit()
+
+        cur.execute(f"""
+            UPDATE {SCHEMA_NAME}.users
+            SET subscription_type = 'premium',
+                subscription_expires_at = %s,
+                subscription_plan = %s,
+                daily_premium_questions_used = 0,
+                daily_premium_questions_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 day',
+                bonus_questions = COALESCE(bonus_questions, 0) + 15,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (expires_at, plan_key, user_id))
+        conn.commit()
+
+    return True
+
 def handler(event: dict, context) -> dict:
-    """Обработчик запросов для платежей с автопродлением"""
+    """Обработчик запросов для платежей с автопродлением (Tinkoff + RuStore)"""
     method = event.get('httpMethod', 'GET')
 
     if method == 'OPTIONS':
@@ -613,6 +698,34 @@ def handler(event: dict, context) -> dict:
                     'headers': headers,
                     'body': json.dumps({'error': 'Платеж не найден или уже обработан'})
                 }
+
+            elif action == 'rustore_validate':
+                purchase_token = body.get('purchase_token', '')
+                plan_type = body.get('plan_type', body.get('product_id', ''))
+                if not purchase_token:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'purchase_token обязателен'})}
+                validation = rustore_validate_purchase(purchase_token)
+                if validation:
+                    inv_status = None
+                    if isinstance(validation, dict):
+                        inv_status = validation.get('invoice_status', validation.get('invoiceStatus', ''))
+                        bd = validation.get('body', {})
+                        if isinstance(bd, dict) and not inv_status:
+                            inv_status = bd.get('invoice_status', bd.get('invoiceStatus', ''))
+                    print(f"[RUSTORE] validate status: {inv_status}")
+                    if inv_status in ('confirmed', 'CONFIRMED', 'paid', 'PAID'):
+                        success = rustore_activate_subscription(conn, user_id, plan_type, purchase_token)
+                        if success:
+                            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'plan': plan_type})}
+                        return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать подписку'})}
+                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': False, 'status': inv_status or 'unknown'})}
+                return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось проверить покупку RuStore'})}
+
+            elif action == 'rustore_products':
+                products = []
+                for key, plan in PLANS.items():
+                    products.append({'product_id': f'premium_{key}' if not key.startswith('premium_') else key, 'name': plan['name'], 'price': plan['price'], 'duration_days': plan['duration_days']})
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'products': products})}
 
         return {
             'statusCode': 404,
