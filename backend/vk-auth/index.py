@@ -2,9 +2,12 @@ import json
 import os
 import jwt
 import psycopg2
+import hashlib
+import base64
 from datetime import datetime, timedelta
 import urllib.request
 import urllib.parse
+import urllib.error
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
@@ -27,7 +30,7 @@ def err(msg, code=400):
     return {'statusCode': code, 'headers': CORS, 'body': json.dumps({'error': msg})}
 
 def handler(event, context):
-    """VK OAuth авторизация через oauth.vk.com"""
+    """VK ID OAuth авторизация (id.vk.com, PKCE)"""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS, 'body': ''}
 
@@ -38,73 +41,95 @@ def handler(event, context):
         if not VK_APP_ID:
             return err('VK App ID не настроен')
 
-        auth_url = (
-            f'https://oauth.vk.com/authorize'
-            f'?client_id={VK_APP_ID}'
-            f'&display=page'
-            f'&redirect_uri={REDIRECT_URI}'
-            f'&scope=email'
-            f'&response_type=code'
-            f'&v=5.131'
-        )
+        code_verifier = body.get('code_verifier', '')
+        state = body.get('state', '')
+
+        sha256 = hashlib.sha256(code_verifier.encode('ascii')).digest()
+        code_challenge = base64.urlsafe_b64encode(sha256).rstrip(b'=').decode('ascii')
+
+        params = urllib.parse.urlencode({
+            'response_type': 'code',
+            'client_id': VK_APP_ID,
+            'redirect_uri': REDIRECT_URI,
+            'state': state,
+            'scope': 'vkid.personal_info email',
+            'code_challenge': code_challenge,
+            'code_challenge_method': 'S256',
+        })
+
+        auth_url = f'https://id.vk.com/authorize?{params}'
         print(f"[VK] auth_url={auth_url}")
         return ok({'auth_url': auth_url})
 
     elif action == 'exchange_code':
         code = body.get('code', '')
+        code_verifier = body.get('code_verifier', '')
+        device_id = body.get('device_id', '')
+        state = body.get('state', '')
+
         if not code:
             return err('Код авторизации обязателен')
         if not VK_APP_ID or not VK_APP_SECRET:
             return err('VK настройки не заполнены')
 
+        token_params = {
+            'grant_type': 'authorization_code',
+            'code': code,
+            'code_verifier': code_verifier,
+            'client_id': VK_APP_ID,
+            'redirect_uri': REDIRECT_URI,
+        }
+        if device_id:
+            token_params['device_id'] = device_id
+        if state:
+            token_params['state'] = state
+
         try:
-            params = urllib.parse.urlencode({
-                'client_id': VK_APP_ID,
-                'client_secret': VK_APP_SECRET,
-                'redirect_uri': REDIRECT_URI,
-                'code': code
-            })
-            url = f'https://oauth.vk.com/access_token?{params}'
-            print(f"[VK] token request")
-            response = urllib.request.urlopen(url)
+            token_body = urllib.parse.urlencode(token_params).encode('utf-8')
+            req = urllib.request.Request(
+                'https://id.vk.com/oauth2/auth',
+                data=token_body,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            response = urllib.request.urlopen(req)
             token_data = json.loads(response.read().decode())
             print(f"[VK] token response keys: {list(token_data.keys())}")
         except urllib.error.HTTPError as e:
             error_body = e.read().decode()
             print(f"[VK] token error: {e.code} {error_body}")
-            return err(f'VK ошибка: {error_body}')
-        except Exception as e:
-            print(f"[VK] token exception: {e}")
-            return err(f'Ошибка обмена кода: {str(e)}')
+            return err(f'VK token error: {error_body}')
 
         access_token = token_data.get('access_token')
         if not access_token:
+            print(f"[VK] no access_token: {token_data}")
             return err('Не удалось получить токен VK')
 
-        email = token_data.get('email', '')
-
         try:
-            params = urllib.parse.urlencode({
+            user_body = urllib.parse.urlencode({
                 'access_token': access_token,
-                'v': '5.131',
-                'fields': 'photo_200'
-            })
-            url = f'https://api.vk.com/method/users.get?{params}'
-            response = urllib.request.urlopen(url)
-            data = json.loads(response.read().decode())
-            print(f"[VK] users.get ok")
+                'client_id': VK_APP_ID,
+            }).encode('utf-8')
+            req = urllib.request.Request(
+                'https://id.vk.com/oauth2/user_info',
+                data=user_body,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            response = urllib.request.urlopen(req)
+            user_info = json.loads(response.read().decode())
+            print(f"[VK] user_info keys: {list(user_info.get('user', user_info).keys()) if isinstance(user_info.get('user', user_info), dict) else 'raw'}")
 
-            if 'response' in data and len(data['response']) > 0:
-                user = data['response'][0]
-                vk_id = str(user['id'])
-                first_name = user.get('first_name', '')
-                last_name = user.get('last_name', '')
-                avatar_url = user.get('photo_200', '')
-            else:
-                return err('Не удалось получить данные пользователя VK')
+            user_data = user_info.get('user', user_info)
+            vk_id = str(user_data.get('user_id', user_data.get('id', '')))
+            first_name = user_data.get('first_name', '')
+            last_name = user_data.get('last_name', '')
+            avatar_url = user_data.get('avatar', user_data.get('photo_200', ''))
+            email = user_data.get('email', token_data.get('email', ''))
         except Exception as e:
-            print(f"[VK] users.get error: {e}")
+            print(f"[VK] user_info error: {e}")
             return err('Не удалось получить данные пользователя VK')
+
+        if not vk_id:
+            return err('Не удалось определить VK ID')
 
         full_name = f"{first_name} {last_name}".strip()
 
