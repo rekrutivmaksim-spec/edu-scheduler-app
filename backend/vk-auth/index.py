@@ -67,7 +67,12 @@ def handler(event: dict, context) -> dict:
                     'body': json.dumps({'error': 'VK App ID не настроен'})
                 }
             
-            auth_url = f'https://oauth.vk.com/authorize?client_id={VK_APP_ID}&display=page&redirect_uri={redirect_uri}&scope=email&response_type=code&v=5.131'
+            print(f"[VK AUTH] app_id={VK_APP_ID}, redirect_uri={redirect_uri}")
+            
+            encoded_redirect = urllib.parse.quote(redirect_uri, safe='')
+            auth_url = f'https://oauth.vk.com/authorize?client_id={VK_APP_ID}&display=page&redirect_uri={encoded_redirect}&scope=email&response_type=code&v=5.131'
+            
+            print(f"[VK AUTH] auth_url={auth_url}")
             
             return {
                 'statusCode': 200,
