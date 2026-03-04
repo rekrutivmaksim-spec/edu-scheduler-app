@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import { authService } from '@/lib/auth';
 
 const VK_AUTH_URL = 'https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f343ebd7d3';
 
@@ -14,6 +15,8 @@ export default function VKCallback() {
 
   useEffect(() => {
     const code = searchParams.get('code');
+    const deviceId = searchParams.get('device_id') || '';
+    const state = searchParams.get('state') || '';
     const error = searchParams.get('error');
 
     if (error) {
@@ -38,7 +41,20 @@ export default function VKCallback() {
       return;
     }
 
-    // Обмениваем код на токен
+    const codeVerifier = sessionStorage.getItem('vk_code_verifier') || '';
+    const savedState = sessionStorage.getItem('vk_state') || '';
+
+    if (savedState && state && savedState !== state) {
+      setStatus('error');
+      toast({
+        variant: 'destructive',
+        title: 'Ошибка безопасности',
+        description: 'Несовпадение state. Попробуйте ещё раз.'
+      });
+      setTimeout(() => navigate('/auth'), 2000);
+      return;
+    }
+
     const exchangeCode = async () => {
       try {
         const response = await fetch(VK_AUTH_URL, {
@@ -46,21 +62,26 @@ export default function VKCallback() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'exchange_code',
-            code: code,
-            redirect_uri: 'https://studyfay.ru/auth/vk'
+            code,
+            code_verifier: codeVerifier,
+            device_id: deviceId,
+            state,
           })
         });
 
         const data = await response.json();
 
+        sessionStorage.removeItem('vk_code_verifier');
+        sessionStorage.removeItem('vk_state');
+
         if (response.ok && data.success) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-          
+          authService.setToken(data.token);
+          authService.setUser(data.user);
+
           setStatus('success');
-          
+
           toast({
-            title: '🎉 Добро пожаловать!',
+            title: 'Добро пожаловать!',
             description: `Привет, ${data.user.full_name}!`
           });
 
@@ -74,12 +95,13 @@ export default function VKCallback() {
         } else {
           throw new Error(data.error || 'Ошибка авторизации');
         }
-      } catch (error: any) {
+      } catch (e) {
         setStatus('error');
+        const msg = e instanceof Error ? e.message : 'Не удалось войти через VK';
         toast({
           variant: 'destructive',
           title: 'Ошибка',
-          description: error.message || 'Не удалось войти через VK'
+          description: msg
         });
         setTimeout(() => navigate('/auth'), 2000);
       }

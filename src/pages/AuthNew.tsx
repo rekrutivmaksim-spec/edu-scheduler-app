@@ -400,12 +400,21 @@ export default function AuthNew() {
   const handleVKLogin = async () => {
     setLoading(true);
     try {
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+      const codeVerifier = Array.from(array, b => b.toString(36).padStart(2, '0')).join('').slice(0, 64);
+      const state = Math.random().toString(36).slice(2, 15);
+
+      sessionStorage.setItem('vk_code_verifier', codeVerifier);
+      sessionStorage.setItem('vk_state', state);
+
       const res = await fetch(VK_AUTH_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'get_auth_url',
-          redirect_uri: 'https://studyfay.ru/auth/vk'
+          code_verifier: codeVerifier,
+          state: state,
         })
       });
       const data = await res.json();
