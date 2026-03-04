@@ -54,6 +54,7 @@ async function getBrowserFingerprint(): Promise<string> {
 const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
 const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+const VK_AUTH_URL = 'https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f343ebd7d3';
 
 const DEMO_LIMIT = 2;
 
@@ -396,6 +397,30 @@ export default function AuthNew() {
     }
   };
 
+  const handleVKLogin = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(VK_AUTH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'get_auth_url',
+          redirect_uri: `${window.location.origin}/auth/vk`
+        })
+      });
+      const data = await res.json();
+      if (data.auth_url) {
+        window.location.href = data.auth_url;
+      } else {
+        toast({ variant: 'destructive', title: 'Ошибка', description: data.error || 'Не удалось получить ссылку VK' });
+        setLoading(false);
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось подключиться к VK' });
+      setLoading(false);
+    }
+  };
+
   const handleForgot = async () => {
     clearErrors();
     if (!validateEmail(email)) { setFieldErrors({ email: 'Неверный email' }); return; }
@@ -715,6 +740,22 @@ export default function AuthNew() {
                 {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Войти'}
               </Button>
 
+              <div className="flex items-center gap-3 my-1">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-gray-400 text-xs">или</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
+              <Button
+                onClick={handleVKLogin}
+                disabled={loading}
+                variant="outline"
+                className="w-full h-11 rounded-xl border-2 border-[#0077FF]/30 text-[#0077FF] font-semibold hover:bg-[#0077FF]/5 active:scale-[0.98] transition-all"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="mr-2"><path d="M12.785 16.241s.288-.032.436-.194c.136-.148.132-.427.132-.427s-.02-1.304.587-1.496c.598-.188 1.368 1.259 2.184 1.814.616.42 1.084.328 1.084.328l2.178-.03s1.14-.07.6-.964c-.045-.073-.32-.661-1.644-1.868-1.386-1.263-1.2-1.058.468-3.243.834-1.09 1.17-1.754 1.065-2.039-.1-.27-.713-.198-.713-.198l-2.456.015s-.182-.025-.317.056c-.132.079-.217.263-.217.263s-.39 1.038-.91 1.92c-1.098 1.862-1.538 1.96-1.717 1.843-.418-.272-.313-1.092-.313-1.674 0-1.82.276-2.58-.537-2.776-.27-.065-.468-.108-1.155-.115-.882-.009-1.628.003-2.05.209-.282.138-.5.443-.367.46.164.022.535.1.731.367.253.344.244 1.117.244 1.117s.146 2.143-.34 2.408c-.334.182-.792-.19-1.774-1.893-.503-.872-.883-1.836-.883-1.836s-.073-.18-.204-.276c-.158-.117-.38-.154-.38-.154l-2.335.015s-.35.01-.479.163c-.114.135-.009.414-.009.414s1.838 4.3 3.919 6.464c1.907 1.984 4.073 1.854 4.073 1.854h.982z"/></svg>
+                Войти через VK
+              </Button>
+
               <p className="text-center text-xs text-gray-400">Быстро и бесплатно</p>
 
               <p className="text-center text-xs text-gray-400">
@@ -812,7 +853,22 @@ export default function AuthNew() {
                 }
               </Button>
 
-              {/* Снятие страха */}
+              <div className="flex items-center gap-3 my-1">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-gray-400 text-xs">или</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
+              <Button
+                onClick={handleVKLogin}
+                disabled={loading}
+                variant="outline"
+                className="w-full h-11 rounded-xl border-2 border-[#0077FF]/30 text-[#0077FF] font-semibold hover:bg-[#0077FF]/5 active:scale-[0.98] transition-all"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="mr-2"><path d="M12.785 16.241s.288-.032.436-.194c.136-.148.132-.427.132-.427s-.02-1.304.587-1.496c.598-.188 1.368 1.259 2.184 1.814.616.42 1.084.328 1.084.328l2.178-.03s1.14-.07.6-.964c-.045-.073-.32-.661-1.644-1.868-1.386-1.263-1.2-1.058.468-3.243.834-1.09 1.17-1.754 1.065-2.039-.1-.27-.713-.198-.713-.198l-2.456.015s-.182-.025-.317.056c-.132.079-.217.263-.217.263s-.39 1.038-.91 1.92c-1.098 1.862-1.538 1.96-1.717 1.843-.418-.272-.313-1.092-.313-1.674 0-1.82.276-2.58-.537-2.776-.27-.065-.468-.108-1.155-.115-.882-.009-1.628.003-2.05.209-.282.138-.5.443-.367.46.164.022.535.1.731.367.253.344.244 1.117.244 1.117s.146 2.143-.34 2.408c-.334.182-.792-.19-1.774-1.893-.503-.872-.883-1.836-.883-1.836s-.073-.18-.204-.276c-.158-.117-.38-.154-.38-.154l-2.335.015s-.35.01-.479.163c-.114.135-.009.414-.009.414s1.838 4.3 3.919 6.464c1.907 1.984 4.073 1.854 4.073 1.854h.982z"/></svg>
+                Войти через VK
+              </Button>
+
               <p className="text-center text-xs text-gray-400">Бесплатно. Без карты.</p>
 
               <p className="text-center text-xs text-gray-400">
@@ -947,7 +1003,15 @@ export default function AuthNew() {
           </div>
         </div>
 
-        {/* Вход / Регистрация — вторичные */}
+        <Button
+          onClick={handleVKLogin}
+          disabled={loading}
+          className="w-full h-12 bg-[#0077FF] hover:bg-[#0066DD] active:scale-[0.98] text-white font-bold text-sm rounded-2xl shadow-lg transition-all"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="mr-2"><path d="M12.785 16.241s.288-.032.436-.194c.136-.148.132-.427.132-.427s-.02-1.304.587-1.496c.598-.188 1.368 1.259 2.184 1.814.616.42 1.084.328 1.084.328l2.178-.03s1.14-.07.6-.964c-.045-.073-.32-.661-1.644-1.868-1.386-1.263-1.2-1.058.468-3.243.834-1.09 1.17-1.754 1.065-2.039-.1-.27-.713-.198-.713-.198l-2.456.015s-.182-.025-.317.056c-.132.079-.217.263-.217.263s-.39 1.038-.91 1.92c-1.098 1.862-1.538 1.96-1.717 1.843-.418-.272-.313-1.092-.313-1.674 0-1.82.276-2.58-.537-2.776-.27-.065-.468-.108-1.155-.115-.882-.009-1.628.003-2.05.209-.282.138-.5.443-.367.46.164.022.535.1.731.367.253.344.244 1.117.244 1.117s.146 2.143-.34 2.408c-.334.182-.792-.19-1.774-1.893-.503-.872-.883-1.836-.883-1.836s-.073-.18-.204-.276c-.158-.117-.38-.154-.38-.154l-2.335.015s-.35.01-.479.163c-.114.135-.009.414-.009.414s1.838 4.3 3.919 6.464c1.907 1.984 4.073 1.854 4.073 1.854h.982z"/></svg>
+          Войти через VK
+        </Button>
+
         <div className="flex flex-col items-center gap-1.5">
           <div className="flex items-center justify-center gap-4">
             <button
