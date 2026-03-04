@@ -41,8 +41,8 @@ export default function VKCallback() {
       return;
     }
 
-    const codeVerifier = sessionStorage.getItem('vk_code_verifier') || '';
-    const savedState = sessionStorage.getItem('vk_state') || '';
+    const codeVerifier = localStorage.getItem('vk_code_verifier') || '';
+    const savedState = localStorage.getItem('vk_state') || '';
 
     if (savedState && state && savedState !== state) {
       setStatus('error');
@@ -71,8 +71,8 @@ export default function VKCallback() {
 
         const data = await response.json();
 
-        sessionStorage.removeItem('vk_code_verifier');
-        sessionStorage.removeItem('vk_state');
+        localStorage.removeItem('vk_code_verifier');
+        localStorage.removeItem('vk_state');
 
         if (response.ok && data.success) {
           authService.setToken(data.token);

@@ -405,8 +405,8 @@ export default function AuthNew() {
       const codeVerifier = Array.from(array, b => b.toString(36).padStart(2, '0')).join('').slice(0, 64);
       const state = Math.random().toString(36).slice(2, 15);
 
-      sessionStorage.setItem('vk_code_verifier', codeVerifier);
-      sessionStorage.setItem('vk_state', state);
+      localStorage.setItem('vk_code_verifier', codeVerifier);
+      localStorage.setItem('vk_state', state);
 
       const res = await fetch(VK_AUTH_URL, {
         method: 'POST',
