@@ -10,6 +10,7 @@ import { authService } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
 
 const NOTIFICATIONS_URL = 'https://functions.poehali.dev/710399d8-fbc7-4df6-8c6c-200b2828678f';
+const VK_AUTH_URL = 'https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f343ebd7d3';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -18,7 +19,39 @@ export default function Settings() {
   const [user, setUser] = useState(authService.getUser());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+  const [vkLinked, setVkLinked] = useState(false);
+  const [vkLinking, setVkLinking] = useState(false);
+
+  const handleLinkVK = async () => {
+    setVkLinking(true);
+    try {
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+      const codeVerifier = Array.from(array, b => b.toString(36).padStart(2, '0')).join('').slice(0, 64);
+      const state = Math.random().toString(36).slice(2, 15);
+
+      localStorage.setItem('vk_code_verifier', codeVerifier);
+      localStorage.setItem('vk_state', state);
+      localStorage.setItem('vk_link_mode', 'true');
+
+      const res = await fetch(VK_AUTH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_auth_url', code_verifier: codeVerifier, state })
+      });
+      const data = await res.json();
+      if (data.auth_url) {
+        window.location.href = data.auth_url;
+      } else {
+        toast({ variant: 'destructive', title: 'Ошибка', description: data.error || 'Не удалось получить ссылку VK' });
+        setVkLinking(false);
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось подключиться к VK' });
+      setVkLinking(false);
+    }
+  };
+
   const [settings, setSettings] = useState({
     sms_notifications: false,
     push_notifications: true,
@@ -40,6 +73,7 @@ export default function Settings() {
         navigate('/auth');
       } else {
         setUser(verifiedUser);
+        setVkLinked(!!verifiedUser.vk_id);
         loadSettings();
       }
     };
@@ -172,6 +206,48 @@ export default function Settings() {
                 checked={theme === 'dark'}
                 onCheckedChange={toggleTheme}
               />
+            </div>
+          </Card>
+
+          {/* Связанные аккаунты */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 bg-gradient-to-br from-[#0077FF] to-[#0055CC] rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200/50 dark:shadow-blue-900/30">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12.785 16.241s.288-.032.436-.194c.136-.148.132-.427.132-.427s-.02-1.304.587-1.496c.598-.188 1.368 1.259 2.184 1.814.616.42 1.084.328 1.084.328l2.178-.03s1.14-.07.6-.964c-.045-.073-.32-.661-1.644-1.868-1.386-1.263-1.2-1.058.468-3.243.834-1.09 1.17-1.754 1.065-2.039-.1-.27-.713-.198-.713-.198l-2.456.015s-.182-.025-.317.056c-.132.079-.217.263-.217.263s-.39 1.038-.91 1.92c-1.098 1.862-1.538 1.96-1.717 1.843-.418-.272-.313-1.092-.313-1.674 0-1.82.276-2.58-.537-2.776-.27-.065-.468-.108-1.155-.115-.882-.009-1.628.003-2.05.209-.282.138-.5.443-.367.46.164.022.535.1.731.367.253.344.244 1.117.244 1.117s.146 2.143-.34 2.408c-.334.182-.792-.19-1.774-1.893-.503-.872-.883-1.836-.883-1.836s-.073-.18-.204-.276c-.158-.117-.38-.154-.38-.154l-2.335.015s-.35.01-.479.163c-.114.135-.009.414-.009.414s1.838 4.3 3.919 6.464c1.907 1.984 4.073 1.854 4.073 1.854h.982z"/></svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Связанные аккаунты</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Быстрый вход через соцсети</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${vkLinked ? 'bg-[#0077FF]' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill={vkLinked ? 'white' : '#999'}><path d="M12.785 16.241s.288-.032.436-.194c.136-.148.132-.427.132-.427s-.02-1.304.587-1.496c.598-.188 1.368 1.259 2.184 1.814.616.42 1.084.328 1.084.328l2.178-.03s1.14-.07.6-.964c-.045-.073-.32-.661-1.644-1.868-1.386-1.263-1.2-1.058.468-3.243.834-1.09 1.17-1.754 1.065-2.039-.1-.27-.713-.198-.713-.198l-2.456.015s-.182-.025-.317.056c-.132.079-.217.263-.217.263s-.39 1.038-.91 1.92c-1.098 1.862-1.538 1.96-1.717 1.843-.418-.272-.313-1.092-.313-1.674 0-1.82.276-2.58-.537-2.776-.27-.065-.468-.108-1.155-.115-.882-.009-1.628.003-2.05.209-.282.138-.5.443-.367.46.164.022.535.1.731.367.253.344.244 1.117.244 1.117s.146 2.143-.34 2.408c-.334.182-.792-.19-1.774-1.893-.503-.872-.883-1.836-.883-1.836s-.073-.18-.204-.276c-.158-.117-.38-.154-.38-.154l-2.335.015s-.35.01-.479.163c-.114.135-.009.414-.009.414s1.838 4.3 3.919 6.464c1.907 1.984 4.073 1.854 4.073 1.854h.982z"/></svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">ВКонтакте</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {vkLinked ? 'Аккаунт привязан' : 'Не привязан'}
+                  </p>
+                </div>
+              </div>
+              {vkLinked ? (
+                <div className="flex items-center gap-1.5 text-green-600">
+                  <Icon name="CheckCircle" size={16} />
+                  <span className="text-xs font-medium">Привязан</span>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleLinkVK}
+                  disabled={vkLinking}
+                  size="sm"
+                  className="bg-[#0077FF] hover:bg-[#0066DD] text-white rounded-xl text-xs h-9 px-4"
+                >
+                  {vkLinking ? <Icon name="Loader2" size={14} className="animate-spin" /> : 'Привязать'}
+                </Button>
+              )}
             </div>
           </Card>
 

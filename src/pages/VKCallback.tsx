@@ -55,6 +55,8 @@ export default function VKCallback() {
       return;
     }
 
+    const isLinkMode = localStorage.getItem('vk_link_mode') === 'true';
+
     const exchangeCode = async () => {
       try {
         const response = await fetch(VK_AUTH_URL, {
@@ -73,25 +75,44 @@ export default function VKCallback() {
 
         localStorage.removeItem('vk_code_verifier');
         localStorage.removeItem('vk_state');
+        localStorage.removeItem('vk_link_mode');
 
         if (response.ok && data.success) {
-          authService.setToken(data.token);
-          authService.setUser(data.user);
-
-          setStatus('success');
-
-          toast({
-            title: 'Добро пожаловать!',
-            description: `Привет, ${data.user.full_name}!`
-          });
-
-          setTimeout(() => {
-            if (!data.user.onboarding_completed) {
-              navigate('/onboarding');
-            } else {
-              navigate('/');
+          if (isLinkMode) {
+            const existingToken = authService.getToken();
+            if (existingToken && data.user?.vk_id) {
+              await fetch(VK_AUTH_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'link_account',
+                  token: existingToken,
+                  vk_id: data.user.vk_id || String(data.user.id),
+                })
+              });
             }
-          }, 1000);
+            setStatus('success');
+            toast({ title: 'VK привязан!', description: 'Теперь можно входить через VK' });
+            setTimeout(() => navigate('/settings'), 1000);
+          } else {
+            authService.setToken(data.token);
+            authService.setUser(data.user);
+
+            setStatus('success');
+
+            toast({
+              title: 'Добро пожаловать!',
+              description: `Привет, ${data.user.full_name}!`
+            });
+
+            setTimeout(() => {
+              if (!data.user.onboarding_completed) {
+                navigate('/onboarding');
+              } else {
+                navigate('/');
+              }
+            }, 1000);
+          }
         } else {
           throw new Error(data.error || 'Ошибка авторизации');
         }

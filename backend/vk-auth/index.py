@@ -194,4 +194,34 @@ def handler(event, context):
             }
         })
 
+    elif action == 'link_account':
+        token = body.get('token', '')
+        vk_id = body.get('vk_id', '')
+
+        if not token or not vk_id:
+            return err('Токен и VK ID обязательны')
+
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+            user_id = payload.get('user_id')
+        except Exception:
+            return err('Невалидный токен', 401)
+
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+
+        cur.execute(f'SELECT id FROM {SCHEMA_NAME}.users WHERE vk_id = %s', (vk_id,))
+        existing = cur.fetchone()
+        if existing and existing[0] != user_id:
+            cur.close()
+            conn.close()
+            return err('Этот VK-аккаунт уже привязан к другому пользователю')
+
+        cur.execute(f'UPDATE {SCHEMA_NAME}.users SET vk_id = %s WHERE id = %s', (vk_id, user_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return ok({'success': True})
+
     return err('Неизвестное действие')
