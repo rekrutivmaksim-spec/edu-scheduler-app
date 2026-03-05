@@ -116,8 +116,8 @@ export default function Terms() {
                 <strong>Условия подписки:</strong>
               </p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Оплата через Т-банк — карты МИР/Visa/MC, СБП, SberPay</li>
-                <li>Подписка продлевается автоматически. Отключить автопродление можно в разделе «Подписка»</li>
+                <li>Оплата через RuStore Pay — встроенная система платежей приложения</li>
+                <li>Подписка продлевается автоматически через RuStore. Отключить можно в RuStore → Аккаунт → Подписки → Studyfay</li>
                 <li>Возврат возможен в течение 14 дней при отсутствии использования</li>
                 <li>Цены могут меняться с уведомлением за 30 дней</li>
               </ul>
@@ -179,7 +179,7 @@ export default function Terms() {
               <h2 className="text-2xl font-bold text-gray-900 mb-4">11. Контакты</h2>
               <p>По вопросам работы Приложения и условий Соглашения:</p>
               <ul className="list-none space-y-2 mt-4">
-                <li><strong>Email поддержки:</strong> <a href="mailto:rekrutiw@yandex.ru" className="text-blue-600 hover:underline">rekrutiw@yandex.ru</a></li>
+                <li><strong>Email поддержки:</strong> <a href="mailto:support@studyfay.ru" className="text-blue-600 hover:underline">support@studyfay.ru</a></li>
               </ul>
               <p className="mt-4 text-sm text-gray-500">Мы отвечаем на обращения в течение 3 рабочих дней.</p>
             </section>

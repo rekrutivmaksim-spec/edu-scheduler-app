@@ -6,7 +6,7 @@ import Icon from "@/components/ui/icon";
 const APP_NAME = "Studyfay";
 const SHORT_DESC =
   "ИИ-репетитор, расписание пар, трекер задач и помодоро для студентов";
-const CONTACT_EMAIL = "rekrutiw@yandex.ru";
+const CONTACT_EMAIL = "support@studyfay.ru";
 
 const FULL_DESC = `Studyfay — бесплатное мобильное приложение для студентов вузов и колледжей, которое объединяет все необходимые инструменты для продуктивной учёбы в одном месте.
 

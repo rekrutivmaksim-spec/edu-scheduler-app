@@ -309,7 +309,7 @@ const Pricing = () => {
               <div className="mt-2 space-y-1">
                 {[
                   'Всё из Premium',
-                  'Выгоднее помесячной оплаты на 36%',
+                  'Выгоднее помесячной оплаты на 50%',
                   'Непрерывный прогресс до экзамена',
                 ].map(f => (
                   <div key={f} className="flex items-center gap-1.5 text-gray-500 text-xs">
@@ -320,8 +320,8 @@ const Pricing = () => {
               </div>
             </div>
             <div className="text-right flex-shrink-0 ml-3">
-              <p className="text-gray-900 font-extrabold text-xl leading-none">1990 ₽</p>
-              <p className="text-gray-400 text-xs mt-0.5">≈ 332 ₽/мес</p>
+              <p className="text-gray-900 font-extrabold text-xl leading-none">1 499 ₽</p>
+              <p className="text-gray-400 text-xs mt-0.5">≈ 250 ₽/мес</p>
             </div>
           </div>
           <Button
@@ -348,7 +348,7 @@ const Pricing = () => {
               <div className="mt-2 space-y-1">
                 {[
                   'Всё из Premium',
-                  'Дешевле в 2 раза чем помесячно',
+                  'Дешевле на 60% чем помесячно',
                 ].map(f => (
                   <div key={f} className="flex items-center gap-1.5 text-gray-500 text-xs">
                     <Icon name="Check" size={12} className="text-blue-400 flex-shrink-0" />
@@ -358,8 +358,8 @@ const Pricing = () => {
               </div>
             </div>
             <div className="text-right flex-shrink-0 ml-3">
-              <p className="text-gray-900 font-extrabold text-xl leading-none">2990 ₽</p>
-              <p className="text-gray-400 text-xs mt-0.5">≈ 249 ₽/мес</p>
+              <p className="text-gray-900 font-extrabold text-xl leading-none">2 399 ₽</p>
+              <p className="text-gray-400 text-xs mt-0.5">≈ 200 ₽/мес</p>
             </div>
           </div>
           <Button

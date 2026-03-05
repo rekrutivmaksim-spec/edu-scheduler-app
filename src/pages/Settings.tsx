@@ -442,7 +442,7 @@ export default function Settings() {
             <div className="space-y-3 text-sm text-gray-700">
               <div className="flex items-start gap-2">
                 <Icon name="Info" size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <p><strong>Подписка продлевается автоматически.</strong> Отключить автопродление можно в разделе «Подписка» — тогда доступ сохранится до конца оплаченного периода.</p>
+                <p><strong>Подписка продлевается автоматически через RuStore.</strong> Отключить можно в RuStore → Аккаунт → Подписки → Studyfay. Доступ сохранится до конца оплаченного периода.</p>
               </div>
               <div className="flex items-start gap-2">
                 <Icon name="RotateCcw" size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />

@@ -96,7 +96,7 @@ export default function DeleteAccount() {
               </div>
 
               <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
-                <p>Если у вас активная подписка — она будет отменена без возврата средств за неиспользованный период. Для вопросов по возврату обратитесь: <a href="mailto:rekrutiw@yandex.ru" className="underline font-medium">rekrutiw@yandex.ru</a></p>
+                <p>Если у вас активная подписка — она будет отменена без возврата средств за неиспользованный период. Для вопросов по возврату обратитесь: <a href="mailto:support@studyfay.ru" className="underline font-medium">support@studyfay.ru</a></p>
               </div>
 
               {!isLoggedIn ? (
@@ -153,7 +153,7 @@ export default function DeleteAccount() {
               </div>
 
               <p className="text-xs text-gray-400 text-center">
-                По вопросам: <a href="mailto:rekrutiw@yandex.ru" className="underline">rekrutiw@yandex.ru</a>
+                По вопросам: <a href="mailto:support@studyfay.ru" className="underline">support@studyfay.ru</a>
               </p>
             </div>
           )}
