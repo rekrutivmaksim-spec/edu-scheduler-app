@@ -20,14 +20,14 @@ STREAK_REWARDS = [
     {'streak_days': 7,   'reward_type': 'bonus_questions', 'value': 5,  'title': 'Неделя стрика 💪',      'description': '+5 вопросов к ИИ'},
     {'streak_days': 14,  'reward_type': 'bonus_questions', 'value': 5,  'title': '2 недели подряд 🏆',    'description': '+5 вопросов к ИИ'},
     {'streak_days': 21,  'reward_type': 'bonus_questions', 'value': 5,  'title': '21 день упорства!',     'description': '+5 вопросов к ИИ'},
-    {'streak_days': 30,  'reward_type': 'bonus_questions', 'value': 5,  'title': 'Месяц стрика 🥇',       'description': '+5 вопросов к ИИ'},
-    {'streak_days': 60,  'reward_type': 'bonus_questions', 'value': 5,  'title': '2 месяца стрика ⚡',    'description': '+5 вопросов к ИИ'},
-    {'streak_days': 90,  'reward_type': 'bonus_questions', 'value': 5,  'title': '90 дней! Легенда 🌟',   'description': '+5 вопросов к ИИ'},
-    {'streak_days': 180, 'reward_type': 'bonus_questions', 'value': 5,  'title': 'Полгода стрика 🚀',     'description': '+5 вопросов к ИИ'},
-    {'streak_days': 365, 'reward_type': 'bonus_questions', 'value': 5,  'title': 'Год стрика 👑',         'description': '+5 вопросов к ИИ'},
+    {'streak_days': 30,  'reward_type': 'bonus_questions', 'value': 10, 'title': 'Месяц стрика 🥇',       'description': '+10 вопросов к ИИ'},
+    {'streak_days': 60,  'reward_type': 'bonus_questions', 'value': 20, 'title': '2 месяца стрика ⚡',    'description': '+20 вопросов к ИИ'},
+    {'streak_days': 90,  'reward_type': 'bonus_questions', 'value': 30, 'title': '90 дней! Легенда 🌟',   'description': '+30 вопросов к ИИ'},
+    {'streak_days': 180, 'reward_type': 'bonus_questions', 'value': 15, 'title': 'Полгода стрика 🚀',     'description': '+15 вопросов к ИИ'},
+    {'streak_days': 365, 'reward_type': 'bonus_questions', 'value': 20, 'title': 'Год стрика 👑',         'description': '+20 вопросов к ИИ'},
 ]
 
-BONUS_QUESTIONS_MAX = 15
+BONUS_QUESTIONS_MAX = 50
 
 QUEST_POOL = [
     {'type': 'complete_tasks', 'title': 'Выполни {n} задач', 'min': 1, 'max': 3, 'xp_min': 20, 'xp_max': 40, 'premium_only': False},

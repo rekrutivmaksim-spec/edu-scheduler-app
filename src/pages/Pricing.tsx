@@ -157,7 +157,7 @@ const Pricing = () => {
                 </div>
                 <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Рекомендуем</span>
               </div>
-              <p className="text-white/70 text-sm mb-1">299 ₽ / месяц</p>
+              <p className="text-white/70 text-sm mb-1">499 ₽ / месяц</p>
               <p className="text-white/60 text-xs mb-4">Всё необходимое для подготовки без ограничений:</p>
 
               <div className="space-y-2.5 mb-5">
@@ -181,7 +181,7 @@ const Pricing = () => {
                   }
                 </Button>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-white font-extrabold text-xl leading-none">299 ₽</p>
+                  <p className="text-white font-extrabold text-xl leading-none">499 ₽</p>
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>
@@ -351,13 +351,13 @@ const Pricing = () => {
               </div>
               <div className="text-right">
                 <p className="text-indigo-200 text-xs">В месяц</p>
-                <p className="text-green-400 font-bold text-base">≈ 10 ₽/день</p>
+                <p className="text-green-400 font-bold text-base">≈ 17 ₽/день</p>
               </div>
             </div>
           </div>
           <div className="mt-3 bg-yellow-400/20 rounded-2xl px-4 py-3 flex items-center gap-2">
             <span className="text-yellow-300 text-xl">🏆</span>
-            <p className="text-yellow-300 font-bold text-sm">Экономия от 11 700 ₽ в месяц</p>
+            <p className="text-yellow-300 font-bold text-sm">Экономия от 11 500 ₽ в месяц</p>
           </div>
         </div>
 

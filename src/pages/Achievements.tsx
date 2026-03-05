@@ -103,9 +103,9 @@ const STREAK_REWARDS_INFO = [
   { days: 7, reward: '+5 вопросов ИИ' },
   { days: 14, reward: '+5 вопросов ИИ' },
   { days: 21, reward: '+5 вопросов ИИ' },
-  { days: 30, reward: '+5 вопросов ИИ' },
-  { days: 60, reward: '+5 вопросов ИИ' },
-  { days: 90, reward: '+5 вопросов ИИ' },
+  { days: 30, reward: '+10 вопросов ИИ' },
+  { days: 60, reward: '+20 вопросов ИИ' },
+  { days: 90, reward: '+30 вопросов ИИ' },
 ];
 
 const DEMO_ACHIEVEMENTS = [

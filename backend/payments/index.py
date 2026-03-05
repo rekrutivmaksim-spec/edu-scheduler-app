@@ -25,7 +25,7 @@ RUSTORE_API = 'https://public-api.rustore.ru'
 
 PLANS = {
     '1month': {
-        'price': 299,
+        'price': 499,
         'duration_days': 30,
         'name': '1 месяц',
         'daily_ai_questions': 20

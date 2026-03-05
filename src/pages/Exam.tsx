@@ -632,6 +632,18 @@ export default function Exam() {
 
   useEffect(() => { loadSubscription(); }, []);
 
+  // Авто-навигация на основе цели пользователя
+  useEffect(() => {
+    if (subLoading) return;
+    if (userGoal === 'university') {
+      navigate('/university');
+      return;
+    }
+    if ((userGoal === 'ege' || userGoal === 'oge') && screen === 'pick_exam') {
+      setScreen('pick_subject');
+    }
+  }, [subLoading, userGoal, screen, navigate]);
+
   const scrollBottom = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
   const askAI = async (
@@ -849,7 +861,7 @@ export default function Exam() {
         {/* Шапка */}
         <div className="flex flex-col items-center text-center mb-8">
           <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center text-3xl mb-4">🎓</div>
-          <h1 className="text-white font-extrabold text-2xl mb-2">Подготовка к экзамену</h1>
+          <h1 className="text-white font-extrabold text-2xl mb-2">{userGoal === 'ege' ? 'Подготовка к ЕГЭ' : userGoal === 'oge' ? 'Подготовка к ОГЭ' : 'Подготовка к экзамену'}</h1>
           <p className="text-white/70 text-sm leading-relaxed max-w-xs">
             ИИ знает структуру экзамена и поможет пройти все задания шаг за шагом
           </p>
@@ -998,12 +1010,12 @@ export default function Exam() {
       <div className="min-h-[100dvh] bg-gray-50 pb-nav">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 pt-12 pb-5">
           <div className="flex items-center gap-3 mb-3">
-            <button onClick={() => setScreen('pick_exam')} className="text-white/70 hover:text-white p-1">
+            <button onClick={() => (userGoal === 'ege' || userGoal === 'oge') ? navigate('/') : setScreen('pick_exam')} className="text-white/70 hover:text-white p-1">
               <Icon name="ArrowLeft" size={20} />
             </button>
             <div>
               <p className="text-white/60 text-xs uppercase tracking-wide">{examType.toUpperCase()} · {daysLeft} дней</p>
-              <h1 className="text-white font-bold text-lg">Выбери предмет</h1>
+              <h1 className="text-white font-bold text-lg">{examType === 'ege' ? 'ЕГЭ' : 'ОГЭ'} · Выбери предмет</h1>
             </div>
           </div>
         </div>
