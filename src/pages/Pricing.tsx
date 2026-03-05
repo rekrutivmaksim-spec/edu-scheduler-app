@@ -157,7 +157,7 @@ const Pricing = () => {
                 </div>
                 <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Рекомендуем</span>
               </div>
-              <p className="text-white/70 text-sm mb-1">499 ₽ / месяц</p>
+              <p className="text-white/70 text-sm mb-1">299 ₽ / месяц</p>
               <p className="text-white/60 text-xs mb-4">Всё необходимое для подготовки без ограничений:</p>
 
               <div className="space-y-2.5 mb-5">
@@ -181,7 +181,7 @@ const Pricing = () => {
                   }
                 </Button>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-white font-extrabold text-xl leading-none">499 ₽</p>
+                  <p className="text-white font-extrabold text-xl leading-none">299 ₽</p>
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>

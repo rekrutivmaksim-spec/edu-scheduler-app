@@ -939,14 +939,14 @@ export default function Exam() {
         </div>
 
         <div className="mt-6 flex flex-col gap-2">
-          <button onClick={() => navigate('/mock-exam')} className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all">
+          <button onClick={() => isPremium ? navigate('/mock-exam') : navigate('/pricing')} className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all">
             <div className="flex items-center gap-3">
               <span className="text-xl">📝</span>
               <div className="flex-1">
-                <p className="text-white font-bold text-sm">Пробный тест</p>
+                <p className="text-white font-bold text-sm flex items-center gap-2">Пробный тест {!isPremium && <span className="bg-yellow-500/20 text-yellow-300 text-[10px] font-bold px-2 py-0.5 rounded-full">Premium</span>}</p>
                 <p className="text-white/50 text-xs">Реальные задания с таймером и баллами</p>
               </div>
-              <Icon name="ChevronRight" size={16} className="text-white/30" />
+              <Icon name={isPremium ? "ChevronRight" : "Lock"} size={16} className="text-white/30" />
             </div>
           </button>
           <button onClick={() => navigate('/calculator')} className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all">

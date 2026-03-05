@@ -7,6 +7,9 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import BottomNav from '@/components/BottomNav';
+import { authService } from '@/lib/auth';
+
+const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
 interface Question {
   id: number;
@@ -193,6 +196,30 @@ function formatTime(seconds: number): string {
 
 export default function MockExam() {
   const navigate = useNavigate();
+  const [premiumChecked, setPremiumChecked] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+
+  useEffect(() => {
+    const checkPremium = async () => {
+      const token = authService.getToken();
+      if (!token) { navigate('/pricing'); return; }
+      try {
+        const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const d = await res.json();
+        if (d.subscription_type === 'premium' || d.is_trial) {
+          setIsPremium(true);
+        } else {
+          navigate('/pricing');
+          return;
+        }
+      } catch { navigate('/pricing'); return; }
+      setPremiumChecked(true);
+    };
+    checkPremium();
+  }, [navigate]);
+
   const [screen, setScreen] = useState<Screen>('select');
   const [examType, setExamType] = useState<'ege' | 'oge'>('ege');
   const [selectedSubject, setSelectedSubject] = useState<SubjectInfo | null>(null);
@@ -311,6 +338,14 @@ export default function MockExam() {
       setAnswer([...current, option]);
     }
   };
+
+  if (!premiumChecked) {
+    return (
+      <div className="min-h-[100dvh] bg-gray-50 flex items-center justify-center">
+        <Icon name="Loader2" size={32} className="animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   if (screen === 'select') {
     return (
