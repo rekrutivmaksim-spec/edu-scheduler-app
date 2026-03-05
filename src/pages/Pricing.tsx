@@ -6,6 +6,8 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 import {
+  isAndroidApp,
+  isRuStoreAvailable,
   purchaseSubscription as ruStorePurchase,
   validatePurchaseOnServer,
 } from '@/lib/rustore-billing';
@@ -63,6 +65,7 @@ const Pricing = () => {
   const [currentPlan, setCurrentPlan] = useState('free');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [bonusQuestions, setBonusQuestions] = useState(0);
+  const canPurchase = isAndroidApp() && isRuStoreAvailable();
 
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/auth'); return; }
@@ -80,6 +83,13 @@ const Pricing = () => {
   }, [navigate]);
 
   const handleBuy = async (planId: string) => {
+    if (!canPurchase) {
+      toast({
+        title: 'Оплата доступна в приложении',
+        description: 'Скачайте Studyfay из RuStore',
+      });
+      return;
+    }
     setLoading(planId);
     try {
       const backendPlanId = planId === '12months' ? '1year' : planId;
@@ -139,6 +149,25 @@ const Pricing = () => {
             ИИ-репетитор объясняет темы, проверяет ответы и готовит<br />к ЕГЭ/ОГЭ каждый день — в 20 раз дешевле репетитора.
           </p>
         </div>
+
+        {/* Баннер: оплата в приложении */}
+        {!isPremium && !canPurchase && (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-3xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Icon name="Download" size={20} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-800">Оплата через приложение</p>
+              <p className="text-xs text-gray-500">Скачайте Studyfay из RuStore для покупки</p>
+            </div>
+            <button
+              onClick={() => window.open('https://www.rustore.ru/catalog/app/ru.studyfay.app', '_blank')}
+              className="text-blue-600 text-xs font-bold flex-shrink-0 underline"
+            >
+              Скачать
+            </button>
+          </div>
+        )}
 
         {/* Бесплатный тариф */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">

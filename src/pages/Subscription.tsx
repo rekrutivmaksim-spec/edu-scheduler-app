@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import {
+  isAndroidApp,
+  isRuStoreAvailable,
   purchaseSubscription as ruStorePurchase,
   validatePurchaseOnServer,
 } from '@/lib/rustore-billing';
@@ -79,6 +81,7 @@ const Subscription = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const canPurchase = isAndroidApp() && isRuStoreAvailable();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -214,6 +217,13 @@ const Subscription = () => {
   };
 
   const handleBuySubscription = (planId: string) => {
+    if (!canPurchase) {
+      toast({
+        title: 'Оплата доступна в приложении',
+        description: 'Скачайте Studyfay из RuStore для оформления подписки',
+      });
+      return;
+    }
     handleBuyViaRuStore(planId);
   };
 
@@ -355,6 +365,28 @@ const Subscription = () => {
                 <p className="text-xs text-gray-500">Продление и отмена — в настройках RuStore → Подписки</p>
               </div>
             </div>
+          </Card>
+        )}
+
+        {/* Баннер: оплата только в приложении */}
+        {!isPremium && !canPurchase && (
+          <Card className="p-4 sm:p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <Icon name="Download" size={24} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-gray-800">Оплата через приложение</h3>
+                <p className="text-xs text-gray-600 mt-0.5">Скачайте Studyfay из RuStore, чтобы оформить подписку или купить пакет вопросов</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => window.open('https://www.rustore.ru/catalog/app/ru.studyfay.app', '_blank')}
+              className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm h-10"
+            >
+              <Icon name="ExternalLink" size={16} className="mr-2" />
+              Открыть в RuStore
+            </Button>
           </Card>
         )}
 
