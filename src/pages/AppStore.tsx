@@ -358,10 +358,10 @@ const AppStore = () => {
               <p className="text-sm text-gray-500 mb-5">Полный доступ ко всему</p>
 
               <div className="flex items-end gap-1 mb-1">
-                <span className="text-4xl font-extrabold text-purple-600">249</span>
+                <span className="text-4xl font-extrabold text-purple-600">499</span>
                 <span className="text-gray-500 mb-1">₽ / мес</span>
               </div>
-              <p className="text-xs text-gray-400 mb-6">от 207 ₽/мес при оплате за 3 месяца</p>
+              <p className="text-xs text-gray-400 mb-6">от 200 ₽/мес при оплате за год</p>
 
               <div className="space-y-2.5 flex-1">
                 {[
@@ -395,7 +395,7 @@ const AppStore = () => {
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1.5 text-xs text-gray-400 mt-8">
             <span className="flex items-center gap-1">
               <Icon name="Lock" size={12} className="text-green-500" />
-              Оплата через Т-Кассу
+              Оплата через RuStore
             </span>
             <span className="flex items-center gap-1">
               <Icon name="ShieldCheck" size={12} className="text-green-500" />
