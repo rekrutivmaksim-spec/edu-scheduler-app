@@ -1,12 +1,22 @@
 {
   "tests": [
     {
-      "name": "Get auto-charge status",
+      "name": "Get subscription check status",
       "method": "GET",
       "path": "/?action=status",
       "expectedStatus": 200,
       "expectedBody": {
         "status": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Run expired subscription check",
+      "method": "GET",
+      "path": "/?action=run",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "message": "string"
       },
       "bodyMatcher": "partial"
     }

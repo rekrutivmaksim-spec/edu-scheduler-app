@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
+import {
+  purchaseSubscription as ruStorePurchase,
+  validatePurchaseOnServer,
+} from '@/lib/rustore-billing';
 
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
@@ -28,7 +32,7 @@ const FREE_FEATURES = [
 ];
 
 const GUARANTEE_FEATURES = [
-  'Безопасная оплата через Т-банк',
+  'Безопасная оплата через RuStore',
   'Возврат средств в течение 14 дней',
   'Отмена подписки в любой момент',
 ];
@@ -44,11 +48,11 @@ const FAQ = [
   },
   {
     q: 'Как работает автопродление?',
-    a: 'Подписка продлевается автоматически в дату окончания. Отключить можно в Профиле — в разделе «Подписка».',
+    a: 'Подписка продлевается автоматически через RuStore. Управление — в настройках RuStore → Подписки.',
   },
   {
     q: 'Можно отменить в любой момент?',
-    a: 'Да. Зайди в Профиль → Подписка → Отменить. Доступ сохранится до конца оплаченного периода.',
+    a: 'Да. RuStore → Настройки → Подписки → Studyfay → Отменить. Доступ сохранится до конца оплаченного периода.',
   },
 ];
 
@@ -78,21 +82,35 @@ const Pricing = () => {
   const handleBuy = async (planId: string) => {
     setLoading(planId);
     try {
-      const token = authService.getToken();
       const backendPlanId = planId === '12months' ? '1year' : planId;
-      const res = await fetch(PAYMENTS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: 'create_payment', plan_type: backendPlanId }),
-      });
-      const data = await res.json();
-      if (res.ok && data.payment_url) {
-        window.location.href = data.payment_url;
-      } else {
-        toast({ title: 'Ошибка', description: data.error || 'Не удалось создать платёж', variant: 'destructive' });
+      toast({ title: 'Открываем оплату RuStore...' });
+      const result = await ruStorePurchase(backendPlanId);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Покупка не завершена');
       }
-    } catch {
-      toast({ title: 'Ошибка сети', variant: 'destructive' });
+
+      toast({ title: 'Проверяем оплату...' });
+      const token = authService.getToken();
+      const validation = await validatePurchaseOnServer(
+        PAYMENTS_URL,
+        token || '',
+        result.purchaseToken || '',
+        backendPlanId
+      );
+
+      if (validation.success) {
+        toast({ title: 'Подписка активирована!', description: 'Полный доступ ко всем функциям' });
+        setCurrentPlan('premium');
+      } else {
+        throw new Error(validation.error || 'Не удалось активировать');
+      }
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: error instanceof Error ? error.message : 'Попробуйте снова',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(null);
     }
@@ -185,7 +203,7 @@ const Pricing = () => {
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>
-              <p className="text-white/50 text-xs text-center">Отмена в любой момент · Автопродление</p>
+              <p className="text-white/50 text-xs text-center">Отмена в любой момент · Оплата через RuStore</p>
             </div>
 
             {/* Подсказка */}

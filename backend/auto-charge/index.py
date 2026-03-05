@@ -1,183 +1,74 @@
-"""Автоматическое продление подписок — вызывается по крону или вручную"""
+"""Проверка истекших подписок и понижение до бесплатного тарифа"""
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import hashlib
-import requests
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
-TINKOFF_TERMINAL_KEY = os.environ.get('TINKOFF_TERMINAL_KEY', '')
-TINKOFF_PASSWORD = os.environ.get('TINKOFF_TERMINAL_PASSWORD', '')
-TINKOFF_API_URL = 'https://securepay.tinkoff.ru/v2/'
 
 PLANS = {
-    '1month': {'price': 299, 'duration_days': 30, 'name': '1 месяц'},
+    '1month': {'price': 499, 'duration_days': 30, 'name': '1 месяц'},
     '6months': {'price': 1499, 'duration_days': 180, 'name': '6 месяцев'},
     '1year': {'price': 2399, 'duration_days': 365, 'name': '1 год'}
 }
 
-def generate_token(*args):
-    values = ''.join(str(v) for v in args if v is not None)
-    return hashlib.sha256(values.encode()).hexdigest()
-
-def charge_recurrent(user_id, rebill_id, amount, order_id):
-    init_params = {
-        'TerminalKey': TINKOFF_TERMINAL_KEY,
-        'Amount': amount * 100,
-        'OrderId': order_id,
-        'Description': 'Studyfay: автопродление подписки',
-        'PayType': 'O'
-    }
-    token_params = {k: str(v) for k, v in init_params.items() if k not in ('Receipt', 'DATA', 'Shops', 'Token')}
-    token_params['Password'] = TINKOFF_PASSWORD
-    sorted_values = [token_params[k] for k in sorted(token_params.keys())]
-    init_params['Token'] = generate_token(*sorted_values)
-
-
-
-    resp = requests.post(f'{TINKOFF_API_URL}Init', json=init_params, timeout=10)
-    init_data = resp.json()
-
-    if not init_data.get('Success'):
-        return {'error': init_data.get('Message', 'Init failed')}
-
-    payment_id = init_data['PaymentId']
-
-    charge_params = {
-        'TerminalKey': TINKOFF_TERMINAL_KEY,
-        'PaymentId': payment_id,
-        'RebillId': rebill_id
-    }
-    charge_token_params = {
-        'Password': TINKOFF_PASSWORD,
-        'PaymentId': str(payment_id),
-        'RebillId': str(rebill_id),
-        'TerminalKey': TINKOFF_TERMINAL_KEY
-    }
-    sorted_vals = [charge_token_params[k] for k in sorted(charge_token_params.keys())]
-    charge_params['Token'] = generate_token(*sorted_vals)
-
-    charge_resp = requests.post(f'{TINKOFF_API_URL}Charge', json=charge_params, timeout=10)
-    charge_data = charge_resp.json()
-
-
-
-    if charge_data.get('Success') and charge_data.get('Status') == 'CONFIRMED':
-        return {'success': True, 'tinkoff_payment_id': str(payment_id)}
-    return {'error': charge_data.get('Message', 'Charge failed'), 'status': charge_data.get('Status')}
-
 def process_renewals(conn):
-    results = {'processed': 0, 'success': 0, 'failed': 0, 'skipped': 0, 'details': []}
+    """Находит пользователей с истёкшей подпиской и понижает до free"""
+    results = {'processed': 0, 'downgraded': 0, 'details': []}
 
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(f"""
-            SELECT id, email, subscription_plan, subscription_expires_at, rebill_id, card_last4, auto_renew
+            SELECT id, subscription_plan, subscription_expires_at
             FROM {SCHEMA_NAME}.users
-            WHERE auto_renew = true
-              AND rebill_id IS NOT NULL
-              AND subscription_type = 'premium'
+            WHERE subscription_type = 'premium'
               AND subscription_expires_at IS NOT NULL
-              AND subscription_expires_at <= NOW() + INTERVAL '1 day'
-              AND subscription_plan IN ('1month', '6months', '1year')
+              AND subscription_expires_at < NOW()
             ORDER BY subscription_expires_at ASC
-            LIMIT 50
+            LIMIT 200
         """)
-        users_to_charge = cur.fetchall()
+        expired_users = cur.fetchall()
 
+    results['processed'] = len(expired_users)
 
-
-    for user in users_to_charge:
-        results['processed'] += 1
+    for user in expired_users:
         user_id = user['id']
-        plan_type = user['subscription_plan']
-        plan = PLANS.get(plan_type)
-
-        if not plan:
-            results['skipped'] += 1
-            results['details'].append({'user_id': user_id, 'status': 'skipped', 'reason': f'Unknown plan: {plan_type}'})
-            continue
-
-        new_expires = datetime.now() + timedelta(days=plan['duration_days'])
-
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(f"""
-                INSERT INTO {SCHEMA_NAME}.payments 
-                (user_id, amount, plan_type, payment_status, expires_at, is_recurrent)
-                VALUES (%s, %s, %s, 'pending', %s, true)
-                RETURNING id
-            """, (user_id, plan['price'], plan_type, new_expires))
-            payment_record = cur.fetchone()
-            conn.commit()
-            local_payment_id = payment_record['id']
-
-        order_id = f"studyfay_{local_payment_id}"
-
         try:
-            result = charge_recurrent(user_id, user['rebill_id'], plan['price'], order_id)
-
-            if result.get('success'):
-                with conn.cursor() as cur:
-                    cur.execute(f"""
-                        UPDATE {SCHEMA_NAME}.payments
-                        SET payment_status = 'completed',
-                            completed_at = CURRENT_TIMESTAMP,
-                            payment_method = 'tinkoff_recurrent',
-                            payment_id = %s
-                        WHERE id = %s
-                    """, (result.get('tinkoff_payment_id'), local_payment_id))
-
-                    cur.execute(f"""
-                        UPDATE {SCHEMA_NAME}.users
-                        SET subscription_expires_at = %s,
-                            ai_questions_used = 0,
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE id = %s
-                    """, (new_expires, user_id))
-                    conn.commit()
-
-                results['success'] += 1
-                results['details'].append({'user_id': user_id, 'status': 'success', 'amount': plan['price']})
-            else:
-                with conn.cursor() as cur:
-                    cur.execute(f"""
-                        UPDATE {SCHEMA_NAME}.payments
-                        SET payment_status = 'failed',
-                            payment_method = 'tinkoff_recurrent',
-                            metadata = %s
-                        WHERE id = %s
-                    """, (json.dumps({'error': result.get('error')}), local_payment_id))
-
-                    cur.execute(f"""
-                        UPDATE {SCHEMA_NAME}.users
-                        SET auto_renew = false,
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE id = %s
-                    """, (user_id,))
-                    conn.commit()
-
-                results['failed'] += 1
-                results['details'].append({'user_id': user_id, 'status': 'failed', 'error': result.get('error')})
-
-        except Exception as e:
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    UPDATE {SCHEMA_NAME}.payments
-                    SET payment_status = 'failed', metadata = %s
+                    UPDATE {SCHEMA_NAME}.users
+                    SET subscription_type = 'free',
+                        subscription_plan = NULL,
+                        auto_renew = false,
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE id = %s
-                """, (json.dumps({'error': str(e)}), local_payment_id))
+                      AND subscription_type = 'premium'
+                      AND subscription_expires_at < NOW()
+                """, (user_id,))
                 conn.commit()
 
-            results['failed'] += 1
-            results['details'].append({'user_id': user_id, 'status': 'error', 'error': str(e)})
+                if cur.rowcount > 0:
+                    results['downgraded'] += 1
+                    results['details'].append({
+                        'user_id': user_id,
+                        'status': 'downgraded',
+                        'expired_at': str(user['subscription_expires_at']),
+                        'plan': user['subscription_plan']
+                    })
+        except Exception as e:
+            results['details'].append({
+                'user_id': user_id,
+                'status': 'error',
+                'error': str(e)
+            })
 
+    print(f"[AUTO-CHARGE] Processed {results['processed']} users, downgraded {results['downgraded']}")
     return results
 
 def handler(event: dict, context) -> dict:
-    """Автопродление подписок. Вызывать ежедневно по крону или вручную GET/?action=run"""
+    """Проверка истёкших подписок. Вызывать ежедневно по крону или вручную GET/?action=run"""
     method = event.get('httpMethod', 'GET')
 
     if method == 'OPTIONS':
@@ -207,17 +98,26 @@ def handler(event: dict, context) -> dict:
                 'statusCode': 200,
                 'headers': headers,
                 'body': json.dumps({
-                    'message': 'Автопродление выполнено',
+                    'message': 'Проверка подписок выполнена',
                     'results': results
                 }, default=str)
             }
 
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(f"""
-                SELECT COUNT(*) as total,
-                    COUNT(*) FILTER (WHERE subscription_expires_at <= NOW() + INTERVAL '1 day') as expiring_soon
+                SELECT 
+                    COUNT(*) FILTER (WHERE subscription_type = 'premium') as active_premium,
+                    COUNT(*) FILTER (
+                        WHERE subscription_type = 'premium'
+                          AND subscription_expires_at IS NOT NULL
+                          AND subscription_expires_at < NOW()
+                    ) as expired_not_downgraded,
+                    COUNT(*) FILTER (
+                        WHERE subscription_type = 'free'
+                          AND subscription_expires_at IS NOT NULL
+                          AND subscription_expires_at > NOW() - INTERVAL '7 days'
+                    ) as recently_downgraded
                 FROM {SCHEMA_NAME}.users
-                WHERE auto_renew = true AND rebill_id IS NOT NULL AND subscription_type = 'premium'
             """)
             stats = cur.fetchone()
 
@@ -226,8 +126,9 @@ def handler(event: dict, context) -> dict:
             'headers': headers,
             'body': json.dumps({
                 'status': 'ready',
-                'users_with_auto_renew': stats['total'],
-                'expiring_soon': stats['expiring_soon']
+                'active_premium': stats['active_premium'],
+                'expired_not_downgraded': stats['expired_not_downgraded'],
+                'recently_downgraded': stats['recently_downgraded']
             })
         }
     finally:

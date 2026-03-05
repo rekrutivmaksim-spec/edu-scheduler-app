@@ -1,0 +1,17 @@
+// =====================================================
+// Добавить в android/app/build.gradle
+// =====================================================
+
+// 1. В блок repositories (или в settings.gradle):
+repositories {
+    maven { url = uri("https://artifactory-external.vkpartner.ru/artifactory/maven") }
+}
+
+// 2. В блок dependencies добавить:
+dependencies {
+    implementation "ru.rustore.sdk:billingclient:6.1.0"
+}
+
+// 3. В android { defaultConfig { } } убедиться что:
+//    minSdkVersion 24
+//    targetSdkVersion 34

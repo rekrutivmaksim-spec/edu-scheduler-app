@@ -1,4 +1,4 @@
-"""API для обработки платежей и управления подписками с автопродлением (Tinkoff + RuStore)"""
+"""API для обработки платежей и подписок через RuStore"""
 
 import json
 import os
@@ -8,16 +8,12 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import jwt
 import hashlib
-import requests
 import urllib.request
 import urllib.error
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-TINKOFF_TERMINAL_KEY = os.environ.get('TINKOFF_TERMINAL_KEY', '')
-TINKOFF_PASSWORD = os.environ.get('TINKOFF_TERMINAL_PASSWORD', '')
-TINKOFF_API_URL = 'https://securepay.tinkoff.ru/v2/'
 RUSTORE_COMPANY_ID = os.environ.get('RUSTORE_COMPANY_ID', '')
 RUSTORE_APP_ID = os.environ.get('RUSTORE_APP_ID', '')
 RUSTORE_PRIVATE_KEY = os.environ.get('RUSTORE_PRIVATE_KEY', '')
@@ -89,170 +85,6 @@ def verify_token(token: str) -> dict:
 def generate_token(*args):
     values = ''.join(str(v) for v in args if v is not None)
     return hashlib.sha256(values.encode()).hexdigest()
-
-def create_tinkoff_payment(user_id: int, amount: int, order_id: str, description: str, recurrent: bool = False) -> dict:
-    """Создает платеж в Т-кассе. recurrent=True привязывает карту для автосписаний"""
-    params = {
-        'TerminalKey': TINKOFF_TERMINAL_KEY,
-        'Amount': amount * 100,
-        'OrderId': order_id,
-        'Description': description,
-        'SuccessURL': 'https://eduhelper.poehali.dev/subscription?payment=success',
-        'FailURL': 'https://eduhelper.poehali.dev/subscription?payment=failed',
-        'NotificationURL': 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b?action=notification',
-        'PayType': 'O'
-    }
-
-    if recurrent:
-        params['Recurrent'] = 'Y'
-        params['CustomerKey'] = str(user_id)
-
-
-
-    token_params = {}
-    for k, v in params.items():
-        if k not in ('Receipt', 'DATA', 'Shops', 'Token'):
-            token_params[k] = str(v)
-    token_params['Password'] = TINKOFF_PASSWORD
-    sorted_values = [token_params[k] for k in sorted(token_params.keys())]
-    params['Token'] = generate_token(*sorted_values)
-
-    try:
-        response = requests.post(f'{TINKOFF_API_URL}Init', json=params, timeout=10)
-        response_data = response.json()
-        if not response_data.get('Success'):
-            return {'error': response_data.get('Message', 'Ошибка'), 'error_code': response_data.get('ErrorCode')}
-        return response_data
-    except Exception as e:
-        return {'error': str(e)}
-
-def charge_recurrent(user_id: int, rebill_id: str, amount: int, order_id: str) -> dict:
-    """Автосписание по сохранённой карте (рекуррентный платёж)"""
-    init_params = {
-        'TerminalKey': TINKOFF_TERMINAL_KEY,
-        'Amount': amount * 100,
-        'OrderId': order_id,
-        'Description': 'Studyfay: автопродление подписки',
-        'PayType': 'O'
-    }
-
-    token_params = {k: str(v) for k, v in init_params.items() if k not in ('Receipt', 'DATA', 'Shops', 'Token')}
-    token_params['Password'] = TINKOFF_PASSWORD
-    sorted_values = [token_params[k] for k in sorted(token_params.keys())]
-    init_params['Token'] = generate_token(*sorted_values)
-
-    try:
-        resp = requests.post(f'{TINKOFF_API_URL}Init', json=init_params, timeout=10)
-        init_data = resp.json()
-
-        if not init_data.get('Success'):
-            return {'error': init_data.get('Message', 'Init failed')}
-
-        payment_id = init_data['PaymentId']
-
-        charge_params = {
-            'TerminalKey': TINKOFF_TERMINAL_KEY,
-            'PaymentId': payment_id,
-            'RebillId': rebill_id
-        }
-        charge_token_params = {
-            'Password': TINKOFF_PASSWORD,
-            'PaymentId': str(payment_id),
-            'RebillId': str(rebill_id),
-            'TerminalKey': TINKOFF_TERMINAL_KEY
-        }
-        sorted_vals = [charge_token_params[k] for k in sorted(charge_token_params.keys())]
-        charge_params['Token'] = generate_token(*sorted_vals)
-
-        charge_resp = requests.post(f'{TINKOFF_API_URL}Charge', json=charge_params, timeout=10)
-        charge_data = charge_resp.json()
-
-        if charge_data.get('Success') and charge_data.get('Status') == 'CONFIRMED':
-            return {'success': True, 'payment_id': payment_id}
-        else:
-            return {'error': charge_data.get('Message', 'Charge failed'), 'status': charge_data.get('Status')}
-    except Exception as e:
-        return {'error': str(e)}
-
-def check_tinkoff_payment(payment_id: str) -> dict:
-    params = {
-        'TerminalKey': TINKOFF_TERMINAL_KEY,
-        'PaymentId': payment_id
-    }
-    token_params = {
-        'Password': TINKOFF_PASSWORD,
-        'PaymentId': payment_id,
-        'TerminalKey': TINKOFF_TERMINAL_KEY
-    }
-    sorted_values = [token_params[k] for k in sorted(token_params.keys())]
-    params['Token'] = generate_token(*sorted_values)
-    try:
-        response = requests.post(f'{TINKOFF_API_URL}GetState', json=params, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except Exception:
-        return None
-
-def create_payment(conn, user_id: int, plan_type: str) -> dict:
-    is_subscription = plan_type in PLANS
-    is_question_pack = plan_type in QUESTION_PACKS
-    is_seasonal = plan_type in SEASONAL_PLANS
-
-    if not (is_subscription or is_question_pack or is_seasonal):
-        return None
-
-    if is_subscription:
-        plan = PLANS[plan_type]
-        expires_at = datetime.now() + timedelta(days=plan['duration_days'])
-        description = f"Studyfay подписка: {plan['name']}"
-    elif is_seasonal:
-        plan = SEASONAL_PLANS[plan_type]
-        current_month = datetime.now().month
-        if current_month not in plan['available_months']:
-            return {'error': 'Сезонный тариф доступен только в январе и июне'}
-        expires_at = datetime.now() + timedelta(days=plan['duration_days'])
-        description = f"Studyfay {plan['name']}"
-    else:
-        plan = QUESTION_PACKS[plan_type]
-        expires_at = None
-        description = f"Studyfay {plan['name']}"
-
-    use_recurrent = is_subscription
-
-    with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(f"""
-            INSERT INTO {SCHEMA_NAME}.payments 
-            (user_id, amount, plan_type, payment_status, expires_at, is_recurrent)
-            VALUES (%s, %s, %s, 'pending', %s, %s)
-            RETURNING id, amount, plan_type, payment_status, created_at, expires_at
-        """, (user_id, plan['price'], plan_type, expires_at, use_recurrent))
-
-        payment = cur.fetchone()
-        conn.commit()
-        payment_dict = dict(payment)
-
-        order_id = f"studyfay_{payment_dict['id']}"
-        tinkoff_response = create_tinkoff_payment(
-            user_id, plan['price'], order_id, description, recurrent=use_recurrent
-        )
-
-        if tinkoff_response:
-            if tinkoff_response.get('Success'):
-                cur.execute(f"""
-                    UPDATE {SCHEMA_NAME}.payments
-                    SET payment_id = %s
-                    WHERE id = %s
-                """, (tinkoff_response.get('PaymentId'), payment_dict['id']))
-                conn.commit()
-                payment_dict['payment_url'] = tinkoff_response.get('PaymentURL')
-                payment_dict['tinkoff_payment_id'] = tinkoff_response.get('PaymentId')
-            else:
-                payment_dict['error'] = tinkoff_response.get('error', 'Ошибка при создании платежа')
-                payment_dict['error_code'] = tinkoff_response.get('error_code')
-        else:
-            payment_dict['error'] = 'Не удалось связаться с Т-кассой'
-
-        return payment_dict
 
 def complete_payment(conn, payment_id: int, payment_method: str = None, external_payment_id: str = None, rebill_id: str = None, card_last4: str = None) -> bool:
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -349,6 +181,22 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
         conn.commit()
         return True
 
+def handle_notification(conn, body: dict) -> dict:
+    """Обработка уведомлений (webhook)"""
+    status = body.get('Status')
+    payment_id_ext = str(body.get('PaymentId', ''))
+    order_id = body.get('OrderId', '')
+
+    if not order_id.startswith('studyfay_'):
+        return {'success': True}
+
+    local_payment_id = int(order_id.replace('studyfay_', ''))
+
+    if status in ('CONFIRMED', 'confirmed'):
+        complete_payment(conn, local_payment_id, 'rustore', payment_id_ext)
+
+    return {'success': True}
+
 def get_user_payments(conn, user_id: int) -> list:
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(f"""
@@ -389,27 +237,6 @@ def toggle_auto_renew(conn, user_id: int, enabled: bool) -> bool:
         """, (enabled, user_id))
         conn.commit()
         return True
-
-def handle_notification(conn, body: dict) -> dict:
-    """Обработка уведомлений от Тинькофф (webhook)"""
-    status = body.get('Status')
-    payment_id_tinkoff = str(body.get('PaymentId', ''))
-    order_id = body.get('OrderId', '')
-    rebill_id = str(body.get('RebillId', '')) if body.get('RebillId') else None
-    card_id = body.get('CardId')
-    pan = body.get('Pan', '')
-    card_last4 = pan[-4:] if pan and len(pan) >= 4 else None
-
-    if not order_id.startswith('studyfay_'):
-        return {'success': True}
-
-    local_payment_id = int(order_id.replace('studyfay_', ''))
-
-    if status == 'CONFIRMED':
-        complete_payment(conn, local_payment_id, 'tinkoff', payment_id_tinkoff,
-                        rebill_id=rebill_id, card_last4=card_last4)
-
-    return {'success': True}
 
 def get_rustore_jwt():
     """JWT для авторизации в RuStore Public API"""
@@ -489,8 +316,49 @@ def rustore_activate_subscription(conn, user_id, plan_type, purchase_token):
 
     return True
 
+def rustore_activate_question_pack(conn, user_id, pack_id, purchase_token):
+    """Активирует пакет вопросов после RuStore валидации"""
+    pack = QUESTION_PACKS.get(pack_id)
+    if not pack:
+        return False
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(f"SELECT id FROM {SCHEMA_NAME}.payments WHERE user_id = %s AND payment_id = %s AND payment_status = 'completed'", (user_id, purchase_token))
+        if cur.fetchone():
+            return True
+
+        cur.execute(f"""
+            INSERT INTO {SCHEMA_NAME}.payments
+            (user_id, amount, plan_type, payment_status, payment_method, payment_id, completed_at)
+            VALUES (%s, %s, %s, 'completed', 'rustore', %s, CURRENT_TIMESTAMP)
+        """, (user_id, pack['price'], pack_id, purchase_token))
+        conn.commit()
+
+        payment_id = cur.lastrowid or None
+        # Fetch the inserted payment id for question_packs table
+        cur.execute(f"SELECT id FROM {SCHEMA_NAME}.payments WHERE user_id = %s AND payment_id = %s AND payment_status = 'completed' ORDER BY id DESC LIMIT 1", (user_id, purchase_token))
+        row = cur.fetchone()
+        local_payment_id = row['id'] if row else None
+
+        questions_to_add = pack['questions']
+        cur.execute(f"""
+            UPDATE {SCHEMA_NAME}.users
+            SET bonus_questions = COALESCE(bonus_questions, 0) + %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (questions_to_add, user_id))
+
+        cur.execute(f"""
+            INSERT INTO {SCHEMA_NAME}.question_packs
+            (user_id, pack_type, questions_count, price_rub, payment_id)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (user_id, pack_id, questions_to_add, pack['price'], local_payment_id))
+        conn.commit()
+
+    return True
+
 def handler(event: dict, context) -> dict:
-    """Обработчик запросов для платежей с автопродлением (Tinkoff + RuStore)"""
+    """Обработчик запросов для платежей через RuStore"""
     method = event.get('httpMethod', 'GET')
 
     if method == 'OPTIONS':
@@ -511,19 +379,6 @@ def handler(event: dict, context) -> dict:
 
     qs = event.get('queryStringParameters', {}) or {}
     body_str = event.get('body', '{}') or '{}'
-
-    if method == 'POST' and qs.get('action') == 'notification':
-        conn = psycopg2.connect(DATABASE_URL)
-        try:
-            body = json.loads(body_str)
-            result = handle_notification(conn, body)
-            return {
-                'statusCode': 200,
-                'headers': headers,
-                'body': json.dumps(result)
-            }
-        finally:
-            conn.close()
 
     auth_header = event.get('headers', {}).get('X-Authorization', '')
     token = auth_header.replace('Bearer ', '')
@@ -601,102 +456,13 @@ def handler(event: dict, context) -> dict:
             body = json.loads(body_str)
             action = body.get('action')
 
-            if action == 'create_payment':
-                plan_type = body.get('plan_type')
-                if plan_type not in PLANS and plan_type not in TOKEN_PACKS and plan_type not in QUESTION_PACKS and plan_type not in SEASONAL_PLANS:
-                    return {
-                        'statusCode': 400,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'Неверный тип подписки'})
-                    }
-                payment = create_payment(conn, user_id, plan_type)
-                if not payment:
-                    return {
-                        'statusCode': 500,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'Не удалось создать платеж'})
-                    }
-                plan_info = PLANS.get(plan_type) or TOKEN_PACKS.get(plan_type) or QUESTION_PACKS.get(plan_type) or SEASONAL_PLANS.get(plan_type)
-                return {
-                    'statusCode': 200,
-                    'headers': headers,
-                    'body': json.dumps({
-                        'payment': payment,
-                        'plan': plan_info,
-                        'payment_url': payment.get('payment_url'),
-                        'tinkoff_payment_id': payment.get('tinkoff_payment_id')
-                    }, default=str)
-                }
-
-            elif action == 'check_payment':
-                payment_id = body.get('payment_id')
-                tinkoff_payment_id = body.get('tinkoff_payment_id')
-                if not payment_id or not tinkoff_payment_id:
-                    return {
-                        'statusCode': 400,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'payment_id и tinkoff_payment_id обязательны'})
-                    }
-                tinkoff_status = check_tinkoff_payment(tinkoff_payment_id)
-                if tinkoff_status and tinkoff_status.get('Success'):
-                    status = tinkoff_status.get('Status')
-                    if status == 'CONFIRMED':
-                        rebill_id = str(tinkoff_status.get('RebillId', '')) if tinkoff_status.get('RebillId') else None
-                        pan = tinkoff_status.get('Pan', '')
-                        card_last4 = pan[-4:] if pan and len(pan) >= 4 else None
-                        complete_payment(conn, payment_id, 'tinkoff', tinkoff_payment_id,
-                                        rebill_id=rebill_id, card_last4=card_last4)
-                        return {
-                            'statusCode': 200,
-                            'headers': headers,
-                            'body': json.dumps({'status': 'completed', 'message': 'Подписка активирована'})
-                        }
-                    elif status in ['NEW', 'AUTHORIZED']:
-                        return {
-                            'statusCode': 200,
-                            'headers': headers,
-                            'body': json.dumps({'status': 'pending', 'message': 'Платеж в обработке'})
-                        }
-                    else:
-                        return {
-                            'statusCode': 200,
-                            'headers': headers,
-                            'body': json.dumps({'status': 'failed', 'message': f'Платеж не прошел: {status}'})
-                        }
-                return {
-                    'statusCode': 500,
-                    'headers': headers,
-                    'body': json.dumps({'error': 'Не удалось проверить статус платежа'})
-                }
-
-            elif action == 'toggle_auto_renew':
+            if action == 'toggle_auto_renew':
                 enabled = body.get('enabled', True)
                 toggle_auto_renew(conn, user_id, enabled)
                 return {
                     'statusCode': 200,
                     'headers': headers,
                     'body': json.dumps({'success': True, 'auto_renew': enabled})
-                }
-
-            elif action == 'complete_payment':
-                payment_id = body.get('payment_id')
-                if not payment_id:
-                    return {
-                        'statusCode': 400,
-                        'headers': headers,
-                        'body': json.dumps({'error': 'payment_id обязателен'})
-                    }
-                success = complete_payment(conn, payment_id, 'test', f'test_{payment_id}')
-                if success:
-                    return {
-                        'statusCode': 200,
-                        'headers': headers,
-                        'body': json.dumps({'success': True, 'message': 'Подписка активирована'})
-                    }
-                return {
-                    'statusCode': 400,
-                    'headers': headers,
-                    'body': json.dumps({'error': 'Платеж не найден или уже обработан'})
                 }
 
             elif action == 'rustore_validate':
@@ -714,10 +480,18 @@ def handler(event: dict, context) -> dict:
                             inv_status = bd.get('invoice_status', bd.get('invoiceStatus', ''))
                     print(f"[RUSTORE] validate status: {inv_status}")
                     if inv_status in ('confirmed', 'CONFIRMED', 'paid', 'PAID'):
-                        success = rustore_activate_subscription(conn, user_id, plan_type, purchase_token)
-                        if success:
-                            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'plan': plan_type})}
-                        return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать подписку'})}
+                        # Определяем тип покупки: пакет вопросов или подписка
+                        if plan_type.startswith('questions_'):
+                            success = rustore_activate_question_pack(conn, user_id, plan_type, purchase_token)
+                            if success:
+                                pack = QUESTION_PACKS.get(plan_type, {})
+                                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'type': 'question_pack', 'pack_id': plan_type, 'questions': pack.get('questions', 0)})}
+                            return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать пакет вопросов'})}
+                        else:
+                            success = rustore_activate_subscription(conn, user_id, plan_type, purchase_token)
+                            if success:
+                                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'plan': plan_type})}
+                            return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать подписку'})}
                     return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': False, 'status': inv_status or 'unknown'})}
                 return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось проверить покупку RuStore'})}
 
@@ -726,6 +500,31 @@ def handler(event: dict, context) -> dict:
                 for key, plan in PLANS.items():
                     products.append({'product_id': f'premium_{key}' if not key.startswith('premium_') else key, 'name': plan['name'], 'price': plan['price'], 'duration_days': plan['duration_days']})
                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'products': products})}
+
+            elif action == 'rustore_purchase_pack':
+                purchase_token = body.get('purchase_token', '')
+                pack_id = body.get('pack_id', '')
+                if not purchase_token:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'purchase_token обязателен'})}
+                if pack_id not in QUESTION_PACKS:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неверный pack_id'})}
+                validation = rustore_validate_purchase(purchase_token)
+                if validation:
+                    inv_status = None
+                    if isinstance(validation, dict):
+                        inv_status = validation.get('invoice_status', validation.get('invoiceStatus', ''))
+                        bd = validation.get('body', {})
+                        if isinstance(bd, dict) and not inv_status:
+                            inv_status = bd.get('invoice_status', bd.get('invoiceStatus', ''))
+                    print(f"[RUSTORE] pack validate status: {inv_status}")
+                    if inv_status in ('confirmed', 'CONFIRMED', 'paid', 'PAID'):
+                        success = rustore_activate_question_pack(conn, user_id, pack_id, purchase_token)
+                        if success:
+                            pack = QUESTION_PACKS[pack_id]
+                            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'pack_id': pack_id, 'questions': pack['questions']})}
+                        return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать пакет вопросов'})}
+                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': False, 'status': inv_status or 'unknown'})}
+                return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось проверить покупку RuStore'})}
 
         return {
             'statusCode': 404,
