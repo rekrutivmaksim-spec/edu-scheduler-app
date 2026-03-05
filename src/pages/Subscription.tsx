@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import { Card } from '@/components/ui/card';
@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import {
+  isAndroidApp,
+  isRuStoreAvailable,
+  purchaseSubscription as ruStorePurchase,
+  validatePurchaseOnServer,
+} from '@/lib/rustore-billing';
 
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
@@ -48,13 +54,21 @@ interface Payment {
   expires_at?: string;
 }
 
-const FAQ_ITEMS = [
+const FAQ_ITEMS_WEB = [
   { q: 'Как происходит оплата?', a: 'Через защищённый шлюз Т-Касса (Тинькофф). Карта привязывается для автопродления.' },
   { q: 'Подписка продлевается автоматически?', a: 'Да, подписка продлевается автоматически. Ты можешь отключить автопродление в любой момент.' },
   { q: 'Как отключить автопродление?', a: 'В разделе «Подписка» переключи тумблер «Автопродление». Подписка доработает до конца оплаченного периода.' },
   { q: 'Могу ли я вернуть деньги?', a: '14 дней на возврат, если не использовал(а) платные функции.' },
   { q: 'Что будет после окончания?', a: 'Без автопродления базовые функции остаются + до 3 бесплатных вопросов ИИ в день.' },
   { q: 'Какие способы оплаты?', a: 'Карты МИР/Visa/MC, СБП, SberPay.' },
+];
+
+const FAQ_ITEMS_RUSTORE = [
+  { q: 'Как происходит оплата?', a: 'Через систему платежей RuStore. Оплата привязывается к аккаунту RuStore.' },
+  { q: 'Подписка продлевается автоматически?', a: 'Да. Управлять подпиской можно в настройках RuStore → Подписки.' },
+  { q: 'Как отменить подписку?', a: 'RuStore → Настройки → Подписки → Studyfay → Отменить. Доступ сохранится до конца оплаченного периода.' },
+  { q: 'Могу ли я вернуть деньги?', a: 'Возврат через RuStore в течение 14 дней, если не использовал(а) платные функции.' },
+  { q: 'Что будет после окончания?', a: 'Базовые функции остаются + до 3 бесплатных вопросов ИИ в день.' },
 ];
 
 const Subscription = () => {
@@ -84,6 +98,9 @@ const Subscription = () => {
     next_charge_amount?: number;
   } | null>(null);
   const [togglingAutoRenew, setTogglingAutoRenew] = useState(false);
+
+  const useRuStore = useMemo(() => isAndroidApp() && isRuStoreAvailable(), []);
+  const FAQ_ITEMS = useRuStore ? FAQ_ITEMS_RUSTORE : FAQ_ITEMS_WEB;
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -225,7 +242,47 @@ const Subscription = () => {
     }
   };
 
-  const handleBuySubscription = async (planId: string) => {
+  const handleBuyViaRuStore = async (planId: string) => {
+    setSelectedPlan(planId);
+    setIsProcessing(true);
+
+    try {
+      toast({ title: 'Открываем оплату RuStore...', description: 'Подтвердите покупку в появившемся окне' });
+      const result = await ruStorePurchase(planId);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Покупка не завершена');
+      }
+
+      toast({ title: 'Проверяем оплату...' });
+
+      const token = authService.getToken();
+      const validation = await validatePurchaseOnServer(
+        PAYMENTS_URL,
+        token || '',
+        result.purchaseToken || '',
+        planId
+      );
+
+      if (validation.success) {
+        toast({ title: 'Подписка активирована!', description: 'Полный доступ ко всем функциям' });
+        await loadData();
+      } else {
+        throw new Error(validation.error || 'Не удалось активировать подписку');
+      }
+    } catch (error) {
+      toast({
+        title: 'Ошибка оплаты',
+        description: error instanceof Error ? error.message : 'Попробуйте снова',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsProcessing(false);
+      setSelectedPlan(null);
+    }
+  };
+
+  const handleBuyViaTinkoff = async (planId: string) => {
     setSelectedPlan(planId);
     setIsProcessing(true);
 
@@ -348,6 +405,14 @@ const Subscription = () => {
       });
       setIsProcessing(false);
       setSelectedPlan(null);
+    }
+  };
+
+  const handleBuySubscription = (planId: string) => {
+    if (useRuStore) {
+      handleBuyViaRuStore(planId);
+    } else {
+      handleBuyViaTinkoff(planId);
     }
   };
 
@@ -477,8 +542,8 @@ const Subscription = () => {
           </Card>
         )}
 
-        {/* Управление автопродлением */}
-        {isPremium && autoRenewInfo && (
+        {/* Управление автопродлением (только Тинькофф, RuStore управляет сам) */}
+        {isPremium && autoRenewInfo && !useRuStore && (
           <Card className="p-4 sm:p-5 bg-white border-2 border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -715,11 +780,11 @@ const Subscription = () => {
         <div className="flex items-center justify-center gap-4 sm:gap-6 py-2">
           <div className="flex items-center gap-1.5">
             <Icon name="Lock" size={14} className="text-gray-400" />
-            <span className="text-[10px] sm:text-xs text-gray-400">Т-Касса</span>
+            <span className="text-[10px] sm:text-xs text-gray-400">{useRuStore ? 'RuStore' : 'Т-Касса'}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Icon name="ShieldCheck" size={14} className="text-gray-400" />
-            <span className="text-[10px] sm:text-xs text-gray-400">Автопродление</span>
+            <span className="text-[10px] sm:text-xs text-gray-400">Безопасная оплата</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Icon name="RotateCcw" size={14} className="text-gray-400" />
@@ -728,17 +793,19 @@ const Subscription = () => {
         </div>
 
         {/* Способы оплаты */}
-        <div className="flex items-center justify-center gap-2">
-          <Badge variant="outline" className="border-gray-200 text-gray-500 text-[10px] font-normal">
-            <Icon name="CreditCard" size={12} className="mr-1" />МИР / Visa / MC
-          </Badge>
-          <Badge variant="outline" className="border-gray-200 text-gray-500 text-[10px] font-normal">
-            <Icon name="Smartphone" size={12} className="mr-1" />СБП
-          </Badge>
-          <Badge variant="outline" className="border-gray-200 text-gray-500 text-[10px] font-normal">
-            <Icon name="Wallet" size={12} className="mr-1" />SberPay
-          </Badge>
-        </div>
+        {!useRuStore && (
+          <div className="flex items-center justify-center gap-2">
+            <Badge variant="outline" className="border-gray-200 text-gray-500 text-[10px] font-normal">
+              <Icon name="CreditCard" size={12} className="mr-1" />МИР / Visa / MC
+            </Badge>
+            <Badge variant="outline" className="border-gray-200 text-gray-500 text-[10px] font-normal">
+              <Icon name="Smartphone" size={12} className="mr-1" />СБП
+            </Badge>
+            <Badge variant="outline" className="border-gray-200 text-gray-500 text-[10px] font-normal">
+              <Icon name="Wallet" size={12} className="mr-1" />SberPay
+            </Badge>
+          </div>
+        )}
 
         {/* FAQ */}
         <div className="space-y-2">
