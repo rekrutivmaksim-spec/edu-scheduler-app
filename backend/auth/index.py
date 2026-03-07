@@ -194,14 +194,14 @@ def handler(event: dict, context) -> dict:
                         trial_allowed = True
                         block_reason = None
 
-                        # 1. Блокировка по browser fingerprint — макс 2 аккаунта
+                        # 1. Блокировка по browser fingerprint — макс 3 аккаунта
                         if browser_fp:
                             cur.execute("""
                                 SELECT COUNT(*) AS cnt FROM users
                                 WHERE browser_fp = %s
                             """, (browser_fp,))
                             fp_total = cur.fetchone()['cnt']
-                            if fp_total >= 2:
+                            if fp_total >= 3:
                                 return {
                                     'statusCode': 429,
                                     'headers': headers,
@@ -215,14 +215,14 @@ def handler(event: dict, context) -> dict:
                                 trial_allowed = False
                                 block_reason = 'browser_fp'
 
-                        # 2. Блокировка по device_id — макс 2 аккаунта
+                        # 2. Блокировка по device_id — макс 3 аккаунта
                         if device_id:
                             cur.execute("""
                                 SELECT COUNT(*) AS cnt FROM users
                                 WHERE device_id = %s
                             """, (device_id,))
                             dev_total = cur.fetchone()['cnt']
-                            if dev_total >= 2:
+                            if dev_total >= 3:
                                 return {
                                     'statusCode': 429,
                                     'headers': headers,
@@ -249,14 +249,14 @@ def handler(event: dict, context) -> dict:
                                 trial_allowed = False
                                 block_reason = 'ip_limit'
 
-                        # 4. Cooldown: макс 2 регистрации с одного IP в сутки
+                        # 4. Cooldown: макс 3 регистрации с одного IP в сутки
                         if client_ip:
                             cur.execute("""
                                 SELECT COUNT(*) AS cnt FROM users
                                 WHERE reg_ip = %s AND created_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
                             """, (client_ip,))
                             ip_reg_today = cur.fetchone()['cnt']
-                            if ip_reg_today >= 2:
+                            if ip_reg_today >= 3:
                                 return {
                                     'statusCode': 429,
                                     'headers': headers,
