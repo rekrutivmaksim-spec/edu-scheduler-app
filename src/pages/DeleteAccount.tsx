@@ -34,7 +34,7 @@ export default function DeleteAccount() {
       const d = await res.json();
       if (res.ok) {
         authService.logout();
-        toast({ title: 'Аккаунт удалён', description: 'Все ваши данные будут удалены в течение 30 дней' });
+        toast({ title: 'Аккаунт удалён', description: 'Все ваши данные удалены немедленно' });
         navigate('/auth');
       } else {
         toast({ title: 'Ошибка', description: d.error || 'Неверный пароль или ошибка сервера', variant: 'destructive' });
@@ -92,7 +92,7 @@ export default function DeleteAccount() {
               </div>
 
               <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600">
-                <p>Данные будут полностью удалены с наших серверов в течение <strong>30 дней</strong> после подтверждения запроса.</p>
+                <p>Данные будут <strong>немедленно и безвозвратно</strong> удалены с наших серверов после подтверждения.</p>
               </div>
 
               <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
