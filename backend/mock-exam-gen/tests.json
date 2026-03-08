@@ -5,7 +5,7 @@
       "method": "POST",
       "path": "/",
       "expectedStatus": 401,
-      "expectedBody": {"error": "Требуется авторизация"},
+      "expectedBody": {"error": "auth"},
       "bodyMatcher": "partial"
     }
   ]

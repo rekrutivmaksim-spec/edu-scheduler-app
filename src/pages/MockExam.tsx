@@ -425,50 +425,75 @@ export default function MockExam() {
     return [...new Set(qs.map(q => q.topic))];
   }, [getSubjectQuestions]);
 
+  const launchTest = (qs: Question[], mode: TestMode) => {
+    if (qs.length === 0 || !selectedSubject) return;
+    const minutes = mode === 'express' ? 20 : (EXAM_TIMES[examType]?.[selectedSubject.id] ?? 180);
+    setQuestions(qs);
+    setCurrentIdx(0);
+    setAnswers({});
+    setTimeLeft(minutes * 60);
+    setStartTime(Date.now());
+    setResults(null);
+    setShowNav(false);
+    setShowConfirm(false);
+    setScreen('test');
+  };
+
   const startTest = useCallback(async (mode: TestMode, topic?: string) => {
     if (!selectedSubject) return;
 
     if (mode === 'full') {
       setGenerating(true);
-      setGenProgress('Генерируем задания...');
+      setGenProgress('Генерируем задания ИИ...');
+      let aiQuestions: Question[] = [];
+
       try {
         const token = authService.getToken();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 25000);
+
         const res = await fetch(MOCK_EXAM_GEN_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ exam_type: examType, subject: selectedSubject.id }),
+          body: JSON.stringify({ exam_type: examType, subject: selectedSubject.id, count: 15 }),
+          signal: controller.signal,
         });
-        if (!res.ok) throw new Error('Ошибка генерации');
-        const data = await res.json();
-        const qs: Question[] = (data.questions || []).map((q: Record<string, unknown>, i: number) => ({
-          id: i + 1,
-          subject: selectedSubject.id,
-          examType: examType,
-          topic: (q.topic as string) || '',
-          text: (q.text as string) || '',
-          type: (q.type as 'single' | 'multiple' | 'input') || 'single',
-          options: (q.options as string[]) || undefined,
-          correctAnswer: (q.correctAnswer as string | string[]) || '',
-          explanation: (q.explanation as string) || '',
-          points: (q.points as number) || 1,
-        }));
-        if (qs.length === 0) throw new Error('Нет заданий');
-        const minutes = EXAM_TIMES[examType]?.[selectedSubject.id] ?? 180;
-        setQuestions(qs);
-        setCurrentIdx(0);
-        setAnswers({});
-        setTimeLeft(minutes * 60);
-        setStartTime(Date.now());
-        setResults(null);
-        setShowNav(false);
-        setShowConfirm(false);
-        setScreen('test');
+        clearTimeout(timeout);
+
+        if (res.ok) {
+          const data = await res.json();
+          aiQuestions = (data.questions || []).map((q: Record<string, unknown>, i: number) => ({
+            id: i + 1,
+            subject: selectedSubject.id,
+            examType: examType,
+            topic: (q.topic as string) || '',
+            text: (q.text as string) || '',
+            type: (q.type as 'single' | 'multiple' | 'input') || 'single',
+            options: (q.options as string[]) || undefined,
+            correctAnswer: (q.correctAnswer as string | string[]) || '',
+            explanation: (q.explanation as string) || '',
+            points: (q.points as number) || 1,
+          }));
+        }
       } catch {
-        setGenProgress('Ошибка. Попробуйте ещё раз.');
-        setTimeout(() => setGenerating(false), 2000);
+        // ИИ не успел — используем фоллбэк
+      }
+
+      setGenerating(false);
+
+      if (aiQuestions.length >= 5) {
+        launchTest(aiQuestions, mode);
         return;
-      } finally {
-        setGenerating(false);
+      }
+
+      // Фоллбэк на готовые вопросы
+      const fallback = shuffle(getSubjectQuestions(selectedSubject.id, examType));
+      if (fallback.length > 0) {
+        launchTest(fallback, mode);
+      } else {
+        setGenProgress('Нет заданий по этому предмету.');
+        setGenerating(true);
+        setTimeout(() => setGenerating(false), 2000);
       }
       return;
     }
@@ -483,16 +508,7 @@ export default function MockExam() {
       qs = shuffle(qs);
     }
     if (qs.length === 0) return;
-    const minutes = mode === 'express' ? 20 : (EXAM_TIMES[examType]?.[selectedSubject.id] ?? 180);
-    setQuestions(qs);
-    setCurrentIdx(0);
-    setAnswers({});
-    setTimeLeft(minutes * 60);
-    setStartTime(Date.now());
-    setResults(null);
-    setShowNav(false);
-    setShowConfirm(false);
-    setScreen('test');
+    launchTest(qs, mode);
   }, [selectedSubject, examType, getSubjectQuestions]);
 
   const calculateResults = useCallback(() => {
@@ -618,7 +634,7 @@ export default function MockExam() {
                 >
                   <span className="text-2xl">{sub.icon}</span>
                   <p className="font-bold text-gray-800 text-sm mt-2 leading-tight">{sub.name}</p>
-                  <p className="text-gray-400 text-xs mt-1">{REAL_QUESTION_COUNTS[examType]?.[sub.id] ?? count} заданий · {Math.floor(time / 60)}ч {time % 60}м</p>
+                  <p className="text-gray-400 text-xs mt-1">{count > 0 ? count : 15} заданий · {Math.floor(time / 60)}ч {time % 60}м</p>
                 </button>
               );
             })}
@@ -662,7 +678,7 @@ export default function MockExam() {
               </div>
               <div className="flex-1">
                 <p className="font-bold text-gray-800">Полный вариант</p>
-                <p className="text-gray-400 text-xs">{REAL_QUESTION_COUNTS[examType]?.[selectedSubject!.id] ?? qCount} заданий · {Math.floor(time / 60)}ч {time % 60}м</p>
+                <p className="text-gray-400 text-xs">15 заданий · {Math.floor(time / 60)}ч {time % 60}м</p>
                 <span className="inline-block mt-1 px-2 py-0.5 bg-purple-100 text-purple-600 rounded-full text-[10px] font-semibold">Генерируются ИИ</span>
               </div>
               <Icon name="ChevronRight" size={18} className="text-gray-300" />
