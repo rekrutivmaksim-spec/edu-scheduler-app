@@ -175,12 +175,23 @@ def get_limits(conn, user_id: int) -> dict:
         if reset_f < datetime.now():
             files_today = 0
 
+    # Calculate days since registration for all tiers
+    created_at = None
+    with conn.cursor(cursor_factory=RealDictCursor) as cur2:
+        cur2.execute("SELECT created_at FROM users WHERE id = %s", (user_id,))
+        row2 = cur2.fetchone()
+        if row2:
+            created_at = row2['created_at']
+    days_since_reg = (datetime.now() - created_at.replace(tzinfo=None)).days if created_at else 999
+
     if status['is_premium']:
         bonus = status.get('bonus_questions', 0) or 0
         prem_used = status.get('daily_premium_questions_used', 0) or 0
         return {
             **status,
             'is_soft_landing': False,
+            'days_since_registration': days_since_reg,
+            'free_days_total': 3,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
@@ -200,6 +211,8 @@ def get_limits(conn, user_id: int) -> dict:
         return {
             **status,
             'is_soft_landing': False,
+            'days_since_registration': days_since_reg,
+            'free_days_total': 3,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
@@ -216,6 +229,8 @@ def get_limits(conn, user_id: int) -> dict:
             **status,
             'is_soft_landing': True,
             'soft_landing_days_left': soft_landing_days_left,
+            'days_since_registration': days_since_reg,
+            'free_days_total': 3,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
                 'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},
@@ -235,19 +250,14 @@ def get_limits(conn, user_id: int) -> dict:
         daily_used = status.get('daily_questions_used', 0)
         bonus = status.get('bonus_questions', 0)
 
-        created_at = None
-        with conn.cursor(cursor_factory=RealDictCursor) as cur2:
-            cur2.execute("SELECT created_at FROM users WHERE id = %s", (user_id,))
-            row2 = cur2.fetchone()
-            if row2:
-                created_at = row2['created_at']
-        days_since_reg = (datetime.now() - created_at.replace(tzinfo=None)).days if created_at else 999
         free_limit = 10 if days_since_reg < 3 else 3
         total_available = free_limit + bonus
 
         return {
             **status,
             'is_soft_landing': False,
+            'days_since_registration': days_since_reg,
+            'free_days_total': 3,
             'limits': {
                 'schedule': {'used': schedule_count, 'max': 7, 'unlimited': False},
                 'tasks': {'used': tasks_count, 'max': 10, 'unlimited': False},

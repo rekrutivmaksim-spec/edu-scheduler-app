@@ -65,7 +65,43 @@ const Pricing = () => {
   const [currentPlan, setCurrentPlan] = useState('free');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [bonusQuestions, setBonusQuestions] = useState(0);
+  const [discountTimer, setDiscountTimer] = useState('');
+  const [discountActive, setDiscountActive] = useState(false);
   const canPurchase = isAndroidApp() && isRuStoreAvailable();
+
+  useEffect(() => {
+    const DISCOUNT_DURATION = 24 * 60 * 60 * 1000;
+    const key = 'pricing_first_seen';
+    let stored = localStorage.getItem(key);
+    if (!stored) {
+      stored = Date.now().toString();
+      localStorage.setItem(key, stored);
+    }
+    const firstSeen = parseInt(stored, 10);
+    
+    const tick = () => {
+      const elapsed = Date.now() - firstSeen;
+      const remaining = DISCOUNT_DURATION - elapsed;
+      if (remaining <= 0) {
+        setDiscountActive(false);
+        setDiscountTimer('');
+        return false;
+      }
+      setDiscountActive(true);
+      const h = Math.floor(remaining / 3600000);
+      const m = Math.floor((remaining % 3600000) / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      setDiscountTimer(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      return true;
+    };
+    
+    if (tick()) {
+      const interval = setInterval(() => {
+        if (!tick()) clearInterval(interval);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, []);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/auth'); return; }
@@ -92,7 +128,7 @@ const Pricing = () => {
     }
     setLoading(planId);
     try {
-      const backendPlanId = planId === '12months' ? '1year' : planId;
+      const backendPlanId = planId === '12months' ? '1year' : planId === '1month_discount' ? '1month' : planId;
       toast({ title: 'Открываем оплату RuStore...' });
       const result = await ruStorePurchase(backendPlanId);
 
@@ -166,6 +202,41 @@ const Pricing = () => {
             >
               Скачать
             </button>
+          </div>
+        )}
+
+        {/* Скидка первый месяц */}
+        {discountActive && !isPremium && (
+          <div className="bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 rounded-3xl p-5 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8" />
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xl">🔥</span>
+                <span className="bg-white/20 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">Только сейчас</span>
+              </div>
+              <h3 className="text-white font-extrabold text-xl mb-1">Первый месяц — 299 ₽</h3>
+              <p className="text-white/70 text-sm mb-3">
+                <span className="line-through">499 ₽</span> → 299 ₽ · Экономия 40%
+              </p>
+              <div className="bg-white/15 rounded-2xl px-4 py-2.5 flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Icon name="Clock" size={16} className="text-white/70" />
+                  <span className="text-white/80 text-sm">Скидка сгорит через</span>
+                </div>
+                <span className="text-white font-mono font-extrabold text-lg">{discountTimer}</span>
+              </div>
+              <Button
+                onClick={() => handleBuy('1month_discount')}
+                disabled={!!loading}
+                className="w-full h-13 bg-white text-pink-600 font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-70"
+              >
+                {loading === '1month_discount'
+                  ? <Icon name="Loader2" size={18} className="animate-spin" />
+                  : 'Подключить за 299 ₽'
+                }
+              </Button>
+              <p className="text-white/50 text-xs text-center mt-2">Далее 499 ₽/мес · Отмена в любой момент</p>
+            </div>
           </div>
         )}
 

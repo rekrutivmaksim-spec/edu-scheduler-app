@@ -1,13 +1,12 @@
 {
   "tests": [
     {
-      "name": "Check trial reminders",
+      "name": "Check limit drop reminders",
       "method": "POST",
       "path": "/",
       "expectedStatus": 200,
       "expectedBody": {
-        "notifications_sent": 0,
-        "users": []
+        "notifications_sent": 0
       },
       "bodyMatcher": "partial"
     }

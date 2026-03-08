@@ -26,6 +26,8 @@ export interface LimitsData {
   subscription_type: 'free' | 'premium';
   subscription_expires_at: string | null;
   trial_ends_at: string | null;
+  days_since_registration?: number;
+  free_days_total?: number;
   limits: Limits;
 }
 
@@ -36,6 +38,8 @@ const DEFAULT_LIMITS: LimitsData = {
   subscription_type: 'free',
   subscription_expires_at: null,
   trial_ends_at: null,
+  days_since_registration: 999,
+  free_days_total: 3,
   limits: {
     ai_questions: { used: 0, max: 3, unlimited: false },
     sessions: { used: 0, max: 1, unlimited: false },

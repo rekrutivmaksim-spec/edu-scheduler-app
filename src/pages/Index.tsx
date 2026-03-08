@@ -199,6 +199,48 @@ export default function Index() {
           );
         })()}
 
+        {/* ===== ПЛАШКА БЕСПЛАТНОГО ПЕРИОДА ===== */}
+        {!limits.isPremium && !limits.loading && (() => {
+          const daysReg = limits.data.days_since_registration ?? 999;
+          const freeDays = limits.data.free_days_total ?? 3;
+          const daysLeft = Math.max(0, freeDays - daysReg);
+          if (daysLeft <= 0 && !limits.data.is_soft_landing) {
+            return (
+              <button
+                onClick={() => navigate('/pricing')}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
+              >
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+                  <Icon name="Zap" size={18} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-sm">Лимит снижен до 3 вопросов/день</p>
+                  <p className="text-white/70 text-xs">Подключи Premium — без ограничений</p>
+                </div>
+                <Icon name="ChevronRight" size={16} className="text-white/60" />
+              </button>
+            );
+          }
+          if (daysLeft > 0) {
+            return (
+              <button
+                onClick={() => navigate('/pricing')}
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
+              >
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+                  <Icon name="Gift" size={18} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-sm">Расширенный доступ: {daysLeft} {daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'}</p>
+                  <p className="text-white/70 text-xs">10 вопросов/день — потом станет 3</p>
+                </div>
+                <Icon name="ChevronRight" size={16} className="text-white/60" />
+              </button>
+            );
+          }
+          return null;
+        })()}
+
         {/* ===== БЛОК 1: СЕГОДНЯШНЯЯ СЕССИЯ ===== */}
         {sessionDone ? (
           /* Сессия пройдена — тихий статус */

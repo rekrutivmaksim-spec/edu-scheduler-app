@@ -117,7 +117,7 @@ export default function Onboarding() {
     } finally {
       setSaving(false);
     }
-    navigate('/');
+    navigate('/session?first=1');
   };
 
   const canNext = () => {

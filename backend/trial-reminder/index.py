@@ -1,22 +1,24 @@
-"""Отправка push-уведомлений за 12 часов до окончания Trial"""
+"""Отправка push-уведомлений за день до снижения бесплатных лимитов"""
 
 import json
 import os
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import urllib.request
 
 
 def get_db_connection():
-    """Создаёт подключение к PostgreSQL базе данных"""
     dsn = os.environ['DATABASE_URL']
     schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
     conn = psycopg2.connect(dsn, options=f'-c search_path={schema}')
     return conn
 
 
+PUSH_URL = os.environ.get('PUSH_NOTIFICATIONS_URL', '')
+
+
 def create_in_app_notification(conn, user_id: int, title: str, message: str, action_url: str = None):
-    """Создаёт уведомление в таблице notifications для показа в приложении"""
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO notifications (user_id, title, message, action_url, is_read, created_at)
@@ -25,10 +27,31 @@ def create_in_app_notification(conn, user_id: int, title: str, message: str, act
         conn.commit()
 
 
+def send_push(user_id: int, title: str, body: str, url: str, tag: str):
+    if not PUSH_URL:
+        return
+    try:
+        data = json.dumps({
+            'action': 'send',
+            'user_id': user_id,
+            'title': title,
+            'body': body,
+            'url': url,
+            'tag': tag
+        }).encode()
+        req = urllib.request.Request(PUSH_URL, data=data, headers={'Content-Type': 'application/json'}, method='POST')
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass
+
+
+FREE_GENEROUS_DAYS = 3
+
+
 def handler(event: dict, context) -> dict:
-    """Проверяет пользователей с истекающим Trial и отправляет уведомления"""
+    """Находит пользователей, у которых завтра снизятся лимиты (с 10 до 3 вопросов/день), и отправляет уведомления"""
     method = event.get('httpMethod', 'POST')
-    
+
     if method == 'OPTIONS':
         return {
             'statusCode': 200,
@@ -39,66 +62,61 @@ def handler(event: dict, context) -> dict:
             },
             'body': ''
         }
-    
+
     headers = {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
     }
-    
+
     conn = get_db_connection()
-    
+
     try:
-        # Находим пользователей, у которых Trial истекает через 12 часов
         now = datetime.now()
-        reminder_time = now + timedelta(hours=12)
-        
+        cutoff_start = now - timedelta(days=FREE_GENEROUS_DAYS)
+        cutoff_end = cutoff_start + timedelta(hours=24)
+
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
-                SELECT id, email, trial_ends_at
-                FROM users
-                WHERE trial_ends_at IS NOT NULL
-                  AND is_trial_used = false
-                  AND trial_ends_at > %s
-                  AND trial_ends_at <= %s
-                  AND trial_reminder_sent = false
-            """, (now, reminder_time))
-            
+                SELECT u.id, u.email, u.created_at
+                FROM users u
+                WHERE u.subscription_type = 'free'
+                  AND u.created_at >= %s
+                  AND u.created_at < %s
+                  AND u.trial_reminder_sent = false
+                  AND EXISTS (
+                      SELECT 1 FROM push_subscriptions ps WHERE ps.user_id = u.id
+                  )
+            """, (cutoff_start, cutoff_end))
+
             users_to_notify = cur.fetchall()
-            
-            # Список для результатов
             notifications_sent = []
-            
+
             for user in users_to_notify:
                 user_id = user['id']
-                email = user['email']
-                trial_ends = user['trial_ends_at']
-                
-                # Формируем сообщение
-                hours_left = int((trial_ends - now).total_seconds() / 3600)
-                
-                title = '⏰ Trial заканчивается!'
-                message = f'Осталось {hours_left} часов Premium доступа. Успейте оформить подписку со скидкой 33%!'
-                
-                # Создаём уведомление в БД для показа в приложении
-                create_in_app_notification(conn, user_id, title, message, '/subscription')
-                
-                # Отмечаем, что уведомление отправлено
+                days_used = (now - user['created_at'].replace(tzinfo=None)).days
+
+                title = 'Завтра лимит снизится'
+                message = 'Сейчас у тебя 10 вопросов/день — завтра станет 3. Подключи Premium со скидкой 40%!'
+
+                create_in_app_notification(conn, user_id, title, message, '/pricing')
+                send_push(user_id, title, message, '/pricing', f'limit-drop-{user_id}')
+
                 cur.execute("""
                     UPDATE users
                     SET trial_reminder_sent = true
                     WHERE id = %s
                 """, (user_id,))
-                
+
                 notifications_sent.append({
                     'user_id': user_id,
-                    'email': email,
+                    'days_used': days_used,
                     'title': title,
                     'body': message,
-                    'action_url': '/subscription'
+                    'action_url': '/pricing'
                 })
-            
+
             conn.commit()
-            
+
             return {
                 'statusCode': 200,
                 'headers': headers,
@@ -107,6 +125,6 @@ def handler(event: dict, context) -> dict:
                     'users': notifications_sent
                 })
             }
-    
+
     finally:
         conn.close()
