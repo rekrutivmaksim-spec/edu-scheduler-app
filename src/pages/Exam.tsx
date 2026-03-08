@@ -632,17 +632,12 @@ export default function Exam() {
 
   useEffect(() => { loadSubscription(); }, []);
 
-  // Авто-навигация на основе цели пользователя
   useEffect(() => {
     if (subLoading) return;
-    if (userGoal === 'university') {
-      navigate('/university');
-      return;
-    }
     if ((userGoal === 'ege' || userGoal === 'oge') && screen === 'pick_exam') {
       setScreen('pick_subject');
     }
-  }, [subLoading, userGoal, screen, navigate]);
+  }, [subLoading, userGoal, screen]);
 
   const scrollBottom = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
