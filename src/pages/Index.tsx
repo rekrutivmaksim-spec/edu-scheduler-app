@@ -243,17 +243,28 @@ export default function Index() {
 
         {/* ===== БЛОК 1: СЕГОДНЯШНЯЯ СЕССИЯ ===== */}
         {sessionDone ? (
-          /* Сессия пройдена — тихий статус */
           <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-            <div className="bg-gradient-to-r from-green-500 to-emerald-500 px-5 py-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl">✅</div>
-              <div>
-                <p className="text-white font-bold text-base">Занятие пройдено!</p>
-                <p className="text-white/70 text-xs">{topic.topic} · {topic.subject}</p>
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 px-5 py-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl">✅</div>
+                <div>
+                  <p className="text-white font-bold text-base">Сегодня — сделано!</p>
+                  <p className="text-white/70 text-xs">{topic.topic} · {topic.subject}</p>
+                </div>
+              </div>
+              <div className="bg-white/15 rounded-2xl px-4 py-2.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-white/80 text-xs">Твой прогресс</span>
+                  <span className="text-white font-bold text-xs">{topic.number} из {topic.total} тем</span>
+                </div>
+                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-white rounded-full transition-all" style={{ width: `${Math.round(((topic.number ?? 1) / (topic.total ?? 30)) * 100)}%` }} />
+                </div>
               </div>
             </div>
             <div className="px-5 py-4">
-              <p className="text-gray-500 text-sm text-center mb-3">Следующее занятие — завтра 🌅</p>
+              <p className="text-gray-700 text-sm font-medium text-center mb-1">Завтра — {topic.nextTopic || 'следующая тема'}</p>
+              <p className="text-gray-400 text-xs text-center mb-3">Не пропускай, чтобы не потерять серию</p>
               <button
                 onClick={() => navigate('/assistant')}
                 className="w-full text-center text-indigo-500 text-sm font-medium py-2 rounded-2xl border-2 border-indigo-100 hover:bg-indigo-50 transition-colors"

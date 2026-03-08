@@ -10,6 +10,7 @@ import BottomNav from '@/components/BottomNav';
 import { authService } from '@/lib/auth';
 
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+const MOCK_EXAM_GEN_URL = 'https://functions.poehali.dev/43ea3fd5-9176-442a-9764-b78ee89ff332';
 
 interface Question {
   id: number;
@@ -343,6 +344,11 @@ const PASS_THRESHOLDS: Record<string, Record<string, number>> = {
   oge: {ru:15,math:8,physics:11,chemistry:10,biology:13,history:10,social:14,informatics:5,english:29,geography:12,literature:14},
 };
 
+const REAL_QUESTION_COUNTS: Record<string, Record<string, number>> = {
+  ege: {ru:27,math_base:21,math_prof:18,physics:30,chemistry:34,biology:28,history:21,social:25,informatics:27,english:38,geography:31,literature:17},
+  oge: {ru:25,math:25,physics:25,chemistry:25,biology:25,history:25,social:25,informatics:25,english:25,geography:25,literature:25},
+};
+
 type Screen = 'select' | 'mode' | 'test' | 'results';
 type TestMode = 'full' | 'express' | 'topics';
 
@@ -402,6 +408,8 @@ export default function MockExam() {
   const [showNav, setShowNav] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [results, setResults] = useState<{score:number;max:number;correct:number;wrong:number;skipped:number;timeSpent:number} | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState('');
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSubmitRef = useRef<() => void>();
@@ -417,8 +425,54 @@ export default function MockExam() {
     return [...new Set(qs.map(q => q.topic))];
   }, [getSubjectQuestions]);
 
-  const startTest = useCallback((mode: TestMode, topic?: string) => {
+  const startTest = useCallback(async (mode: TestMode, topic?: string) => {
     if (!selectedSubject) return;
+
+    if (mode === 'full') {
+      setGenerating(true);
+      setGenProgress('Генерируем задания...');
+      try {
+        const token = authService.getToken();
+        const res = await fetch(MOCK_EXAM_GEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ exam_type: examType, subject: selectedSubject.id }),
+        });
+        if (!res.ok) throw new Error('Ошибка генерации');
+        const data = await res.json();
+        const qs: Question[] = (data.questions || []).map((q: Record<string, unknown>, i: number) => ({
+          id: i + 1,
+          subject: selectedSubject.id,
+          examType: examType,
+          topic: (q.topic as string) || '',
+          text: (q.text as string) || '',
+          type: (q.type as 'single' | 'multiple' | 'input') || 'single',
+          options: (q.options as string[]) || undefined,
+          correctAnswer: (q.correctAnswer as string | string[]) || '',
+          explanation: (q.explanation as string) || '',
+          points: (q.points as number) || 1,
+        }));
+        if (qs.length === 0) throw new Error('Нет заданий');
+        const minutes = EXAM_TIMES[examType]?.[selectedSubject.id] ?? 180;
+        setQuestions(qs);
+        setCurrentIdx(0);
+        setAnswers({});
+        setTimeLeft(minutes * 60);
+        setStartTime(Date.now());
+        setResults(null);
+        setShowNav(false);
+        setShowConfirm(false);
+        setScreen('test');
+      } catch {
+        setGenProgress('Ошибка. Попробуйте ещё раз.');
+        setTimeout(() => setGenerating(false), 2000);
+        return;
+      } finally {
+        setGenerating(false);
+      }
+      return;
+    }
+
     let qs = getSubjectQuestions(selectedSubject.id, examType);
     if (mode === 'topics' && topic) {
       qs = qs.filter(q => q.topic === topic);
@@ -429,7 +483,6 @@ export default function MockExam() {
       qs = shuffle(qs);
     }
     if (qs.length === 0) return;
-
     const minutes = mode === 'express' ? 20 : (EXAM_TIMES[examType]?.[selectedSubject.id] ?? 180);
     setQuestions(qs);
     setCurrentIdx(0);
@@ -515,6 +568,19 @@ export default function MockExam() {
     );
   }
 
+  if (generating) {
+    return (
+      <div className="min-h-[100dvh] bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center mb-6">
+          <Icon name="Loader2" size={32} className="text-white animate-spin" />
+        </div>
+        <h2 className="text-white font-extrabold text-xl mb-2">Создаём реальный вариант</h2>
+        <p className="text-white/70 text-sm mb-4">{genProgress}</p>
+        <p className="text-white/50 text-xs">Задания генерируются ИИ по стандартам ФИПИ</p>
+      </div>
+    );
+  }
+
   if (screen === 'select') {
     return (
       <div className="min-h-[100dvh] bg-gray-50 pb-nav">
@@ -547,23 +613,18 @@ export default function MockExam() {
               return (
                 <button
                   key={sub.id}
-                  onClick={() => count > 0 && setSelectedSubject(sub)}
-                  disabled={count === 0}
-                  className={`bg-white rounded-2xl p-4 text-left transition-all ${selected ? 'ring-2 ring-indigo-500 shadow-lg' : 'shadow-sm'} ${count === 0 ? 'opacity-50' : 'active:scale-[0.97]'}`}
+                  onClick={() => setSelectedSubject(sub)}
+                  className={`bg-white rounded-2xl p-4 text-left transition-all ${selected ? 'ring-2 ring-indigo-500 shadow-lg' : 'shadow-sm'} active:scale-[0.97]`}
                 >
                   <span className="text-2xl">{sub.icon}</span>
                   <p className="font-bold text-gray-800 text-sm mt-2 leading-tight">{sub.name}</p>
-                  {count > 0 ? (
-                    <p className="text-gray-400 text-xs mt-1">{count} заданий · {Math.floor(time / 60)}ч {time % 60}м</p>
-                  ) : (
-                    <Badge variant="secondary" className="mt-1 text-[10px]">Скоро</Badge>
-                  )}
+                  <p className="text-gray-400 text-xs mt-1">{REAL_QUESTION_COUNTS[examType]?.[sub.id] ?? count} заданий · {Math.floor(time / 60)}ч {time % 60}м</p>
                 </button>
               );
             })}
           </div>
 
-          {selectedSubject && getSubjectQuestions(selectedSubject.id, examType).length > 0 && (
+          {selectedSubject && (
             <Button
               onClick={() => { setTestMode('full'); setScreen('mode'); }}
               className="w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl py-6 text-base font-bold"
@@ -601,7 +662,8 @@ export default function MockExam() {
               </div>
               <div className="flex-1">
                 <p className="font-bold text-gray-800">Полный вариант</p>
-                <p className="text-gray-400 text-xs">{qCount} заданий · {Math.floor(time / 60)}ч {time % 60}м</p>
+                <p className="text-gray-400 text-xs">{REAL_QUESTION_COUNTS[examType]?.[selectedSubject!.id] ?? qCount} заданий · {Math.floor(time / 60)}ч {time % 60}м</p>
+                <span className="inline-block mt-1 px-2 py-0.5 bg-purple-100 text-purple-600 rounded-full text-[10px] font-semibold">Генерируются ИИ</span>
               </div>
               <Icon name="ChevronRight" size={18} className="text-gray-300" />
             </div>

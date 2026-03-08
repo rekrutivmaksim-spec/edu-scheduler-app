@@ -199,13 +199,15 @@ export function simpleHash(str: string): number {
   return Math.abs(h);
 }
 
-export function getTodayTopic(examSubject?: string | null): { subject: string; topic: string } {
+export function getTodayTopic(examSubject?: string | null): { subject: string; topic: string; number: number; total: number; nextTopic: string } {
   const today = new Date().toISOString().slice(0, 10);
   const hash = simpleHash(today);
   if (examSubject && TOPICS_BY_SUBJECT[examSubject]) {
     const topics = TOPICS_BY_SUBJECT[examSubject];
-    return { subject: examSubject, topic: topics[hash % topics.length] };
+    const idx = hash % topics.length;
+    const nextIdx = (idx + 1) % topics.length;
+    return { subject: examSubject, topic: topics[idx], number: idx + 1, total: topics.length, nextTopic: topics[nextIdx] };
   }
   const fallback = DEFAULT_TOPICS[hash % DEFAULT_TOPICS.length];
-  return { subject: fallback.subject, topic: fallback.topic };
+  return { subject: fallback.subject, topic: fallback.topic, number: 1, total: 10, nextTopic: 'следующая тема' };
 }
