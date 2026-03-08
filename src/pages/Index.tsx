@@ -532,6 +532,23 @@ export default function Index() {
           </div>
         )}
 
+        {/* ===== РЕФЕРАЛЬНАЯ ПРОГРАММА ===== */}
+        <button
+          onClick={() => navigate('/referral')}
+          className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl px-5 py-4 w-full text-left active:scale-[0.98] transition-all shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-white/20 rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
+              <Icon name="Users" size={20} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-bold text-base">Приведи друга — получи Premium</p>
+              <p className="text-white/70 text-xs">+7 дней Premium за каждого друга</p>
+            </div>
+            <Icon name="ChevronRight" size={16} className="text-white/50 flex-shrink-0" />
+          </div>
+        </button>
+
         {/* ===== ПОМОДОРО + ДОСТИЖЕНИЯ — яркие карточки ===== */}
         <div className="grid grid-cols-2 gap-3">
           <button

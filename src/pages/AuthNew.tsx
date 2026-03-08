@@ -186,6 +186,9 @@ export default function AuthNew() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const refCode = searchParams.get('ref') || '';
+  if (refCode) {
+    localStorage.setItem('pendingReferral', refCode);
+  }
 
   const [screen, setScreen] = useState<Screen>('landing');
   const [demoStarting, setDemoStarting] = useState(false);

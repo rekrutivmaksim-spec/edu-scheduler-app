@@ -547,6 +547,7 @@ export default function Exam() {
   const [showExamples, setShowExamples] = useState(false);
   const [showScoring, setShowScoring] = useState(false);
   const [showPriorities, setShowPriorities] = useState(false);
+  const [autoForwarded, setAutoForwarded] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -633,11 +634,12 @@ export default function Exam() {
   useEffect(() => { loadSubscription(); }, []);
 
   useEffect(() => {
-    if (subLoading) return;
+    if (subLoading || autoForwarded) return;
     if ((userGoal === 'ege' || userGoal === 'oge') && screen === 'pick_exam') {
+      setAutoForwarded(true);
       setScreen('pick_subject');
     }
-  }, [subLoading, userGoal, screen]);
+  }, [subLoading, userGoal, autoForwarded]);
 
   const scrollBottom = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
@@ -743,7 +745,10 @@ export default function Exam() {
       setMessages([msg]);
       if (m === 'practice' || m === 'weak' || m === 'mock') setWaitingAnswer(true);
     } catch (e: unknown) {
-      if ((e as Error).message !== 'limit') {
+      if ((e as Error).message === 'limit') {
+        setMessages([{ role: 'ai', text: 'Лимит вопросов исчерпан на сегодня. Подключи Premium, чтобы продолжить подготовку.' }]);
+        setShowPaywall(true);
+      } else {
         setMessages([{ role: 'ai', text: `Привет! Готов помочь с подготовкой к ${eType.toUpperCase()} по "${s.name}" 📚\n\nЗадай любой вопрос по теме — объясню, разберу задание или проверю ответ.` }]);
       }
     } finally {
@@ -782,7 +787,10 @@ export default function Exam() {
       }
       setMessages(prev => [...prev, { role: 'ai', text: answer }]);
     } catch (e: unknown) {
-      if ((e as Error).message !== 'limit') {
+      if ((e as Error).message === 'limit') {
+        setMessages(prev => [...prev, { role: 'ai', text: 'Лимит вопросов исчерпан. Подключи Premium для продолжения.' }]);
+        setShowPaywall(true);
+      } else {
         setMessages(prev => [...prev, { role: 'ai', text: 'Хороший вопрос! Уточни его немного — и я разберу подробно 🙂' }]);
       }
     } finally {

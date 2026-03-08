@@ -133,7 +133,7 @@ export default function Session() {
   const [progressAnim, setProgressAnim] = useState(false);
   const [checkTypingText, setCheckTypingText] = useState('');
   const [showPaywall, setShowPaywall] = useState(false);
-  const [paywallTrigger, setPaywallTrigger] = useState<'session_limit' | 'ai_limit' | 'after_session'>('after_session');
+  const [paywallTrigger, setPaywallTrigger] = useState<'session_limit' | 'ai_limit' | 'after_session' | 'after_session_3rd'>('after_session');
   const [sessionAllowed, setSessionAllowed] = useState<boolean | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [sessionsLeft, setSessionsLeft] = useState<number | null>(null);
@@ -478,13 +478,16 @@ export default function Session() {
       setScreen('correct_anim');
       setTimeout(() => {
         setScreen('done');
-        // Показываем paywall через 2 сек — только при правильном ответе и не-Premium
         if (isPremium) return;
-        if (showCorrectAnswer) return; // не давить рекламой если не справился
+        if (showCorrectAnswer) return;
         const token = authService.getToken();
         if (token && token !== 'guest_token') {
+          const countKey = 'sessions_completed_total';
+          const prev = parseInt(localStorage.getItem(countKey) || '0', 10);
+          const total = prev + 1;
+          localStorage.setItem(countKey, total.toString());
           setTimeout(() => {
-            setPaywallTrigger('after_session');
+            setPaywallTrigger(total >= 3 ? 'after_session_3rd' : 'after_session');
             setShowPaywall(true);
           }, 2000);
         }

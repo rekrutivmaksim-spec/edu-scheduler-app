@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 
 interface Props {
-  trigger?: 'session_limit' | 'ai_limit' | 'after_session';
+  trigger?: 'session_limit' | 'ai_limit' | 'after_session' | 'after_session_3rd';
   streak?: number;
   daysToExam?: number;
   onClose: () => void;
@@ -29,6 +29,13 @@ const TRIGGER_COPY = {
     title: 'Занятие завершено!',
     subtitle: 'Хочешь заниматься каждый день без ограничений?',
     urgency: null,
+    showPack: false,
+  },
+  after_session_3rd: {
+    emoji: '🏆',
+    title: 'Ты прошёл уже 3 занятия!',
+    subtitle: 'Ты явно настроен серьёзно. С Premium ты будешь готовиться в 2 раза быстрее.',
+    urgency: 'Первый месяц со скидкой 40% — 299 ₽ вместо 499 ₽',
     showPack: false,
   },
 };
@@ -126,6 +133,13 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 87, onC
             Подключить Premium — 499 ₽/мес
           </Button>
           <p className="text-gray-400 text-xs text-center mt-1">🔓 Отмена в любой момент</p>
+          <button
+            onClick={() => { onClose(); navigate('/referral'); }}
+            className="w-full flex items-center justify-center gap-1.5 text-emerald-600 text-sm font-semibold mt-2 py-2 active:opacity-70"
+          >
+            <Icon name="Users" size={14} />
+            Или получи Premium бесплатно — приведи друга
+          </button>
         </div>
       </div>
 
