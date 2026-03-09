@@ -376,7 +376,7 @@ export default function MockExam() {
   useEffect(() => {
     const checkPremium = async () => {
       const token = authService.getToken();
-      if (!token) { navigate('/pricing'); return; }
+      if (!token) { navigate('/auth'); return; }
       try {
         const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
           headers: { 'Authorization': `Bearer ${token}` },
@@ -384,11 +384,8 @@ export default function MockExam() {
         const d = await res.json();
         if (d.subscription_type === 'premium' || d.is_trial) {
           setIsPremium(true);
-        } else {
-          navigate('/pricing');
-          return;
         }
-      } catch { navigate('/pricing'); return; }
+      } catch { /* free user */ }
       setPremiumChecked(true);
     };
     checkPremium();
@@ -669,8 +666,8 @@ export default function MockExam() {
 
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => startTest('full')}
-            className="bg-white rounded-2xl p-5 text-left shadow-sm active:scale-[0.98] transition-all"
+            onClick={() => isPremium ? startTest('full') : navigate('/pricing')}
+            className={`bg-white rounded-2xl p-5 text-left shadow-sm active:scale-[0.98] transition-all ${!isPremium ? 'opacity-80' : ''}`}
           >
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center">
@@ -679,9 +676,12 @@ export default function MockExam() {
               <div className="flex-1">
                 <p className="font-bold text-gray-800">Полный вариант</p>
                 <p className="text-gray-400 text-xs">15 заданий · {Math.floor(time / 60)}ч {time % 60}м</p>
-                <span className="inline-block mt-1 px-2 py-0.5 bg-purple-100 text-purple-600 rounded-full text-[10px] font-semibold">Генерируются ИИ</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="inline-block px-2 py-0.5 bg-purple-100 text-purple-600 rounded-full text-[10px] font-semibold">Генерируются ИИ</span>
+                  {!isPremium && <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-semibold flex items-center gap-1"><Icon name="Crown" size={10} /> Premium</span>}
+                </div>
               </div>
-              <Icon name="ChevronRight" size={18} className="text-gray-300" />
+              <Icon name={isPremium ? "ChevronRight" : "Lock"} size={18} className="text-gray-300" />
             </div>
           </button>
 
@@ -1000,6 +1000,25 @@ export default function MockExam() {
                 })}
               </div>
             </div>
+          )}
+
+          {!isPremium && (
+            <Card className="rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                    <Icon name="Crown" size={20} className="text-indigo-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-800 text-sm">Полные варианты с ИИ</p>
+                    <p className="text-gray-500 text-xs">15 уникальных заданий, сгенерированных по стандартам ФИПИ</p>
+                  </div>
+                </div>
+                <Button onClick={() => navigate('/pricing')} className="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-sm">
+                  Подключить Premium
+                </Button>
+              </CardContent>
+            </Card>
           )}
 
           <div className="flex flex-col gap-2 pt-2 pb-4">
