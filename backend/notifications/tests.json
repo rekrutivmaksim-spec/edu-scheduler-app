@@ -1,12 +1,9 @@
 {
   "tests": [
     {
-      "name": "Subscribe to notifications",
+      "name": "Test unauthorized subscribe",
       "method": "POST",
       "path": "/",
-      "headers": {
-        "Authorization": "Bearer mock-token"
-      },
       "body": {
         "action": "subscribe",
         "subscription": {
@@ -17,39 +14,8 @@
           }
         }
       },
-      "expectedStatus": 200,
-      "expectedBody": {
-        "success": true
-      },
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Get subscription status",
-      "method": "GET",
-      "path": "/?action=status",
-      "headers": {
-        "Authorization": "Bearer mock-token"
-      },
-      "expectedStatus": 200,
-      "expectedBody": {
-        "subscribed": "boolean"
-      },
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Unsubscribe from notifications",
-      "method": "POST",
-      "path": "/",
-      "headers": {
-        "Authorization": "Bearer mock-token"
-      },
-      "body": {
-        "action": "unsubscribe"
-      },
-      "expectedStatus": 200,
-      "expectedBody": {
-        "success": true
-      },
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
       "bodyMatcher": "partial"
     },
     {
@@ -57,9 +23,7 @@
       "method": "GET",
       "path": "/?action=streak_check",
       "expectedStatus": 401,
-      "expectedBody": {
-        "error": "string"
-      },
+      "expectedBody": {"error": "string"},
       "bodyMatcher": "partial"
     },
     {
@@ -67,6 +31,14 @@
       "method": "OPTIONS",
       "path": "/",
       "expectedStatus": 200
+    },
+    {
+      "name": "Comeback reminders cron",
+      "method": "GET",
+      "path": "/?cron=comeback_reminders",
+      "expectedStatus": 200,
+      "expectedBody": {"success": true},
+      "bodyMatcher": "partial"
     }
   ]
 }

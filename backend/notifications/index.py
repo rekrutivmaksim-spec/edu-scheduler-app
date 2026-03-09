@@ -37,16 +37,22 @@ def handler(event: dict, context) -> dict:
     token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
     user_id = get_user_id_from_token(token)
     
-    if not user_id:
-        return {
-            'statusCode': 401,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Unauthorized'})
-        }
-    
     conn = psycopg2.connect(DATABASE_URL)
-    
+
     try:
+        if method == 'GET':
+            qs = event.get('queryStringParameters', {}) or {}
+            cron_action = qs.get('cron')
+            if cron_action == 'comeback_reminders':
+                return handle_comeback_reminders(conn)
+
+        if not user_id:
+            return {
+                'statusCode': 401,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'error': 'Unauthorized'})
+            }
+
         if method == 'POST':
             body = json.loads(event.get('body', '{}'))
             action = body.get('action')
@@ -621,3 +627,79 @@ def send_push_notification(endpoint: str, p256dh: str, auth: str, data: dict):
             'sub': VAPID_EMAIL
         }
     )
+
+
+def handle_comeback_reminders(conn) -> dict:
+    """Отправка напоминаний неактивным пользователям (cron: раз в день)"""
+    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+    cursor = conn.cursor()
+    today = datetime.now().date()
+    sent_count = 0
+
+    messages = [
+        {
+            'days': 3,
+            'title': 'Ты давно не заходил',
+            'body': 'Твоя подготовка к экзамену на паузе уже 3 дня. Вернись — всего 2 минуты!',
+        },
+        {
+            'days': 7,
+            'title': 'Неделя без занятий',
+            'body': 'За неделю можно разобрать 7 тем! Не теряй время — вернись в Studyfay',
+        },
+        {
+            'days': 14,
+            'title': 'Мы скучаем!',
+            'body': 'Тебя не было 2 недели. У нас бонус за возвращение — +5 вопросов к ИИ!',
+        },
+    ]
+
+    for msg in messages:
+        target_date = today - timedelta(days=msg['days'])
+        cursor.execute(f'''
+            SELECT u.id, ps.endpoint, ps.p256dh, ps.auth
+            FROM {schema}.users u
+            JOIN {schema}.push_subscriptions ps ON ps.user_id = u.id
+            LEFT JOIN {schema}.user_streaks us ON us.user_id = u.id
+            WHERE ps.endpoint IS NOT NULL
+            AND (us.last_activity_date = %s OR (us.last_activity_date IS NULL AND DATE(u.created_at) = %s))
+            AND NOT EXISTS (
+                SELECT 1 FROM {schema}.notifications n
+                WHERE n.user_id = u.id
+                AND n.title = %s
+                AND n.created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
+            )
+        ''', (target_date, target_date, msg['title']))
+
+        users = cursor.fetchall()
+
+        for user_id, endpoint, p256dh, auth in users:
+            notification_data = {
+                'title': msg['title'],
+                'body': msg['body'],
+                'tag': f'comeback-{msg["days"]}d-{user_id}',
+                'url': '/'
+            }
+
+            try:
+                send_push_notification(endpoint, p256dh, auth, notification_data)
+                sent_count += 1
+            except Exception as e:
+                print(f'Comeback push failed for user {user_id}: {e}')
+
+            try:
+                cursor.execute(f'''
+                    INSERT INTO {schema}.notifications (user_id, title, message, action_url)
+                    VALUES (%s, %s, %s, %s)
+                ''', (user_id, msg['title'], msg['body'], '/'))
+            except Exception:
+                pass
+
+    conn.commit()
+    cursor.close()
+
+    return {
+        'statusCode': 200,
+        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+        'body': json.dumps({'success': True, 'sent': sent_count})
+    }

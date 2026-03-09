@@ -964,6 +964,23 @@ def handler(event: dict, context) -> dict:
                     })
                 }
 
+            elif action == 'welcome_back':
+                days_away = min(int(body.get('days_away', 0)), 30)
+                if days_away < 2:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Нет бонуса'})}
+                bonus = 5 if days_away >= 7 else 3
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("""
+                    UPDATE users SET bonus_questions = LEAST(COALESCE(bonus_questions, 0) + %s, %s) WHERE id = %s
+                """, (bonus, BONUS_QUESTIONS_MAX, user_id))
+                conn.commit()
+                cur.close()
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({'success': True, 'bonus': bonus})
+                }
+
             return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435'})}
 
     except Exception as e:

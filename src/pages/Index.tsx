@@ -6,6 +6,8 @@ import Icon from '@/components/ui/icon';
 import BottomNav from '@/components/BottomNav';
 import { trackSession } from '@/lib/review';
 import { dailyCheckin } from '@/lib/gamification';
+import AppReviewPrompt from '@/components/AppReviewPrompt';
+import WelcomeBack from '@/components/WelcomeBack';
 import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 import { getTodayTopic } from '@/lib/topics';
 import { useLimits } from '@/hooks/useLimits';
@@ -601,6 +603,8 @@ export default function Index() {
         }
       `}</style>
 
+      <WelcomeBack />
+      <AppReviewPrompt />
       <BottomNav />
     </div>
   );
