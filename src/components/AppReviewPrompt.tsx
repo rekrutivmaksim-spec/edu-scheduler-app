@@ -29,7 +29,7 @@ const AppReviewPrompt = () => {
   const handlePositive = () => {
     saveReviewState({ ...loadReviewState(), reviewed: true });
     setStep('hidden');
-    window.open('https://rustore.ru/catalog/app/ru.studyfay', '_blank');
+    window.open('https://www.rustore.ru/catalog/app/ru.studyfay.app', '_blank');
   };
 
   const handleNegative = () => {

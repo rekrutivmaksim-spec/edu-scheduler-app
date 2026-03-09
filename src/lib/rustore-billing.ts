@@ -33,6 +33,10 @@ const RUSTORE_PRODUCT_MAP: Record<string, string> = {
   '1month': 'premium_1month',
   '6months': 'premium_6months',
   '1year': 'premium_1year',
+  'questions_20': 'questions_20',
+  'questions_15': 'questions_15',
+  'questions_30': 'questions_30',
+  'questions_100': 'questions_100',
 };
 
 const getBridge = (): RuStoreBillingBridge | null => {

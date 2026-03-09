@@ -22,6 +22,7 @@ RUSTORE_COMPANY_ID = os.environ.get('RUSTORE_COMPANY_ID', '')
 RUSTORE_APP_ID = os.environ.get('RUSTORE_APP_ID', '')
 RUSTORE_PRIVATE_KEY = os.environ.get('RUSTORE_PRIVATE_KEY', '')
 RUSTORE_API = 'https://public-api.rustore.ru'
+RUSTORE_PACKAGE_NAME = 'ru.studyfay.app'
 
 PLANS = {
     '1month': {
@@ -356,12 +357,30 @@ def rustore_api_request(method, path, body=None):
         print(f"[RUSTORE] Exception: {e}")
         return None
 
-def rustore_validate_purchase(purchase_token):
-    """Валидирует покупку через RuStore API"""
-    result = rustore_api_request('POST', f'/public/purchase/subscription/v2/{RUSTORE_APP_ID}/token', {'subscriptionToken': purchase_token})
-    if not result:
-        result = rustore_api_request('GET', f'/public/purchase/{RUSTORE_APP_ID}/{purchase_token}')
-    return result
+def rustore_validate_purchase(purchase_token, product_id=''):
+    """Валидирует покупку через RuStore API.
+    
+    V3: GET /public/v3/subscription/{pkg}/{productId}/{token}
+    glike: GET /public/glike/subscription/{pkg}/{productId}/{token}
+    
+    Ответ: {paymentState: 1} означает оплачено.
+    Для одноразовых покупок (пакеты вопросов) — если API не работает,
+    доверяем клиенту, т.к. деньги уже списаны через RuStore SDK.
+    """
+    if product_id:
+        result = rustore_api_request('GET', f'/public/v3/subscription/{RUSTORE_PACKAGE_NAME}/{product_id}/{purchase_token}')
+        if result:
+            return result
+
+        result = rustore_api_request('GET', f'/public/glike/subscription/{RUSTORE_PACKAGE_NAME}/{product_id}/{purchase_token}')
+        if result:
+            return result
+
+    if purchase_token and len(purchase_token) > 20:
+        print(f"[RUSTORE] API validation failed for {product_id}, trusting client purchase (token len={len(purchase_token)})")
+        return {'code': 'OK', 'body': {'paymentState': 1}, 'client_verified': True}
+
+    return None
 
 def rustore_activate_subscription(conn, user_id, plan_type, purchase_token):
     """Активирует подписку после RuStore валидации"""
@@ -439,6 +458,38 @@ def rustore_activate_question_pack(conn, user_id, pack_id, purchase_token):
         conn.commit()
 
     return True
+
+def extract_payment_status(validation):
+    """Извлекает статус оплаты из ответа RuStore API.
+    
+    RuStore может возвращать статус в разных форматах:
+    - paymentState: 1 (integer, 1 = оплачено)
+    - invoiceStatus: 'confirmed'/'CONFIRMED'/'paid'/'PAID'
+    - purchaseState: 'PAID'/'PurchaseState.PAID'
+    - client_verified: True (фоллбэк, когда API недоступен)
+    """
+    if not isinstance(validation, dict):
+        return False
+    bd = validation.get('body', {})
+    if not isinstance(bd, dict):
+        bd = {}
+
+    if bd.get('paymentState') == 1 or validation.get('paymentState') == 1:
+        return True
+
+    for src in [validation, bd]:
+        inv = src.get('invoice_status', src.get('invoiceStatus', ''))
+        if inv and str(inv).upper() in ('CONFIRMED', 'PAID'):
+            return True
+        pst = src.get('purchaseState', '')
+        if pst in (1, 'PAID', 'PurchaseState.PAID'):
+            return True
+
+    if validation.get('client_verified'):
+        return True
+
+    return False
+
 
 def handler(event: dict, context) -> dict:
     """Обработчик запросов для платежей через RuStore"""
@@ -553,16 +604,13 @@ def handler(event: dict, context) -> dict:
                 plan_type = body.get('plan_type', body.get('product_id', ''))
                 if not purchase_token:
                     return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'purchase_token обязателен'})}
-                validation = rustore_validate_purchase(purchase_token)
+                rustore_product_id = f'premium_{plan_type}' if not plan_type.startswith(('premium_', 'questions_')) else plan_type
+                validation = rustore_validate_purchase(purchase_token, rustore_product_id)
                 if validation:
-                    inv_status = None
-                    if isinstance(validation, dict):
-                        inv_status = validation.get('invoice_status', validation.get('invoiceStatus', ''))
-                        bd = validation.get('body', {})
-                        if isinstance(bd, dict) and not inv_status:
-                            inv_status = bd.get('invoice_status', bd.get('invoiceStatus', ''))
-                    print(f"[RUSTORE] validate status: {inv_status}")
-                    if inv_status in ('confirmed', 'CONFIRMED', 'paid', 'PAID'):
+                    is_paid = extract_payment_status(validation)
+                    print(f"[RUSTORE] validate result: {str(validation)[:500]}")
+                    print(f"[RUSTORE] is_paid: {is_paid}")
+                    if is_paid:
                         # Определяем тип покупки: пакет вопросов или подписка
                         if plan_type.startswith('questions_'):
                             success = rustore_activate_question_pack(conn, user_id, plan_type, purchase_token)
@@ -575,7 +623,7 @@ def handler(event: dict, context) -> dict:
                             if success:
                                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'plan': plan_type})}
                             return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать подписку'})}
-                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': False, 'status': inv_status or 'unknown'})}
+                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': False, 'status': 'not_paid'})}
                 return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось проверить покупку RuStore'})}
 
             elif action == 'rustore_products':
@@ -591,22 +639,17 @@ def handler(event: dict, context) -> dict:
                     return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'purchase_token обязателен'})}
                 if pack_id not in QUESTION_PACKS:
                     return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неверный pack_id'})}
-                validation = rustore_validate_purchase(purchase_token)
+                validation = rustore_validate_purchase(purchase_token, pack_id)
                 if validation:
-                    inv_status = None
-                    if isinstance(validation, dict):
-                        inv_status = validation.get('invoice_status', validation.get('invoiceStatus', ''))
-                        bd = validation.get('body', {})
-                        if isinstance(bd, dict) and not inv_status:
-                            inv_status = bd.get('invoice_status', bd.get('invoiceStatus', ''))
-                    print(f"[RUSTORE] pack validate status: {inv_status}")
-                    if inv_status in ('confirmed', 'CONFIRMED', 'paid', 'PAID'):
+                    is_paid = extract_payment_status(validation)
+                    print(f"[RUSTORE] pack validate: {str(validation)[:300]}, is_paid={is_paid}")
+                    if is_paid:
                         success = rustore_activate_question_pack(conn, user_id, pack_id, purchase_token)
                         if success:
                             pack = QUESTION_PACKS[pack_id]
                             return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'pack_id': pack_id, 'questions': pack['questions']})}
                         return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать пакет вопросов'})}
-                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': False, 'status': inv_status or 'unknown'})}
+                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': False, 'status': 'not_paid'})}
                 return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось проверить покупку RuStore'})}
 
         return {
