@@ -39,10 +39,14 @@ const RUSTORE_PRODUCT_MAP: Record<string, string> = {
   'questions_100': 'questions_100',
 };
 
-const getBridge = (): RuStoreBillingBridge | null => {
+interface RuStoreBillingBridgeExt extends RuStoreBillingBridge {
+  getInitError?(): string;
+}
+
+const getBridge = (): RuStoreBillingBridgeExt | null => {
   try {
     const w = window as unknown as Record<string, unknown>;
-    const bridge = w.RuStoreBilling as RuStoreBillingBridge | undefined;
+    const bridge = w.RuStoreBilling as RuStoreBillingBridgeExt | undefined;
     if (bridge && typeof bridge.isAvailable === 'function') {
       return bridge;
     }
@@ -155,10 +159,46 @@ export const validatePurchaseOnServer = async (
   }
 };
 
+export const getDiagnostics = (): Record<string, string> => {
+  const info: Record<string, string> = {};
+  try {
+    info.userAgent = navigator.userAgent;
+    info.isAndroid = String(/Android/.test(navigator.userAgent));
+    info.isWebView = String(/wv|Capacitor/.test(navigator.userAgent));
+    info.isAndroidApp = String(isAndroidApp());
+
+    const w = window as unknown as Record<string, unknown>;
+    info.hasBridgeObject = String(!!w.RuStoreBilling);
+    info.bridgeType = typeof w.RuStoreBilling;
+
+    const bridge = getBridge();
+    info.bridgeResolved = String(!!bridge);
+
+    if (bridge) {
+      try {
+        info.isAvailable = String(bridge.isAvailable());
+      } catch (e) {
+        info.isAvailableError = String(e);
+      }
+      if (bridge.getInitError) {
+        try {
+          info.initError = bridge.getInitError() || 'none';
+        } catch (e) {
+          info.getInitErrorFail = String(e);
+        }
+      }
+    }
+  } catch (e) {
+    info.error = String(e);
+  }
+  return info;
+};
+
 export default {
   isAndroidApp,
   isRuStoreAvailable,
   purchaseSubscription,
   validatePurchaseOnServer,
   getRuStoreProductId,
+  getDiagnostics,
 };

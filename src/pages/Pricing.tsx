@@ -10,6 +10,7 @@ import {
   isRuStoreAvailable,
   purchaseSubscription as ruStorePurchase,
   validatePurchaseOnServer,
+  getDiagnostics,
 } from '@/lib/rustore-billing';
 
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
@@ -67,7 +68,9 @@ const Pricing = () => {
   const [bonusQuestions, setBonusQuestions] = useState(0);
   const [discountTimer, setDiscountTimer] = useState('');
   const [discountActive, setDiscountActive] = useState(false);
+  const [showDiag, setShowDiag] = useState(false);
   const canPurchase = isAndroidApp() && isRuStoreAvailable();
+  const diag = getDiagnostics();
 
   useEffect(() => {
     const DISCOUNT_DURATION = 24 * 60 * 60 * 1000;
@@ -529,6 +532,22 @@ const Pricing = () => {
             <span>·</span>
             <button onClick={() => navigate('/privacy')} className="hover:text-gray-600">Конфиденциальность</button>
           </div>
+          <button
+            onClick={() => setShowDiag(d => !d)}
+            className="mt-3 text-[10px] text-gray-300 hover:text-gray-500"
+          >
+            SDK диагностика
+          </button>
+          {showDiag && (
+            <div className="mt-2 bg-gray-100 rounded-xl p-3 text-left text-[11px] font-mono text-gray-600 space-y-0.5">
+              {Object.entries(diag).map(([k, v]) => (
+                <div key={k}><span className="text-gray-400">{k}:</span> {v}</div>
+              ))}
+              <div className="pt-1 border-t border-gray-200 mt-1">
+                <span className="text-gray-400">canPurchase:</span> {String(canPurchase)}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
