@@ -3,6 +3,8 @@
 import json
 import os
 import time
+import base64
+import datetime as dt
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -10,6 +12,8 @@ import jwt
 import hashlib
 import urllib.request
 import urllib.error
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
@@ -238,23 +242,102 @@ def toggle_auto_renew(conn, user_id: int, enabled: bool) -> bool:
         conn.commit()
         return True
 
-def get_rustore_jwt():
-    """JWT для авторизации в RuStore Public API"""
+# Cached JWE token and its expiry timestamp
+_rustore_jwe_cache = {'token': None, 'expires_at': 0}
+
+def get_rustore_jwe():
+    """Получает JWE токен для авторизации в RuStore Public API.
+    
+    Поток:
+    1. Подписываем keyId + timestamp приватным RSA ключом (PKCS1v15, SHA-512)
+    2. POST на /public/auth с {keyId, timestamp, signature}
+    3. Получаем JWE токен (TTL 900 сек), кешируем на 800 сек
+    """
+    global _rustore_jwe_cache
+
+    # Return cached token if still valid
+    if _rustore_jwe_cache['token'] and time.time() < _rustore_jwe_cache['expires_at']:
+        print("[RUSTORE] Using cached JWE token")
+        return _rustore_jwe_cache['token']
+
     if not RUSTORE_PRIVATE_KEY or not RUSTORE_COMPANY_ID:
+        print("[RUSTORE] Missing RUSTORE_PRIVATE_KEY or RUSTORE_COMPANY_ID")
         return None
-    key = RUSTORE_PRIVATE_KEY.replace('\\n', '\n')
-    now = int(time.time())
-    payload = {'iss': RUSTORE_COMPANY_ID, 'jti': f'{RUSTORE_COMPANY_ID}_{now}', 'iat': now, 'exp': now + 600}
-    return jwt.encode(payload, key, algorithm='RS256')
+
+    try:
+        # Load RSA private key from base64 DER
+        clean_key = RUSTORE_PRIVATE_KEY.replace('\\n', '').replace('\n', '').replace('\r', '').replace(' ', '').strip()
+        # Strip PEM headers if accidentally included
+        clean_key = clean_key.replace('-----BEGINPRIVATEKEY-----', '').replace('-----ENDPRIVATEKEY-----', '')
+        clean_key = clean_key.replace('-----BEGINRSAPRIVATEKEY-----', '').replace('-----ENDRSAPRIVATEKEY-----', '')
+        private_key_bytes = base64.b64decode(clean_key)
+        private_key = serialization.load_der_private_key(private_key_bytes, password=None)
+
+        # keyId is RUSTORE_COMPANY_ID
+        key_id = RUSTORE_COMPANY_ID
+
+        # Create timestamp in ISO format with milliseconds and UTC timezone
+        timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec='milliseconds')
+
+        # Sign keyId + timestamp with SHA-512 using PKCS1v15
+        message = (key_id + timestamp).encode('utf-8')
+        signature_bytes = private_key.sign(message, padding.PKCS1v15(), hashes.SHA512())
+        signature_value = base64.b64encode(signature_bytes).decode('utf-8')
+
+        # POST to /public/auth
+        auth_url = f'{RUSTORE_API}/public/auth'
+        auth_body = json.dumps({
+            'keyId': key_id,
+            'timestamp': timestamp,
+            'signature': signature_value
+        }).encode('utf-8')
+
+        print(f"[RUSTORE] Authenticating: POST {auth_url}")
+        req = urllib.request.Request(
+            auth_url,
+            data=auth_body,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+        response = urllib.request.urlopen(req, timeout=15)
+        result = json.loads(response.read().decode('utf-8'))
+        print(f"[RUSTORE] Auth response code: {result.get('code')}")
+
+        if result.get('code') != 'OK':
+            print(f"[RUSTORE] Auth failed: {str(result)[:300]}")
+            return None
+
+        jwe_token = result.get('body', {}).get('jwe')
+        if not jwe_token:
+            print(f"[RUSTORE] No JWE in response: {str(result)[:300]}")
+            return None
+
+        # Cache the token for 800 seconds (server TTL is 900s)
+        _rustore_jwe_cache['token'] = jwe_token
+        _rustore_jwe_cache['expires_at'] = time.time() + 800
+
+        print(f"[RUSTORE] JWE obtained, length={len(jwe_token)}")
+        return jwe_token
+
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode('utf-8', errors='replace')[:500]
+        print(f"[RUSTORE] Auth HTTP error {e.code}: {err_body}")
+        return None
+    except Exception as e:
+        print(f"[RUSTORE] Auth exception: {e}")
+        return None
 
 def rustore_api_request(method, path, body=None):
-    """Запрос к RuStore Public API"""
-    token = get_rustore_jwt()
-    if not token:
-        print("[RUSTORE] Failed to generate JWT")
+    """Запрос к RuStore Public API с использованием JWE токена"""
+    jwe_token = get_rustore_jwe()
+    if not jwe_token:
+        print("[RUSTORE] Failed to obtain JWE token")
         return None
     url = f'{RUSTORE_API}{path}'
-    headers_dict = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json', 'Public-Token': token}
+    headers_dict = {
+        'Content-Type': 'application/json',
+        'Public-Token': jwe_token
+    }
     print(f"[RUSTORE] {method} {url}")
     try:
         if method == 'GET':
