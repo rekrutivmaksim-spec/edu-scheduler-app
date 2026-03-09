@@ -20,9 +20,7 @@ import java.util.ArrayList;
 
 public class RuStoreBillingPlugin {
     private static final String TAG = "RuStoreBilling";
-    // ВАЖНО: замените на ваш CONSOLE_ID из RuStore Console
-    // console.rustore.ru/apps/XXXXX/versions → XXXXX = ваш ID
-    private static final String CONSOLE_ID = "REPLACE_WITH_YOUR_APP_ID";
+    private static final String CONSOLE_ID = "2063697825";
     private static final String DEEPLINK_SCHEME = "studyfay";
 
     private final BridgeActivity activity;
