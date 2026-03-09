@@ -1,13 +1,15 @@
 // =====================================================
-// Добавить в android/app/build.gradle
+// Инструкции по сборке APK с RuStore Billing
 // =====================================================
 
-// 1. В блок repositories (или в settings.gradle):
-repositories {
-    maven { url = uri("https://artifactory-external.vkpartner.ru/artifactory/maven") }
+// 1. В android/settings.gradle (или settings.gradle.kts) добавить maven репозиторий:
+dependencyResolutionManagement {
+    repositories {
+        maven { url = uri("https://artifactory-external.vkpartner.ru/artifactory/maven") }
+    }
 }
 
-// 2. В блок dependencies добавить:
+// 2. В android/app/build.gradle добавить зависимость:
 dependencies {
     implementation "ru.rustore.sdk:billingclient:6.1.0"
 }
@@ -15,3 +17,27 @@ dependencies {
 // 3. В android { defaultConfig { } } убедиться что:
 //    minSdkVersion 24
 //    targetSdkVersion 34
+
+// 4. В AndroidManifest.xml добавить intent-filter для deeplink в <activity>:
+//    <intent-filter>
+//        <action android:name="android.intent.action.VIEW" />
+//        <category android:name="android.intent.category.DEFAULT" />
+//        <category android:name="android.intent.category.BROWSABLE" />
+//        <data android:scheme="studyfay" />
+//    </intent-filter>
+
+// 5. В RuStoreBillingPlugin.java заменить REPLACE_WITH_YOUR_APP_ID на ваш
+//    Console ID из https://console.rustore.ru/apps/XXXXX/versions
+
+// 6. Скопировать файлы:
+//    - MainActivity.java → android/app/src/main/java/ru/studyfay/app/
+//    - RuStoreBillingPlugin.java → android/app/src/main/java/ru/studyfay/app/
+
+// 7. Убедиться что в RuStore Console созданы продукты:
+//    - premium_1month (подписка, 499₽)
+//    - premium_6months (подписка, 1499₽)
+//    - premium_1year (подписка, 2399₽)
+//    - questions_20 (разовая покупка)
+//    - questions_15 (разовая покупка)
+//    - questions_30 (разовая покупка)
+//    - questions_100 (разовая покупка)

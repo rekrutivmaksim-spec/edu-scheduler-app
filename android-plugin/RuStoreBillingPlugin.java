@@ -20,10 +20,14 @@ import java.util.ArrayList;
 
 public class RuStoreBillingPlugin {
     private static final String TAG = "RuStoreBilling";
-    private static final String CONSOLE_ID = "your_console_id";
+    // ВАЖНО: замените на ваш CONSOLE_ID из RuStore Console
+    // console.rustore.ru/apps/XXXXX/versions → XXXXX = ваш ID
+    private static final String CONSOLE_ID = "REPLACE_WITH_YOUR_APP_ID";
+    private static final String DEEPLINK_SCHEME = "studyfay";
 
     private final BridgeActivity activity;
     private RuStoreBillingClient billingClient;
+    private String initError = null;
 
     public RuStoreBillingPlugin(BridgeActivity activity) {
         this.activity = activity;
@@ -35,25 +39,36 @@ public class RuStoreBillingPlugin {
             billingClient = RuStoreBillingClientFactory.INSTANCE.create(
                 activity.getApplication(),
                 CONSOLE_ID,
-                "ru.studyfay.app",
+                DEEPLINK_SCHEME,
                 null,
                 null
             );
-            Log.d(TAG, "RuStore Billing Client initialized");
+            Log.d(TAG, "RuStore Billing Client initialized, consoleId=" + CONSOLE_ID);
         } catch (Exception e) {
+            initError = e.getMessage();
             Log.e(TAG, "Failed to init RuStore Billing: " + e.getMessage());
         }
     }
 
     @JavascriptInterface
     public boolean isAvailable() {
-        return billingClient != null;
+        boolean available = billingClient != null;
+        Log.d(TAG, "isAvailable=" + available + (initError != null ? " initError=" + initError : ""));
+        return available;
+    }
+
+    @JavascriptInterface
+    public String getInitError() {
+        return initError != null ? initError : "";
     }
 
     @JavascriptInterface
     public void purchase(String productId) {
+        Log.d(TAG, "purchase called: productId=" + productId);
+
         if (billingClient == null) {
-            sendResultToWeb(false, null, productId, "Billing client not initialized");
+            Log.e(TAG, "billingClient is null, initError=" + initError);
+            sendResultToWeb(false, null, productId, "Billing client not initialized: " + initError);
             return;
         }
 
@@ -63,10 +78,10 @@ public class RuStoreBillingPlugin {
                     .addOnSuccessListener(result -> {
                         if (result instanceof PaymentResult.Success) {
                             PaymentResult.Success success = (PaymentResult.Success) result;
-                            Log.d(TAG, "Purchase success: " + productId);
+                            Log.d(TAG, "Purchase success: " + productId + " purchaseId=" + success.getPurchaseId());
                             confirmAndSendResult(success.getPurchaseId(), productId);
                         } else if (result instanceof PaymentResult.Cancelled) {
-                            Log.d(TAG, "Purchase cancelled");
+                            Log.d(TAG, "Purchase cancelled by user");
                             sendResultToWeb(false, null, productId, "Покупка отменена");
                         } else if (result instanceof PaymentResult.Failure) {
                             PaymentResult.Failure failure = (PaymentResult.Failure) result;
@@ -75,14 +90,17 @@ public class RuStoreBillingPlugin {
                                 : "Ошибка покупки";
                             Log.e(TAG, "Purchase failed: " + errorMsg);
                             sendResultToWeb(false, null, productId, errorMsg);
+                        } else {
+                            Log.w(TAG, "Unknown PaymentResult type: " + result.getClass().getName());
+                            sendResultToWeb(false, null, productId, "Неизвестный результат: " + result.getClass().getSimpleName());
                         }
                     })
                     .addOnFailureListener(throwable -> {
-                        Log.e(TAG, "Purchase error: " + throwable.getMessage());
+                        Log.e(TAG, "Purchase error: " + throwable.getMessage(), throwable);
                         sendResultToWeb(false, null, productId, throwable.getMessage());
                     });
             } catch (Exception e) {
-                Log.e(TAG, "Purchase exception: " + e.getMessage());
+                Log.e(TAG, "Purchase exception: " + e.getMessage(), e);
                 sendResultToWeb(false, null, productId, e.getMessage());
             }
         });
