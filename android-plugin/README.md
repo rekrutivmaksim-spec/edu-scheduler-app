@@ -77,7 +77,7 @@ rm -f android/app/src/main/java/ru/studyfay/app/RuStoreBillingPlugin.java
 
 # Скопировать новые Kotlin
 cp android-plugin/MainActivity.kt android/app/src/main/java/ru/studyfay/app/
-cp android-plugin/RuStorePayPlugin.kt android/app/src/main/java/ru/studyfay/app/
+cp android-plugin/RuStoreBillingPlugin.kt android/app/src/main/java/ru/studyfay/app/
 ```
 
 ### Шаг 4. Замени AndroidManifest.xml
@@ -119,7 +119,7 @@ cd android
 
 1. `MainActivity.onCreate()` → `proceedIntent(intent)` передаёт deep link в SDK
 2. `MainActivity` регистрирует JS-интерфейс `window.RuStoreBilling`
-3. При инициализации `RuStorePayPlugin` проверяет `getPurchaseAvailability()`
+3. При инициализации `RuStoreBillingPlugin` проверяет `getPurchaseAvailability()`
 4. Фронтенд вызывает `window.RuStoreBilling.purchase(productId)`
 5. Плагин создаёт `ProductPurchaseParams` и вызывает `getPurchaseInteractor().purchase()`
 6. SDK открывает шторку оплаты RuStore

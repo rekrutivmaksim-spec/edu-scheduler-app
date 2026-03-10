@@ -8,7 +8,7 @@ import ru.rustore.sdk.pay.model.theme.SdkTheme
 
 class MainActivity : BridgeActivity() {
 
-    private lateinit var payPlugin: RuStorePayPlugin
+    private lateinit var billingPlugin: RuStoreBillingPlugin
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -17,8 +17,8 @@ class MainActivity : BridgeActivity() {
             .proceedIntent(intent, sdkTheme = SdkTheme.LIGHT)
 
         bridge.webView.post {
-            payPlugin = RuStorePayPlugin(this)
-            bridge.webView.addJavascriptInterface(payPlugin, "RuStoreBilling")
+            billingPlugin = RuStoreBillingPlugin(this)
+            bridge.webView.addJavascriptInterface(billingPlugin, "RuStoreBilling")
         }
     }
 
