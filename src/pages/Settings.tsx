@@ -11,6 +11,7 @@ import { useTheme } from '@/lib/theme-context';
 
 const NOTIFICATIONS_URL = 'https://functions.poehali.dev/710399d8-fbc7-4df6-8c6c-200b2828678f';
 const VK_AUTH_URL = 'https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f343ebd7d3';
+const PARENT_API_URL = 'https://functions.poehali.dev/fac60d23-7f1e-428a-99cf-820ddb897781';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [vkLinked, setVkLinked] = useState(false);
   const [vkLinking, setVkLinking] = useState(false);
+  const [parentCode, setParentCode] = useState<string | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
 
   const handleLinkVK = async () => {
     setVkLinking(true);
@@ -132,6 +135,35 @@ export default function Settings() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleGenerateParentCode = async () => {
+    setGeneratingCode(true);
+    try {
+      const token = authService.getToken();
+      const response = await fetch(PARENT_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'generate_code' }),
+      });
+      const data = await response.json();
+      if (response.ok && data.code) {
+        setParentCode(data.code);
+      } else {
+        toast({ variant: 'destructive', title: 'Ошибка', description: data.error || 'Не удалось создать код' });
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Попробуйте снова' });
+    } finally {
+      setGeneratingCode(false);
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (parentCode) {
+      navigator.clipboard.writeText(parentCode);
+      toast({ title: 'Код скопирован!' });
     }
   };
 
@@ -442,7 +474,7 @@ export default function Settings() {
             <div className="space-y-3 text-sm text-gray-700">
               <div className="flex items-start gap-2">
                 <Icon name="Info" size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <p><strong>Подписка продлевается автоматически через RuStore.</strong> Отключить можно в RuStore → Аккаунт → Подписки → Studyfay. Доступ сохранится до конца оплаченного периода.</p>
+                <p><strong>Подписка не продлевается автоматически.</strong> По окончании оплаченного периода можно оформить заново. Оплата через ЮKassa.</p>
               </div>
               <div className="flex items-start gap-2">
                 <Icon name="RotateCcw" size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
@@ -453,6 +485,61 @@ export default function Settings() {
                 <p>Служба поддержки: <a href="mailto:support@studyfay.ru" className="text-purple-600 underline">support@studyfay.ru</a></p>
               </div>
             </div>
+          </Card>
+
+          {/* Для родителей */}
+          <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Icon name="Users" size={24} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Для родителей</h2>
+                <p className="text-sm text-gray-600">Пусть родители следят за вашей учёбой</p>
+              </div>
+            </div>
+            
+            {parentCode ? (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">Отправьте этот код родителям:</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-white rounded-xl px-4 py-3 font-mono text-xl font-bold text-center text-indigo-700 border-2 border-indigo-200 tracking-widest">
+                    {parentCode}
+                  </div>
+                  <Button
+                    onClick={handleCopyCode}
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-xl border-indigo-200"
+                  >
+                    <Icon name="Copy" size={18} className="text-indigo-600" />
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Родитель входит на <span className="font-medium text-indigo-600">studyfay.ru/parent/auth</span> с этим кодом и своим номером телефона
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Создайте код, чтобы родители могли видеть вашу статистику учёбы: стрик, оценки, прогресс подготовки к экзаменам.
+                </p>
+                <Button
+                  onClick={handleGenerateParentCode}
+                  disabled={generatingCode}
+                  className="w-full h-11 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold rounded-xl"
+                >
+                  {generatingCode ? (
+                    <Icon name="Loader2" size={18} className="animate-spin" />
+                  ) : (
+                    <>
+                      <Icon name="Key" size={16} className="mr-2" />
+                      Создать код для родителей
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </Card>
 
           {/* Кнопка сохранения */}

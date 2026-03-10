@@ -1,0 +1,18 @@
+{
+  "tests": [
+    {
+      "name": "Dashboard without valid parent token returns 401",
+      "method": "GET",
+      "path": "/?action=dashboard",
+      "headers": {"X-Authorization": "Bearer invalid-mock-parent-token"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "Webhook without body returns 200",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "webhook"},
+      "expectedStatus": 200
+    }
+  ]
+}

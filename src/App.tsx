@@ -37,6 +37,9 @@ import MockExam from "./pages/MockExam";
 import ScoreCalculator from "./pages/ScoreCalculator";
 import UniversityFinder from "./pages/UniversityFinder";
 import RuStoreInfo from "./pages/RuStoreInfo";
+import ParentAuth from "./pages/ParentAuth";
+import ParentPay from "./pages/ParentPay";
+import ParentDashboard from "./pages/ParentDashboard";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +84,9 @@ const App = () => (
               <Route path="/calculator" element={<ScoreCalculator />} />
               <Route path="/universities" element={<UniversityFinder />} />
               <Route path="/rustore-info" element={<RuStoreInfo />} />
+              <Route path="/parent" element={<ParentDashboard />} />
+              <Route path="/parent/auth" element={<ParentAuth />} />
+              <Route path="/parent/pay" element={<ParentPay />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

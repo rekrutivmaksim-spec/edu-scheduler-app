@@ -513,6 +513,35 @@ const Pricing = () => {
           </div>
         </div>
 
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-5 border-2 border-blue-200">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+              <Icon name="Users" size={20} className="text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Кабинет для родителей</h3>
+              <p className="text-xs text-gray-500">Пусть родители видят ваш прогресс</p>
+            </div>
+          </div>
+          <div className="space-y-1.5 mb-3">
+            {['Статистика учёбы каждый день', 'Стрик, оценки, достижения', 'Подготовка к ЕГЭ/ОГЭ'].map(f => (
+              <div key={f} className="flex items-center gap-2 text-gray-600 text-sm">
+                <Icon name="Check" size={14} className="text-blue-500 flex-shrink-0" />
+                {f}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-extrabold text-indigo-700">299 ₽/мес</span>
+            <Button
+              onClick={() => navigate('/parent/auth')}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm h-9 px-4"
+            >
+              Подробнее
+            </Button>
+          </div>
+        </div>
+
         <div className="text-center pb-4">
           <div className="flex items-center justify-center gap-3 text-xs text-gray-400">
             <button onClick={() => navigate('/terms')} className="hover:text-gray-600">Пользовательское соглашение</button>
