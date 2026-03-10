@@ -1,6 +1,9 @@
 // =====================================================
-// Инструкции по сборке APK с RuStore Billing
+// Инструкции по сборке APK с RuStore Pay SDK (новый)
 // =====================================================
+//
+// ВАЖНО: Проект теперь использует Kotlin и новый RuStore Pay SDK (BOM 2025.11.01)
+// Старый billingclient:6.1.0 больше не нужен.
 
 // 1. В android/settings.gradle (или settings.gradle.kts) добавить maven репозиторий:
 dependencyResolutionManagement {
@@ -9,31 +12,47 @@ dependencyResolutionManagement {
     }
 }
 
-// 2. В android/app/build.gradle добавить зависимость:
-dependencies {
-    implementation "ru.rustore.sdk:billingclient:6.1.0"
+// 2. В android/build.gradle (project-level) убедиться что есть Kotlin плагин:
+plugins {
+    id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
 }
 
-// 3. В android { defaultConfig { } } убедиться что:
-//    minSdkVersion 24
-//    targetSdkVersion 34
+// 3. В android/app/build.gradle:
+//    a) Подключить Kotlin плагин:
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
 
-// 4. В AndroidManifest.xml добавить intent-filter для deeplink в <activity>:
-//    <intent-filter>
-//        <action android:name="android.intent.action.VIEW" />
-//        <category android:name="android.intent.category.DEFAULT" />
-//        <category android:name="android.intent.category.BROWSABLE" />
-//        <data android:scheme="studyfay" />
-//    </intent-filter>
+//    b) Добавить зависимости:
+dependencies {
+    implementation(platform("ru.rustore.sdk:bom:2025.11.01"))
+    implementation("ru.rustore.sdk:pay")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+}
 
-// 5. В RuStoreBillingPlugin.java заменить REPLACE_WITH_YOUR_APP_ID на ваш
-//    Console ID из https://console.rustore.ru/apps/XXXXX/versions
+//    c) В android { defaultConfig { } } убедиться что:
+//       minSdkVersion 24
+//       targetSdkVersion 34
 
-// 6. Скопировать файлы:
-//    - MainActivity.java → android/app/src/main/java/ru/studyfay/app/
-//    - RuStoreBillingPlugin.java → android/app/src/main/java/ru/studyfay/app/
+//    d) В android { } добавить:
+android {
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
 
-// 7. Убедиться что в RuStore Console созданы продукты:
+// 4. Удалить старые Java-файлы и скопировать новые Kotlin-файлы:
+//    - Удалить: android/app/src/main/java/ru/studyfay/app/MainActivity.java
+//    - Удалить: android/app/src/main/java/ru/studyfay/app/RuStoreBillingPlugin.java
+//    - Скопировать: MainActivity.kt → android/app/src/main/java/ru/studyfay/app/
+//    - Скопировать: RuStoreBillingPlugin.kt → android/app/src/main/java/ru/studyfay/app/
+
+// 5. Заменить AndroidManifest.xml (добавлены meta-data для SDK):
+//    - Скопировать: AndroidManifest.xml → android/app/src/main/AndroidManifest.xml
+
+// 6. Убедиться что в RuStore Console созданы продукты:
 //    - premium_1month (подписка, 499₽)
 //    - premium_6months (подписка, 1499₽)
 //    - premium_1year (подписка, 2399₽)

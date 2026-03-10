@@ -1,4 +1,16 @@
-# RuStore Billing Plugin для Studyfay (Capacitor Android)
+# RuStore Pay Plugin для Studyfay (Capacitor Android)
+
+## Новый SDK (BOM 2025.11.01)
+
+Плагин переписан на **Kotlin** и использует новый **RuStore Pay SDK** вместо старого `billingclient`.
+
+Ключевые отличия:
+- Инициализация через `<meta-data>` в манифесте (не в коде)
+- `RuStorePayClient.instance` вместо `RuStoreBillingClientFactory`
+- Обязательный `proceedIntent()` для deep link возврата после оплаты
+- BOM для управления версиями: `ru.rustore.sdk:bom:2025.11.01`
+
+---
 
 ## Пошаговая инструкция сборки APK
 
@@ -9,71 +21,74 @@ npx cap add android
 npx cap sync
 ```
 
-### Шаг 2. Добавь RuStore SDK
+### Шаг 2. Добавь Kotlin и RuStore SDK
 
-Открой файл **android/build.gradle** (корневой, project-level).
-Найди блок `allprojects { repositories { ... } }` и добавь строку:
+**android/build.gradle** (корневой, project-level) — добавь Kotlin плагин:
 ```gradle
-maven { url = uri("https://artifactory-external.vkpartner.ru/artifactory/maven") }
+plugins {
+    id 'com.android.application' version '8.2.0' apply false
+    id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
+}
 ```
 
-Открой файл **android/app/build.gradle**.
-Найди блок `dependencies { ... }` и добавь:
+**android/settings.gradle** — добавь репозиторий RuStore:
 ```gradle
-implementation "ru.rustore.sdk:billingclient:6.1.0"
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://artifactory-external.vkpartner.ru/artifactory/maven") }
+    }
+}
 ```
 
-### Шаг 3. Скопируй файлы плагина:
+**android/app/build.gradle** — подключи Kotlin и зависимости:
+```gradle
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    // ...
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    // RuStore Pay SDK (через BOM)
+    implementation(platform("ru.rustore.sdk:bom:2025.11.01"))
+    implementation("ru.rustore.sdk:pay")
+
+    // Kotlin coroutines
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // ... остальные зависимости
+}
+```
+
+### Шаг 3. Удали старые Java-файлы и скопируй новые Kotlin:
 ```bash
-cp android-plugin/MainActivity.java android/app/src/main/java/ru/studyfay/app/MainActivity.java
-cp android-plugin/RuStoreBillingPlugin.java android/app/src/main/java/ru/studyfay/app/RuStoreBillingPlugin.java
+# Удалить старые Java
+rm -f android/app/src/main/java/ru/studyfay/app/MainActivity.java
+rm -f android/app/src/main/java/ru/studyfay/app/RuStoreBillingPlugin.java
+
+# Скопировать новые Kotlin
+cp android-plugin/MainActivity.kt android/app/src/main/java/ru/studyfay/app/
+cp android-plugin/RuStoreBillingPlugin.kt android/app/src/main/java/ru/studyfay/app/
 ```
 
-### Шаг 4. Добавь deeplink в AndroidManifest.xml
-
-Открой файл:
-```
-android/app/src/main/AndroidManifest.xml
+### Шаг 4. Замени AndroidManifest.xml
+```bash
+cp android-plugin/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
 ```
 
-Найди тег `<activity` (это главная активность приложения). Внутри него уже будут какие-то `<intent-filter>`. Добавь **ещё один** блок `<intent-filter>` прямо перед закрывающим `</activity>`:
-
-```xml
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="studyfay" />
-            </intent-filter>
-```
-
-**Пример** — как это выглядит в контексте (добавленный блок отмечен стрелками):
-
-```xml
-<activity
-    android:name=".MainActivity"
-    android:exported="true"
-    android:launchMode="singleTask"
-    ...>
-
-    <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-    </intent-filter>
-
-    <!-- ▼▼▼ ДОБАВЬ ЭТОТ БЛОК ▼▼▼ -->
-    <intent-filter>
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="studyfay" />
-    </intent-filter>
-    <!-- ▲▲▲ КОНЕЦ БЛОКА ▲▲▲ -->
-
-</activity>
-```
-
-Этот блок нужен, чтобы после оплаты через СберПей/СБП/другие приложения пользователь возвращался обратно в Studyfay.
+В манифесте уже добавлены:
+- `console_app_id_value` = `2063697825` (ID приложения в RuStore Console)
+- `sdk_pay_scheme_value` = `studyfay` (схема deep link для возврата после оплаты)
+- Intent-filter для deep link `studyfay://`
 
 ### Шаг 5. Собери APK:
 ```bash
@@ -88,15 +103,30 @@ cd android
 1. Установи APK на телефон
 2. Открой страницу тарифов
 3. Нажми "Купить" — должно появиться окно оплаты RuStore
-4. Если вместо окна оплаты открывается страница RuStore в браузере — значит SDK не инициализирован (проверь Console ID)
+4. После оплаты через СберПей/СБП приложение вернётся через deep link `studyfay://`
+
+### Диагностика (если не работает)
+
+На странице тарифов внизу есть кнопка «Диагностика». Она покажет:
+- `isAndroid` — обнаружен ли Android WebView
+- `hasBridgeObject` — есть ли `window.RuStoreBilling`
+- `isAvailable` — прошла ли проверка доступности платежей
+- `initError` — ошибка инициализации (если есть)
+
+---
 
 ## Как это работает
 
-1. При запуске `MainActivity` регистрирует JS-интерфейс `window.RuStoreBilling`
-2. Фронтенд вызывает `window.RuStoreBilling.purchase(productId)`
-3. Открывается окно оплаты RuStore
-4. После успеха плагин вызывает `window.onRuStorePurchaseResult(json)`
-5. Фронтенд отправляет purchaseToken на бэкенд для валидации
+1. `MainActivity.onCreate()` → `proceedIntent(intent)` передаёт deep link в SDK
+2. `MainActivity` регистрирует JS-интерфейс `window.RuStoreBilling`
+3. При инициализации `RuStoreBillingPlugin` проверяет `getPurchaseAvailability()`
+4. Фронтенд вызывает `window.RuStoreBilling.purchase(productId)`
+5. Плагин создаёт `ProductPurchaseParams` и вызывает `getPurchaseInteractor().purchase()`
+6. SDK открывает шторку оплаты RuStore
+7. После завершения плагин вызывает `window.onRuStorePurchaseResult(json)`
+8. Фронтенд отправляет `purchaseToken` на бэкенд для валидации
+
+---
 
 ## Product IDs (настроить в RuStore Console → Монетизация):
 
