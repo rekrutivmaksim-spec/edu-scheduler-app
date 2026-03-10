@@ -832,11 +832,12 @@ export default function Exam() {
           setQuestionsLeft(q => Math.max(0, (q ?? 1) - 1));
         }
       }
-      // Трекинг: считаем задание выполненным при правильном ответе
       const answerLower = answer.toLowerCase();
       const wasCorrect = answerLower.startsWith('правильно') || answerLower.includes('правильно!');
       if (wasCorrect) {
-        trackActivity('exam_tasks_done', 1).catch(() => {});
+        trackActivity('exam_tasks_done', 1).then(() => {
+          setUserStats(prev => ({ ...prev, examTasksDone: prev.examTasksDone + 1 }));
+        }).catch(() => {});
       }
       setMessages(prev => [...prev, { role: 'ai', text: answer }]);
       setTaskNum(nextNum);
