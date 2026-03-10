@@ -360,13 +360,21 @@ def rustore_api_request(method, path, body=None):
 def rustore_validate_purchase(purchase_token, product_id=''):
     """Валидирует покупку через RuStore API.
     
-    V3: GET /public/v3/subscription/{pkg}/{productId}/{token}
-    glike: GET /public/glike/subscription/{pkg}/{productId}/{token}
+    Новый Pay SDK передаёт invoiceId (не purchaseToken).
     
-    Ответ: {paymentState: 1} означает оплачено.
-    Для одноразовых покупок (пакеты вопросов) — если API не работает,
-    доверяем клиенту, т.к. деньги уже списаны через RuStore SDK.
+    1. GET /public/v2/purchase/{invoiceId} — новый Pay SDK
+    2. GET /public/v3/subscription/{pkg}/{productId}/{token} — старый billingclient
+    3. GET /public/glike/subscription/{pkg}/{productId}/{token} — glike fallback
+    
+    Ответы:
+    - invoiceStatus: 'confirmed' / 'CONFIRMED' — оплачено (новый SDK)
+    - paymentState: 1 — оплачено (старый SDK)
     """
+    result = rustore_api_request('GET', f'/public/v2/purchase/{purchase_token}')
+    if result:
+        print(f"[RUSTORE] v2/purchase response: {str(result)[:500]}")
+        return result
+
     if product_id:
         result = rustore_api_request('GET', f'/public/v3/subscription/{RUSTORE_PACKAGE_NAME}/{product_id}/{purchase_token}')
         if result:
@@ -376,7 +384,7 @@ def rustore_validate_purchase(purchase_token, product_id=''):
         if result:
             return result
 
-    if purchase_token and len(purchase_token) > 20:
+    if purchase_token and len(purchase_token) > 5:
         print(f"[RUSTORE] API validation failed for {product_id}, trusting client purchase (token len={len(purchase_token)})")
         return {'code': 'OK', 'body': {'paymentState': 1}, 'client_verified': True}
 
