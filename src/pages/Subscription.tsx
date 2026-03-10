@@ -6,12 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
-import {
-  isAndroidApp,
-  isRuStoreAvailable,
-  purchaseSubscription as ruStorePurchase,
-  validatePurchaseOnServer,
-} from '@/lib/rustore-billing';
 
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
@@ -55,10 +49,9 @@ interface Payment {
 }
 
 const FAQ_ITEMS = [
-  { q: 'Как происходит оплата?', a: 'Через систему платежей RuStore. Оплата привязывается к аккаунту RuStore.' },
-  { q: 'Подписка продлевается автоматически?', a: 'Да. Управлять подпиской можно в настройках RuStore → Подписки.' },
-  { q: 'Как отменить подписку?', a: 'RuStore → Настройки → Подписки → Studyfay → Отменить. Доступ сохранится до конца оплаченного периода.' },
-  { q: 'Могу ли я вернуть деньги?', a: 'Возврат через RuStore в течение 14 дней, если не использовал(а) платные функции.' },
+  { q: 'Как происходит оплата?', a: 'Через ЮKassa — безопасная оплата картой. После нажатия «Оформить» вы перейдёте на страницу оплаты.' },
+  { q: 'Подписка продлевается автоматически?', a: 'Нет, подписка не продлевается автоматически. По окончании срока можно оформить заново.' },
+  { q: 'Могу ли я вернуть деньги?', a: 'Возврат возможен в течение 14 дней, если платные функции не были использованы. Напишите в поддержку.' },
   { q: 'Что будет после окончания?', a: 'Базовые функции остаются + до 3 бесплатных вопросов ИИ в день.' },
 ];
 
@@ -81,7 +74,6 @@ const Subscription = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const canPurchase = isAndroidApp() && isRuStoreAvailable();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -91,14 +83,18 @@ const Subscription = () => {
       }
       const params = new URLSearchParams(window.location.search);
       if (params.get('payment') === 'success') {
-        toast({ title: 'Оплата прошла успешно!', description: 'Подписка активируется в течение минуты' });
+        toast({ title: 'Оплата обрабатывается', description: 'Подписка активируется в течение минуты' });
         window.history.replaceState({}, '', '/subscription');
+        const pendingId = localStorage.getItem('pending_payment_id');
+        if (pendingId) {
+          localStorage.removeItem('pending_payment_id');
+          await checkPaymentStatus(pendingId);
+        }
       } else if (params.get('payment') === 'failed') {
         toast({ title: 'Оплата не прошла', description: 'Попробуйте снова или выберите другой способ', variant: 'destructive' });
         window.history.replaceState({}, '', '/subscription');
       }
       await loadData();
-      // Автооткрытие покупки пакета из deep link (?buy=questions_60)
       const buyPack = params.get('buy');
       if (buyPack) {
         window.history.replaceState({}, '', '/subscription');
@@ -107,6 +103,26 @@ const Subscription = () => {
     };
     checkAuth();
   }, [navigate]);
+
+  const checkPaymentStatus = async (paymentId: string) => {
+    const token = authService.getToken();
+    for (let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const response = await fetch(PAYMENTS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'check_payment', payment_id: parseInt(paymentId) })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'completed') {
+          toast({ title: 'Подписка активирована!', description: 'Полный доступ ко всем функциям' });
+          await loadData();
+          return;
+        }
+      }
+    }
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -176,33 +192,33 @@ const Subscription = () => {
     } catch { /* silent */ }
   };
 
-  const handleBuyViaRuStore = async (planId: string) => {
+  const handleBuySubscription = async (planId: string) => {
     setSelectedPlan(planId);
     setIsProcessing(true);
 
     try {
-      toast({ title: 'Открываем оплату RuStore...', description: 'Подтвердите покупку в появившемся окне' });
-      const result = await ruStorePurchase(planId);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Покупка не завершена');
-      }
-
-      toast({ title: 'Проверяем оплату...' });
-
       const token = authService.getToken();
-      const validation = await validatePurchaseOnServer(
-        PAYMENTS_URL,
-        token || '',
-        result.purchaseToken || '',
-        planId
-      );
+      const returnUrl = `${window.location.origin}/subscription?payment=success`;
 
-      if (validation.success) {
-        toast({ title: 'Подписка активирована!', description: 'Полный доступ ко всем функциям' });
-        await loadData();
+      const response = await fetch(PAYMENTS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          action: 'create_payment',
+          plan_type: planId,
+          return_url: returnUrl
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.confirmation_url) {
+        if (data.payment_id) {
+          localStorage.setItem('pending_payment_id', String(data.payment_id));
+        }
+        window.location.href = data.confirmation_url;
       } else {
-        throw new Error(validation.error || 'Не удалось активировать подписку');
+        throw new Error(data.error || 'Не удалось создать платёж');
       }
     } catch (error) {
       toast({
@@ -216,17 +232,6 @@ const Subscription = () => {
     }
   };
 
-  const handleBuySubscription = (planId: string) => {
-    if (!canPurchase) {
-      toast({
-        title: 'Оплата доступна в приложении',
-        description: 'Скачайте Studyfay из RuStore для оформления подписки',
-      });
-      return;
-    }
-    handleBuyViaRuStore(planId);
-  };
-
   const handleActivateTrial = async () => {
     setIsProcessing(true);
     try {
@@ -238,7 +243,7 @@ const Subscription = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        toast({ title: '🎉 Пробный период активирован!', description: '7 дней безлимитного доступа — пользуйся на полную!' });
+        toast({ title: 'Пробный период активирован!', description: '7 дней безлимитного доступа' });
         await loadSubscriptionStatus();
       } else {
         toast({ title: 'Не удалось активировать', description: data.error || 'Пробный период уже был использован', variant: 'destructive' });
@@ -295,7 +300,6 @@ const Subscription = () => {
 
       <main className="max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-nav md:pb-8 space-y-4 sm:space-y-6">
 
-        {/* Кнопка активации пробного периода */}
         {!isPremium && !isTrial && (
           <Card className="p-5 bg-gradient-to-br from-violet-600 to-purple-700 border-0 shadow-xl shadow-purple-500/30">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -317,7 +321,6 @@ const Subscription = () => {
           </Card>
         )}
 
-        {/* Статус: Триал */}
         {!isPremium && isTrial && trialEndsAt && (
           <Card className="p-4 sm:p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300">
             <div className="flex items-center gap-3 sm:gap-4">
@@ -335,7 +338,6 @@ const Subscription = () => {
           </Card>
         )}
 
-        {/* Статус: Премиум активен */}
         {isPremium && expiresAt && (
           <Card className="p-4 sm:p-5 bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-green-300">
             <div className="flex items-center gap-3 sm:gap-4">
@@ -353,44 +355,6 @@ const Subscription = () => {
           </Card>
         )}
 
-        {/* Управление подпиской RuStore */}
-        {isPremium && (
-          <Card className="p-4 sm:p-5 bg-white border-2 border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Icon name="RefreshCw" size={20} className="text-purple-600" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-gray-800">Управление подпиской</h3>
-                <p className="text-xs text-gray-500">Продление и отмена — в настройках RuStore → Подписки</p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Баннер: оплата только в приложении */}
-        {!isPremium && !canPurchase && (
-          <Card className="p-4 sm:p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <Icon name="Download" size={24} className="text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm sm:text-base font-bold text-gray-800">Оплата через приложение</h3>
-                <p className="text-xs text-gray-600 mt-0.5">Скачайте Studyfay из RuStore, чтобы оформить подписку или купить пакет вопросов</p>
-              </div>
-            </div>
-            <Button
-              onClick={() => window.open('https://www.rustore.ru/catalog/app/ru.studyfay.app', '_blank')}
-              className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm h-10"
-            >
-              <Icon name="ExternalLink" size={16} className="mr-2" />
-              Открыть в RuStore
-            </Button>
-          </Card>
-        )}
-
-        {/* Тарифы */}
         {!isPremium && plans.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-base sm:text-lg font-bold text-gray-800">Выберите тариф</h2>
@@ -457,7 +421,6 @@ const Subscription = () => {
           </div>
         )}
 
-        {/* Пакеты вопросов — для всех */}
         {questionPacks.length > 0 && (
           <div className="space-y-3">
             <div>
@@ -516,7 +479,6 @@ const Subscription = () => {
           </div>
         )}
 
-        {/* Сезонный тариф */}
         {!isPremium && seasonalPlans.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-base sm:text-lg font-bold text-gray-800">Специальное предложение</h2>
@@ -556,7 +518,6 @@ const Subscription = () => {
           </div>
         )}
 
-        {/* Пакеты токенов (для премиум) */}
         {isPremium && tokenPacks.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-base sm:text-lg font-bold text-gray-800">Дополнительные токены</h2>
@@ -587,11 +548,10 @@ const Subscription = () => {
           </div>
         )}
 
-        {/* Доверие */}
         <div className="flex items-center justify-center gap-4 sm:gap-6 py-2">
           <div className="flex items-center gap-1.5">
             <Icon name="Lock" size={14} className="text-gray-400" />
-            <span className="text-[10px] sm:text-xs text-gray-400">RuStore</span>
+            <span className="text-[10px] sm:text-xs text-gray-400">ЮKassa</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Icon name="ShieldCheck" size={14} className="text-gray-400" />
@@ -603,7 +563,6 @@ const Subscription = () => {
           </div>
         </div>
 
-        {/* FAQ */}
         <div className="space-y-2">
           <h2 className="text-base sm:text-lg font-bold text-gray-800">Частые вопросы</h2>
           {FAQ_ITEMS.map((item, i) => (
@@ -628,7 +587,6 @@ const Subscription = () => {
           ))}
         </div>
 
-        {/* История платежей */}
         {payments.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-base sm:text-lg font-bold text-gray-800">История платежей</h2>

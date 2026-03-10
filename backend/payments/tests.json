@@ -4,39 +4,28 @@
       "name": "Get subscription plans",
       "method": "GET",
       "path": "/?action=plans",
-      "headers": {
-        "Authorization": "Bearer mock-token"
-      },
+      "headers": {"Authorization": "Bearer mock-token"},
       "expectedStatus": 200
     },
     {
       "name": "Get question packs",
       "method": "GET",
       "path": "/?action=token_packs",
-      "headers": {
-        "Authorization": "Bearer mock-token"
-      },
+      "headers": {"Authorization": "Bearer mock-token"},
       "expectedStatus": 200
     },
     {
       "name": "Get auto renew info",
       "method": "GET",
       "path": "/?action=auto_renew",
-      "headers": {
-        "Authorization": "Bearer mock-token"
-      },
+      "headers": {"Authorization": "Bearer mock-token"},
       "expectedStatus": 200
     },
     {
-      "name": "Get RuStore products",
+      "name": "Webhook without body returns ok",
       "method": "POST",
       "path": "/",
-      "headers": {
-        "Authorization": "Bearer mock-token"
-      },
-      "body": {
-        "action": "rustore_products"
-      },
+      "body": {"action": "webhook"},
       "expectedStatus": 200
     }
   ]

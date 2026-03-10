@@ -5,13 +5,6 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
-import {
-  isAndroidApp,
-  isRuStoreAvailable,
-  purchaseSubscription as ruStorePurchase,
-  validatePurchaseOnServer,
-  getDiagnostics,
-} from '@/lib/rustore-billing';
 
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
@@ -35,7 +28,7 @@ const FREE_FEATURES = [
 ];
 
 const GUARANTEE_FEATURES = [
-  'Безопасная оплата через RuStore',
+  'Безопасная оплата через ЮKassa',
   'Возврат средств в течение 14 дней',
   'Отмена подписки в любой момент',
 ];
@@ -50,12 +43,12 @@ const FAQ = [
     a: '20 дополнительных вопросов к ИИ — не зависят от тарифа. Подходит если израсходовал дневной лимит и хочешь продолжить сегодня.',
   },
   {
-    q: 'Как работает автопродление?',
-    a: 'Подписка продлевается автоматически через RuStore. Управление — в настройках RuStore → Подписки.',
+    q: 'Как происходит оплата?',
+    a: 'Оплата картой через ЮKassa. После нажатия кнопки вы перейдёте на защищённую страницу оплаты.',
   },
   {
     q: 'Можно отменить в любой момент?',
-    a: 'Да. RuStore → Настройки → Подписки → Studyfay → Отменить. Доступ сохранится до конца оплаченного периода.',
+    a: 'Да. Подписка не продлевается автоматически. По окончании срока можно оформить заново.',
   },
 ];
 
@@ -68,9 +61,6 @@ const Pricing = () => {
   const [bonusQuestions, setBonusQuestions] = useState(0);
   const [discountTimer, setDiscountTimer] = useState('');
   const [discountActive, setDiscountActive] = useState(false);
-  const [showDiag, setShowDiag] = useState(false);
-  const canPurchase = isAndroidApp() && isRuStoreAvailable();
-  const diag = getDiagnostics();
 
   useEffect(() => {
     const DISCOUNT_DURATION = 24 * 60 * 60 * 1000;
@@ -108,6 +98,21 @@ const Pricing = () => {
 
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/auth'); return; }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') {
+      toast({ title: 'Оплата обрабатывается', description: 'Подписка активируется в течение минуты' });
+      window.history.replaceState({}, '', '/pricing');
+      const pendingId = localStorage.getItem('pending_payment_id');
+      if (pendingId) {
+        localStorage.removeItem('pending_payment_id');
+        checkPaymentStatus(pendingId);
+      }
+    } else if (params.get('payment') === 'failed') {
+      toast({ title: 'Оплата не прошла', description: 'Попробуйте снова', variant: 'destructive' });
+      window.history.replaceState({}, '', '/pricing');
+    }
+
     fetch(`${SUBSCRIPTION_URL}?action=status`, {
       headers: { Authorization: `Bearer ${authService.getToken()}` },
     })
@@ -121,38 +126,52 @@ const Pricing = () => {
       .catch(() => {});
   }, [navigate]);
 
-  const handleBuy = async (planId: string) => {
-    if (!canPurchase) {
-      toast({
-        title: 'Оплата доступна в приложении',
-        description: 'Скачайте Studyfay из RuStore',
+  const checkPaymentStatus = async (paymentId: string) => {
+    const token = authService.getToken();
+    for (let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const response = await fetch(PAYMENTS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'check_payment', payment_id: parseInt(paymentId) })
       });
-      return;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'completed') {
+          toast({ title: 'Подписка активирована!', description: 'Полный доступ ко всем функциям' });
+          setCurrentPlan('premium');
+          return;
+        }
+      }
     }
+  };
+
+  const handleBuy = async (planId: string) => {
     setLoading(planId);
     try {
       const backendPlanId = planId === '12months' ? '1year' : planId === '1month_discount' ? '1month' : planId;
-      toast({ title: 'Открываем оплату RuStore...' });
-      const result = await ruStorePurchase(backendPlanId);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Покупка не завершена');
-      }
-
-      toast({ title: 'Проверяем оплату...' });
       const token = authService.getToken();
-      const validation = await validatePurchaseOnServer(
-        PAYMENTS_URL,
-        token || '',
-        result.purchaseToken || '',
-        backendPlanId
-      );
+      const returnUrl = `${window.location.origin}/pricing?payment=success`;
 
-      if (validation.success) {
-        toast({ title: 'Подписка активирована!', description: 'Полный доступ ко всем функциям' });
-        setCurrentPlan('premium');
+      const response = await fetch(PAYMENTS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          action: 'create_payment',
+          plan_type: backendPlanId,
+          return_url: returnUrl
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.confirmation_url) {
+        if (data.payment_id) {
+          localStorage.setItem('pending_payment_id', String(data.payment_id));
+        }
+        window.location.href = data.confirmation_url;
       } else {
-        throw new Error(validation.error || 'Не удалось активировать');
+        throw new Error(data.error || 'Не удалось создать платёж');
       }
     } catch (error) {
       toast({
@@ -170,7 +189,6 @@ const Pricing = () => {
   return (
     <div className="min-h-[100dvh] bg-gray-50 pb-nav">
 
-      {/* Шапка */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button onClick={() => navigate(-1)} className="p-1.5 rounded-xl hover:bg-gray-100">
           <Icon name="ArrowLeft" size={20} className="text-gray-700" />
@@ -180,7 +198,6 @@ const Pricing = () => {
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-4">
 
-        {/* Заголовок */}
         <div className="text-center pt-2 pb-2">
           <div className="text-4xl mb-2">🚀</div>
           <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Studyfay Premium</h2>
@@ -189,26 +206,6 @@ const Pricing = () => {
           </p>
         </div>
 
-        {/* Баннер: оплата в приложении */}
-        {!isPremium && !canPurchase && (
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-3xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Icon name="Download" size={20} className="text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-gray-800">Оплата через приложение</p>
-              <p className="text-xs text-gray-500">Скачайте Studyfay из RuStore для покупки</p>
-            </div>
-            <button
-              onClick={() => window.open('https://www.rustore.ru/catalog/app/ru.studyfay.app', '_blank')}
-              className="text-blue-600 text-xs font-bold flex-shrink-0 underline"
-            >
-              Скачать
-            </button>
-          </div>
-        )}
-
-        {/* Скидка первый месяц */}
         {discountActive && !isPremium && (
           <div className="bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 rounded-3xl p-5 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8" />
@@ -243,7 +240,6 @@ const Pricing = () => {
           </div>
         )}
 
-        {/* Бесплатный тариф */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -267,7 +263,6 @@ const Pricing = () => {
           )}
         </div>
 
-        {/* Premium — главный */}
         {!isPremium ? (
           <div className="rounded-3xl overflow-hidden shadow-xl">
             <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-5">
@@ -306,10 +301,9 @@ const Pricing = () => {
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>
-              <p className="text-white/50 text-xs text-center">Отмена в любой момент · Оплата через RuStore</p>
+              <p className="text-white/50 text-xs text-center">Отмена в любой момент · Безопасная оплата</p>
             </div>
 
-            {/* Подсказка */}
             <div className="bg-purple-900 px-5 py-3 flex items-center gap-2">
               <span className="text-yellow-400 text-sm">⚡</span>
               <p className="text-white/70 text-xs">
@@ -323,7 +317,7 @@ const Pricing = () => {
               <Icon name="Crown" size={24} className="text-yellow-300" />
             </div>
             <div>
-              <p className="text-white font-bold text-base">Premium активен ✓</p>
+              <p className="text-white font-bold text-base">Premium активен</p>
               <p className="text-white/60 text-sm">Полный доступ открыт</p>
               {bonusQuestions > 0 && (
                 <p className="text-green-300 text-xs mt-0.5">+{bonusQuestions} бонусных вопросов</p>
@@ -332,7 +326,6 @@ const Pricing = () => {
           </div>
         )}
 
-        {/* Пакет вопросов — для всех */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-green-100 relative">
           <div className="absolute -top-3 left-5">
             <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">⚡ Быстрый доступ</span>
@@ -371,7 +364,6 @@ const Pricing = () => {
           </Button>
         </div>
 
-        {/* 6 месяцев — самый выгодный */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-orange-200 relative">
           <div className="absolute -top-3 left-5">
             <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">🟠 Самый выгодный</span>
@@ -410,7 +402,6 @@ const Pricing = () => {
           </Button>
         </div>
 
-        {/* Годовой тариф */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-blue-100 relative">
           <div className="absolute -top-3 left-5">
             <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">🔵 Годовой тариф</span>
@@ -448,7 +439,6 @@ const Pricing = () => {
           </Button>
         </div>
 
-        {/* Сравнение с репетитором */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xl">💰</span>
@@ -482,7 +472,6 @@ const Pricing = () => {
           </div>
         </div>
 
-        {/* Гарантии */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">
           <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
             <Icon name="ShieldCheck" size={18} className="text-green-500" />
@@ -498,7 +487,6 @@ const Pricing = () => {
           </div>
         </div>
 
-        {/* FAQ */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">
           <h3 className="font-bold text-gray-800 mb-3">Частые вопросы</h3>
           <div className="space-y-2">
@@ -525,29 +513,12 @@ const Pricing = () => {
           </div>
         </div>
 
-        {/* Юридическая строка */}
         <div className="text-center pb-4">
           <div className="flex items-center justify-center gap-3 text-xs text-gray-400">
             <button onClick={() => navigate('/terms')} className="hover:text-gray-600">Пользовательское соглашение</button>
             <span>·</span>
             <button onClick={() => navigate('/privacy')} className="hover:text-gray-600">Конфиденциальность</button>
           </div>
-          <button
-            onClick={() => setShowDiag(d => !d)}
-            className="mt-3 text-[10px] text-gray-300 hover:text-gray-500"
-          >
-            SDK диагностика
-          </button>
-          {showDiag && (
-            <div className="mt-2 bg-gray-100 rounded-xl p-3 text-left text-[11px] font-mono text-gray-600 space-y-0.5">
-              {Object.entries(diag).map(([k, v]) => (
-                <div key={k}><span className="text-gray-400">{k}:</span> {v}</div>
-              ))}
-              <div className="pt-1 border-t border-gray-200 mt-1">
-                <span className="text-gray-400">canPurchase:</span> {String(canPurchase)}
-              </div>
-            </div>
-          )}
         </div>
 
       </div>

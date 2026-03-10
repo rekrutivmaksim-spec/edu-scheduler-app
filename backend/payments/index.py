@@ -1,28 +1,22 @@
-"""API для обработки платежей и подписок через RuStore"""
+"""API для обработки платежей и подписок через ЮKassa"""
 
 import json
 import os
-import time
+import uuid
 import base64
 import datetime as dt
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import jwt
-import hashlib
 import urllib.request
 import urllib.error
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
-RUSTORE_COMPANY_ID = os.environ.get('RUSTORE_COMPANY_ID', '')
-RUSTORE_APP_ID = os.environ.get('RUSTORE_APP_ID', '')
-RUSTORE_PRIVATE_KEY = os.environ.get('RUSTORE_PRIVATE_KEY', '')
-RUSTORE_API = 'https://public-api.rustore.ru'
-RUSTORE_PACKAGE_NAME = 'ru.studyfay.app'
+YOKASSA_SHOP_ID = os.environ.get('YOKASSA_SHOP_ID', '')
+YOKASSA_SECRET_KEY = os.environ.get('YOKASSA_SECRET_KEY', '')
 
 PLANS = {
     '1month': {
@@ -86,10 +80,6 @@ def verify_token(token: str) -> dict:
         return jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
     except Exception:
         return None
-
-def generate_token(*args):
-    values = ''.join(str(v) for v in args if v is not None)
-    return hashlib.sha256(values.encode()).hexdigest()
 
 def complete_payment(conn, payment_id: int, payment_method: str = None, external_payment_id: str = None, rebill_id: str = None, card_last4: str = None) -> bool:
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -186,22 +176,6 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
         conn.commit()
         return True
 
-def handle_notification(conn, body: dict) -> dict:
-    """Обработка уведомлений (webhook)"""
-    status = body.get('Status')
-    payment_id_ext = str(body.get('PaymentId', ''))
-    order_id = body.get('OrderId', '')
-
-    if not order_id.startswith('studyfay_'):
-        return {'success': True}
-
-    local_payment_id = int(order_id.replace('studyfay_', ''))
-
-    if status in ('CONFIRMED', 'confirmed'):
-        complete_payment(conn, local_payment_id, 'rustore', payment_id_ext)
-
-    return {'success': True}
-
 def get_user_payments(conn, user_id: int) -> list:
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(f"""
@@ -243,264 +217,133 @@ def toggle_auto_renew(conn, user_id: int, enabled: bool) -> bool:
         conn.commit()
         return True
 
-# Cached JWE token and its expiry timestamp
-_rustore_jwe_cache = {'token': None, 'expires_at': 0}
 
-def get_rustore_jwe():
-    """Получает JWE токен для авторизации в RuStore Public API.
+def yokassa_create_payment(amount, description, order_id, return_url):
+    """Создает платеж через YooKassa API.
     
-    Поток:
-    1. Подписываем keyId + timestamp приватным RSA ключом (PKCS1v15, SHA-512)
-    2. POST на /public/auth с {keyId, timestamp, signature}
-    3. Получаем JWE токен (TTL 900 сек), кешируем на 800 сек
+    POST https://api.yookassa.ru/v3/payments
+    Авторизация: Basic Auth (shop_id:secret_key)
+    Idempotence-Key: уникальный UUID для каждого запроса
     """
-    global _rustore_jwe_cache
+    url = 'https://api.yookassa.ru/v3/payments'
+    idempotence_key = str(uuid.uuid4())
 
-    # Return cached token if still valid
-    if _rustore_jwe_cache['token'] and time.time() < _rustore_jwe_cache['expires_at']:
-        print("[RUSTORE] Using cached JWE token")
-        return _rustore_jwe_cache['token']
+    credentials = base64.b64encode(f'{YOKASSA_SHOP_ID}:{YOKASSA_SECRET_KEY}'.encode()).decode()
 
-    if not RUSTORE_PRIVATE_KEY or not RUSTORE_COMPANY_ID:
-        print("[RUSTORE] Missing RUSTORE_PRIVATE_KEY or RUSTORE_COMPANY_ID")
-        return None
+    payment_body = {
+        'amount': {
+            'value': f'{amount:.2f}',
+            'currency': 'RUB'
+        },
+        'confirmation': {
+            'type': 'redirect',
+            'return_url': return_url
+        },
+        'description': description,
+        'metadata': {
+            'order_id': order_id
+        }
+    }
 
+    data = json.dumps(payment_body).encode('utf-8')
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'Basic {credentials}',
+            'Idempotence-Key': idempotence_key
+        },
+        method='POST'
+    )
+
+    print(f"[YOKASSA] Creating payment: {url}, order_id={order_id}, amount={amount}")
     try:
-        # Load RSA private key from base64 DER
-        clean_key = RUSTORE_PRIVATE_KEY.replace('\\n', '').replace('\n', '').replace('\r', '').replace(' ', '').strip()
-        # Strip PEM headers if accidentally included
-        clean_key = clean_key.replace('-----BEGINPRIVATEKEY-----', '').replace('-----ENDPRIVATEKEY-----', '')
-        clean_key = clean_key.replace('-----BEGINRSAPRIVATEKEY-----', '').replace('-----ENDRSAPRIVATEKEY-----', '')
-        private_key_bytes = base64.b64decode(clean_key)
-        private_key = serialization.load_der_private_key(private_key_bytes, password=None)
-
-        # keyId is RUSTORE_COMPANY_ID
-        key_id = RUSTORE_COMPANY_ID
-
-        # Create timestamp in ISO format with milliseconds and UTC timezone
-        timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec='milliseconds')
-
-        # Sign keyId + timestamp with SHA-512 using PKCS1v15
-        message = (key_id + timestamp).encode('utf-8')
-        signature_bytes = private_key.sign(message, padding.PKCS1v15(), hashes.SHA512())
-        signature_value = base64.b64encode(signature_bytes).decode('utf-8')
-
-        # POST to /public/auth
-        auth_url = f'{RUSTORE_API}/public/auth'
-        auth_body = json.dumps({
-            'keyId': key_id,
-            'timestamp': timestamp,
-            'signature': signature_value
-        }).encode('utf-8')
-
-        print(f"[RUSTORE] Authenticating: POST {auth_url}")
-        req = urllib.request.Request(
-            auth_url,
-            data=auth_body,
-            headers={'Content-Type': 'application/json'},
-            method='POST'
-        )
         response = urllib.request.urlopen(req, timeout=15)
         result = json.loads(response.read().decode('utf-8'))
-        print(f"[RUSTORE] Auth response code: {result.get('code')}")
-
-        if result.get('code') != 'OK':
-            print(f"[RUSTORE] Auth failed: {str(result)[:300]}")
-            return None
-
-        jwe_token = result.get('body', {}).get('jwe')
-        if not jwe_token:
-            print(f"[RUSTORE] No JWE in response: {str(result)[:300]}")
-            return None
-
-        # Cache the token for 800 seconds (server TTL is 900s)
-        _rustore_jwe_cache['token'] = jwe_token
-        _rustore_jwe_cache['expires_at'] = time.time() + 800
-
-        print(f"[RUSTORE] JWE obtained, length={len(jwe_token)}")
-        return jwe_token
-
+        print(f"[YOKASSA] Payment created: id={result.get('id')}, status={result.get('status')}")
+        return result
     except urllib.error.HTTPError as e:
         err_body = e.read().decode('utf-8', errors='replace')[:500]
-        print(f"[RUSTORE] Auth HTTP error {e.code}: {err_body}")
+        print(f"[YOKASSA] Create payment error {e.code}: {err_body}")
         return None
     except Exception as e:
-        print(f"[RUSTORE] Auth exception: {e}")
+        print(f"[YOKASSA] Create payment exception: {e}")
         return None
 
-def rustore_api_request(method, path, body=None):
-    """Запрос к RuStore Public API с использованием JWE токена"""
-    jwe_token = get_rustore_jwe()
-    if not jwe_token:
-        print("[RUSTORE] Failed to obtain JWE token")
-        return None
-    url = f'{RUSTORE_API}{path}'
-    headers_dict = {
-        'Content-Type': 'application/json',
-        'Public-Token': jwe_token
-    }
-    print(f"[RUSTORE] {method} {url}")
+
+def yokassa_get_payment(payment_id):
+    """Получает статус платежа через YooKassa API.
+    
+    GET https://api.yookassa.ru/v3/payments/{payment_id}
+    Авторизация: Basic Auth (shop_id:secret_key)
+    """
+    url = f'https://api.yookassa.ru/v3/payments/{payment_id}'
+    credentials = base64.b64encode(f'{YOKASSA_SHOP_ID}:{YOKASSA_SECRET_KEY}'.encode()).decode()
+
+    req = urllib.request.Request(
+        url,
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'Basic {credentials}'
+        },
+        method='GET'
+    )
+
+    print(f"[YOKASSA] Getting payment: {url}")
     try:
-        if method == 'GET':
-            req = urllib.request.Request(url, headers=headers_dict)
-        else:
-            data = json.dumps(body).encode('utf-8') if body else None
-            req = urllib.request.Request(url, data=data, headers=headers_dict, method=method)
-        response = urllib.request.urlopen(req, timeout=10)
-        result = json.loads(response.read().decode())
-        print(f"[RUSTORE] OK: {str(result)[:300]}")
+        response = urllib.request.urlopen(req, timeout=15)
+        result = json.loads(response.read().decode('utf-8'))
+        print(f"[YOKASSA] Payment info: id={result.get('id')}, status={result.get('status')}")
         return result
     except urllib.error.HTTPError as e:
-        print(f"[RUSTORE] Error {e.code}: {e.read().decode()[:300]}")
+        err_body = e.read().decode('utf-8', errors='replace')[:500]
+        print(f"[YOKASSA] Get payment error {e.code}: {err_body}")
         return None
     except Exception as e:
-        print(f"[RUSTORE] Exception: {e}")
+        print(f"[YOKASSA] Get payment exception: {e}")
         return None
 
-def rustore_validate_purchase(purchase_token, product_id=''):
-    """Валидирует покупку через RuStore API.
+
+def handle_webhook(conn, body: dict) -> dict:
+    """Обработка webhook уведомлений от YooKassa.
     
-    Новый Pay SDK передаёт invoiceId (не purchaseToken).
-    
-    1. GET /public/v2/purchase/{invoiceId} — новый Pay SDK
-    2. GET /public/v3/subscription/{pkg}/{productId}/{token} — старый billingclient
-    3. GET /public/glike/subscription/{pkg}/{productId}/{token} — glike fallback
-    
-    Ответы:
-    - invoiceStatus: 'confirmed' / 'CONFIRMED' — оплачено (новый SDK)
-    - paymentState: 1 — оплачено (старый SDK)
+    YooKassa отправляет уведомления о смене статуса платежа.
+    Формат: { type: "notification", event: "payment.succeeded", object: { id, status, metadata: { order_id } } }
+    Дополнительно проверяем статус через API для безопасности.
     """
-    result = rustore_api_request('GET', f'/public/v2/purchase/{purchase_token}')
-    if result:
-        print(f"[RUSTORE] v2/purchase response: {str(result)[:500]}")
-        return result
+    event_type = body.get('event', '')
+    payment_object = body.get('object', {})
 
-    if product_id:
-        result = rustore_api_request('GET', f'/public/v3/subscription/{RUSTORE_PACKAGE_NAME}/{product_id}/{purchase_token}')
-        if result:
-            return result
+    if not payment_object:
+        print("[YOKASSA] Webhook: no payment object in body")
+        return {'success': True}
 
-        result = rustore_api_request('GET', f'/public/glike/subscription/{RUSTORE_PACKAGE_NAME}/{product_id}/{purchase_token}')
-        if result:
-            return result
+    yokassa_payment_id = payment_object.get('id', '')
+    metadata = payment_object.get('metadata', {})
+    order_id = metadata.get('order_id', '')
 
-    if purchase_token and len(purchase_token) > 5:
-        print(f"[RUSTORE] API validation failed for {product_id}, trusting client purchase (token len={len(purchase_token)})")
-        return {'code': 'OK', 'body': {'paymentState': 1}, 'client_verified': True}
+    if not order_id or not order_id.startswith('studyfay_'):
+        print(f"[YOKASSA] Webhook: unknown order_id={order_id}")
+        return {'success': True}
 
-    return None
+    local_payment_id = int(order_id.replace('studyfay_', ''))
+    print(f"[YOKASSA] Webhook: event={event_type}, yokassa_id={yokassa_payment_id}, local_id={local_payment_id}")
 
-def rustore_activate_subscription(conn, user_id, plan_type, purchase_token):
-    """Активирует подписку после RuStore валидации"""
-    plan_key = plan_type.replace('premium_', '') if plan_type.startswith('premium_') else plan_type
-    plan = PLANS.get(plan_key)
-    if not plan:
-        return False
+    if event_type == 'payment.succeeded':
+        # Проверяем статус платежа через API для безопасности
+        verified = yokassa_get_payment(yokassa_payment_id)
+        if verified and verified.get('status') == 'succeeded':
+            complete_payment(conn, local_payment_id, 'yokassa', yokassa_payment_id)
+            print(f"[YOKASSA] Webhook: payment {local_payment_id} completed")
+        else:
+            print(f"[YOKASSA] Webhook: payment {yokassa_payment_id} verification failed, status={verified.get('status') if verified else 'None'}")
 
-    expires_at = datetime.now() + timedelta(days=plan['duration_days'])
-
-    with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(f"SELECT id FROM {SCHEMA_NAME}.payments WHERE user_id = %s AND payment_id = %s AND payment_status = 'completed'", (user_id, purchase_token))
-        if cur.fetchone():
-            return True
-
-        cur.execute(f"""
-            INSERT INTO {SCHEMA_NAME}.payments
-            (user_id, amount, plan_type, payment_status, payment_method, payment_id, expires_at, completed_at)
-            VALUES (%s, %s, %s, 'completed', 'rustore', %s, %s, CURRENT_TIMESTAMP)
-        """, (user_id, plan['price'], plan_key, purchase_token, expires_at))
-        conn.commit()
-
-        cur.execute(f"""
-            UPDATE {SCHEMA_NAME}.users
-            SET subscription_type = 'premium',
-                subscription_expires_at = %s,
-                subscription_plan = %s,
-                daily_premium_questions_used = 0,
-                daily_premium_questions_reset_at = CURRENT_TIMESTAMP + INTERVAL '1 day',
-                bonus_questions = COALESCE(bonus_questions, 0) + 15,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """, (expires_at, plan_key, user_id))
-        conn.commit()
-
-    return True
-
-def rustore_activate_question_pack(conn, user_id, pack_id, purchase_token):
-    """Активирует пакет вопросов после RuStore валидации"""
-    pack = QUESTION_PACKS.get(pack_id)
-    if not pack:
-        return False
-
-    with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(f"SELECT id FROM {SCHEMA_NAME}.payments WHERE user_id = %s AND payment_id = %s AND payment_status = 'completed'", (user_id, purchase_token))
-        if cur.fetchone():
-            return True
-
-        cur.execute(f"""
-            INSERT INTO {SCHEMA_NAME}.payments
-            (user_id, amount, plan_type, payment_status, payment_method, payment_id, completed_at)
-            VALUES (%s, %s, %s, 'completed', 'rustore', %s, CURRENT_TIMESTAMP)
-        """, (user_id, pack['price'], pack_id, purchase_token))
-        conn.commit()
-
-        payment_id = cur.lastrowid or None
-        # Fetch the inserted payment id for question_packs table
-        cur.execute(f"SELECT id FROM {SCHEMA_NAME}.payments WHERE user_id = %s AND payment_id = %s AND payment_status = 'completed' ORDER BY id DESC LIMIT 1", (user_id, purchase_token))
-        row = cur.fetchone()
-        local_payment_id = row['id'] if row else None
-
-        questions_to_add = pack['questions']
-        cur.execute(f"""
-            UPDATE {SCHEMA_NAME}.users
-            SET bonus_questions = COALESCE(bonus_questions, 0) + %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """, (questions_to_add, user_id))
-
-        cur.execute(f"""
-            INSERT INTO {SCHEMA_NAME}.question_packs
-            (user_id, pack_type, questions_count, price_rub, payment_id)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (user_id, pack_id, questions_to_add, pack['price'], local_payment_id))
-        conn.commit()
-
-    return True
-
-def extract_payment_status(validation):
-    """Извлекает статус оплаты из ответа RuStore API.
-    
-    RuStore может возвращать статус в разных форматах:
-    - paymentState: 1 (integer, 1 = оплачено)
-    - invoiceStatus: 'confirmed'/'CONFIRMED'/'paid'/'PAID'
-    - purchaseState: 'PAID'/'PurchaseState.PAID'
-    - client_verified: True (фоллбэк, когда API недоступен)
-    """
-    if not isinstance(validation, dict):
-        return False
-    bd = validation.get('body', {})
-    if not isinstance(bd, dict):
-        bd = {}
-
-    if bd.get('paymentState') == 1 or validation.get('paymentState') == 1:
-        return True
-
-    for src in [validation, bd]:
-        inv = src.get('invoice_status', src.get('invoiceStatus', ''))
-        if inv and str(inv).upper() in ('CONFIRMED', 'PAID'):
-            return True
-        pst = src.get('purchaseState', '')
-        if pst in (1, 'PAID', 'PurchaseState.PAID'):
-            return True
-
-    if validation.get('client_verified'):
-        return True
-
-    return False
+    return {'success': True}
 
 
 def handler(event: dict, context) -> dict:
-    """Обработчик запросов для платежей через RuStore"""
+    """Обработчик запросов для платежей через ЮKassa"""
     method = event.get('httpMethod', 'GET')
 
     if method == 'OPTIONS':
@@ -521,6 +364,23 @@ def handler(event: dict, context) -> dict:
 
     qs = event.get('queryStringParameters', {}) or {}
     body_str = event.get('body', '{}') or '{}'
+
+    # Webhook от YooKassa обрабатывается ДО проверки авторизации
+    if method == 'POST':
+        body = json.loads(body_str)
+        action = body.get('action')
+
+        if action == 'webhook':
+            conn = psycopg2.connect(DATABASE_URL)
+            try:
+                result = handle_webhook(conn, body)
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps(result)
+                }
+            finally:
+                conn.close()
 
     auth_header = event.get('headers', {}).get('X-Authorization', '')
     token = auth_header.replace('Bearer ', '')
@@ -607,58 +467,124 @@ def handler(event: dict, context) -> dict:
                     'body': json.dumps({'success': True, 'auto_renew': enabled})
                 }
 
-            elif action == 'rustore_validate':
-                purchase_token = body.get('purchase_token', '')
-                plan_type = body.get('plan_type', body.get('product_id', ''))
-                if not purchase_token:
-                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'purchase_token обязателен'})}
-                rustore_product_id = f'premium_{plan_type}' if not plan_type.startswith(('premium_', 'questions_')) else plan_type
-                validation = rustore_validate_purchase(purchase_token, rustore_product_id)
-                if validation:
-                    is_paid = extract_payment_status(validation)
-                    print(f"[RUSTORE] validate result: {str(validation)[:500]}")
-                    print(f"[RUSTORE] is_paid: {is_paid}")
-                    if is_paid:
-                        # Определяем тип покупки: пакет вопросов или подписка
-                        if plan_type.startswith('questions_'):
-                            success = rustore_activate_question_pack(conn, user_id, plan_type, purchase_token)
-                            if success:
-                                pack = QUESTION_PACKS.get(plan_type, {})
-                                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'type': 'question_pack', 'pack_id': plan_type, 'questions': pack.get('questions', 0)})}
-                            return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать пакет вопросов'})}
-                        else:
-                            success = rustore_activate_subscription(conn, user_id, plan_type, purchase_token)
-                            if success:
-                                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'plan': plan_type})}
-                            return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать подписку'})}
-                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': False, 'status': 'not_paid'})}
-                return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось проверить покупку RuStore'})}
+            elif action == 'create_payment':
+                plan_type = body.get('plan_type', '')
+                return_url = body.get('return_url', 'https://studyfay.ru/subscription?payment=success')
 
-            elif action == 'rustore_products':
-                products = []
-                for key, plan in PLANS.items():
-                    products.append({'product_id': f'premium_{key}' if not key.startswith('premium_') else key, 'name': plan['name'], 'price': plan['price'], 'duration_days': plan['duration_days']})
-                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'products': products})}
+                if not plan_type:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'plan_type обязателен'})}
 
-            elif action == 'rustore_purchase_pack':
-                purchase_token = body.get('purchase_token', '')
-                pack_id = body.get('pack_id', '')
-                if not purchase_token:
-                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'purchase_token обязателен'})}
-                if pack_id not in QUESTION_PACKS:
-                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неверный pack_id'})}
-                validation = rustore_validate_purchase(purchase_token, pack_id)
-                if validation:
-                    is_paid = extract_payment_status(validation)
-                    print(f"[RUSTORE] pack validate: {str(validation)[:300]}, is_paid={is_paid}")
-                    if is_paid:
-                        success = rustore_activate_question_pack(conn, user_id, pack_id, purchase_token)
-                        if success:
-                            pack = QUESTION_PACKS[pack_id]
-                            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'status': 'activated', 'pack_id': pack_id, 'questions': pack['questions']})}
-                        return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось активировать пакет вопросов'})}
-                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': False, 'status': 'not_paid'})}
-                return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось проверить покупку RuStore'})}
+                # Определяем цену и длительность из доступных словарей
+                plan = PLANS.get(plan_type)
+                question_pack = QUESTION_PACKS.get(plan_type)
+                seasonal_plan = SEASONAL_PLANS.get(plan_type)
+
+                if plan:
+                    price = plan['price']
+                    description = f'Подписка StudyFay: {plan["name"]}'
+                    duration_days = plan['duration_days']
+                elif question_pack:
+                    price = question_pack['price']
+                    description = f'StudyFay: {question_pack["name"]}'
+                    duration_days = None
+                elif seasonal_plan:
+                    price = seasonal_plan['price']
+                    description = f'StudyFay: {seasonal_plan["name"]}'
+                    duration_days = seasonal_plan['duration_days']
+                else:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неизвестный plan_type'})}
+
+                # Рассчитываем expires_at для подписок
+                expires_at = None
+                if duration_days:
+                    expires_at = datetime.now() + timedelta(days=duration_days)
+
+                # Создаем запись о платеже в БД со статусом pending
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(f"""
+                        INSERT INTO {SCHEMA_NAME}.payments
+                        (user_id, amount, plan_type, payment_status, expires_at)
+                        VALUES (%s, %s, %s, 'pending', %s)
+                        RETURNING id
+                    """, (user_id, price, plan_type, expires_at))
+                    local_payment_id = cur.fetchone()['id']
+                    conn.commit()
+
+                order_id = f'studyfay_{local_payment_id}'
+
+                # Создаем платеж в YooKassa
+                yokassa_result = yokassa_create_payment(price, description, order_id, return_url)
+                if not yokassa_result:
+                    return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось создать платеж в YooKassa'})}
+
+                confirmation_url = yokassa_result.get('confirmation', {}).get('confirmation_url', '')
+                yokassa_payment_id = yokassa_result.get('id', '')
+
+                # Сохраняем yokassa payment_id в запись
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        UPDATE {SCHEMA_NAME}.payments
+                        SET payment_id = %s
+                        WHERE id = %s
+                    """, (yokassa_payment_id, local_payment_id))
+                    conn.commit()
+
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'success': True,
+                        'confirmation_url': confirmation_url,
+                        'payment_id': local_payment_id
+                    })
+                }
+
+            elif action == 'check_payment':
+                payment_id = body.get('payment_id')
+                if not payment_id:
+                    return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'payment_id обязателен'})}
+
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(f"""
+                        SELECT id, payment_status, payment_id, plan_type
+                        FROM {SCHEMA_NAME}.payments
+                        WHERE id = %s AND user_id = %s
+                    """, (payment_id, user_id))
+                    payment = cur.fetchone()
+
+                if not payment:
+                    return {'statusCode': 404, 'headers': headers, 'body': json.dumps({'error': 'Платеж не найден'})}
+
+                if payment['payment_status'] == 'completed':
+                    return {
+                        'statusCode': 200,
+                        'headers': headers,
+                        'body': json.dumps({'success': True, 'status': 'completed', 'plan_type': payment['plan_type']})
+                    }
+
+                # Платеж еще pending — проверяем через YooKassa API
+                yokassa_payment_id = payment['payment_id']
+                if yokassa_payment_id:
+                    yokassa_data = yokassa_get_payment(yokassa_payment_id)
+                    if yokassa_data and yokassa_data.get('status') == 'succeeded':
+                        complete_payment(conn, payment['id'], 'yokassa', yokassa_payment_id)
+                        return {
+                            'statusCode': 200,
+                            'headers': headers,
+                            'body': json.dumps({'success': True, 'status': 'completed', 'plan_type': payment['plan_type']})
+                        }
+                    yokassa_status = yokassa_data.get('status', 'unknown') if yokassa_data else 'unknown'
+                    return {
+                        'statusCode': 200,
+                        'headers': headers,
+                        'body': json.dumps({'success': True, 'status': 'pending', 'yokassa_status': yokassa_status})
+                    }
+
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({'success': True, 'status': 'pending'})
+                }
 
         return {
             'statusCode': 404,
