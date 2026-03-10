@@ -425,7 +425,6 @@ export default function Session() {
       if (navigator.vibrate) navigator.vibrate([60, 30, 100]);
       setProgressAnim(true);
       setTimeout(() => setProgressAnim(false), 1200);
-      // Трекинг выполненного задания
       trackActivity('exam_tasks_done', 1).catch(() => {});
     }
 
