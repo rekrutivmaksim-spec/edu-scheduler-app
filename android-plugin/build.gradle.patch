@@ -47,7 +47,7 @@ android {
 //    - Удалить: android/app/src/main/java/ru/studyfay/app/MainActivity.java
 //    - Удалить: android/app/src/main/java/ru/studyfay/app/RuStoreBillingPlugin.java
 //    - Скопировать: MainActivity.kt → android/app/src/main/java/ru/studyfay/app/
-//    - Скопировать: RuStoreBillingPlugin.kt → android/app/src/main/java/ru/studyfay/app/
+//    - Скопировать: RuStorePayPlugin.kt → android/app/src/main/java/ru/studyfay/app/
 
 // 5. Заменить AndroidManifest.xml (добавлены meta-data для SDK):
 //    - Скопировать: AndroidManifest.xml → android/app/src/main/AndroidManifest.xml
