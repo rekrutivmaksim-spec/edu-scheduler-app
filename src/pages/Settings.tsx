@@ -167,6 +167,20 @@ export default function Settings() {
     }
   };
 
+  const handleShareParentLink = async () => {
+    if (!parentCode) return;
+    const link = `${window.location.origin}/parent/auth?code=${parentCode}`;
+    const text = `Привет! Вот ссылка для входа в мой кабинет учёбы Studyfay:\n${link}\n\nВведи свой номер телефона и этот код: ${parentCode}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Studyfay — кабинет родителя', text });
+      } catch { /* cancelled */ }
+    } else {
+      navigator.clipboard.writeText(text);
+      toast({ title: 'Ссылка скопирована! Отправьте родителям' });
+    }
+  };
+
   const handleToggle = (key: string, value: boolean) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
@@ -501,7 +515,7 @@ export default function Settings() {
             
             {parentCode ? (
               <div className="space-y-3">
-                <p className="text-sm text-gray-600">Отправьте этот код родителям:</p>
+                <p className="text-sm text-gray-600">Код для родителей:</p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 bg-white rounded-xl px-4 py-3 font-mono text-xl font-bold text-center text-indigo-700 border-2 border-indigo-200 tracking-widest">
                     {parentCode}
@@ -515,8 +529,15 @@ export default function Settings() {
                     <Icon name="Copy" size={18} className="text-indigo-600" />
                   </Button>
                 </div>
-                <p className="text-xs text-gray-500">
-                  Родитель входит на <span className="font-medium text-indigo-600">studyfay.ru/parent/auth</span> с этим кодом и своим номером телефона
+                <Button
+                  onClick={handleShareParentLink}
+                  className="w-full h-11 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold rounded-xl"
+                >
+                  <Icon name="Share2" size={16} className="mr-2" />
+                  Отправить родителям
+                </Button>
+                <p className="text-xs text-gray-400 text-center">
+                  Откроется WhatsApp, Telegram или другой мессенджер
                 </p>
               </div>
             ) : (

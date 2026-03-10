@@ -370,7 +370,8 @@ def handler(event: dict, context) -> dict:
         body = json.loads(body_str)
         action = body.get('action')
 
-        if action == 'webhook':
+        # YooKassa webhook: has "event" field like "payment.succeeded"
+        if action == 'webhook' or body.get('event') or body.get('type') == 'notification':
             conn = psycopg2.connect(DATABASE_URL)
             try:
                 result = handle_webhook(conn, body)

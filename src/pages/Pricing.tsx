@@ -128,8 +128,8 @@ const Pricing = () => {
 
   const checkPaymentStatus = async (paymentId: string) => {
     const token = authService.getToken();
-    for (let i = 0; i < 5; i++) {
-      await new Promise(r => setTimeout(r, 3000));
+    for (let i = 0; i < 12; i++) {
+      await new Promise(r => setTimeout(r, 5000));
       const response = await fetch(PAYMENTS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -187,7 +187,7 @@ const Pricing = () => {
   const isPremium = currentPlan === 'premium';
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 pb-nav">
+    <div className={`min-h-[100dvh] bg-gray-50 ${isPremium ? 'pb-nav' : 'pb-[140px]'}`}>
 
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button onClick={() => navigate(-1)} className="p-1.5 rounded-xl hover:bg-gray-100">
@@ -551,6 +551,35 @@ const Pricing = () => {
         </div>
 
       </div>
+
+      {!isPremium && (
+        <div className="fixed bottom-[60px] left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-3 z-20">
+          <div className="max-w-md mx-auto flex items-center gap-3">
+            <Button
+              onClick={() => handleBuy(discountActive ? '1month_discount' : '1month')}
+              disabled={!!loading}
+              className="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.97] transition-all"
+            >
+              {loading === '1month' || loading === '1month_discount'
+                ? <Icon name="Loader2" size={18} className="animate-spin" />
+                : discountActive ? 'Premium — 299 ₽/мес' : 'Premium — 499 ₽/мес'
+              }
+            </Button>
+            <Button
+              onClick={() => handleBuy('questions_20')}
+              disabled={!!loading}
+              variant="outline"
+              className="h-12 px-4 font-bold text-green-600 border-green-300 rounded-2xl"
+            >
+              {loading === 'questions_20'
+                ? <Icon name="Loader2" size={16} className="animate-spin" />
+                : '+20 ⚡'
+              }
+            </Button>
+          </div>
+        </div>
+      )}
+
       <BottomNav />
     </div>
   );

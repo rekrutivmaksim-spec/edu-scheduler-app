@@ -12,10 +12,14 @@ const ParentAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('code') || '').toUpperCase().slice(0, 8);
+  });
   const [name, setName] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const codeFromUrl = !!new URLSearchParams(window.location.search).get('code');
 
   const formatPhone = (val: string) => {
     const digits = val.replace(/\D/g, '');
@@ -93,7 +97,9 @@ const ParentAuth = () => {
             <Icon name="Users" size={32} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Кабинет родителя</h1>
-          <p className="text-sm text-gray-500 mt-1">Следите за учёбой вашего ребёнка</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {codeFromUrl ? 'Код получен! Введите номер телефона для входа' : 'Следите за учёбой вашего ребёнка'}
+          </p>
         </div>
 
         <Card className="p-5 space-y-4">
@@ -110,14 +116,20 @@ const ParentAuth = () => {
 
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1.5 block">Код от ребёнка</label>
-            <Input
-              placeholder="Например: ABC12345"
-              value={code}
-              onChange={e => setCode(e.target.value.toUpperCase().slice(0, 8))}
-              className="h-11 rounded-xl font-mono tracking-wider text-center text-lg"
-              maxLength={8}
-            />
-            <p className="text-xs text-gray-400 mt-1">Ребёнок найдёт код в Настройках → Для родителей</p>
+            {codeFromUrl && code ? (
+              <div className="h-11 rounded-xl font-mono tracking-wider text-center text-lg bg-green-50 border-2 border-green-300 flex items-center justify-center text-green-700 font-bold">
+                {code} <Icon name="Check" size={16} className="ml-2 text-green-500" />
+              </div>
+            ) : (
+              <Input
+                placeholder="Например: ABC12345"
+                value={code}
+                onChange={e => setCode(e.target.value.toUpperCase().slice(0, 8))}
+                className="h-11 rounded-xl font-mono tracking-wider text-center text-lg"
+                maxLength={8}
+              />
+            )}
+            {!codeFromUrl && <p className="text-xs text-gray-400 mt-1">Попросите ребёнка отправить вам ссылку из приложения</p>}
           </div>
 
           {!isLogin && (

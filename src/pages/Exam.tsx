@@ -633,6 +633,13 @@ export default function Exam() {
 
   useEffect(() => { loadSubscription(); }, []);
 
+  // Refresh limits when user returns to the page (e.g., from pricing/assistant)
+  useEffect(() => {
+    const handleFocus = () => { loadSubscription(); };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
   useEffect(() => {
     if (subLoading || autoForwarded) return;
     if ((userGoal === 'ege' || userGoal === 'oge') && screen === 'pick_exam') {
