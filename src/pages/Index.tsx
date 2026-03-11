@@ -92,14 +92,6 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') limits.reload();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [limits.reload]);
-
-  useEffect(() => {
     const init = async () => {
       if (!authService.isAuthenticated()) { navigate('/auth'); return; }
       const verifiedUser = await authService.verifyToken();

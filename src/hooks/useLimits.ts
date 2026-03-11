@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { authService } from '@/lib/auth';
 
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
@@ -53,11 +53,14 @@ const DEFAULT_LIMITS: LimitsData = {
 export function useLimits() {
   const [data, setData] = useState<LimitsData>(DEFAULT_LIMITS);
   const [loading, setLoading] = useState(true);
+  const lastLoadRef = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
+    if (!force && Date.now() - lastLoadRef.current < 3000) return;
     try {
       const token = authService.getToken();
       if (!token) return;
+      lastLoadRef.current = Date.now();
       const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -73,7 +76,22 @@ export function useLimits() {
   }, []);
 
   useEffect(() => {
-    load();
+    load(true);
+  }, [load]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    const handleFocus = () => load();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handleFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handleFocus);
+    };
   }, [load]);
 
   const canUseAI = (): boolean => {

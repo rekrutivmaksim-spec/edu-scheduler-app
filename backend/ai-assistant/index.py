@@ -1208,21 +1208,20 @@ def handler(event: dict, context) -> dict:
                 cached = get_cache(conn, question, material_ids)
                 if cached:
                     print(f"[AI] cache hit — fast return", flush=True)
-                    # Фоновая запись: не блокируем ответ
-                    def _bg_cache(uid, q, mids, ans, acc_info):
+                    increment_questions(conn, user_id, access)
+                    remaining_now = max(0, access.get('remaining', 1) - 1)
+                    def _bg_cache(uid, q, mids, ans):
                         try:
                             c2 = psycopg2.connect(DATABASE_URL)
                             c2.autocommit = True
                             sid2 = get_session(c2, uid)
                             save_msg(c2, sid2, uid, 'user', q, mids)
-                            increment_questions(c2, uid, acc_info)
                             save_msg(c2, sid2, uid, 'assistant', ans, mids, 0, True)
                             c2.close()
                         except Exception as ex:
                             print(f"[AI] bg_cache err: {ex}", flush=True)
-                    threading.Thread(target=_bg_cache, args=(user_id, question, material_ids, cached, access), daemon=True).start()
-                    remaining_now = access.get('remaining', 1)
-                    return ok({'answer': cached, 'remaining': max(0, remaining_now - 1), 'cached': True})
+                    threading.Thread(target=_bg_cache, args=(user_id, question, material_ids, cached), daemon=True).start()
+                    return ok({'answer': cached, 'remaining': remaining_now, 'cached': True})
 
             # --- СЕССИЯ И СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ ---
             sid = get_session(conn, user_id)
@@ -1277,25 +1276,23 @@ def handler(event: dict, context) -> dict:
             ctx = get_context(conn, user_id, material_ids)
             answer, tokens = ask_ai(question, ctx, image_base64, exam_meta=exam_meta, history=history)
 
-            # ai_error — только если вернулся fallback (сервер перегружен / сеть)
             ai_error = (answer == build_smart_fallback(question, ctx))
+
+            if not ai_error:
+                increment_questions(conn, user_id, access)
             remaining_now = max(0, access.get('remaining', 1) - 1) if not ai_error else access.get('remaining', 0)
 
-            # --- POST-ОБРАБОТКА В ФОНЕ: не блокируем ответ ---
-            def _bg_post(uid, q, mids, ans, tok, acc_info, session_id, is_err):
+            def _bg_post(uid, q, mids, ans, tok, session_id, is_err):
                 try:
                     c2 = psycopg2.connect(DATABASE_URL)
                     c2.autocommit = True
-                    if not is_err:
-                        # Списываем вопрос всегда при успешном ответе (tok может быть 0 из-за proxy)
-                        increment_questions(c2, uid, acc_info)
-                        if tok > 0:
-                            set_cache(c2, q, mids, ans, tok)
+                    if not is_err and tok > 0:
+                        set_cache(c2, q, mids, ans, tok)
                     save_msg(c2, session_id, uid, 'assistant', ans, mids, tok, False)
                     c2.close()
                 except Exception as ex:
                     print(f"[AI] bg_post err: {ex}", flush=True)
-            threading.Thread(target=_bg_post, args=(user_id, question, material_ids, answer, tokens, access, sid, ai_error), daemon=True).start()
+            threading.Thread(target=_bg_post, args=(user_id, question, material_ids, answer, tokens, sid, ai_error), daemon=True).start()
 
             return ok({'answer': answer, 'remaining': remaining_now, 'ai_error': ai_error})
 

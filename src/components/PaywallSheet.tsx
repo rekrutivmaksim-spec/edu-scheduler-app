@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
+import { openPaymentUrl } from '@/lib/payment-utils';
 
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
 
@@ -72,7 +73,7 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onCl
 
       if (data.success && data.confirmation_url) {
         if (data.payment_id) localStorage.setItem('pending_payment_id', String(data.payment_id));
-        window.location.href = data.confirmation_url;
+        await openPaymentUrl(data.confirmation_url);
       } else {
         onClose();
         navigate('/pricing');

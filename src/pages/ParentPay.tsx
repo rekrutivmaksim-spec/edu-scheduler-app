@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import { openPaymentUrl } from '@/lib/payment-utils';
 
 const API_URL = 'https://functions.poehali.dev/fac60d23-7f1e-428a-99cf-820ddb897781';
 
@@ -61,7 +62,7 @@ const ParentPay = () => {
       const data = await response.json();
 
       if (data.success && data.confirmation_url) {
-        window.location.href = data.confirmation_url;
+        await openPaymentUrl(data.confirmation_url);
       } else {
         throw new Error(data.error || 'Ошибка создания платежа');
       }

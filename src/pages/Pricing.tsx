@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
+import { openPaymentUrl } from '@/lib/payment-utils';
 
 const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
@@ -194,7 +195,7 @@ const Pricing = () => {
         if (data.payment_id) {
           localStorage.setItem('pending_payment_id', String(data.payment_id));
         }
-        window.location.href = data.confirmation_url;
+        await openPaymentUrl(data.confirmation_url);
       } else {
         throw new Error(data.error || 'Не удалось создать платёж');
       }

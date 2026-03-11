@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { useSearchParams } from "react-router-dom";
 import { GENERATION_COST, MIN_TOPUP } from "@/config/prices";
+import { openPaymentUrl } from "@/lib/payment-utils";
 
 const USER_BALANCE_API =
   "https://functions.poehali.dev/68409278-10ab-4733-b48d-b1b4360620a1";
@@ -127,7 +128,7 @@ export default function WalletTab() {
       const data = await response.json();
 
       if (response.ok && data.payment_url) {
-        window.location.href = data.payment_url;
+        await openPaymentUrl(data.payment_url);
       } else {
         toast.error(data.error || "Ошибка создания платежа");
       }
