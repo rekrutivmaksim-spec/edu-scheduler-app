@@ -16,7 +16,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 YOKASSA_SHOP_ID = os.environ.get('YOKASSA_SHOP_ID', '')
-YOKASSA_SECRET_KEY = os.environ.get('YOKASSA_SECRET_KEY', '')
+YOKASSA_SECRET_KEY = os.environ.get('YOKASSA_SEKRET_KEY', '') or os.environ.get('YOKASSA_SECRET_KEY', '')
 
 PLANS = {
     '1month': {

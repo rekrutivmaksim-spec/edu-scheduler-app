@@ -784,9 +784,8 @@ export default function Exam() {
 
     try {
       const { answer, remaining } = await askAI(msg, newMessages.slice(-6));
-      // Списываем вопрос только после получения ответа ИИ
-      if (!isPremium && questionsLeft !== null) {
-        if (remaining !== undefined) {
+      if (questionsLeft !== null) {
+        if (remaining !== undefined && remaining !== null) {
           setQuestionsLeft(Math.max(0, remaining));
         } else {
           setQuestionsLeft(q => Math.max(0, (q ?? 1) - 1));
@@ -831,9 +830,8 @@ export default function Exam() {
     try {
       const prompt = `Задание: ${lastTask}\n\nОтвет ученика: ${text}\n\nПроверь ответ. Если правильно — начни "Правильно! ✅" и похвали одной фразой. Если неправильно — начни "Неверно ❌" и объясни правильное решение коротко. Потом дай задание №${nextNum} — новое типовое задание ${examType.toUpperCase()} по "${subject?.name}". Только условие, без ответа. В конце напиши "Жду ответ."`;
       const { answer, remaining } = await askAI(prompt, newMessages.slice(-4));
-      // Списываем вопрос только после получения ответа ИИ
-      if (!isPremium && questionsLeft !== null) {
-        if (remaining !== undefined) {
+      if (questionsLeft !== null) {
+        if (remaining !== undefined && remaining !== null) {
           setQuestionsLeft(Math.max(0, remaining));
         } else {
           setQuestionsLeft(q => Math.max(0, (q ?? 1) - 1));
@@ -1453,7 +1451,12 @@ export default function Exam() {
               <p className="text-white/60 text-xs">{examType.toUpperCase()} · {subject.name}</p>
               <h1 className="text-white font-bold text-base">{modeLabel[mode]}</h1>
             </div>
-            <span className="text-2xl">{subject.icon}</span>
+            <button
+              onClick={() => { setMessages([]); setScreen('pick_mode'); }}
+              className="bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
+            >
+              Завершить
+            </button>
           </div>
         </div>
 
@@ -1632,7 +1635,7 @@ export default function Exam() {
                 </div>
               </div>
               <button
-                onClick={() => navigate('/subscription')}
+                onClick={() => navigate('/pricing')}
                 className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-base mb-3"
               >
                 Подключить Premium
