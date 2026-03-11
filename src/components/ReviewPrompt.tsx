@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
+import { safeOpenUrl } from '@/lib/safe-browser';
 
 const RUSTORE_URL = 'https://apps.rustore.ru/app/dev.studyfay.app';
 const FEEDBACK_BOT = 'https://t.me/studyfay_support';
@@ -36,7 +37,7 @@ const ReviewPrompt = ({ trigger, onClose }: ReviewPromptProps) => {
     setStage('happy');
     localStorage.setItem(`review_shown_${trigger}`, '1');
     setTimeout(() => {
-      window.open(RUSTORE_URL, '_blank');
+      safeOpenUrl(RUSTORE_URL);
       onClose();
     }, 1200);
   };
@@ -48,7 +49,7 @@ const ReviewPrompt = ({ trigger, onClose }: ReviewPromptProps) => {
 
   const handleSendFeedback = () => {
     const text = encodeURIComponent(`Обратная связь: ${feedbackText}`);
-    window.open(`${FEEDBACK_BOT}?start=${text}`, '_blank');
+    safeOpenUrl(`${FEEDBACK_BOT}?start=${text}`);
     onClose();
   };
 

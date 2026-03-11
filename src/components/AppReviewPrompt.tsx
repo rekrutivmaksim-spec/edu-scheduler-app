@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { loadReviewState, saveReviewState } from '@/lib/review';
+import { safeOpenUrl } from '@/lib/safe-browser';
 
 const AppReviewPrompt = () => {
   const [step, setStep] = useState<'hidden' | 'rating' | 'positive' | 'negative'>('hidden');
@@ -29,13 +30,13 @@ const AppReviewPrompt = () => {
   const handlePositive = () => {
     saveReviewState({ ...loadReviewState(), reviewed: true });
     setStep('hidden');
-    window.open('https://www.rustore.ru/catalog/app/ru.studyfay.app', '_blank');
+    safeOpenUrl('https://www.rustore.ru/catalog/app/ru.studyfay.app');
   };
 
   const handleNegative = () => {
     saveReviewState({ ...loadReviewState(), reviewed: true });
     setStep('hidden');
-    window.open('https://t.me/+QgiLIa1gFRY4Y2Iy', '_blank');
+    safeOpenUrl('https://t.me/+QgiLIa1gFRY4Y2Iy');
   };
 
   const handleDismiss = () => {

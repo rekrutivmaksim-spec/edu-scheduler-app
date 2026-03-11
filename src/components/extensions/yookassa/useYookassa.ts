@@ -52,15 +52,11 @@ interface UseYookassaReturn {
 // =============================================================================
 
 /**
- * Open payment page (new tab on mobile, same tab on desktop)
+ * Open payment page (safe for native + web)
  */
-export function openPaymentPage(url: string): void {
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (isMobile) {
-    window.open(url, "_blank");
-  } else {
-    window.location.href = url;
-  }
+export async function openPaymentPage(url: string): Promise<void> {
+  const { safeOpenUrl } = await import("@/lib/safe-browser");
+  await safeOpenUrl(url);
 }
 
 /**
