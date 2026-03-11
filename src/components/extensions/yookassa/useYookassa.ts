@@ -54,9 +54,16 @@ interface UseYookassaReturn {
 /**
  * Open payment page (safe for native + web)
  */
-export async function openPaymentPage(url: string): Promise<void> {
-  const { safeOpenUrl } = await import("@/lib/safe-browser");
-  await safeOpenUrl(url);
+export function openPaymentPage(url: string): void {
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_system";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    try { document.body.removeChild(a); } catch { /* ok */ }
+  }, 200);
 }
 
 /**
