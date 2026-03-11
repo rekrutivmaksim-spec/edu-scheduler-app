@@ -25,6 +25,12 @@ PLANS = {
         'name': '1 месяц',
         'daily_ai_questions': 20
     },
+    '1month_discount': {
+        'price': 299,
+        'duration_days': 30,
+        'name': '1 месяц (скидка)',
+        'daily_ai_questions': 20
+    },
     '6months': {
         'price': 1499,
         'duration_days': 180,

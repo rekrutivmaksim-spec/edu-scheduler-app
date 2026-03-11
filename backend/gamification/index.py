@@ -750,6 +750,74 @@ def handler(event: dict, context) -> dict:
                     """)
 
                 leaders = cur.fetchall()
+
+                me_in_list = any(l['id'] == user_id for l in leaders)
+                my_rank_overall = None
+
+                if not me_in_list:
+                    if period == 'today':
+                        cur.execute("""
+                            SELECT ranked.rank, ranked.id, ranked.full_name, ranked.university,
+                                   ranked.level, ranked.xp_total, ranked.subscription_type,
+                                   ranked.streak, ranked.xp_period
+                            FROM (
+                                SELECT u.id, u.full_name, u.university, u.level, u.xp_total,
+                                       u.subscription_type,
+                                       COALESCE(us.current_streak, 0) as streak,
+                                       COALESCE(da.xp_earned, 0) as xp_period,
+                                       ROW_NUMBER() OVER (ORDER BY COALESCE(da.xp_earned, 0) DESC, u.xp_total DESC) as rank
+                                FROM users u
+                                LEFT JOIN user_streaks us ON us.user_id = u.id
+                                LEFT JOIN daily_activity da ON da.user_id = u.id AND da.activity_date = CURRENT_DATE
+                                WHERE u.is_guest = false
+                            ) ranked
+                            WHERE ranked.id = %s
+                        """, (user_id,))
+                    elif period == 'week':
+                        cur.execute("""
+                            SELECT ranked.rank, ranked.id, ranked.full_name, ranked.university,
+                                   ranked.level, ranked.xp_total, ranked.subscription_type,
+                                   ranked.streak, ranked.xp_period
+                            FROM (
+                                SELECT u.id, u.full_name, u.university, u.level, u.xp_total,
+                                       u.subscription_type,
+                                       COALESCE(us.current_streak, 0) as streak,
+                                       COALESCE(SUM(da.xp_earned), 0) as xp_period,
+                                       ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(da.xp_earned), 0) DESC, u.xp_total DESC) as rank
+                                FROM users u
+                                LEFT JOIN user_streaks us ON us.user_id = u.id
+                                LEFT JOIN daily_activity da ON da.user_id = u.id
+                                    AND da.activity_date >= DATE_TRUNC('week', CURRENT_DATE)
+                                WHERE u.is_guest = false
+                                GROUP BY u.id, u.full_name, u.university, u.level, u.xp_total,
+                                         u.subscription_type, us.current_streak
+                            ) ranked
+                            WHERE ranked.id = %s
+                        """, (user_id,))
+                    else:
+                        cur.execute("""
+                            SELECT ranked.rank, ranked.id, ranked.full_name, ranked.university,
+                                   ranked.level, ranked.xp_total, ranked.subscription_type,
+                                   ranked.streak, ranked.xp_period
+                            FROM (
+                                SELECT u.id, u.full_name, u.university, u.level, u.xp_total,
+                                       u.subscription_type,
+                                       COALESCE(us.current_streak, 0) as streak,
+                                       u.xp_total as xp_period,
+                                       ROW_NUMBER() OVER (ORDER BY u.xp_total DESC) as rank
+                                FROM users u
+                                LEFT JOIN user_streaks us ON us.user_id = u.id
+                                WHERE u.is_guest = false
+                            ) ranked
+                            WHERE ranked.id = %s
+                        """, (user_id,))
+
+                    me_row = cur.fetchone()
+                    if me_row:
+                        my_rank_overall = int(me_row['rank'])
+
+                cur.execute("SELECT COUNT(*) as cnt FROM users WHERE is_guest = false")
+                total_users = cur.fetchone()['cnt']
                 cur.close()
 
                 result = []
@@ -766,7 +834,30 @@ def handler(event: dict, context) -> dict:
                         'subscription_type': l.get('subscription_type', 'free')
                     })
 
-                return {'statusCode': 200, 'headers': headers, 'body': json.dumps(result, default=str)}
+                my_entry = None
+                if not me_in_list and my_rank_overall:
+                    if me_row:
+                        my_entry = {
+                            'rank': my_rank_overall,
+                            'name': me_row['full_name'],
+                            'university': me_row['university'],
+                            'level': me_row['level'],
+                            'xp': int(me_row['xp_period']),
+                            'xp_total': me_row['xp_total'],
+                            'streak': me_row['streak'],
+                            'is_me': True,
+                            'subscription_type': me_row.get('subscription_type', 'free')
+                        }
+
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'leaderboard': result,
+                        'my_entry': my_entry,
+                        'total_users': total_users
+                    }, default=str)
+                }
 
             elif action == 'quests':
                 is_premium, _ = check_user_premium(conn, user_id)

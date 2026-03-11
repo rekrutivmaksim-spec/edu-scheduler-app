@@ -169,7 +169,7 @@ export default function Session() {
         if (token && token !== 'guest_token') {
           fetch(`${SUBSCRIPTION_URL}?action=limits`, {
             headers: { Authorization: `Bearer ${token}` },
-          }).then(r => r.json()).then(d => {
+          }).then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => {
             const sub = d.subscription_type;
             const trial = !!d.is_trial;
             const sessions = d.limits?.sessions;

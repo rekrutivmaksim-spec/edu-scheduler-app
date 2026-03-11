@@ -5,7 +5,15 @@ export async function openPaymentUrl(url: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     await Browser.open({ url, presentationStyle: 'popover' });
   } else {
-    window.location.href = url;
+    const isMobileWeb = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobileWeb) {
+      const opened = window.open(url, '_blank');
+      if (!opened) {
+        window.location.href = url;
+      }
+    } else {
+      window.location.href = url;
+    }
   }
 }
 
@@ -20,5 +28,9 @@ export function setupPaymentReturnListener(callback: () => void): () => void {
     if (document.visibilityState === 'visible') callback();
   };
   document.addEventListener('visibilitychange', handleVisibility);
-  return () => document.removeEventListener('visibilitychange', handleVisibility);
+  window.addEventListener('focus', handleVisibility);
+  return () => {
+    document.removeEventListener('visibilitychange', handleVisibility);
+    window.removeEventListener('focus', handleVisibility);
+  };
 }

@@ -118,12 +118,61 @@ const DEMO_ACHIEVEMENTS = [
   { code: 'first_exam', title: 'Первая подготовка к экзамену', icon: '🎓', xp_reward: 20, is_unlocked: false },
 ];
 
+function LeaderRow({ item }: { item: LeaderItem }) {
+  return (
+    <div
+      className={`rounded-2xl p-3.5 shadow-sm flex items-center gap-3 transition-all ${
+        item.is_me
+          ? 'bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-400 shadow-purple-100'
+          : 'bg-white border border-gray-100'
+      }`}
+    >
+      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 text-sm font-extrabold ${
+        item.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow' :
+        item.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white' :
+        item.rank === 3 ? 'bg-gradient-to-br from-orange-400 to-amber-400 text-white' :
+        item.is_me ? 'bg-purple-200 text-purple-700' :
+        'bg-gray-100 text-gray-500'
+      }`}>
+        {item.rank <= 3 ? ['🥇','🥈','🥉'][item.rank-1] : item.rank}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className={`font-bold text-sm truncate ${item.is_me ? 'text-purple-700' : 'text-gray-800'}`}>
+            {item.is_me ? 'Ты' : item.name.split(' ')[0]}
+          </p>
+          {item.subscription_type === 'premium' && (
+            <span className="text-[9px] bg-amber-100 text-amber-600 font-bold px-1.5 rounded-full flex-shrink-0">PRO</span>
+          )}
+          {item.is_me && (
+            <span className="text-[9px] bg-purple-100 text-purple-600 font-bold px-1.5 rounded-full flex-shrink-0">Вы</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-gray-400 text-xs">{getLevelEmoji(item.level)} Ур.{item.level}</p>
+          <span className="text-gray-200">·</span>
+          <p className="text-purple-500 text-xs font-bold">{item.xp} XP</p>
+        </div>
+      </div>
+      {item.streak > 0 && (
+        <div className="flex items-center gap-1 flex-shrink-0 bg-orange-50 rounded-xl px-2 py-1">
+          <span className="text-sm">🔥</span>
+          <span className="text-xs font-bold text-orange-600">{item.streak}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Achievements() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<GamificationProfile | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderItem[]>([]);
+  const [myEntry, setMyEntry] = useState<LeaderItem | null>(null);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<'progress' | 'achievements' | 'leaderboard'>('progress');
+  const [leaderPeriod, setLeaderPeriod] = useState<'week' | 'all' | 'today'>('week');
   const [claimingReward, setClaimingReward] = useState<number | null>(null);
 
   // RewardModal
@@ -147,30 +196,35 @@ export default function Achievements() {
     } catch { /* silent */ }
   }, []);
 
-  const loadLeaderboard = useCallback(async () => {
-    // Кэш 1 час
-    const CACHE_KEY = 'leaderboard_cache';
-    const CACHE_TTL = 3600000;
+  const loadLeaderboard = useCallback(async (period = 'week') => {
+    const CACHE_KEY = `leaderboard_cache_${period}`;
+    const CACHE_TTL = 300000;
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
-        const { data, ts } = JSON.parse(cached);
+        const { data, myEntry: cachedMyEntry, total, ts } = JSON.parse(cached);
         if (Date.now() - ts < CACHE_TTL) {
           setLeaderboard(data);
+          setMyEntry(cachedMyEntry || null);
+          setTotalUsers(total || 0);
           return;
         }
       }
     } catch { /* ignore */ }
     try {
       const token = authService.getToken();
-      const res = await fetch(`${API_URL}?action=leaderboard&period=week`, {
+      const res = await fetch(`${API_URL}?action=leaderboard&period=${period}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data) ? data : data.leaderboard || [];
+        const entry = data.my_entry || null;
+        const total = data.total_users || list.length;
         setLeaderboard(list);
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ data: list, ts: Date.now() })); } catch { /* ignore */ }
+        setMyEntry(entry);
+        setTotalUsers(total);
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ data: list, myEntry: entry, total, ts: Date.now() })); } catch { /* ignore */ }
       }
     } catch { /* silent */ }
   }, []);
@@ -244,9 +298,9 @@ export default function Achievements() {
 
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/auth'); return; }
-    Promise.all([loadProfile(), loadLeaderboard(), performCheckin()])
+    Promise.all([loadProfile(), loadLeaderboard(leaderPeriod), performCheckin()])
       .finally(() => setLoading(false));
-  }, [navigate, loadProfile, loadLeaderboard, performCheckin]);
+  }, [navigate, loadProfile, loadLeaderboard, performCheckin, leaderPeriod]);
 
   const xpPercent = profile && profile.xp_needed > 0
     ? Math.min(100, Math.round((profile.xp_progress / profile.xp_needed) * 100))
@@ -595,25 +649,54 @@ export default function Achievements() {
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-3xl">🏆</span>
                 <div>
-                  <h2 className="font-extrabold text-lg">Рейтинг недели</h2>
-                  <p className="text-white/70 text-xs">Обновляется каждый час</p>
+                  <h2 className="font-extrabold text-lg">Рейтинг</h2>
+                  <p className="text-white/70 text-xs">Все пользователи соревнуются</p>
                 </div>
                 <button
                   onClick={() => {
-                    try { localStorage.removeItem('leaderboard_cache'); } catch { /* ignore */ }
-                    loadLeaderboard();
+                    try {
+                      localStorage.removeItem(`leaderboard_cache_${leaderPeriod}`);
+                    } catch { /* ignore */ }
+                    loadLeaderboard(leaderPeriod);
                   }}
                   className="ml-auto bg-white/20 rounded-xl px-3 py-1.5 text-xs font-semibold"
                 >
                   Обновить
                 </button>
               </div>
+
+              {/* Переключатель периодов */}
+              <div className="flex gap-1 bg-white/10 rounded-xl p-1 mb-3">
+                {([
+                  { id: 'today', label: 'Сегодня' },
+                  { id: 'week', label: 'Неделя' },
+                  { id: 'all', label: 'Все время' },
+                ] as const).map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setLeaderPeriod(p.id)}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      leaderPeriod === p.id
+                        ? 'bg-white text-purple-700'
+                        : 'text-white/70'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-3 gap-2 text-center">
-                {[
-                  { label: 'Твой ранг', value: leaderboard.find(l => l.is_me)?.rank ? `#${leaderboard.find(l => l.is_me)!.rank}` : '—' },
-                  { label: 'Участников', value: leaderboard.length > 0 ? `${leaderboard.length}` : '—' },
-                  { label: 'Твой XP', value: leaderboard.find(l => l.is_me)?.xp?.toString() ?? (profile?.xp_total?.toString() ?? '0') },
-                ].map(s => (
+                {(() => {
+                  const meInList = leaderboard.find(l => l.is_me);
+                  const myRank = meInList?.rank ?? myEntry?.rank;
+                  const myXp = meInList?.xp ?? myEntry?.xp ?? profile?.xp_total ?? 0;
+                  return [
+                    { label: 'Твой ранг', value: myRank ? `#${myRank}` : '—' },
+                    { label: 'Участников', value: totalUsers > 0 ? `${totalUsers}` : '—' },
+                    { label: 'Твой XP', value: myXp.toString() },
+                  ];
+                })().map(s => (
                   <div key={s.label} className="bg-white/15 rounded-2xl py-2">
                     <p className="text-white font-extrabold text-base">{s.value}</p>
                     <p className="text-white/60 text-[10px]">{s.label}</p>
@@ -633,7 +716,7 @@ export default function Achievements() {
                 {/* Топ-3 отдельно */}
                 {leaderboard.slice(0, 3).length > 0 && (
                   <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-3xl p-4 border border-amber-200">
-                    <p className="text-amber-700 text-xs font-bold uppercase tracking-wide mb-3">🥇 Топ-3 недели</p>
+                    <p className="text-amber-700 text-xs font-bold uppercase tracking-wide mb-3">🥇 Топ-3</p>
                     <div className="flex gap-2 justify-around">
                       {leaderboard.slice(0, 3).map(item => (
                         <div key={item.rank} className={`flex flex-col items-center gap-1 flex-1 ${item.is_me ? 'scale-105' : ''}`}>
@@ -658,49 +741,19 @@ export default function Achievements() {
                 )}
 
                 {leaderboard.map(item => (
-                  <div
-                    key={item.rank}
-                    className={`rounded-2xl p-3.5 shadow-sm flex items-center gap-3 transition-all ${
-                      item.is_me
-                        ? 'bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-400 shadow-purple-100'
-                        : 'bg-white border border-gray-100'
-                    }`}
-                  >
-                    <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 text-sm font-extrabold ${
-                      item.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow' :
-                      item.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white' :
-                      item.rank === 3 ? 'bg-gradient-to-br from-orange-400 to-amber-400 text-white' :
-                      item.is_me ? 'bg-purple-200 text-purple-700' :
-                      'bg-gray-100 text-gray-500'
-                    }`}>
-                      {item.rank <= 3 ? ['🥇','🥈','🥉'][item.rank-1] : item.rank}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className={`font-bold text-sm truncate ${item.is_me ? 'text-purple-700' : 'text-gray-800'}`}>
-                          {item.is_me ? 'Ты' : item.name.split(' ')[0]}
-                        </p>
-                        {item.subscription_type === 'premium' && (
-                          <span className="text-[9px] bg-amber-100 text-amber-600 font-bold px-1.5 rounded-full flex-shrink-0">PRO</span>
-                        )}
-                        {item.is_me && (
-                          <span className="text-[9px] bg-purple-100 text-purple-600 font-bold px-1.5 rounded-full flex-shrink-0">Вы</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-gray-400 text-xs">{getLevelEmoji(item.level)} Ур.{item.level}</p>
-                        <span className="text-gray-200">·</span>
-                        <p className="text-purple-500 text-xs font-bold">{item.xp} XP</p>
-                      </div>
-                    </div>
-                    {item.streak > 0 && (
-                      <div className="flex items-center gap-1 flex-shrink-0 bg-orange-50 rounded-xl px-2 py-1">
-                        <span className="text-sm">🔥</span>
-                        <span className="text-xs font-bold text-orange-600">{item.streak}</span>
-                      </div>
-                    )}
-                  </div>
+                  <LeaderRow key={item.rank} item={item} />
                 ))}
+
+                {myEntry && !leaderboard.find(l => l.is_me) && (
+                  <>
+                    <div className="flex items-center gap-2 py-2">
+                      <div className="flex-1 border-t border-dashed border-gray-200" />
+                      <span className="text-gray-400 text-xs">...</span>
+                      <div className="flex-1 border-t border-dashed border-gray-200" />
+                    </div>
+                    <LeaderRow item={myEntry} />
+                  </>
+                )}
               </div>
             )}
           </>

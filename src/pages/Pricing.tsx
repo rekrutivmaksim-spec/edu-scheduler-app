@@ -129,22 +129,27 @@ const Pricing = () => {
 
   const checkPaymentStatus = async (paymentId: string) => {
     const token = authService.getToken();
-    for (let i = 0; i < 12; i++) {
-      await new Promise(r => setTimeout(r, 5000));
-      const response = await fetch(PAYMENTS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ action: 'check_payment', payment_id: parseInt(paymentId) })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.status === 'completed') {
-          toast({ title: 'Подписка активирована!', description: 'Полный доступ ко всем функциям' });
-          setCurrentPlan('premium');
-          return;
+    for (let i = 0; i < 24; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      try {
+        const response = await fetch(PAYMENTS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ action: 'check_payment', payment_id: parseInt(paymentId) })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === 'completed') {
+            toast({ title: 'Подписка активирована!', description: 'Полный доступ ко всем функциям' });
+            setCurrentPlan('premium');
+            return;
+          }
         }
+      } catch {
+        continue;
       }
     }
+    toast({ title: 'Оплата обрабатывается', description: 'Если деньги списались — подписка активируется автоматически в течение нескольких минут' });
   };
 
   useEffect(() => {
@@ -175,7 +180,7 @@ const Pricing = () => {
   const handleBuy = async (planId: string) => {
     setLoading(planId);
     try {
-      const backendPlanId = planId === '12months' ? '1year' : planId === '1month_discount' ? '1month' : planId;
+      const backendPlanId = planId === '12months' ? '1year' : planId;
       const token = authService.getToken();
       const returnUrl = `${window.location.origin}/pricing?payment=success`;
 

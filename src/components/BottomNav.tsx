@@ -26,7 +26,7 @@ const BottomNav = () => {
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-w-[44px] transition-colors duration-200 ${
+              className={`relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-w-[44px] transition-colors duration-200 ${
                 isActive ? 'text-purple-600' : 'text-gray-400 active:text-purple-400'
               }`}
             >
