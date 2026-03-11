@@ -106,8 +106,8 @@ const Subscription = () => {
 
   const checkPaymentStatus = async (paymentId: string) => {
     const token = authService.getToken();
-    for (let i = 0; i < 5; i++) {
-      await new Promise(r => setTimeout(r, 3000));
+    for (let i = 0; i < 12; i++) {
+      await new Promise(r => setTimeout(r, 5000));
       const response = await fetch(PAYMENTS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -123,6 +123,21 @@ const Subscription = () => {
       }
     }
   };
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      const pendingId = localStorage.getItem('pending_payment_id');
+      if (pendingId) {
+        localStorage.removeItem('pending_payment_id');
+        toast({ title: 'Проверяем оплату...', description: 'Подождите несколько секунд' });
+        checkPaymentStatus(pendingId);
+      }
+      loadSubscriptionStatus();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   const loadData = async () => {
     setIsLoading(true);

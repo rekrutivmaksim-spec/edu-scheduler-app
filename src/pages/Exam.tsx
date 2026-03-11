@@ -641,6 +641,14 @@ export default function Exam() {
   }, []);
 
   useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadSubscription();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  useEffect(() => {
     if (subLoading || autoForwarded) return;
     if ((userGoal === 'ege' || userGoal === 'oge') && screen === 'pick_exam') {
       setAutoForwarded(true);
@@ -1314,10 +1322,27 @@ export default function Exam() {
 
           <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Выбери режим</p>
 
+          {/* Лимит исчерпан — баннер */}
+          {!isPremium && questionsLeft !== null && questionsLeft <= 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-1">
+              <p className="font-bold text-red-700 text-sm mb-2">Лимит вопросов исчерпан</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/pricing')}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-4 py-2 rounded-xl"
+                >
+                  Подключить Premium
+                </button>
+                <span className="text-gray-500 text-xs">или подожди до завтра</span>
+              </div>
+            </div>
+          )}
+
+          <div className={!isPremium && questionsLeft !== null && questionsLeft <= 0 ? 'opacity-50 pointer-events-none' : ''}>
           {/* Объяснение */}
           <button
             onClick={() => startSession(subject, 'explain')}
-            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-gray-100 active:scale-[0.97] transition-all"
+            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-gray-100 active:scale-[0.97] transition-all w-full"
           >
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-indigo-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">💡</div>
@@ -1332,7 +1357,7 @@ export default function Exam() {
           {/* Практика */}
           <button
             onClick={() => startSession(subject, 'practice')}
-            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-gray-100 active:scale-[0.97] transition-all"
+            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-gray-100 active:scale-[0.97] transition-all w-full"
           >
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-purple-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🎯</div>
@@ -1347,7 +1372,7 @@ export default function Exam() {
           {/* Слабые темы */}
           <button
             onClick={() => startSession(subject, 'weak')}
-            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-orange-100 active:scale-[0.97] transition-all"
+            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-orange-100 active:scale-[0.97] transition-all w-full"
           >
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-orange-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🔥</div>
@@ -1364,7 +1389,7 @@ export default function Exam() {
           {/* Экзамен сегодня */}
           <button
             onClick={() => startSession(subject, 'mock')}
-            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-red-100 active:scale-[0.97] transition-all"
+            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-red-100 active:scale-[0.97] transition-all w-full"
           >
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-red-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">📝</div>
@@ -1379,7 +1404,7 @@ export default function Exam() {
           {/* План на 7 дней — Premium */}
           <button
             onClick={() => isPremium ? navigate('/session') : setShowPaywall(true)}
-            className={`rounded-2xl p-4 text-left shadow-sm border active:scale-[0.97] transition-all ${
+            className={`rounded-2xl p-4 text-left shadow-sm border active:scale-[0.97] transition-all w-full ${
               isPremium
                 ? 'bg-gradient-to-r from-amber-400 to-orange-500 border-orange-200'
                 : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200'
@@ -1401,6 +1426,7 @@ export default function Exam() {
               <Icon name="ChevronRight" size={16} className={isPremium ? 'text-white/60' : 'text-amber-400'} />
             </div>
           </button>
+          </div>
         </div>
         <BottomNav />
 
@@ -1410,13 +1436,19 @@ export default function Exam() {
             <div className="bg-white w-full rounded-t-3xl p-6 pb-10">
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
               <p className="text-2xl text-center mb-2">✨</p>
-              <h3 className="font-extrabold text-gray-800 text-xl text-center mb-2">Разблокируй Premium</h3>
-              <p className="text-gray-500 text-sm text-center mb-6">Получи доступ к персональному плану, неограниченным вопросам и всем режимам</p>
+              <h3 className="font-extrabold text-gray-800 text-xl text-center mb-2">Вопросы на сегодня закончились</h3>
+              <p className="text-gray-500 text-sm text-center mb-6">Подключи Premium — 20 вопросов в день, или подожди до завтра</p>
               <button
                 onClick={() => navigate('/pricing')}
                 className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-base mb-3"
               >
                 Подключить Premium
+              </button>
+              <button
+                onClick={() => navigate('/subscription?buy=questions_20')}
+                className="w-full h-12 bg-white border-2 border-indigo-200 text-indigo-600 font-bold rounded-2xl text-sm mb-3"
+              >
+                Купить +20 вопросов
               </button>
               <button onClick={() => setShowPaywall(false)} className="w-full text-gray-400 text-sm py-2">Не сейчас</button>
             </div>
@@ -1560,8 +1592,8 @@ export default function Exam() {
           {!isPremium && questionsLeft !== null && questionsLeft <= 0 ? (
             <div className="flex flex-col gap-2">
               <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-center">
-                <p className="text-red-700 font-bold text-sm">Бесплатные вопросы закончились</p>
-                <p className="text-red-500 text-xs mt-0.5">Приходи завтра или подключи Premium</p>
+                <p className="text-red-700 font-bold text-sm">Вопросы на сегодня закончились</p>
+                <p className="text-red-500 text-xs mt-0.5">Подключи Premium или подожди до завтра — лимит обновится</p>
               </div>
               <button
                 onClick={() => setShowPaywall(true)}

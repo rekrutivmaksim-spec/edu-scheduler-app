@@ -146,6 +146,31 @@ const Pricing = () => {
     }
   };
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      const pendingId = localStorage.getItem('pending_payment_id');
+      if (pendingId) {
+        localStorage.removeItem('pending_payment_id');
+        toast({ title: 'Проверяем оплату...', description: 'Подождите несколько секунд' });
+        checkPaymentStatus(pendingId);
+      }
+      fetch(`${SUBSCRIPTION_URL}?action=status`, {
+        headers: { Authorization: `Bearer ${authService.getToken()}` },
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d) {
+            setCurrentPlan(d.subscription_type || 'free');
+            setBonusQuestions(d.bonus_questions || 0);
+          }
+        })
+        .catch(() => {});
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
   const handleBuy = async (planId: string) => {
     setLoading(planId);
     try {

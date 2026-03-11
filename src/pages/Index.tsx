@@ -83,7 +83,6 @@ export default function Index() {
 
   useEffect(() => {
     trackSession();
-    // Слушаем событие — Session.tsx бросает его при завершении
     const onDone = () => {
       localStorage.setItem(`session_done_${new Date().toDateString()}`, '1');
       setSessionDone(true);
@@ -91,6 +90,14 @@ export default function Index() {
     window.addEventListener('session_completed', onDone);
     return () => window.removeEventListener('session_completed', onDone);
   }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') limits.reload();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [limits.reload]);
 
   useEffect(() => {
     const init = async () => {
@@ -423,20 +430,42 @@ export default function Index() {
 
           {/* Строка лимитов */}
           {!limits.loading && (
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="bg-purple-50 rounded-2xl px-2 py-2">
-                <p className="text-purple-700 font-bold text-sm">{limits.aiRemaining() >= 999 ? '∞' : limits.aiRemaining()}</p>
-                <p className="text-purple-400 text-[10px]">вопросов ИИ</p>
+            <>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className={`rounded-2xl px-2 py-2 ${limits.aiRemaining() <= 0 && !limits.isPremium ? 'bg-red-50' : limits.aiRemaining() <= 2 && !limits.isPremium ? 'bg-amber-50' : 'bg-purple-50'}`}>
+                  <p className={`font-bold text-sm ${limits.aiRemaining() <= 0 && !limits.isPremium ? 'text-red-600' : limits.aiRemaining() <= 2 && !limits.isPremium ? 'text-amber-700' : 'text-purple-700'}`}>{limits.aiRemaining() >= 999 ? '∞' : limits.aiRemaining()}</p>
+                  <p className={`text-[10px] ${limits.aiRemaining() <= 0 && !limits.isPremium ? 'text-red-400' : limits.aiRemaining() <= 2 && !limits.isPremium ? 'text-amber-400' : 'text-purple-400'}`}>вопросов ИИ</p>
+                </div>
+                <div className="bg-indigo-50 rounded-2xl px-2 py-2">
+                  <p className="text-indigo-700 font-bold text-sm">{limits.sessionsRemaining() >= 999 ? '∞' : limits.sessionsRemaining()}</p>
+                  <p className="text-indigo-400 text-[10px]">занятий</p>
+                </div>
+                <div className="bg-pink-50 rounded-2xl px-2 py-2">
+                  <p className="text-pink-700 font-bold text-sm">{limits.materialsRemaining() >= 999 ? '∞' : limits.materialsRemaining()}</p>
+                  <p className="text-pink-400 text-[10px]">загрузок</p>
+                </div>
               </div>
-              <div className="bg-indigo-50 rounded-2xl px-2 py-2">
-                <p className="text-indigo-700 font-bold text-sm">{limits.sessionsRemaining() >= 999 ? '∞' : limits.sessionsRemaining()}</p>
-                <p className="text-indigo-400 text-[10px]">занятий</p>
-              </div>
-              <div className="bg-pink-50 rounded-2xl px-2 py-2">
-                <p className="text-pink-700 font-bold text-sm">{limits.materialsRemaining() >= 999 ? '∞' : limits.materialsRemaining()}</p>
-                <p className="text-pink-400 text-[10px]">загрузок</p>
-              </div>
-            </div>
+              {!limits.isPremium && !limits.isTrial && limits.aiRemaining() <= 2 && limits.aiRemaining() > 0 && (
+                <button onClick={() => navigate('/pricing')} className="mt-2 w-full bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2.5 flex items-center gap-2 active:scale-[0.98] transition-all">
+                  <span className="text-base">⚠️</span>
+                  <div className="flex-1 text-left">
+                    <p className="text-amber-700 font-bold text-xs">Осталось {limits.aiRemaining()} {limits.aiRemaining() === 1 ? 'вопрос' : 'вопроса'} ИИ</p>
+                    <p className="text-amber-500 text-[10px]">Подключи Premium — 20 вопросов/день</p>
+                  </div>
+                  <Icon name="ChevronRight" size={14} className="text-amber-400" />
+                </button>
+              )}
+              {!limits.isPremium && !limits.isTrial && limits.aiRemaining() <= 0 && (
+                <button onClick={() => navigate('/pricing')} className="mt-2 w-full bg-red-50 border border-red-200 rounded-2xl px-4 py-2.5 flex items-center gap-2 active:scale-[0.98] transition-all">
+                  <span className="text-base">🔒</span>
+                  <div className="flex-1 text-left">
+                    <p className="text-red-700 font-bold text-xs">Вопросы ИИ закончились</p>
+                    <p className="text-red-500 text-[10px]">Подключи Premium или подожди до завтра</p>
+                  </div>
+                  <Icon name="ChevronRight" size={14} className="text-red-400" />
+                </button>
+              )}
+            </>
           )}
 
           <button
