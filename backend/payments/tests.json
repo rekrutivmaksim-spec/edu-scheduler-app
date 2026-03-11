@@ -27,6 +27,15 @@
       "path": "/",
       "body": {"action": "webhook"},
       "expectedStatus": 200
+    },
+    {
+      "name": "Notify pending payment users",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "notify_pending_users"},
+      "expectedStatus": 200,
+      "expectedBody": {"success": true},
+      "bodyMatcher": "partial"
     }
   ]
 }

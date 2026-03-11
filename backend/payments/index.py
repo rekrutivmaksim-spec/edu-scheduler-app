@@ -218,6 +218,43 @@ def toggle_auto_renew(conn, user_id: int, enabled: bool) -> bool:
         return True
 
 
+def notify_pending_payment_users(conn):
+    """Создает in-app уведомления для пользователей с зависшими платежами"""
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(f"""
+            SELECT DISTINCT p.user_id
+            FROM {SCHEMA_NAME}.payments p
+            WHERE p.payment_status = 'pending'
+        """)
+        users = cur.fetchall()
+
+        notified = 0
+        for u in users:
+            uid = u['user_id']
+            cur.execute(f"""
+                SELECT id FROM {SCHEMA_NAME}.notifications
+                WHERE user_id = %s AND title = 'Оплата снова работает!'
+                LIMIT 1
+            """, (uid,))
+            existing = cur.fetchone()
+            if existing:
+                continue
+
+            cur.execute(f"""
+                INSERT INTO {SCHEMA_NAME}.notifications (user_id, title, message, action_url)
+                VALUES (%s, %s, %s, %s)
+            """, (
+                uid,
+                'Оплата снова работает!',
+                'Мы исправили проблему с оплатой. Теперь ты можешь оформить подписку Premium и получить доступ ко всем функциям. Попробуй ещё раз!',
+                '/pricing'
+            ))
+            notified += 1
+
+        conn.commit()
+    return {'success': True, 'notified_users': notified, 'total_pending_users': len(users)}
+
+
 def yokassa_create_payment(amount, description, order_id, return_url):
     """Создает платеж через YooKassa API.
     
@@ -375,6 +412,18 @@ def handler(event: dict, context) -> dict:
             conn = psycopg2.connect(DATABASE_URL)
             try:
                 result = handle_webhook(conn, body)
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps(result)
+                }
+            finally:
+                conn.close()
+
+        if action == 'notify_pending_users':
+            conn = psycopg2.connect(DATABASE_URL)
+            try:
+                result = notify_pending_payment_users(conn)
                 return {
                     'statusCode': 200,
                     'headers': headers,

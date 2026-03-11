@@ -1,4 +1,0 @@
-psycopg2-binary==2.9.9
-requests==2.31.0
-googletrans==4.0.0rc1
-boto3==1.34.0

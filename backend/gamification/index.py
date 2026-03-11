@@ -716,9 +716,9 @@ def handler(event: dict, context) -> dict:
                         FROM users u
                         LEFT JOIN user_streaks us ON us.user_id = u.id
                         LEFT JOIN daily_activity da ON da.user_id = u.id AND da.activity_date = CURRENT_DATE
-                        WHERE u.is_guest = false AND COALESCE(da.xp_earned, 0) > 0
-                        ORDER BY xp_period DESC
-                        LIMIT 50
+                        WHERE u.is_guest = false
+                        ORDER BY xp_period DESC, u.xp_total DESC
+                        LIMIT 100
                     """)
                 elif period == 'week':
                     cur.execute("""
@@ -733,9 +733,8 @@ def handler(event: dict, context) -> dict:
                         WHERE u.is_guest = false
                         GROUP BY u.id, u.full_name, u.university, u.level, u.xp_total,
                                  u.subscription_type, us.current_streak
-                        HAVING COALESCE(SUM(da.xp_earned), 0) > 0
-                        ORDER BY xp_period DESC
-                        LIMIT 50
+                        ORDER BY xp_period DESC, u.xp_total DESC
+                        LIMIT 100
                     """)
                 else:
                     cur.execute("""
@@ -747,7 +746,7 @@ def handler(event: dict, context) -> dict:
                         LEFT JOIN user_streaks us ON us.user_id = u.id
                         WHERE u.is_guest = false
                         ORDER BY u.xp_total DESC
-                        LIMIT 50
+                        LIMIT 100
                     """)
 
                 leaders = cur.fetchall()

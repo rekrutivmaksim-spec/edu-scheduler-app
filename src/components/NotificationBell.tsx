@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const NOTIFICATIONS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
+const NOTIFICATIONS_URL = 'https://functions.poehali.dev/710399d8-fbc7-4df6-8c6c-200b2828678f';
 
 interface Notification {
   id: number;
