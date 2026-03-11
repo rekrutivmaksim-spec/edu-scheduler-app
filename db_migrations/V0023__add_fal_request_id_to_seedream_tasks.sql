@@ -1,0 +1,1 @@
+ALTER TABLE seedream_tasks ADD COLUMN IF NOT EXISTS fal_request_id TEXT;

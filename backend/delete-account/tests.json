@@ -1,0 +1,10 @@
+{
+  "tests": [
+    {
+      "name": "Test unauthorized access",
+      "method": "DELETE",
+      "path": "/",
+      "expectedStatus": 401
+    }
+  ]
+}

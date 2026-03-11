@@ -1,0 +1,2 @@
+CREATE INDEX idx_try_on_history_removed_at ON t_p29007832_virtual_fitting_room.try_on_history(removed_at);
+CREATE INDEX idx_color_type_history_removed_at ON t_p29007832_virtual_fitting_room.color_type_history(removed_at);

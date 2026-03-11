@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Test missing token",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "Token is required"
+      }
+    }
+  ]
+}

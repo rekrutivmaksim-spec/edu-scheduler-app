@@ -1,0 +1,37 @@
+{
+  "tests": [
+    {
+      "name": "Test OPTIONS request for CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedHeaders": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
+      "name": "Test POST with missing image",
+      "method": "POST",
+      "path": "/",
+      "body": {},
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test successful color type detection",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "image": "data:image/jpeg;base64,test"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "color_type": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

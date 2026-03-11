@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Test request reset without email",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "request_reset"
+      },
+      "expectedStatus": 400
+    }
+  ]
+}

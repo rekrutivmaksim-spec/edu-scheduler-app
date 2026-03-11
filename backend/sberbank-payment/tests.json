@@ -1,0 +1,30 @@
+{
+  "tests": [
+    {
+      "name": "Create payment",
+      "method": "POST",
+      "body": {
+        "user_id": "test-user-123",
+        "amount": 100
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "payment_url": "string",
+        "order_id": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Check payment status",
+      "method": "GET",
+      "queryStringParameters": {
+        "orderId": "test-order-123"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "status": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

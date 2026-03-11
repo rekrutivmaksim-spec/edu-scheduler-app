@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Start NanoBananaPro task",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-User-Id": "test-user-123"
+      },
+      "body": {
+        "person_image": "https://example.com/person.jpg",
+        "garments": [
+          {
+            "image": "https://example.com/garment.jpg",
+            "category": "tops"
+          }
+        ],
+        "custom_prompt": "test prompt"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "task_id": "string",
+        "status": "pending"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

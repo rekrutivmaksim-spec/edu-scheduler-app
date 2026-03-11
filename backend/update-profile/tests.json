@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Test unauthorized access",
+      "method": "PUT",
+      "path": "/",
+      "body": {
+        "name": "New Name"
+      },
+      "expectedStatus": 401
+    }
+  ]
+}

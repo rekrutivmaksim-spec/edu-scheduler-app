@@ -1,0 +1,37 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS request returns CORS headers",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "POST without user_id returns error",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "amount": 100
+      },
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "POST with amount less than 30 returns error",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "user_id": "123e4567-e89b-12d3-a456-426614174000",
+        "amount": 20
+      },
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "Минимальная сумма пополнения — 50 рублей"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

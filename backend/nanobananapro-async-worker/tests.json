@@ -1,0 +1,24 @@
+{
+  "tests": [
+    {
+      "name": "Worker requires task_id",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "task_id parameter is required"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Worker handles non-existent task",
+      "method": "GET",
+      "path": "/?task_id=00000000-0000-0000-0000-000000000000",
+      "expectedStatus": 404,
+      "expectedBody": {
+        "error": "Task not found"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

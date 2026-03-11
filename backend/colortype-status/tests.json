@@ -1,0 +1,15 @@
+{
+  "tests": [
+    {
+      "name": "Check color type analysis status",
+      "method": "GET",
+      "path": "/?task_id=test-task-id",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "task_id": "string",
+        "status": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

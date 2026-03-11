@@ -1,0 +1,24 @@
+{
+  "tests": [
+    {
+      "name": "Test OPTIONS for CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedHeaders": {
+        "Access-Control-Allow-Origin": "https://fitting-room.ru"
+      }
+    },
+    {
+      "name": "Test GET history",
+      "method": "GET",
+      "path": "/",
+      "headers": {
+        "X-User-Id": "00000000-0000-0000-0000-000000000001"
+      },
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "type"
+    }
+  ]
+}

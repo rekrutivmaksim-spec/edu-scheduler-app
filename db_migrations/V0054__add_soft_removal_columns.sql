@@ -1,0 +1,2 @@
+ALTER TABLE t_p29007832_virtual_fitting_room.try_on_history ADD COLUMN removed_at TIMESTAMP;
+ALTER TABLE t_p29007832_virtual_fitting_room.color_type_history ADD COLUMN removed_at TIMESTAMP;

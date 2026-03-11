@@ -1,0 +1,32 @@
+{
+  "tests": [
+    {
+      "name": "Get all users",
+      "method": "GET",
+      "headers": {
+        "X-Admin-Password": "test-password"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "users": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Grant unlimited access",
+      "method": "POST",
+      "headers": {
+        "X-Admin-Password": "test-password"
+      },
+      "body": {
+        "user_email": "test@example.com",
+        "unlimited_access": true
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": "boolean"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+ALTER TABLE t_p29007832_virtual_fitting_room.users 
+ADD COLUMN balance DECIMAL(10, 2) DEFAULT 60.00,
+ADD COLUMN free_tries_used INTEGER DEFAULT 0,
+ADD COLUMN unlimited_access BOOLEAN DEFAULT FALSE;

@@ -1,0 +1,37 @@
+{
+  "tests": [
+    {
+      "name": "Test OPTIONS request",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Test invalid password",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "password": "wrong-password"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "Invalid password"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test valid password returns JWT token",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "password": "fitting-room-admin-2024"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "token": "string",
+        "expires_at": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

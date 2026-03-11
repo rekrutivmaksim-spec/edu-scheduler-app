@@ -1,0 +1,25 @@
+{
+  "tests": [
+    {
+      "name": "Missing image_url returns 400",
+      "method": "POST",
+      "body": {},
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "Missing image_url"
+      }
+    },
+    {
+      "name": "External URL skips deletion",
+      "method": "POST",
+      "body": {
+        "image_url": "https://replicate.delivery/test.jpg"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "message": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

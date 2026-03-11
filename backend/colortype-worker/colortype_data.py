@@ -1,0 +1,126 @@
+# Colortype reference data - schemes and examples for GPT-4o Vision analysis
+# This file is auto-generated from colortype_references.json
+
+COLORTYPE_REFERENCES_DATA = {
+  "VIBRANT SPRING": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/f7de943e-ff66-49cd-99c5-f3b8d32ac7bf.webp",
+    "description": "Яркая весна: тёплый подтон, светлые-средние-глубокие цвета, яркие чистые глаза (голубые/зелёные/топазовые/карие), средне-высокий до высокого контраст. Кожа золотистая/персиковая, волосы с золотистым подтоном.",
+    "characteristics": {
+      "undertone": "WARM",
+      "lightness": ["LIGHT", "MEDIUM", "DEEP"],
+      "saturation": ["BRIGHT", "MUTED"],
+      "contrast": ["HIGH-MEDIUM", "HIGH"]
+    }
+  },
+  "BRIGHT SPRING": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/1ac743c2-b143-4c19-b7fc-093a902727a7.webp",
+    "description": "Тёплая весна: тёплый подтон, светлые-средние цвета (медовые/золотистые оттенки), яркая-нейтральная до яркой насыщенность, низко-средний до средне-высокого контраст.",
+    "characteristics": {
+      "undertone": "WARM",
+      "lightness": ["LIGHT", "MEDIUM"],
+      "saturation": ["BRIGHT-NEUTRAL", "BRIGHT"],
+      "contrast": ["LOW-MEDIUM", "HIGH-MEDIUM"]
+    }
+  },
+  "GENTLE SPRING": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/3ac0c520-f21d-445c-83cd-5ddb93fc3eb4.webp",
+    "description": "Нежная (мягкая) весна: тёплый подтон, светлые-средние цвета, светлые глаза, приглушённо-нейтральная до яркой насыщенность, низкий до низко-среднего контраст.",
+    "characteristics": {
+      "undertone": "WARM",
+      "lightness": ["LIGHT", "MEDIUM"],
+      "saturation": ["MUTED-NEUTRAL", "BRIGHT"],
+      "contrast": ["LOW", "LOW-MEDIUM"]
+    }
+  },
+  
+  "SOFT SUMMER": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/b878bf59-89e0-4ebf-a072-dcfdc4901f21.webp",
+    "description": "Светлое (мягкое) лето: холодный подтон, светлые-средние цвета, светлые холодные глаза, пепельные волосы, низкий контраст.",
+    "characteristics": {
+      "undertone": "COOL",
+      "lightness": ["LIGHT", "MEDIUM"],
+      "saturation": ["MUTED-NEUTRAL", "BRIGHT"],
+      "contrast": ["LOW"]
+    }
+  },
+  "VIVID SUMMER": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/bc08b86d-32f9-4ed6-9b44-48bd2ca3b396.webp",
+    "description": "Яркое (холодное) лето: холодный подтон, светлые-средние цвета, приглушённые холодные глаза, пепельные волосы, средний контраст.",
+    "characteristics": {
+      "undertone": "COOL",
+      "lightness": ["LIGHT", "MEDIUM"],
+      "saturation": ["MUTED", "MUTED-NEUTRAL"],
+      "contrast": ["LOW-MEDIUM", "HIGH-MEDIUM"]
+    }
+  },
+  "DUSTY SUMMER": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/dc6a41c0-ff13-4227-93c3-c5542774cc81.jpg",
+    "description": "Пыльное (мягкое) лето: холодный подтон, светлые-средние цвета, приглушённые холодные глаза, кожа с розовым приглушённым подтоном, низкий до низко-среднего контраст.",
+    "characteristics": {
+      "undertone": "COOL",
+      "lightness": ["LIGHT", "MEDIUM"],
+      "saturation": ["MUTED", "MUTED-NEUTRAL"],
+      "contrast": ["LOW", "LOW-MEDIUM"]
+    }
+  },
+  "GENTLE AUTUMN": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/f83d3deb-51da-463f-b144-9e10a96e078a.webp",
+    "description": "Нежная (мягкая) осень: тёплый подтон, светлые-средние приглушённые цвета, низкий контраст.",
+    "characteristics": {
+      "undertone": "WARM",
+      "lightness": ["LIGHT", "MEDIUM"],
+      "saturation": ["MUTED", "MUTED-NEUTRAL"],
+      "contrast": ["LOW"]
+    }
+  },
+  "FIERY AUTUMN": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/f0770568-0259-40a4-a2bb-153b1413513b.webp",
+    "description": "Огненная осень: тёплый подтон, светлые-средние цвета, насыщенные тёплые глаза, карамельные волосы, средний контраст.",
+    "characteristics": {
+      "undertone": "WARM",
+      "lightness": ["LIGHT", "MEDIUM"],
+      "saturation": ["MUTED-NEUTRAL", "BRIGHT"],
+      "contrast": ["LOW-MEDIUM", "HIGH-MEDIUM"]
+    }
+  },
+  "VIVID AUTUMN": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/6d7e576d-da01-44ec-9b32-29ccb8eb23c3.webp",
+    "description": "Глубокая осень: тёплый подтон, глубокие тёплые цвета, карие/тёмно-зелёные глаза, тёмные волосы, высокий контраст.",
+    "characteristics": {
+      "undertone": "WARM",
+      "lightness": ["MEDIUM", "DEEP"],
+      "saturation": ["MUTED", "MUTED-NEUTRAL", "BRIGHT"],
+      "contrast": ["HIGH-MEDIUM", "HIGH"]
+    }
+  },
+  "VIVID WINTER": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/ed754f1f-e0bc-4804-bede-92fb723857e1.webp",
+    "description": "Глубокая зима: холодный подтон, глубокие холодные цвета, тёмные глаза, тёмные волосы, высокий контраст.",
+    "characteristics": {
+      "undertone": "COOL",
+      "lightness": ["MEDIUM", "DEEP"],
+      "saturation": ["MUTED", "BRIGHT"],
+      "contrast": ["HIGH-MEDIUM", "HIGH"]
+    }
+  },
+  "BRIGHT WINTER": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/7c7a871e-ff4b-4803-bc3d-d4f11b9bd8da.webp",
+    "description": "Яркая зима: холодный подтон, средние-глубокие яркие цвета, яркие контрастные глаза, высокий контраст.",
+    "characteristics": {
+      "undertone": "COOL",
+      "lightness": ["MEDIUM", "DEEP"],
+      "saturation": ["BRIGHT"],
+      "contrast": ["HIGH-MEDIUM", "HIGH"]
+    }
+  },
+  "SOFT WINTER": {
+    "scheme_url": "https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/4baaabac-a2bc-4c36-a891-f286107021f8.webp",
+    "description": "Холодная зима: холодный подтон, светлые-средние холодные цвета, холодные глаза, пепельные/тёмные волосы, средне-высокий контраст.",
+    "characteristics": {
+      "undertone": "COOL",
+      "lightness": ["LIGHT", "MEDIUM"],
+      "saturation": ["MUTED", "MUTED-NEUTRAL", "BRIGHT"],
+      "contrast": ["HIGH-MEDIUM", "HIGH"]
+    }
+  }
+}

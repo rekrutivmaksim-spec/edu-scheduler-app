@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "name": "Test unauthorized access",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "current_password": "old123",
+        "new_password": "new123456"
+      },
+      "expectedStatus": 401
+    }
+  ]
+}

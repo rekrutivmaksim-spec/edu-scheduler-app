@@ -1,0 +1,39 @@
+{
+  "tests": [
+    {
+      "name": "Template start - unauthorized",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-Session-Token": "invalid-token"
+      },
+      "body": {
+        "mode": "capsule",
+        "person_image": "https://example.com/person.jpg",
+        "template_image": "https://example.com/template.jpg",
+        "garments": [
+          {
+            "image": "https://example.com/garment1.jpg",
+            "hint": "blue trench coat",
+            "label": "Trench coat"
+          }
+        ],
+        "title": "Test Capsule",
+        "prompt": "City background",
+        "show_labels": true,
+        "model_outfit": [0]
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Template start - OPTIONS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "tests": [
+    {
+      "name": "Test OPTIONS for CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Test register with missing fields",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "register",
+        "email": "test@example.com"
+      },
+      "expectedStatus": 400
+    },
+    {
+      "name": "Test login with invalid credentials",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "login",
+        "email": "nonexistent@example.com",
+        "password": "wrongpassword"
+      },
+      "expectedStatus": 401
+    },
+    {
+      "name": "Test validate without cookie",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "validate"
+      },
+      "expectedStatus": 401
+    }
+  ]
+}

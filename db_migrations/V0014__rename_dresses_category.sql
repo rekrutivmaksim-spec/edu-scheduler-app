@@ -1,0 +1,1 @@
+UPDATE clothing_categories SET name = 'Сарафаны' WHERE name = 'Платья и сарафаны';

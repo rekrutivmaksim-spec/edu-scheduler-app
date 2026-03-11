@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Миграция изображений цветотипов</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0 0 20px 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 6px;
+            display: none;
+        }
+        #status.loading {
+            display: block;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+        }
+        #status.success {
+            display: block;
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+        }
+        #status.error {
+            display: block;
+            background: #f8d7da;
+            border: 1px solid #dc3545;
+            color: #721c24;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🚀 Миграция референсных изображений цветотипов</h1>
+        <p>Эта утилита перенесёт все изображения из временного CDN в постоянное S3 хранилище.</p>
+        <p><strong>Что будет сделано:</strong></p>
+        <ul>
+            <li>Скачаются 85 изображений (12 схем + 73 примера)</li>
+            <li>Загрузятся в S3 с организованной структурой папок</li>
+            <li>Создастся новый файл colortype_references.json с обновлёнными URL</li>
+        </ul>
+        <button id="migrateBtn" onclick="startMigration()">Начать миграцию</button>
+        
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const FUNCTION_URL = 'https://functions.poehali.dev/05cb16db-84bf-4fd1-bf74-93cf34f80cf2';
+
+        async function startMigration() {
+            const btn = document.getElementById('migrateBtn');
+            const status = document.getElementById('status');
+            
+            btn.disabled = true;
+            status.className = 'loading';
+            status.innerHTML = '<strong>⏳ Миграция началась...</strong><br>Это может занять 2-3 минуты. Пожалуйста, подождите.';
+            
+            try {
+                const response = await fetch(FUNCTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    status.className = 'success';
+                    status.innerHTML = `
+                        <strong>✅ Миграция завершена успешно!</strong>
+                        <div class="stats">
+                            <div class="stat-card">
+                                <div class="stat-value">${data.migrated}</div>
+                                <div class="stat-label">Перенесено изображений</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${data.failed}</div>
+                                <div class="stat-label">Ошибок</div>
+                            </div>
+                        </div>
+                        ${data.failed > 0 ? `<p><strong>Ошибки:</strong></p><pre>${JSON.stringify(data.failed_details, null, 2)}</pre>` : ''}
+                        <p><strong>Обновлённые URL:</strong></p>
+                        <pre>${JSON.stringify(data.new_references, null, 2)}</pre>
+                        <p><strong>Следующие шаги:</strong></p>
+                        <ol>
+                            <li>Скопируй JSON выше</li>
+                            <li>Замени содержимое backend/colortype-worker/colortype_references.json</li>
+                            <li>Задеплой функцию colortype-worker</li>
+                        </ol>
+                    `;
+                } else {
+                    throw new Error(data.message || 'Unknown error');
+                }
+                
+            } catch (error) {
+                status.className = 'error';
+                status.innerHTML = `<strong>❌ Ошибка миграции:</strong><br>${error.message}`;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

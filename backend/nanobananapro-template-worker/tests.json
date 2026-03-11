@@ -1,0 +1,30 @@
+{
+  "tests": [
+    {
+      "name": "Template worker - missing task_id",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "task_id parameter is required"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Template worker - task not found",
+      "method": "GET",
+      "path": "/?task_id=nonexistent-task-id",
+      "expectedStatus": 404,
+      "expectedBody": {
+        "error": "Task not found"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Template worker - OPTIONS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    }
+  ]
+}

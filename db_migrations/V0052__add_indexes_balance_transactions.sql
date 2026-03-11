@@ -1,0 +1,3 @@
+CREATE INDEX idx_balance_transactions_user_id ON t_p29007832_virtual_fitting_room.balance_transactions(user_id);
+CREATE INDEX idx_balance_transactions_created_at ON t_p29007832_virtual_fitting_room.balance_transactions(created_at);
+CREATE INDEX idx_balance_transactions_type ON t_p29007832_virtual_fitting_room.balance_transactions(type);

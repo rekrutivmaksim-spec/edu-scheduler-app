@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "name": "Test image proxy with missing URL parameter",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "Missing url parameter"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
