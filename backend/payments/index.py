@@ -255,8 +255,8 @@ def notify_pending_payment_users(conn):
     return {'success': True, 'notified_users': notified, 'total_pending_users': len(users)}
 
 
-def yokassa_create_payment(amount, description, order_id, return_url):
-    """Создает платеж через YooKassa API.
+def yokassa_create_payment(amount, description, order_id, return_url, customer_email=None):
+    """Создает платеж через YooKassa API с чеком (54-ФЗ).
     
     POST https://api.yookassa.ru/v3/payments
     Авторизация: Basic Auth (shop_id:secret_key)
@@ -267,6 +267,8 @@ def yokassa_create_payment(amount, description, order_id, return_url):
 
     credentials = base64.b64encode(f'{YOKASSA_SHOP_ID}:{YOKASSA_SECRET_KEY}'.encode()).decode()
 
+    receipt_email = customer_email or 'support@studyfay.ru'
+
     payment_body = {
         'amount': {
             'value': f'{amount:.2f}',
@@ -276,9 +278,28 @@ def yokassa_create_payment(amount, description, order_id, return_url):
             'type': 'redirect',
             'return_url': return_url
         },
+        'capture': True,
         'description': description,
         'metadata': {
             'order_id': order_id
+        },
+        'receipt': {
+            'customer': {
+                'email': receipt_email
+            },
+            'items': [
+                {
+                    'description': description[:128],
+                    'quantity': '1.00',
+                    'amount': {
+                        'value': f'{amount:.2f}',
+                        'currency': 'RUB'
+                    },
+                    'vat_code': 1,
+                    'payment_subject': 'service',
+                    'payment_mode': 'full_payment'
+                }
+            ]
         }
     }
 
@@ -294,7 +315,7 @@ def yokassa_create_payment(amount, description, order_id, return_url):
         method='POST'
     )
 
-    print(f"[YOKASSA] Creating payment: {url}, order_id={order_id}, amount={amount}")
+    print(f"[YOKASSA] Creating payment: {url}, order_id={order_id}, amount={amount}, email={receipt_email}")
     try:
         response = urllib.request.urlopen(req, timeout=15)
         result = json.loads(response.read().decode('utf-8'))
@@ -562,8 +583,14 @@ def handler(event: dict, context) -> dict:
 
                 order_id = f'studyfay_{local_payment_id}'
 
-                # Создаем платеж в YooKassa
-                yokassa_result = yokassa_create_payment(price, description, order_id, return_url)
+                customer_email = None
+                with conn.cursor() as cur_email:
+                    cur_email.execute(f"SELECT email FROM {SCHEMA_NAME}.users WHERE id = %s", (user_id,))
+                    row_email = cur_email.fetchone()
+                    if row_email and row_email[0]:
+                        customer_email = row_email[0]
+
+                yokassa_result = yokassa_create_payment(price, description, order_id, return_url, customer_email)
                 if not yokassa_result:
                     return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось создать платеж в YooKassa'})}
 
