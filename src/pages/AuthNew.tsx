@@ -641,7 +641,7 @@ export default function AuthNew() {
               </div>
             </div>
             <div className="space-y-1.5 mb-4 pl-1">
-              {['История диалога сохранится', 'Доступ каждый день', 'Без ограничений на вопросы'].map(t => (
+              {['3 дня Premium бесплатно', 'История диалога сохранится', 'Доступ каждый день'].map(t => (
                 <p key={t} className="text-gray-500 text-xs flex items-center gap-1.5">
                   <span className="text-green-500">✓</span> {t}
                 </p>
@@ -808,10 +808,10 @@ export default function AuthNew() {
               <h2 className="text-2xl font-extrabold text-gray-800 mb-1">Продолжим?</h2>
               <div className="flex flex-col gap-1">
                 <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                  <span className="text-green-500">✓</span> История диалога сохранится
+                  <span className="text-green-500">✓</span> 3 дня Premium бесплатно
                 </p>
                 <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                  <span className="text-green-500">✓</span> Можно продолжить в любой момент
+                  <span className="text-green-500">✓</span> История диалога сохранится
                 </p>
               </div>
             </div>
@@ -894,7 +894,12 @@ export default function AuthNew() {
                 )}
               </Button>
 
-              <p className="text-center text-xs text-gray-400">Бесплатно. Без карты.</p>
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-2.5 flex items-center gap-2 border border-emerald-200">
+                <span className="text-base">🎁</span>
+                <p className="text-xs text-emerald-700 font-medium">3 дня Premium бесплатно при регистрации</p>
+              </div>
+
+              <p className="text-center text-xs text-gray-400">Без карты. Отмена не нужна.</p>
 
               <p className="text-center text-xs text-gray-400">
                 Уже есть аккаунт?{' '}
@@ -1023,7 +1028,7 @@ export default function AuthNew() {
             }
           </Button>
           <div className="flex flex-col items-center gap-0.5">
-            <span className="text-white/60 text-xs">1–2 вопроса без регистрации и карты</span>
+            <span className="text-white/60 text-xs">3 дня Premium бесплатно при регистрации</span>
             <span className="text-white/40 text-xs">Ответ обычно за 30–60 секунд</span>
           </div>
         </div>

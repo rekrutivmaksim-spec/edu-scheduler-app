@@ -281,7 +281,7 @@ def handler(event: dict, context) -> dict:
                                 )
                                 VALUES (
                                     %s, %s, %s, CURRENT_TIMESTAMP,
-                                    NULL, TRUE,
+                                    CURRENT_TIMESTAMP + INTERVAL '3 days', FALSE,
                                     0, 0, CURRENT_TIMESTAMP + INTERVAL '1 month',
                                     0, CURRENT_TIMESTAMP,
                                     %s, %s, %s, %s

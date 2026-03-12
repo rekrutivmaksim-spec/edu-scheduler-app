@@ -43,7 +43,7 @@ const SubscriptionStatus = ({
                 До {new Date(trialEndsAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
-            <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5 flex-shrink-0">7 дней</Badge>
+            <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5 flex-shrink-0">3 дня</Badge>
           </div>
         </Card>
       )}

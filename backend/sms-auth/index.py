@@ -211,10 +211,13 @@ def handler(event: dict, context) -> dict:
                 # Создаём нового пользователя
                 cur.execute(f'''
                     INSERT INTO {SCHEMA_NAME}.users 
-                    (phone, phone_verified, email, password_hash, full_name, is_guest, onboarding_completed, last_login_at)
-                    VALUES (%s, true, %s, '', '', false, false, %s)
+                    (phone, phone_verified, email, password_hash, full_name, is_guest, onboarding_completed, last_login_at,
+                     trial_ends_at, is_trial_used)
+                    VALUES (%s, true, %s, '', '', false, false, %s,
+                            %s, false)
                     RETURNING id
-                ''', (phone, f'user_{phone}@studyfay.app', datetime.now()))
+                ''', (phone, f'user_{phone}@studyfay.app', datetime.now(),
+                      datetime.now() + timedelta(days=3)))
                 
                 user_id = cur.fetchone()[0]
                 full_name = ''

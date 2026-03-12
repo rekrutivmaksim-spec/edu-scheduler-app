@@ -66,9 +66,12 @@ def check_subscription_status(user_id: int, conn) -> dict:
             else:
                 is_premium = True
         
-        # Триал отключён — новые пользователи сразу получают бесплатный тариф
-        is_trial = False
-        trial_ends_at = None
+        if not is_premium and user.get('trial_ends_at') and not user.get('is_trial_used'):
+            trial_ends = user['trial_ends_at'].replace(tzinfo=None) if user['trial_ends_at'].tzinfo else user['trial_ends_at']
+            if trial_ends > now:
+                is_trial = True
+                trial_ends_at = trial_ends
+                is_premium = True
         
         # Сброс дневного счётчика файлов
         if user.get('files_daily_reset_at') and user['files_daily_reset_at'] < datetime.now():

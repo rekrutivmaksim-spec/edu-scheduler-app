@@ -21,13 +21,6 @@ const PREMIUM_FEATURES = [
   { icon: '🔥', text: 'Бонусы за стрик и ежедневные квесты' },
 ];
 
-const FREE_FEATURES = [
-  '10 вопросов к ИИ в первые 4 дня',
-  'Плавное понижение до 3 вопросов к 7-му дню',
-  '1 занятие и 1 файл в день',
-  'Базовая подготовка к экзаменам',
-];
-
 const GUARANTEE_FEATURES = [
   'Безопасная оплата через ЮKassa',
   'Возврат средств в течение 14 дней',
@@ -37,7 +30,7 @@ const GUARANTEE_FEATURES = [
 const FAQ = [
   {
     q: 'Чем отличается Premium от бесплатного?',
-    a: 'Бесплатно: 10 вопросов в первые 4 дня, затем плавное понижение до 3 в день к 7-му дню. Premium даёт 20 вопросов в день, до 5 занятий, 3 загрузки файлов и полный доступ к подготовке.',
+    a: 'Бесплатно: 3 вопроса к ИИ в день. При регистрации — 3 дня Premium бесплатно. Premium даёт 20 вопросов в день, до 5 занятий, 3 загрузки файлов и полный доступ к подготовке.',
   },
   {
     q: 'Что такое пакет вопросов?',
@@ -62,6 +55,9 @@ const Pricing = () => {
   const [bonusQuestions, setBonusQuestions] = useState(0);
   const [discountTimer, setDiscountTimer] = useState('');
   const [discountActive, setDiscountActive] = useState(false);
+  const [isTrial, setIsTrial] = useState(false);
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<'1month' | '6months' | '12months'>('1month');
 
   useEffect(() => {
     const DISCOUNT_DURATION = 24 * 60 * 60 * 1000;
@@ -122,6 +118,8 @@ const Pricing = () => {
         if (d) {
           setCurrentPlan(d.subscription_type || 'free');
           setBonusQuestions(d.bonus_questions || 0);
+          setIsTrial(d.is_trial || false);
+          setTrialEndsAt(d.trial_ends_at || null);
         }
       })
       .catch(() => {});
@@ -169,6 +167,8 @@ const Pricing = () => {
           if (d) {
             setCurrentPlan(d.subscription_type || 'free');
             setBonusQuestions(d.bonus_questions || 0);
+            setIsTrial(d.is_trial || false);
+            setTrialEndsAt(d.trial_ends_at || null);
           }
         })
         .catch(() => {});
@@ -217,6 +217,16 @@ const Pricing = () => {
 
   const isPremium = currentPlan === 'premium';
 
+  const trialDaysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000))
+    : 0;
+
+  const planPrices: Record<string, { price: string; perMonth: string; label: string; badge?: string; save?: string }> = {
+    '1month': { price: discountActive ? '299 ₽' : '499 ₽', perMonth: discountActive ? '299 ₽/мес' : '499 ₽/мес', label: '1 месяц', badge: 'Популярный' },
+    '6months': { price: '1 499 ₽', perMonth: '250 ₽/мес', label: '6 месяцев', badge: 'Выгодный', save: '-50%' },
+    '12months': { price: '2 399 ₽', perMonth: '200 ₽/мес', label: '12 месяцев', badge: 'Максимум', save: '-60%' },
+  };
+
   return (
     <div className={`min-h-[100dvh] bg-gray-50 ${isPremium ? 'pb-nav' : 'pb-[140px]'}`}>
 
@@ -229,14 +239,49 @@ const Pricing = () => {
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-4">
 
-        <div className="text-center pt-2 pb-2">
+        <div className="text-center pt-2 pb-1">
           <div className="text-4xl mb-2">🚀</div>
-          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Studyfay Premium</h2>
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Studyfay Premium</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
             ИИ-репетитор объясняет темы, проверяет ответы и готовит<br />к ЕГЭ/ОГЭ каждый день — в 20 раз дешевле репетитора.
           </p>
         </div>
 
+        {/* Социальное доказательство */}
+        <div className="flex items-center justify-center gap-3 py-2">
+          <div className="flex -space-x-2">
+            {['🧑‍🎓', '👩‍🎓', '🧑‍💻', '👨‍🎓'].map((emoji, i) => (
+              <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-sm border-2 border-white">
+                {emoji}
+              </div>
+            ))}
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold text-gray-900">100+ учеников</p>
+            <p className="text-xs text-gray-500">уже готовятся с Premium</p>
+          </div>
+        </div>
+
+        {/* Триал-баннер */}
+        {isTrial && trialDaysLeft > 0 && (
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-4 shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <Icon name="Gift" size={20} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-white font-bold text-sm">Бесплатный Premium активен</p>
+                <p className="text-white/70 text-xs">Осталось {trialDaysLeft} {trialDaysLeft === 1 ? 'день' : trialDaysLeft < 5 ? 'дня' : 'дней'} — все функции доступны</p>
+              </div>
+              <div className="bg-white/20 rounded-xl px-3 py-1.5">
+                <p className="text-white font-extrabold text-lg">{trialDaysLeft}</p>
+                <p className="text-white/60 text-[10px] -mt-0.5">{trialDaysLeft === 1 ? 'день' : 'дн.'}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Скидка */}
         {discountActive && !isPremium && (
           <div className="bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 rounded-3xl p-5 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8" />
@@ -271,29 +316,36 @@ const Pricing = () => {
           </div>
         )}
 
-        <div className="bg-white rounded-3xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">🟢</span>
-              <h3 className="font-bold text-gray-800">Бесплатно</h3>
-            </div>
-            <span className="text-gray-400 font-bold text-lg">0 ₽</span>
-          </div>
-          <div className="space-y-2">
-            {FREE_FEATURES.map(f => (
-              <div key={f} className="flex items-center gap-2 text-gray-600 text-sm">
-                <Icon name="Check" size={14} className="text-gray-400 flex-shrink-0" />
-                {f}
-              </div>
+        {/* Выбор тарифа — табы */}
+        {!isPremium && (
+          <div className="bg-gray-100 rounded-2xl p-1 flex gap-1">
+            {(['1month', '6months', '12months'] as const).map(plan => (
+              <button
+                key={plan}
+                onClick={() => setSelectedPlan(plan)}
+                className={`flex-1 py-2.5 rounded-xl text-center transition-all relative ${
+                  selectedPlan === plan
+                    ? 'bg-white shadow-sm'
+                    : 'hover:bg-gray-50'
+                }`}
+              >
+                <p className={`text-xs font-bold ${selectedPlan === plan ? 'text-indigo-600' : 'text-gray-500'}`}>
+                  {planPrices[plan].label}
+                </p>
+                <p className={`text-[10px] mt-0.5 ${selectedPlan === plan ? 'text-indigo-400' : 'text-gray-400'}`}>
+                  {planPrices[plan].perMonth}
+                </p>
+                {planPrices[plan].save && (
+                  <span className="absolute -top-2 -right-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                    {planPrices[plan].save}
+                  </span>
+                )}
+              </button>
             ))}
           </div>
-          {!isPremium && (
-            <div className="mt-3 pt-3 border-t border-gray-50">
-              <span className="inline-block bg-gray-100 text-gray-500 text-xs font-medium px-3 py-1 rounded-full">Текущий тариф</span>
-            </div>
-          )}
-        </div>
+        )}
 
+        {/* Основная карточка Premium */}
         {!isPremium ? (
           <div className="rounded-3xl overflow-hidden shadow-xl">
             <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-5">
@@ -302,10 +354,18 @@ const Pricing = () => {
                   <span className="text-xl">🟣</span>
                   <span className="text-white font-extrabold text-lg">Premium</span>
                 </div>
-                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Рекомендуем</span>
+                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  {planPrices[selectedPlan].badge}
+                </span>
               </div>
-              <p className="text-white/70 text-sm mb-1">499 ₽ / месяц</p>
-              <p className="text-white/60 text-xs mb-4">Всё необходимое для подготовки без ограничений:</p>
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-white font-extrabold text-2xl">{planPrices[selectedPlan].price}</span>
+                <span className="text-white/50 text-sm">/ {planPrices[selectedPlan].label}</span>
+              </div>
+              {selectedPlan !== '1month' && (
+                <p className="text-white/60 text-xs mb-3">≈ {planPrices[selectedPlan].perMonth}</p>
+              )}
+              {selectedPlan === '1month' && <div className="mb-3" />}
 
               <div className="space-y-2.5 mb-5">
                 {PREMIUM_FEATURES.map(f => (
@@ -316,30 +376,17 @@ const Pricing = () => {
                 ))}
               </div>
 
-              <div className="flex items-center gap-3 mb-2">
-                <Button
-                  onClick={() => handleBuy('1month')}
-                  disabled={!!loading}
-                  className="flex-1 h-12 bg-white text-purple-700 font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-70"
-                >
-                  {loading === '1month'
-                    ? <Icon name="Loader2" size={18} className="animate-spin" />
-                    : 'Подключить Premium'
-                  }
-                </Button>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-white font-extrabold text-xl leading-none">499 ₽</p>
-                  <p className="text-white/50 text-xs">в месяц</p>
-                </div>
-              </div>
-              <p className="text-white/50 text-xs text-center">Отмена в любой момент · Безопасная оплата</p>
-            </div>
-
-            <div className="bg-purple-900 px-5 py-3 flex items-center gap-2">
-              <span className="text-yellow-400 text-sm">⚡</span>
-              <p className="text-white/70 text-xs">
-                Первые 4 дня — <span className="text-white font-semibold">10 вопросов бесплатно,</span> затем плавно до 3 в день. Premium снимает все ограничения.
-              </p>
+              <Button
+                onClick={() => handleBuy(selectedPlan === '1month' && discountActive ? '1month_discount' : selectedPlan)}
+                disabled={!!loading}
+                className="w-full h-12 bg-white text-purple-700 font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-70"
+              >
+                {loading
+                  ? <Icon name="Loader2" size={18} className="animate-spin" />
+                  : `Подключить за ${planPrices[selectedPlan].price}`
+                }
+              </Button>
+              <p className="text-white/50 text-xs text-center mt-2">Отмена в любой момент · Безопасная оплата</p>
             </div>
           </div>
         ) : (
@@ -357,6 +404,41 @@ const Pricing = () => {
           </div>
         )}
 
+        {/* Блок «до/после» — реальный прогресс */}
+        <div className="bg-white rounded-3xl p-5 shadow-sm">
+          <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <span className="text-lg">📊</span>
+            Результат за 30 дней с Premium
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-red-50 rounded-2xl p-3 text-center">
+              <p className="text-xs text-red-400 mb-1">Без Premium</p>
+              <p className="text-2xl font-extrabold text-red-500">3</p>
+              <p className="text-[10px] text-red-400">вопроса в день</p>
+              <div className="mt-2 bg-red-100 rounded-lg h-2">
+                <div className="bg-red-400 rounded-lg h-2 w-[15%]" />
+              </div>
+              <p className="text-[10px] text-red-400 mt-1">~90 вопросов/мес</p>
+            </div>
+            <div className="bg-green-50 rounded-2xl p-3 text-center">
+              <p className="text-xs text-green-500 mb-1">С Premium</p>
+              <p className="text-2xl font-extrabold text-green-600">20</p>
+              <p className="text-[10px] text-green-500">вопросов в день</p>
+              <div className="mt-2 bg-green-100 rounded-lg h-2">
+                <div className="bg-green-500 rounded-lg h-2 w-full" />
+              </div>
+              <p className="text-[10px] text-green-500 mt-1">~600 вопросов/мес</p>
+            </div>
+          </div>
+          <div className="mt-3 bg-indigo-50 rounded-xl p-3 flex items-center gap-2">
+            <span className="text-lg">🎯</span>
+            <p className="text-xs text-indigo-700">
+              <span className="font-bold">В 6.7 раз больше практики</span> — ученики с Premium набирают в среднем на 15+ баллов больше на ЕГЭ
+            </p>
+          </div>
+        </div>
+
+        {/* Пакет +20 вопросов */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-green-100 relative">
           <div className="absolute -top-3 left-5">
             <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">⚡ Быстрый доступ</span>
@@ -395,81 +477,7 @@ const Pricing = () => {
           </Button>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-orange-200 relative">
-          <div className="absolute -top-3 left-5">
-            <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">🟠 Самый выгодный</span>
-          </div>
-          <div className="flex items-start justify-between pt-1">
-            <div>
-              <h3 className="font-extrabold text-gray-900 text-lg">6 месяцев Premium</h3>
-              <p className="text-gray-500 text-xs mt-0.5">Лучший выбор для подготовки к ЕГЭ/ОГЭ</p>
-              <div className="mt-2 space-y-1">
-                {[
-                  'Всё из Premium',
-                  'Выгоднее помесячной оплаты на 50%',
-                  'Непрерывный прогресс до экзамена',
-                ].map(f => (
-                  <div key={f} className="flex items-center gap-1.5 text-gray-500 text-xs">
-                    <Icon name="Check" size={12} className="text-orange-400 flex-shrink-0" />
-                    {f}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="text-right flex-shrink-0 ml-3">
-              <p className="text-gray-900 font-extrabold text-xl leading-none">1 499 ₽</p>
-              <p className="text-gray-400 text-xs mt-0.5">≈ 250 ₽/мес</p>
-            </div>
-          </div>
-          <Button
-            onClick={() => handleBuy('6months')}
-            disabled={!!loading || isPremium}
-            className="w-full h-11 mt-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-2xl disabled:opacity-50"
-          >
-            {loading === '6months'
-              ? <Icon name="Loader2" size={16} className="animate-spin" />
-              : isPremium ? 'Уже активен' : 'Выбрать на 6 месяцев'
-            }
-          </Button>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-blue-100 relative">
-          <div className="absolute -top-3 left-5">
-            <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">🔵 Годовой тариф</span>
-          </div>
-          <div className="flex items-start justify-between pt-1">
-            <div>
-              <h3 className="font-extrabold text-gray-900 text-lg">12 месяцев Premium</h3>
-              <p className="text-gray-500 text-xs mt-0.5">Максимальная экономия на весь учебный год</p>
-              <div className="mt-2 space-y-1">
-                {[
-                  'Всё из Premium',
-                  'Дешевле на 60% чем помесячно',
-                ].map(f => (
-                  <div key={f} className="flex items-center gap-1.5 text-gray-500 text-xs">
-                    <Icon name="Check" size={12} className="text-blue-400 flex-shrink-0" />
-                    {f}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="text-right flex-shrink-0 ml-3">
-              <p className="text-gray-900 font-extrabold text-xl leading-none">2 399 ₽</p>
-              <p className="text-gray-400 text-xs mt-0.5">≈ 200 ₽/мес</p>
-            </div>
-          </div>
-          <Button
-            onClick={() => handleBuy('12months')}
-            disabled={!!loading || isPremium}
-            className="w-full h-11 mt-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold rounded-2xl disabled:opacity-50"
-          >
-            {loading === '12months'
-              ? <Icon name="Loader2" size={16} className="animate-spin" />
-              : isPremium ? 'Уже активен' : 'Выбрать на год'
-            }
-          </Button>
-        </div>
-
+        {/* Сравнение с репетитором */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xl">💰</span>
@@ -503,6 +511,7 @@ const Pricing = () => {
           </div>
         </div>
 
+        {/* Гарантии */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">
           <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
             <Icon name="ShieldCheck" size={18} className="text-green-500" />
@@ -518,6 +527,7 @@ const Pricing = () => {
           </div>
         </div>
 
+        {/* FAQ */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">
           <h3 className="font-bold text-gray-800 mb-3">Частые вопросы</h3>
           <div className="space-y-2">
@@ -544,6 +554,7 @@ const Pricing = () => {
           </div>
         </div>
 
+        {/* Кабинет для родителей */}
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-5 border-2 border-blue-200">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
@@ -573,10 +584,11 @@ const Pricing = () => {
           </div>
         </div>
 
-        <div className="text-center pb-4">
-          <div className="flex items-center justify-center gap-3 text-xs text-gray-400">
+        {/* Легал */}
+        <div className="text-center pt-2 pb-4">
+          <div className="flex items-center justify-center gap-4 text-xs text-gray-400">
             <button onClick={() => navigate('/terms')} className="hover:text-gray-600">Пользовательское соглашение</button>
-            <span>·</span>
+            <span>|</span>
             <button onClick={() => navigate('/privacy')} className="hover:text-gray-600">Конфиденциальность</button>
           </div>
         </div>
@@ -587,13 +599,13 @@ const Pricing = () => {
         <div className="fixed bottom-[60px] left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-3 z-20">
           <div className="max-w-md mx-auto flex items-center gap-3">
             <Button
-              onClick={() => handleBuy(discountActive ? '1month_discount' : '1month')}
+              onClick={() => handleBuy(selectedPlan === '1month' && discountActive ? '1month_discount' : selectedPlan)}
               disabled={!!loading}
               className="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.97] transition-all"
             >
-              {loading === '1month' || loading === '1month_discount'
+              {loading
                 ? <Icon name="Loader2" size={18} className="animate-spin" />
-                : discountActive ? 'Premium — 299 ₽/мес' : 'Premium — 499 ₽/мес'
+                : `Premium — ${planPrices[selectedPlan].price}`
               }
             </Button>
             <Button

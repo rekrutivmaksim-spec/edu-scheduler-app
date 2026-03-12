@@ -154,9 +154,12 @@ def handler(event, context):
             user_email = email or f'vk_{vk_id}@studyfay.app'
             cur.execute(f'''
                 INSERT INTO {SCHEMA_NAME}.users
-                (vk_id, email, password_hash, full_name, avatar_url, is_guest, onboarding_completed, last_login_at)
-                VALUES (%s, %s, '', %s, %s, false, false, %s) RETURNING id
-            ''', (vk_id, user_email, full_name, avatar_url, datetime.now()))
+                (vk_id, email, password_hash, full_name, avatar_url, is_guest, onboarding_completed, last_login_at,
+                 trial_ends_at, is_trial_used)
+                VALUES (%s, %s, '', %s, %s, false, false, %s,
+                        %s, false) RETURNING id
+            ''', (vk_id, user_email, full_name, avatar_url, datetime.now(),
+                  datetime.now() + timedelta(days=3)))
             user_id = cur.fetchone()[0]
             email = user_email
             university = None
