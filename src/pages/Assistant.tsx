@@ -107,8 +107,8 @@ const LimitScreen = ({ onClose, navigate }: { onClose: () => void; navigate: (p:
         >
           Подключить Premium
         </button>
-        <button onClick={() => { onClose(); setTimeout(() => document.querySelector<HTMLTextAreaElement>('textarea')?.focus(), 100); }} className="w-full py-2.5 text-sm text-gray-400 hover:text-gray-600 transition-colors">
-          Вернуться завтра
+        <button onClick={() => { onClose(); navigate('/achievements'); }} className="w-full py-2.5 text-sm text-indigo-500 font-medium hover:text-indigo-700 transition-colors">
+          Заработать бонусные вопросы 🎯
         </button>
       </div>
     </div>

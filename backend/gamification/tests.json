@@ -13,6 +13,13 @@
       "method": "OPTIONS",
       "path": "/",
       "expectedStatus": 200
+    },
+    {
+      "name": "Daily login bonus - unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "daily_login_bonus"},
+      "expectedStatus": 401
     }
   ]
 }

@@ -36,6 +36,23 @@
       "expectedStatus": 200,
       "expectedBody": {"success": true},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create payment - missing plan_type",
+      "method": "POST",
+      "path": "/",
+      "headers": {"Authorization": "Bearer mock-token"},
+      "body": {"action": "create_payment", "plan_type": ""},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Check payment - unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "check_payment", "payment_id": 999},
+      "expectedStatus": 401
     }
   ]
 }

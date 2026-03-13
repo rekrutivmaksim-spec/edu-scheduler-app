@@ -1,13 +1,19 @@
 export function safeOpenUrl(url: string): void {
-  const a = document.createElement('a');
-  a.href = url;
-  a.target = '_system';
-  a.rel = 'noopener noreferrer';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    try { document.body.removeChild(a); } catch { /* ok */ }
-  }, 200);
+  const isAndroidWebView = /wv|Android.*Version\/[\d.]+/.test(navigator.userAgent);
+   
+  const isCapacitor = !!(window as unknown as Record<string, unknown>).Capacitor;
+   
+  const isCordova = !!(window as unknown as Record<string, unknown>).cordova;
+
+  if (isAndroidWebView || isCapacitor || isCordova) {
+    window.location.href = url;
+    return;
+  }
+
+  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!opened) {
+    window.location.href = url;
+  }
 }
 
 export function setupBrowserReturnListener(callback: () => void): () => void {

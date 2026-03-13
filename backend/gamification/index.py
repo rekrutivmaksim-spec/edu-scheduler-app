@@ -1054,6 +1054,63 @@ def handler(event: dict, context) -> dict:
                     })
                 }
 
+            elif action == 'daily_login_bonus':
+                today = date.today()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("""
+                    SELECT id FROM daily_login_bonuses
+                    WHERE user_id = %s AND bonus_date = %s
+                    LIMIT 1
+                """, (user_id, today))
+                already = cur.fetchone()
+                if already:
+                    cur.close()
+                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'success': True, 'already_claimed': True, 'bonus': 0})}
+
+                cur.execute("SELECT * FROM user_streaks WHERE user_id = %s", (user_id,))
+                streak = cur.fetchone()
+                current_streak = streak['current_streak'] if streak else 1
+
+                if current_streak >= 7:
+                    bonus_q = 3
+                elif current_streak >= 3:
+                    bonus_q = 2
+                else:
+                    bonus_q = 1
+                xp_bonus = 10 + min(current_streak, 7) * 5
+
+                cur.execute("""
+                    INSERT INTO daily_login_bonuses (user_id, bonus_date, bonus_questions, xp_earned, streak_day)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (user_id, today, bonus_q, xp_bonus, current_streak))
+
+                cur.execute("""
+                    UPDATE users
+                    SET bonus_questions = LEAST(COALESCE(bonus_questions, 0) + %s, %s),
+                        xp_total = xp_total + %s
+                    WHERE id = %s RETURNING xp_total
+                """, (bonus_q, BONUS_QUESTIONS_MAX, xp_bonus, user_id))
+                row = cur.fetchone()
+                if row:
+                    new_level = calculate_level(row['xp_total'])
+                    cur.execute("UPDATE users SET level = %s WHERE id = %s", (new_level, user_id))
+
+                conn.commit()
+                cur.close()
+
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'success': True,
+                        'already_claimed': False,
+                        'bonus': bonus_q,
+                        'xp_earned': xp_bonus,
+                        'streak_day': current_streak,
+                        'message': f'+{bonus_q} вопросов и +{xp_bonus} XP за ежедневный вход!'
+                    })
+                }
+
             elif action == 'welcome_back':
                 days_away = min(int(body.get('days_away', 0)), 30)
                 if days_away < 2:

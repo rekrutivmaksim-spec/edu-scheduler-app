@@ -68,4 +68,36 @@ export async function dailyCheckin(): Promise<TrackResult | null> {
   }
 }
 
-export default { trackActivity, dailyCheckin };
+export interface DailyLoginBonusResult {
+  success: boolean;
+  already_claimed: boolean;
+  bonus: number;
+  xp_earned: number;
+  streak_day: number;
+  message: string;
+}
+
+export async function claimDailyLoginBonus(): Promise<DailyLoginBonusResult | null> {
+  try {
+    const token = authService.getToken();
+    if (!token) return null;
+
+    const response = await fetch(GAMIFICATION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ action: 'daily_login_bonus' })
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export default { trackActivity, dailyCheckin, claimDailyLoginBonus };

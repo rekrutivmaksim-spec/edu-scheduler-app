@@ -165,8 +165,9 @@ def get_limits(conn, user_id: int) -> dict:
     sessions_used = (u['daily_sessions_used'] or 0) if u else 0
 
     # Лимиты по тарифу:
-    # Free (дни 1-3): 1 сессия/день, 10 AI вопросов/день, 1 загрузка файла/ДЕНЬ
-    # Free (день 4+): 1 сессия/день, 3 AI вопроса/день, 1 загрузка файла/ДЕНЬ
+    # Free (дни 1-3): 3 сессии/день, 10 AI вопросов/день, 1 загрузка файла/ДЕНЬ
+    # Free (день 4-7): 3 сессии/день, 5 AI вопросов/день, 1 загрузка файла/ДЕНЬ
+    # Free (день 8+): 3 сессии/день, 3 AI вопроса/день, 1 загрузка файла/ДЕНЬ
     # Premium: 5 сессий/день, 20 AI вопросов/день, 3 загрузки файла/ДЕНЬ
     # Trial:   всё как Premium (5 сессий, 20 AI, 3 загрузки)
 
@@ -246,14 +247,19 @@ def get_limits(conn, user_id: int) -> dict:
                     'bonus_available': bonus
                 },
                 'exam_predictions': {'unlimited': False, 'available': False},
-                'sessions': {'used': sessions_used, 'max': 1, 'unlimited': False}
+                'sessions': {'used': sessions_used, 'max': 3, 'unlimited': False}
             }
         }
     else:
         daily_used = status.get('daily_questions_used', 0)
         bonus = status.get('bonus_questions', 0)
 
-        free_limit = 10 if days_since_reg < 3 else 3
+        if days_since_reg < 3:
+            free_limit = 10
+        elif days_since_reg < 7:
+            free_limit = 5
+        else:
+            free_limit = 3
         total_available = free_limit + bonus
 
         return {
@@ -274,7 +280,7 @@ def get_limits(conn, user_id: int) -> dict:
                     'bonus_available': bonus
                 },
                 'exam_predictions': {'unlimited': False, 'available': False},
-                'sessions': {'used': sessions_used, 'max': 1, 'unlimited': False}
+                'sessions': {'used': sessions_used, 'max': 3, 'unlimited': False}
             }
         }
 

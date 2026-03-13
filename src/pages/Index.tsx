@@ -8,6 +8,7 @@ import { trackSession } from '@/lib/review';
 import { dailyCheckin } from '@/lib/gamification';
 import AppReviewPrompt from '@/components/AppReviewPrompt';
 import WelcomeBack from '@/components/WelcomeBack';
+import DailyBonusPopup from '@/components/DailyBonusPopup';
 import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 import { getTodayTopic } from '@/lib/topics';
 import { useLimits } from '@/hooks/useLimits';
@@ -80,6 +81,7 @@ export default function Index() {
     const key = `session_done_${new Date().toDateString()}`;
     return localStorage.getItem(key) === '1';
   });
+  const [showDailyBonus, setShowDailyBonus] = useState(true);
 
   useEffect(() => {
     trackSession();
@@ -215,8 +217,8 @@ export default function Index() {
                   <Icon name="Zap" size={18} className="text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm">Лимит снижен до 3 вопросов/день</p>
-                  <p className="text-white/70 text-xs">Подключи Premium — без ограничений</p>
+                  <p className="text-white font-bold text-sm">Бесплатный план — заходи каждый день</p>
+                  <p className="text-white/70 text-xs">Бонусные вопросы за ежедневный вход и стрик</p>
                 </div>
                 <Icon name="ChevronRight" size={16} className="text-white/60" />
               </button>
@@ -233,7 +235,7 @@ export default function Index() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-bold text-sm">Расширенный доступ: {daysLeft} {daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'}</p>
-                  <p className="text-white/70 text-xs">10 вопросов/день — потом станет 3</p>
+                  <p className="text-white/70 text-xs">10 вопросов/день — потом плавно снизится</p>
                 </div>
                 <Icon name="ChevronRight" size={16} className="text-white/60" />
               </button>
@@ -352,7 +354,7 @@ export default function Index() {
               <p className="text-center text-[11px] text-indigo-400 font-medium mt-1">
                 {limits.isPremium || limits.isTrial
                   ? `Сегодня: ${limits.sessionsRemaining()} из ${limits.data.limits.sessions.max} занятий`
-                  : 'Сегодня доступно: 1 занятие бесплатно'}
+                  : `Сегодня доступно: ${limits.sessionsRemaining()} из 3 занятий бесплатно`}
               </p>
             </div>
           </div>
@@ -626,6 +628,7 @@ export default function Index() {
 
       <WelcomeBack />
       <AppReviewPrompt />
+      {showDailyBonus && <DailyBonusPopup onClose={() => setShowDailyBonus(false)} />}
       <BottomNav />
     </div>
   );
