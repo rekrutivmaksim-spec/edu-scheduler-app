@@ -25,9 +25,7 @@ _http = httpx.Client(timeout=httpx.Timeout(15.0, connect=4.0))
 _http_vision = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
 client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL, timeout=15.0, http_client=_http)
 
-GEMINI_MODEL = 'gemini-2.5-flash-preview-04-17'
-_http_gemini = httpx.Client(timeout=httpx.Timeout(60.0, connect=5.0))
-GEMINI_API_URL = 'https://api.aitunnel.ru/v1/chat/completions'
+_http_whisper = httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0))
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -1106,7 +1104,7 @@ def handler(event: dict, context) -> dict:
                 'bonus_remaining': new_bonus_ps,
             })
 
-        # --- GEMINI CHAT (multimodal: text + audio + image) ---
+        # --- SMART CHAT (multimodal: text + audio + image via Llama + Whisper) ---
         if body_demo.get('action') == 'gemini_chat':
             token_gc = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
             uid_gc = get_user_id(token_gc)
@@ -1149,11 +1147,48 @@ def handler(event: dict, context) -> dict:
 
                 sid_gc = get_session(conn_gc, uid_gc)
 
-                # --- Step 1: Build the actual question ---
                 transcript_gc = None
                 actual_question = message_gc
+                has_image = bool(image_b64_gc)
 
-                if not actual_question and not image_b64_gc and not audio_b64_gc:
+                # --- Step 1: Whisper STT for audio ---
+                if audio_b64_gc:
+                    import base64 as _b64
+                    try:
+                        ext = 'webm' if audio_format_gc == 'webm' else 'wav'
+                        audio_bytes = _b64.b64decode(audio_b64_gc)
+                        print(f"[WHISPER] User:{uid_gc} format:{ext} size:{len(audio_bytes)}", flush=True)
+
+                        import io as _io
+                        boundary = '----StudyfayAudio'
+                        body_parts = []
+                        body_parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-1')
+                        body_parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="language"\r\n\r\nru')
+                        body_parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio.{ext}"\r\nContent-Type: audio/{ext}\r\n\r\n')
+                        pre = '\r\n'.join(body_parts).encode('utf-8')
+                        post = f'\r\n--{boundary}--\r\n'.encode('utf-8')
+                        multipart_body = pre + audio_bytes + post
+
+                        whisper_resp = _http_whisper.post(
+                            'https://api.aitunnel.ru/v1/audio/transcriptions',
+                            content=multipart_body,
+                            headers={
+                                'Authorization': f'Bearer {OPENROUTER_API_KEY}',
+                                'Content-Type': f'multipart/form-data; boundary={boundary}',
+                            },
+                        )
+                        if whisper_resp.status_code == 200:
+                            whisper_data = whisper_resp.json()
+                            transcript_gc = whisper_data.get('text', '').strip()
+                            print(f"[WHISPER] OK: {transcript_gc[:100]}", flush=True)
+                            if transcript_gc:
+                                actual_question = transcript_gc
+                        else:
+                            print(f"[WHISPER] FAIL status:{whisper_resp.status_code} body:{whisper_resp.text[:300]}", flush=True)
+                    except Exception as e_w:
+                        print(f"[WHISPER] ERROR: {type(e_w).__name__}: {str(e_w)[:200]}", flush=True)
+
+                if not actual_question and not has_image:
                     return ok({
                         'answer': 'Не удалось распознать речь. Попробуй записать ещё раз, говори чётче.',
                         'transcript': '',
@@ -1164,8 +1199,6 @@ def handler(event: dict, context) -> dict:
                     })
 
                 # --- Step 2: Build system prompt ---
-                has_image = bool(image_b64_gc)
-
                 system_gc = (
                     "Ты Studyfay — лучший репетитор для школьников и студентов России. Твоя задача — давать КАЧЕСТВЕННЫЕ, ПОДРОБНЫЕ ответы.\n\n"
                     "КАК ТЫ УЧИШЬ:\n"
@@ -1179,10 +1212,6 @@ def handler(event: dict, context) -> dict:
                     "• Определи предмет и тип задания (тест, задача, уравнение, сочинение и т.д.).\n"
                     "• Реши задание ПОЛНОСТЬЮ пошагово. Если тест — объясни почему именно этот вариант.\n"
                     "• Если текст плохо читается — напиши что удалось разобрать и попроси сфотографировать чётче.\n\n"
-                    "РАБОТА С ГОЛОСОМ:\n"
-                    "• Ты получаешь аудиозапись ученика. Внимательно распознай речь.\n"
-                    "• ОБЯЗАТЕЛЬНО в начале ответа напиши: 'Ты спросил: \"[распознанный текст]\"' — чтобы ученик видел, что его поняли правильно.\n"
-                    "• Затем дай полный, подробный ответ на вопрос.\n\n"
                     "СТИЛЬ:\n"
                     "• Русский. Формулы текстом: x^2, sqrt(x), a/b. Без LaTeX.\n"
                     "• 6-15 предложений. Отвечай ПОДРОБНО, не экономь на объяснениях.\n"
@@ -1196,7 +1225,7 @@ def handler(event: dict, context) -> dict:
                     "• Каждый ответ УНИКАЛЕН — варьируй стиль и вступления."
                 )
 
-                # --- Step 3: Build messages for Gemini ---
+                # --- Step 3: Build messages for Llama ---
                 messages_gc = [{"role": "system", "content": system_gc}]
 
                 if history_gc:
@@ -1206,79 +1235,51 @@ def handler(event: dict, context) -> dict:
                         if h_role in ('user', 'assistant') and h_content:
                             messages_gc.append({"role": h_role, "content": h_content})
 
-                user_parts = []
-
-                if audio_b64_gc:
-                    user_parts.append({
-                        "type": "input_audio",
-                        "input_audio": {"data": audio_b64_gc, "format": audio_format_gc}
-                    })
-
                 if has_image:
-                    user_parts.append({
+                    user_content = []
+                    user_content.append({
                         "type": "image_url",
                         "image_url": {"url": f"data:image/jpeg;base64,{image_b64_gc}"}
                     })
-
-                text_instruction = actual_question or ''
-                if audio_b64_gc and not text_instruction:
-                    text_instruction = "Прослушай аудио и ответь на вопрос ученика. Обязательно начни с: Ты спросил: \"[распознанный текст]\""
-                elif audio_b64_gc and text_instruction:
-                    text_instruction = f"{text_instruction}\n\n(Также прослушай аудио от ученика и учти его в ответе)"
-                elif has_image and not text_instruction:
-                    text_instruction = "Внимательно рассмотри фото. Распознай задание и реши его полностью пошагово. Покажи все вычисления."
-                elif has_image and text_instruction:
-                    text_instruction = f"{text_instruction}\n\n(Задание на фото — распознай и реши)"
-
-                if text_instruction:
-                    user_parts.append({"type": "text", "text": text_instruction[:3000]})
-
-                messages_gc.append({"role": "user", "content": user_parts})
+                    text_instruction = actual_question or ''
+                    if not text_instruction:
+                        text_instruction = "Внимательно рассмотри фото. Распознай задание и реши его полностью пошагово. Покажи все вычисления."
+                    else:
+                        text_instruction = f"{text_instruction}\n\n(Задание на фото — распознай и реши)"
+                    user_content.append({"type": "text", "text": text_instruction[:3000]})
+                    messages_gc.append({"role": "user", "content": user_content})
+                else:
+                    if transcript_gc:
+                        q_text = f'Ты спросил: "{transcript_gc}"\n\nОтветь подробно на этот вопрос.'
+                    else:
+                        q_text = actual_question
+                    messages_gc.append({"role": "user", "content": q_text[:3000]})
 
                 user_text_for_save = actual_question or ('[фото задания]' if has_image else '[аудио]')
                 save_msg(conn_gc, sid_gc, uid_gc, 'user', user_text_for_save[:500])
 
-                # --- Step 4: Call Gemini ---
+                # --- Step 4: Call Llama ---
                 answer_gc = None
                 tokens_gc = 0
 
                 for _attempt_gc in range(2):
                     try:
-                        print(f"[GEMINI] User:{uid_gc} attempt:{_attempt_gc} msg:{message_gc[:60]} audio:{bool(audio_b64_gc)} img:{bool(image_b64_gc)} key_len:{len(AITUNNEL_GEMINI_KEY)}", flush=True)
-                        gemini_payload = json.dumps({
-                            "model": GEMINI_MODEL,
-                            "messages": messages_gc,
-                            "temperature": 0.4,
-                            "max_tokens": 2000,
-                        }, ensure_ascii=True)
-                        gemini_resp = _http_gemini.post(
-                            GEMINI_API_URL,
-                            content=gemini_payload.encode('ascii'),
-                            headers={
-                                'Authorization': f'Bearer {AITUNNEL_GEMINI_KEY}',
-                                'Content-Type': 'application/json',
-                            },
+                        print(f"[CHAT] User:{uid_gc} attempt:{_attempt_gc} msg:{actual_question[:60] if actual_question else ''} img:{has_image}", flush=True)
+                        resp_gc = client.chat.completions.create(
+                            model=LLAMA_MODEL,
+                            messages=messages_gc,
+                            temperature=0.4,
+                            max_tokens=2000,
                         )
-                        if gemini_resp.status_code != 200:
-                            raise Exception(f"Gemini API {gemini_resp.status_code}: {gemini_resp.text[:300]}")
-                        gemini_data = gemini_resp.json()
-                        raw_answer_gc = gemini_data['choices'][0]['message']['content']
-                        tokens_gc = gemini_data.get('usage', {}).get('total_tokens', 0)
+                        raw_answer_gc = resp_gc.choices[0].message.content
+                        tokens_gc = resp_gc.usage.total_tokens if resp_gc.usage else 0
                         answer_gc = sanitize_answer(raw_answer_gc)
                         if answer_gc and not answer_gc.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
                             answer_gc = answer_gc.rstrip() + '.'
-                        print(f"[GEMINI] OK tokens:{tokens_gc} ans:{answer_gc[:80]}", flush=True)
-
-                        if audio_b64_gc and answer_gc:
-                            import re as _re_gc
-                            m_gc = _re_gc.search(r'[Тт]ы спросил[аи]?:\s*[«"\'](.+?)[»"\']', answer_gc)
-                            if m_gc:
-                                transcript_gc = m_gc.group(1).strip()
-                                print(f"[GEMINI] Transcript extracted: {transcript_gc[:80]}", flush=True)
-
+                        print(f"[CHAT] OK tokens:{tokens_gc} ans:{answer_gc[:80]}", flush=True)
                         break
                     except Exception as e_gc:
-                        print(f"[GEMINI] FAIL attempt:{_attempt_gc}: {type(e_gc).__name__}: {str(e_gc)[:200]}", flush=True)
+                        print(f"[CHAT] FAIL attempt:{_attempt_gc}: {type(e_gc).__name__}: {str(e_gc)[:200]}", flush=True)
                         if _attempt_gc == 0:
                             import time as _tg
                             _tg.sleep(1)
@@ -1297,15 +1298,15 @@ def handler(event: dict, context) -> dict:
                 increment_questions(conn_gc, uid_gc, access_gc)
                 remaining_gc = max(0, access_gc.get('remaining', 1) - 1)
 
-                def _bg_gemini_save(uid, ans, tok, session_id):
+                def _bg_chat_save(uid, ans, tok, session_id):
                     try:
                         c2 = psycopg2.connect(DATABASE_URL)
                         c2.autocommit = True
                         save_msg(c2, session_id, uid, 'assistant', ans, None, tok, False)
                         c2.close()
                     except Exception as ex:
-                        print(f"[GEMINI] bg_save err: {ex}", flush=True)
-                threading.Thread(target=_bg_gemini_save, args=(uid_gc, answer_gc, tokens_gc, sid_gc), daemon=True).start()
+                        print(f"[CHAT] bg_save err: {ex}", flush=True)
+                threading.Thread(target=_bg_chat_save, args=(uid_gc, answer_gc, tokens_gc, sid_gc), daemon=True).start()
 
                 result_gc = {
                     'answer': answer_gc,
