@@ -1262,18 +1262,37 @@ def handler(event: dict, context) -> dict:
                 # --- Step 4: Call Llama ---
                 answer_gc = None
                 tokens_gc = 0
+                llama_vision_model = 'meta-llama/llama-4-maverick' if has_image else LLAMA_MODEL
 
                 for _attempt_gc in range(2):
                     try:
-                        print(f"[CHAT] User:{uid_gc} attempt:{_attempt_gc} msg:{actual_question[:60] if actual_question else ''} img:{has_image}", flush=True)
-                        resp_gc = client.chat.completions.create(
-                            model=LLAMA_MODEL,
-                            messages=messages_gc,
-                            temperature=0.4,
-                            max_tokens=2000,
-                        )
-                        raw_answer_gc = resp_gc.choices[0].message.content
-                        tokens_gc = resp_gc.usage.total_tokens if resp_gc.usage else 0
+                        print(f"[CHAT] User:{uid_gc} attempt:{_attempt_gc} msg:{actual_question[:60] if actual_question else ''} img:{has_image} model:{llama_vision_model}", flush=True)
+                        if has_image:
+                            with httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0)) as _hc:
+                                _r = _hc.post(
+                                    f"{OPENROUTER_BASE_URL}chat/completions",
+                                    json={
+                                        "model": llama_vision_model,
+                                        "messages": messages_gc,
+                                        "temperature": 0.4,
+                                        "max_tokens": 2000,
+                                    },
+                                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+                                )
+                            if _r.status_code != 200:
+                                raise Exception(f"Llama Vision {_r.status_code}: {_r.text[:300]}")
+                            _rd = _r.json()
+                            raw_answer_gc = _rd['choices'][0]['message']['content']
+                            tokens_gc = _rd.get('usage', {}).get('total_tokens', 0)
+                        else:
+                            resp_gc = client.chat.completions.create(
+                                model=llama_vision_model,
+                                messages=messages_gc,
+                                temperature=0.4,
+                                max_tokens=2000,
+                            )
+                            raw_answer_gc = resp_gc.choices[0].message.content
+                            tokens_gc = resp_gc.usage.total_tokens if resp_gc.usage else 0
                         answer_gc = sanitize_answer(raw_answer_gc)
                         if answer_gc and not answer_gc.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
                             answer_gc = answer_gc.rstrip() + '.'
