@@ -114,11 +114,16 @@ const AudioRecorder = ({ onStop, onCancel }: { onStop: (blob: Blob) => void; onC
       src.connect(an);
       analyser.current = an;
 
-      const rec = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : 'audio/mp4';
+      const rec = new MediaRecorder(stream, { mimeType });
       chunks.current = [];
       rec.ondataavailable = e => { if (e.data.size > 0) chunks.current.push(e.data); };
       rec.onstop = () => {
-        const blob = new Blob(chunks.current, { type: 'audio/webm' });
+        const blob = new Blob(chunks.current, { type: mimeType });
         onStop(blob);
       };
       rec.start(100);
@@ -136,7 +141,11 @@ const AudioRecorder = ({ onStop, onCancel }: { onStop: (blob: Blob) => void; onC
       };
       visualize();
     };
-    start().catch(() => onCancel());
+    start().catch((err) => {
+      console.error('Mic access error:', err);
+      alert('Не удалось получить доступ к микрофону. Разреши доступ в настройках браузера.');
+      onCancel();
+    });
 
     return () => {
       clearInterval(timerRef.current);
