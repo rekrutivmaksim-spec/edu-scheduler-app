@@ -23,8 +23,8 @@ _http_vision = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
 client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL, timeout=15.0, http_client=_http)
 
 GEMINI_MODEL = 'gemini-2.5-flash-preview-04-17'
-_http_gemini = httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0))
-gemini_client = OpenAI(api_key=AITUNNEL_GEMINI_KEY, base_url='https://api.aitunnel.ru/v1/', timeout=30.0, http_client=_http_gemini)
+_http_gemini = httpx.Client(timeout=httpx.Timeout(60.0, connect=5.0))
+gemini_client = OpenAI(api_key=AITUNNEL_GEMINI_KEY, base_url='https://api.aitunnel.ru/v1/', timeout=60.0, http_client=_http_gemini)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -1145,44 +1145,11 @@ def handler(event: dict, context) -> dict:
 
                 sid_gc = get_session(conn_gc, uid_gc)
 
-                # --- Step 1: If audio — transcribe first via Gemini ---
+                # --- Step 1: Build the actual question ---
                 transcript_gc = None
-                if audio_b64_gc:
-                    try:
-                        print(f"[GEMINI] Transcribing audio format={audio_format_gc} size={len(audio_b64_gc)}", flush=True)
-                        tr_payload = {
-                            "model": GEMINI_MODEL,
-                            "messages": [
-                                {"role": "user", "content": [
-                                    {"type": "input_audio", "input_audio": {"data": audio_b64_gc, "format": audio_format_gc}},
-                                    {"type": "text", "text": "Распознай речь из аудио. Верни ТОЛЬКО распознанный текст дословно, без комментариев. Если речь на русском — пиши по-русски."}
-                                ]}
-                            ],
-                            "temperature": 0.1,
-                            "max_tokens": 500
-                        }
-                        tr_resp = _http_gemini.post(
-                            'https://api.aitunnel.ru/v1/chat/completions',
-                            json=tr_payload,
-                            headers={"Authorization": f"Bearer {AITUNNEL_GEMINI_KEY}", "Content-Type": "application/json"}
-                        )
-                        if tr_resp.status_code == 200:
-                            transcript_gc = tr_resp.json()["choices"][0]["message"]["content"].strip()
-                            print(f"[GEMINI] Transcript OK: {transcript_gc[:100]}", flush=True)
-                        else:
-                            print(f"[GEMINI] Transcript fail status={tr_resp.status_code} body={tr_resp.text[:200]}", flush=True)
-                    except Exception as te:
-                        print(f"[GEMINI] Transcript error: {type(te).__name__}: {str(te)[:200]}", flush=True)
-
-                # --- Step 2: Build the actual question ---
                 actual_question = message_gc
-                if transcript_gc:
-                    if actual_question:
-                        actual_question = f"{actual_question}\n\nГолосовое сообщение ученика: {transcript_gc}"
-                    else:
-                        actual_question = transcript_gc
 
-                if not actual_question and not image_b64_gc:
+                if not actual_question and not image_b64_gc and not audio_b64_gc:
                     return ok({
                         'answer': 'Не удалось распознать речь. Попробуй записать ещё раз, говори чётче.',
                         'transcript': '',
@@ -1192,50 +1159,40 @@ def handler(event: dict, context) -> dict:
                         'is_premium': access_gc.get('is_premium', False),
                     })
 
-                # --- Step 3: Build system prompt ---
+                # --- Step 2: Build system prompt ---
                 has_image = bool(image_b64_gc)
 
-                if has_image:
-                    system_gc = (
-                        "Ты Studyfay — лучший репетитор для школьников и студентов России. Специалист по решению задач с фото.\n\n"
-                        "ИНСТРУКЦИЯ ПО РАБОТЕ С ФОТО ЗАДАНИЙ:\n"
-                        "1. ВНИМАТЕЛЬНО распознай ВСЁ что написано на фото — текст, цифры, формулы, графики, варианты ответов.\n"
-                        "2. Определи предмет и тип задания (ЕГЭ, ОГЭ, контрольная, домашка).\n"
-                        "3. Перепиши условие задачи текстом.\n"
-                        "4. Реши задачу ПОЛНОСТЬЮ ПОШАГОВО:\n"
-                        "   - Каждый шаг на отдельной строке\n"
-                        "   - Объясни ПОЧЕМУ делаешь каждый шаг\n"
-                        "   - Покажи все промежуточные вычисления\n"
-                        "5. Чётко выдели ответ: «Ответ: ...»\n"
-                        "6. Если тест с вариантами — объясни почему выбранный правильный, а остальные нет.\n"
-                        "7. Дай совет: как быстрее решать такие задачи.\n\n"
-                    )
-                else:
-                    system_gc = (
-                        "Ты Studyfay — умный и дружелюбный репетитор для школьников и студентов России.\n\n"
-                        "КАК ТЫ УЧИШЬ:\n"
-                        "• Объясняй суть ПРОСТЫМИ СЛОВАМИ — как другу. Используй аналогии из жизни.\n"
-                        "• Покажи на КОНКРЕТНОМ примере из учебника, экзамена или жизни.\n"
-                        "• Если задача — реши ПОЛНОСТЬЮ пошагово. Каждый шаг с пояснением «почему».\n"
-                        "• Проверяешь ответ — сначала реши сам, потом: ✅ или ❌ + разбор.\n"
-                        "• В КОНЦЕ ответа задай ОДИН вопрос по теме для закрепления.\n\n"
-                    )
-
-                system_gc += (
-                    "СТИЛЬ И ФОРМАТ:\n"
-                    "• Отвечай по-русски. Формулы ТОЛЬКО текстом: x^2, sqrt(x), a/b.\n"
-                    "• Развёрнутые ответы: 6-15 предложений для задач, 4-8 для вопросов.\n"
+                system_gc = (
+                    "Ты Studyfay — лучший репетитор для школьников и студентов России. Твоя задача — давать КАЧЕСТВЕННЫЕ, ПОДРОБНЫЕ ответы.\n\n"
+                    "КАК ТЫ УЧИШЬ:\n"
+                    "• Объясняй суть ПРОСТЫМИ СЛОВАМИ с аналогией из жизни.\n"
+                    "• Если задача — реши ПОЛНОСТЬЮ пошагово. Каждый шаг на отдельной строке с пояснением «почему».\n"
+                    "• ПРОВЕРЯЙ свои вычисления: после решения подставь ответ обратно в условие.\n"
+                    "• Покажи на КОНКРЕТНОМ примере из учебника или экзамена.\n"
+                    "• В конце — ОДИН короткий вопрос по теме для закрепления.\n\n"
+                    "РАБОТА С ФОТО:\n"
+                    "• Внимательно прочитай ВСЮ информацию на фото: текст, числа, формулы, варианты ответа.\n"
+                    "• Определи предмет и тип задания (тест, задача, уравнение, сочинение и т.д.).\n"
+                    "• Реши задание ПОЛНОСТЬЮ пошагово. Если тест — объясни почему именно этот вариант.\n"
+                    "• Если текст плохо читается — напиши что удалось разобрать и попроси сфотографировать чётче.\n\n"
+                    "РАБОТА С ГОЛОСОМ:\n"
+                    "• Ты получаешь аудиозапись ученика. Внимательно распознай речь.\n"
+                    "• ОБЯЗАТЕЛЬНО в начале ответа напиши: 'Ты спросил: \"[распознанный текст]\"' — чтобы ученик видел, что его поняли правильно.\n"
+                    "• Затем дай полный, подробный ответ на вопрос.\n\n"
+                    "СТИЛЬ:\n"
+                    "• Русский. Формулы текстом: x^2, sqrt(x), a/b. Без LaTeX.\n"
+                    "• 6-15 предложений. Отвечай ПОДРОБНО, не экономь на объяснениях.\n"
                     "• 1-2 эмодзи. Тон тёплый, но фактически точный.\n"
                     "• Не переспрашивай — отвечай сразу.\n\n"
                     "СТРОГИЕ ЗАПРЕТЫ:\n"
-                    "• НЕ используй LaTeX ($, \\frac, \\sqrt). Формулы ТОЛЬКО текстом.\n"
-                    "• НЕ рисуй таблицы (ASCII, markdown). Используй нумерованный список.\n"
-                    "• НЕ используй иероглифы и нелатинские/нерусские символы.\n"
+                    "• НЕ используй иероглифы/китайские/японские символы.\n"
+                    "• НЕ рисуй таблицы (ни ASCII, ни markdown). Используй нумерованный список.\n"
                     "• НЕ ссылайся на картинки/схемы — ты не можешь их показать.\n"
-                    "• Каждый ответ УНИКАЛЕН — варьируй стиль и примеры."
+                    "• НЕ используй LaTeX ($, \\frac). Формулы ТОЛЬКО текстом.\n"
+                    "• Каждый ответ УНИКАЛЕН — варьируй стиль и вступления."
                 )
 
-                # --- Step 4: Build messages for Gemini ---
+                # --- Step 3: Build messages for Gemini ---
                 messages_gc = [{"role": "system", "content": system_gc}]
 
                 if history_gc:
@@ -1247,6 +1204,12 @@ def handler(event: dict, context) -> dict:
 
                 user_parts = []
 
+                if audio_b64_gc:
+                    user_parts.append({
+                        "type": "input_audio",
+                        "input_audio": {"data": audio_b64_gc, "format": audio_format_gc}
+                    })
+
                 if has_image:
                     user_parts.append({
                         "type": "image_url",
@@ -1254,7 +1217,11 @@ def handler(event: dict, context) -> dict:
                     })
 
                 text_instruction = actual_question or ''
-                if has_image and not text_instruction:
+                if audio_b64_gc and not text_instruction:
+                    text_instruction = "Прослушай аудио и ответь на вопрос ученика. Обязательно начни с: Ты спросил: \"[распознанный текст]\""
+                elif audio_b64_gc and text_instruction:
+                    text_instruction = f"{text_instruction}\n\n(Также прослушай аудио от ученика и учти его в ответе)"
+                elif has_image and not text_instruction:
                     text_instruction = "Внимательно рассмотри фото. Распознай задание и реши его полностью пошагово. Покажи все вычисления."
                 elif has_image and text_instruction:
                     text_instruction = f"{text_instruction}\n\n(Задание на фото — распознай и реши)"
@@ -1267,17 +1234,17 @@ def handler(event: dict, context) -> dict:
                 user_text_for_save = actual_question or ('[фото задания]' if has_image else '[аудио]')
                 save_msg(conn_gc, sid_gc, uid_gc, 'user', user_text_for_save[:500])
 
-                # --- Step 5: Call Gemini ---
+                # --- Step 4: Call Gemini ---
                 answer_gc = None
                 tokens_gc = 0
 
-                for attempt_gc in range(2):
+                for _attempt_gc in range(2):
                     try:
-                        print(f"[GEMINI] User:{uid_gc} attempt:{attempt_gc} q:{(actual_question or '')[:60]} img:{has_image}", flush=True)
+                        print(f"[GEMINI] User:{uid_gc} attempt:{_attempt_gc} msg:{message_gc[:60]} audio:{bool(audio_b64_gc)} img:{bool(image_b64_gc)}", flush=True)
                         resp_gc = gemini_client.chat.completions.create(
                             model=GEMINI_MODEL,
                             messages=messages_gc,
-                            temperature=0.3,
+                            temperature=0.4,
                             max_tokens=2000,
                         )
                         raw_answer_gc = resp_gc.choices[0].message.content
@@ -1285,13 +1252,22 @@ def handler(event: dict, context) -> dict:
                         answer_gc = sanitize_answer(raw_answer_gc)
                         if answer_gc and not answer_gc.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
                             answer_gc = answer_gc.rstrip() + '.'
-                        print(f"[GEMINI] OK attempt:{attempt_gc} tokens:{tokens_gc} ans:{answer_gc[:80]}", flush=True)
+                        print(f"[GEMINI] OK tokens:{tokens_gc} ans:{answer_gc[:80]}", flush=True)
+
+                        if audio_b64_gc and answer_gc:
+                            import re as _re_gc
+                            m_gc = _re_gc.search(r'[Тт]ы спросил[аи]?:\s*[«"\'](.+?)[»"\']', answer_gc)
+                            if m_gc:
+                                transcript_gc = m_gc.group(1).strip()
+                                print(f"[GEMINI] Transcript extracted: {transcript_gc[:80]}", flush=True)
+
                         break
                     except Exception as e_gc:
-                        print(f"[GEMINI] FAIL attempt:{attempt_gc}: {type(e_gc).__name__}: {str(e_gc)[:200]}", flush=True)
-                        if attempt_gc == 0:
-                            import time as _t_gc
-                            _t_gc.sleep(1)
+                        print(f"[GEMINI] FAIL attempt:{_attempt_gc}: {type(e_gc).__name__}: {str(e_gc)[:200]}", flush=True)
+                        if _attempt_gc == 0:
+                            import time as _tg
+                            _tg.sleep(1)
+                        answer_gc = None
 
                 if not answer_gc:
                     return ok({
