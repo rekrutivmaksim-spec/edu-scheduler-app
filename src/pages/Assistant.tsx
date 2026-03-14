@@ -151,6 +151,7 @@ const Assistant = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -165,6 +166,7 @@ const Assistant = () => {
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [showLimitScreen, setShowLimitScreen] = useState(false);
+  const [loadingHint, setLoadingHint] = useState('');
 
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/auth'); return; }
@@ -282,7 +284,7 @@ const Assistant = () => {
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: audio ? '🎤 Голосовое сообщение...' : messageText,
+      content: audio ? '🎤 Распознаю речь...' : messageText,
       image: imagePreview || undefined,
       timestamp: new Date(),
     };
@@ -292,6 +294,7 @@ const Assistant = () => {
     setImagePreview(null);
     setImageFile(null);
     setIsLoading(true);
+    setLoadingHint(audio ? 'Распознаю речь...' : img ? 'Анализирую фото...' : 'Думаю...');
 
     const controller = new AbortController();
     setAbortController(controller);
@@ -303,7 +306,10 @@ const Assistant = () => {
         history: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
       };
       if (img) body.image_base64 = img;
-      if (audio) body.audio_base64 = audio;
+      if (audio) {
+        body.audio_base64 = audio;
+        body.audio_format = 'webm';
+      }
       if (currentSessionId) body.session_id = currentSessionId;
 
       const resp = await fetch(AI_URL, {
@@ -359,6 +365,7 @@ const Assistant = () => {
     } finally {
       setIsLoading(false);
       setAbortController(null);
+      setLoadingHint('');
     }
   };
 
@@ -479,17 +486,21 @@ const Assistant = () => {
               <Icon name="Sparkles" size={28} className="text-white" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">Привет! Я Studyfay</h2>
-            <p className="text-sm text-gray-500 mb-6 max-w-xs">Задай вопрос, отправь фото задачи или запиши голосовое</p>
-            <div className="flex flex-wrap justify-center gap-2">
+            <p className="text-sm text-gray-500 mb-6 max-w-xs">Задай вопрос, сфотографируй задачу или запиши голосовое</p>
+            <div className="flex flex-wrap justify-center gap-2 max-w-sm">
               {[
-                { icon: '🔥', text: 'Объясни тему' },
-                { icon: '🎯', text: 'Дай задание' },
-                { icon: '📸', text: 'Решить по фото' },
-                { icon: '🎓', text: 'Подготовь к ЕГЭ' },
+                { icon: '📸', text: 'Сфото задачу', action: 'camera' },
+                { icon: '🎤', text: 'Спросить голосом', action: 'mic' },
+                { icon: '📐', text: 'Реши уравнение', action: 'text' },
+                { icon: '🎓', text: 'Подготовь к ЕГЭ', action: 'text' },
               ].map(q => (
                 <button
                   key={q.text}
-                  onClick={() => { setInput(q.text); inputRef.current?.focus(); }}
+                  onClick={() => {
+                    if (q.action === 'camera') cameraInputRef.current?.click();
+                    else if (q.action === 'mic') { try { setIsRecording(true); } catch (e) { console.error(e); } }
+                    else { setInput(q.text); inputRef.current?.focus(); }
+                  }}
                   className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-4 py-2.5 text-sm text-gray-700 hover:border-blue-300 hover:bg-blue-50 active:scale-[0.97] transition-all shadow-sm"
                 >
                   <span>{q.icon}</span>{q.text}
@@ -513,7 +524,7 @@ const Assistant = () => {
                 <img
                   src={msg.image}
                   alt="attached"
-                  className="w-48 h-auto rounded-xl mb-2 cursor-pointer"
+                  className="max-w-[200px] max-h-[200px] w-auto h-auto rounded-xl mb-2 cursor-pointer object-cover"
                   onClick={() => setViewImage(msg.image!)}
                 />
               )}
@@ -532,8 +543,21 @@ const Assistant = () => {
         {isLoading && (
           <div className="flex gap-2.5 justify-start">
             <MascotAvatar />
-            <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md shadow-sm">
-              <TypingDots />
+            <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md shadow-sm px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2].map(i => (
+                    <div
+                      key={i}
+                      className="w-2 h-2 rounded-full bg-blue-400 animate-bounce"
+                      style={{ animationDelay: `${i * 150}ms`, animationDuration: '0.8s' }}
+                    />
+                  ))}
+                </div>
+                {loadingHint && (
+                  <span className="text-xs text-gray-400 ml-1">{loadingHint}</span>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -560,7 +584,7 @@ const Assistant = () => {
             <button
               type="button"
               onClick={() => {
-                try { setIsRecording(true); } catch { alert('Нет доступа к микрофону'); }
+                try { setIsRecording(true); } catch (e) { console.error(e); alert('Нет доступа к микрофону'); }
               }}
               className="p-2.5 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors flex-shrink-0"
               disabled={isLoading}
@@ -570,9 +594,20 @@ const Assistant = () => {
 
             <button
               type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="p-2.5 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors flex-shrink-0"
+              disabled={isLoading}
+              title="Сфотографировать задание"
+            >
+              <Icon name="Camera" size={22} />
+            </button>
+
+            <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               className="p-2.5 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors flex-shrink-0"
               disabled={isLoading}
+              title="Прикрепить фото"
             >
               <Icon name="Paperclip" size={22} />
             </button>
@@ -580,7 +615,15 @@ const Assistant = () => {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              capture="environment"
               onChange={handleImageSelect}
               className="hidden"
             />
