@@ -13,7 +13,10 @@ SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
-AITUNNEL_GEMINI_KEY = os.environ.get('AITUNNEL_GEMINI_KEY', '')
+_raw_gemini_key = os.environ.get('AITUNNEL_GEMINI_KEY', '')
+AITUNNEL_GEMINI_KEY = ''.join(c for c in _raw_gemini_key.strip() if ord(c) < 128).strip()
+if _raw_gemini_key and _raw_gemini_key != AITUNNEL_GEMINI_KEY:
+    print(f"[INIT] WARN: AITUNNEL_GEMINI_KEY cleaned from non-ASCII chars. raw_len={len(_raw_gemini_key)} clean_len={len(AITUNNEL_GEMINI_KEY)}", flush=True)
 
 LLAMA_MODEL = 'llama-4-maverick'
 OPENROUTER_BASE_URL = 'https://api.aitunnel.ru/v1/'
@@ -1241,19 +1244,19 @@ def handler(event: dict, context) -> dict:
 
                 for _attempt_gc in range(2):
                     try:
-                        print(f"[GEMINI] User:{uid_gc} attempt:{_attempt_gc} msg:{message_gc[:60]} audio:{bool(audio_b64_gc)} img:{bool(image_b64_gc)}", flush=True)
+                        print(f"[GEMINI] User:{uid_gc} attempt:{_attempt_gc} msg:{message_gc[:60]} audio:{bool(audio_b64_gc)} img:{bool(image_b64_gc)} key_len:{len(AITUNNEL_GEMINI_KEY)}", flush=True)
                         gemini_payload = json.dumps({
                             "model": GEMINI_MODEL,
                             "messages": messages_gc,
                             "temperature": 0.4,
                             "max_tokens": 2000,
-                        }, ensure_ascii=False).encode('utf-8')
+                        }, ensure_ascii=True)
                         gemini_resp = _http_gemini.post(
                             GEMINI_API_URL,
-                            content=gemini_payload,
+                            content=gemini_payload.encode('ascii'),
                             headers={
                                 'Authorization': f'Bearer {AITUNNEL_GEMINI_KEY}',
-                                'Content-Type': 'application/json; charset=utf-8',
+                                'Content-Type': 'application/json',
                             },
                         )
                         if gemini_resp.status_code != 200:
