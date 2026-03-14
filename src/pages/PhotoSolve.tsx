@@ -60,6 +60,32 @@ export default function PhotoSolve() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [limitInfo, setLimitInfo] = useState<{ used: number; limit: number; bonus: number } | null>(null);
 
+  const compressImage = useCallback((file: File, maxSize = 1200): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxSize || h > maxSize) {
+          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+          else { w = Math.round(w * maxSize / h); h = maxSize; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, w, h);
+        let quality = 0.7;
+        let result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+        if (result.length > 2_000_000) {
+          quality = 0.4;
+          result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+        }
+        resolve(result);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    }), []);
+
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
       toast({ title: 'Нужно фото', description: 'Загрузи изображение (jpg, png, heic)', variant: 'destructive' });
@@ -69,17 +95,13 @@ export default function PhotoSolve() {
       toast({ title: 'Файл слишком большой', description: 'Максимум 15 МБ', variant: 'destructive' });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      setImagePreview(dataUrl);
-      const b64 = dataUrl.split(',')[1];
+    setImagePreview(URL.createObjectURL(file));
+    compressImage(file).then(b64 => {
       setImageBase64(b64);
       setResult(null);
       setShowOcr(false);
-    };
-    reader.readAsDataURL(file);
-  }, [toast]);
+    });
+  }, [toast, compressImage]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

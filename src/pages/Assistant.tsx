@@ -293,25 +293,40 @@ const Assistant = () => {
     setShowMenu(false);
   };
 
-  const fileToBase64 = (file: File): Promise<string> =>
+  const compressImage = (file: File, maxSize = 1200): Promise<string> =>
     new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(',')[1]);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxSize || h > maxSize) {
+          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+          else { w = Math.round(w * maxSize / h); h = maxSize; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, w, h);
+        let quality = 0.7;
+        let result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+        if (result.length > 2_000_000) {
+          quality = 0.4;
+          result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+        }
+        resolve(result);
       };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
     });
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Фото слишком большое. Максимум 10 МБ');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Фото слишком большое. Максимум 15 МБ');
       return;
     }
-    const b64 = await fileToBase64(file);
+    const b64 = await compressImage(file);
     setImageFile(b64);
     setImagePreview(URL.createObjectURL(file));
     e.target.value = '';
@@ -388,6 +403,10 @@ const Assistant = () => {
         body: JSON.stringify(body),
         signal: controller.signal,
       });
+
+      if (resp.status === 413) {
+        throw new Error('Файл слишком большой. Попробуй фото меньшего размера.');
+      }
 
       const data = await resp.json();
 
