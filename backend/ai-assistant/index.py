@@ -1259,65 +1259,22 @@ def handler(event: dict, context) -> dict:
                 user_text_for_save = actual_question or ('[фото задания]' if has_image else '[аудио]')
                 save_msg(conn_gc, sid_gc, uid_gc, 'user', user_text_for_save[:500])
 
-                # --- Step 4: Call AI (Gemini for images, Llama for text) ---
+                # --- Step 4: Call GPT-4o mini (vision + text) ---
                 answer_gc = None
                 tokens_gc = 0
+                chat_model = 'gpt-4o-mini'
 
                 for _attempt_gc in range(2):
                     try:
-                        if has_image and AITUNNEL_GEMINI_KEY:
-                            gemini_model = 'gemini-2.5-flash-preview-04-17'
-                            print(f"[CHAT] User:{uid_gc} attempt:{_attempt_gc} msg:{actual_question[:60] if actual_question else ''} img:True model:{gemini_model}", flush=True)
-                            gemini_payload = json.dumps({
-                                "model": gemini_model,
-                                "messages": messages_gc,
-                                "temperature": 0.4,
-                                "max_tokens": 2000,
-                            }, ensure_ascii=True)
-                            with httpx.Client(timeout=httpx.Timeout(45.0, connect=5.0)) as _hc:
-                                _r = _hc.post(
-                                    f"{OPENROUTER_BASE_URL}chat/completions",
-                                    content=gemini_payload.encode('utf-8'),
-                                    headers={
-                                        "Authorization": f"Bearer {AITUNNEL_GEMINI_KEY}",
-                                        "Content-Type": "application/json",
-                                    },
-                                )
-                            print(f"[CHAT] Gemini response status:{_r.status_code}", flush=True)
-                            if _r.status_code != 200:
-                                print(f"[CHAT] Gemini error body: {_r.text[:300]}", flush=True)
-                                raise Exception(f"Gemini {_r.status_code}: {_r.text[:200]}")
-                            _rd = _r.json()
-                            raw_answer_gc = _rd['choices'][0]['message']['content']
-                            tokens_gc = _rd.get('usage', {}).get('total_tokens', 0)
-                        elif has_image:
-                            print(f"[CHAT] User:{uid_gc} attempt:{_attempt_gc} img:True model:llama-vision (no gemini key)", flush=True)
-                            with httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0)) as _hc:
-                                _r = _hc.post(
-                                    f"{OPENROUTER_BASE_URL}chat/completions",
-                                    json={
-                                        "model": "meta-llama/llama-4-maverick",
-                                        "messages": messages_gc,
-                                        "temperature": 0.4,
-                                        "max_tokens": 2000,
-                                    },
-                                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-                                )
-                            if _r.status_code != 200:
-                                raise Exception(f"Llama Vision {_r.status_code}: {_r.text[:300]}")
-                            _rd = _r.json()
-                            raw_answer_gc = _rd['choices'][0]['message']['content']
-                            tokens_gc = _rd.get('usage', {}).get('total_tokens', 0)
-                        else:
-                            print(f"[CHAT] User:{uid_gc} attempt:{_attempt_gc} msg:{actual_question[:60] if actual_question else ''} img:False model:{LLAMA_MODEL}", flush=True)
-                            resp_gc = client.chat.completions.create(
-                                model=LLAMA_MODEL,
-                                messages=messages_gc,
-                                temperature=0.4,
-                                max_tokens=2000,
-                            )
-                            raw_answer_gc = resp_gc.choices[0].message.content
-                            tokens_gc = resp_gc.usage.total_tokens if resp_gc.usage else 0
+                        print(f"[CHAT] User:{uid_gc} attempt:{_attempt_gc} msg:{actual_question[:60] if actual_question else ''} img:{has_image} model:{chat_model}", flush=True)
+                        resp_gc = client.chat.completions.create(
+                            model=chat_model,
+                            messages=messages_gc,
+                            temperature=0.4,
+                            max_tokens=2000,
+                        )
+                        raw_answer_gc = resp_gc.choices[0].message.content
+                        tokens_gc = resp_gc.usage.total_tokens if resp_gc.usage else 0
                         answer_gc = sanitize_answer(raw_answer_gc)
                         if answer_gc and not answer_gc.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
                             answer_gc = answer_gc.rstrip() + '.'
