@@ -24,13 +24,14 @@ client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL, timeou
 
 GEMINI_MODEL = 'gemini-2.5-flash-preview-04-17'
 _http_gemini = httpx.Client(timeout=httpx.Timeout(60.0, connect=5.0))
-gemini_client = OpenAI(api_key=AITUNNEL_GEMINI_KEY, base_url='https://api.aitunnel.ru/v1/', timeout=60.0, http_client=_http_gemini)
+GEMINI_API_URL = 'https://api.aitunnel.ru/v1/chat/completions'
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Authorization',
+    'Access-Control-Max-Age': '86400'
 }
 
 def ok(body: dict) -> dict:
@@ -1241,14 +1242,25 @@ def handler(event: dict, context) -> dict:
                 for _attempt_gc in range(2):
                     try:
                         print(f"[GEMINI] User:{uid_gc} attempt:{_attempt_gc} msg:{message_gc[:60]} audio:{bool(audio_b64_gc)} img:{bool(image_b64_gc)}", flush=True)
-                        resp_gc = gemini_client.chat.completions.create(
-                            model=GEMINI_MODEL,
-                            messages=messages_gc,
-                            temperature=0.4,
-                            max_tokens=2000,
+                        gemini_payload = json.dumps({
+                            "model": GEMINI_MODEL,
+                            "messages": messages_gc,
+                            "temperature": 0.4,
+                            "max_tokens": 2000,
+                        }, ensure_ascii=False).encode('utf-8')
+                        gemini_resp = _http_gemini.post(
+                            GEMINI_API_URL,
+                            content=gemini_payload,
+                            headers={
+                                'Authorization': f'Bearer {AITUNNEL_GEMINI_KEY}',
+                                'Content-Type': 'application/json; charset=utf-8',
+                            },
                         )
-                        raw_answer_gc = resp_gc.choices[0].message.content
-                        tokens_gc = resp_gc.usage.total_tokens if resp_gc.usage else 0
+                        if gemini_resp.status_code != 200:
+                            raise Exception(f"Gemini API {gemini_resp.status_code}: {gemini_resp.text[:300]}")
+                        gemini_data = gemini_resp.json()
+                        raw_answer_gc = gemini_data['choices'][0]['message']['content']
+                        tokens_gc = gemini_data.get('usage', {}).get('total_tokens', 0)
                         answer_gc = sanitize_answer(raw_answer_gc)
                         if answer_gc and not answer_gc.rstrip().endswith(('.', '!', '?', ')', '»', '`', '*')):
                             answer_gc = answer_gc.rstrip() + '.'

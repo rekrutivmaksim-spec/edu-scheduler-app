@@ -105,7 +105,7 @@ export default function PhotoSolve() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           action: 'photo_solve',
