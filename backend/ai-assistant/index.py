@@ -13,6 +13,7 @@ SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+AITUNNEL_GEMINI_KEY = os.environ.get('AITUNNEL_GEMINI_KEY', '')
 
 LLAMA_MODEL = 'llama-4-maverick'
 OPENROUTER_BASE_URL = 'https://api.aitunnel.ru/v1/'
@@ -20,6 +21,10 @@ OPENROUTER_BASE_URL = 'https://api.aitunnel.ru/v1/'
 _http = httpx.Client(timeout=httpx.Timeout(15.0, connect=4.0))
 _http_vision = httpx.Client(timeout=httpx.Timeout(20.0, connect=4.0))
 client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL, timeout=15.0, http_client=_http)
+
+GEMINI_MODEL = 'gemini-2.5-flash-preview-04-17'
+_http_gemini = httpx.Client(timeout=httpx.Timeout(30.0, connect=5.0))
+gemini_client = OpenAI(api_key=AITUNNEL_GEMINI_KEY, base_url='https://api.aitunnel.ru/v1/', timeout=30.0, http_client=_http_gemini)
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -1096,6 +1101,206 @@ def handler(event: dict, context) -> dict:
                 'limit': limit_info_ps['limit'],
                 'bonus_remaining': new_bonus_ps,
             })
+
+        # --- GEMINI CHAT (multimodal: text + audio + image) ---
+        if body_demo.get('action') == 'gemini_chat':
+            token_gc = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
+            uid_gc = get_user_id(token_gc)
+            if not uid_gc:
+                return err(401, {'error': 'Требуется авторизация'})
+
+            message_gc = (body_demo.get('message') or '').strip()
+            image_b64_gc = (body_demo.get('image_base64') or '').strip()
+            audio_b64_gc = (body_demo.get('audio_base64') or '').strip()
+            history_gc = body_demo.get('history') or []
+            session_id_gc = body_demo.get('session_id')
+
+            # Must have at least one input
+            if not message_gc and not image_b64_gc and not audio_b64_gc:
+                return err(400, {'error': 'Нужно отправить текст, фото или аудио'})
+
+            # Size guards
+            if image_b64_gc and len(image_b64_gc) > 14_000_000:
+                return err(400, {'error': 'Фото слишком большое. Максимум 10 МБ'})
+            if audio_b64_gc and len(audio_b64_gc) > 20_000_000:
+                return err(400, {'error': 'Аудио слишком большое. Максимум 15 МБ'})
+
+            conn_gc = psycopg2.connect(DATABASE_URL)
+            conn_gc.autocommit = True
+            try:
+                # Access control (same as main ask)
+                access_gc = check_access(conn_gc, uid_gc)
+                if not access_gc.get('has_access'):
+                    reason_gc = access_gc.get('reason', 'limit')
+                    if reason_gc == 'daily_limit':
+                        msg_gc = 'Дневной лимит исчерпан. Купи пакет вопросов или подожди до завтра!'
+                    elif access_gc.get('is_free'):
+                        msg_gc = 'Бесплатный лимит исчерпан. Оформи подписку или купи пакет!'
+                    else:
+                        msg_gc = 'Лимит исчерпан. Оформи подписку для продолжения.'
+                    return err(403, {
+                        'error': 'limit',
+                        'message': msg_gc,
+                        'used': access_gc.get('used', 0),
+                        'limit': access_gc.get('limit', 0),
+                        'is_premium': access_gc.get('is_premium', False),
+                    })
+
+                # Session management
+                sid_gc = get_session(conn_gc, uid_gc)
+
+                # Build the system prompt (reuse the main Studyfay educational prompt)
+                system_gc = (
+                    "Ты Studyfay — умный и дружелюбный репетитор для школьников и студентов России.\n\n"
+                    "КАК ТЫ УЧИШЬ:\n"
+                    "• Объясняй суть ПРОСТЫМИ СЛОВАМИ — как будто рассказываешь другу. Используй аналогии из жизни.\n"
+                    "• Покажи на КОНКРЕТНОМ примере — из учебника, экзамена или реальной ситуации.\n"
+                    "• Если задача — реши ПОЛНОСТЬЮ пошагово. Каждый шаг на отдельной строке с пояснением «почему».\n"
+                    "• Если проверяешь ответ — сначала реши сам, потом: «Правильно» или «Неверно» + разбор.\n"
+                    "• В КОНЦЕ ответа задай ОДИН короткий вопрос по теме — чтобы ученик подумал сам и закрепил понимание.\n\n"
+                    "СТИЛЬ:\n"
+                    "• Русский. Формулы текстом: x^2, sqrt(x), a/b. Без LaTeX.\n"
+                    "• 4-8 предложений. Если просят подробнее — расширяй.\n"
+                    "• 1-2 эмодзи. Тон тёплый и поддерживающий, но фактически точный.\n"
+                    "• Не переспрашивай — отвечай сразу. Если вопрос неясен — дай лучший ответ + уточни.\n\n"
+                    "СТРОГИЕ ЗАПРЕТЫ:\n"
+                    "• НИКОГДА не используй иероглифы, китайские/японские/корейские символы.\n"
+                    "• НИКОГДА не рисуй таблицы (ни ASCII, ни markdown-таблицы с | и ---). Вместо таблиц используй нумерованный список.\n"
+                    "• НИКОГДА не ссылайся на картинки, схемы, графики, диаграммы — ты не можешь их показать.\n"
+                    "• НИКОГДА не используй LaTeX, формулы в $...$ или \\frac{}{}. Пиши формулы простым текстом.\n"
+                    "• Каждый ответ должен быть УНИКАЛЬНЫМ — не повторяй шаблонные фразы.\n\n"
+                    "Если получил аудио — это голосовой вопрос ученика. Распознай речь и ответь на вопрос.\n"
+                    "Если получил фото — это фото задания. Распознай текст/условие и реши задачу пошагово."
+                )
+
+                # Build messages for Gemini
+                messages_gc = [{"role": "system", "content": system_gc}]
+
+                # Add history (max 10 messages)
+                if history_gc:
+                    for h in history_gc[-10:]:
+                        h_role = h.get('role', 'user')
+                        h_content = str(h.get('content', ''))[:500]
+                        if h_role in ('user', 'assistant') and h_content:
+                            messages_gc.append({"role": h_role, "content": h_content})
+
+                # Build user message content parts
+                user_parts = []
+
+                # Audio part
+                if audio_b64_gc:
+                    user_parts.append({
+                        "type": "input_audio",
+                        "input_audio": {"data": audio_b64_gc, "format": "wav"}
+                    })
+
+                # Image part
+                if image_b64_gc:
+                    user_parts.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{image_b64_gc}"}
+                    })
+
+                # Text part
+                if message_gc:
+                    user_parts.append({"type": "text", "text": message_gc[:2000]})
+                elif audio_b64_gc and not image_b64_gc:
+                    user_parts.append({"type": "text", "text": "Распознай мою речь и ответь на вопрос."})
+                elif image_b64_gc and not audio_b64_gc:
+                    user_parts.append({"type": "text", "text": "Распознай задание с фото и реши его пошагово."})
+                elif audio_b64_gc and image_b64_gc:
+                    user_parts.append({"type": "text", "text": "Распознай речь и фото, затем ответь на вопрос по заданию."})
+
+                messages_gc.append({"role": "user", "content": user_parts})
+
+                # Save user message to session
+                user_text_for_save = message_gc or (('[аудио]' if audio_b64_gc else '') + (' ' if audio_b64_gc and image_b64_gc else '') + ('[фото]' if image_b64_gc else ''))
+                save_msg(conn_gc, sid_gc, uid_gc, 'user', user_text_for_save.strip())
+
+                # Call Gemini via AI Tunnel
+                answer_gc = None
+                transcript_gc = None
+                tokens_gc = 0
+
+                try:
+                    print(f"[GEMINI] User:{uid_gc} msg:{message_gc[:60]} audio:{bool(audio_b64_gc)} img:{bool(image_b64_gc)}", flush=True)
+                    resp_gc = gemini_client.chat.completions.create(
+                        model=GEMINI_MODEL,
+                        messages=messages_gc,
+                        temperature=0.4,
+                        max_tokens=1200,
+                    )
+                    raw_answer_gc = resp_gc.choices[0].message.content
+                    tokens_gc = resp_gc.usage.total_tokens if resp_gc.usage else 0
+                    answer_gc = sanitize_answer(raw_answer_gc)
+                    print(f"[GEMINI] OK tokens:{tokens_gc} ans:{answer_gc[:80]}", flush=True)
+
+                    # If audio was sent, try to extract transcript
+                    # Gemini typically includes the recognized text in its response
+                    if audio_b64_gc and answer_gc:
+                        # Try a separate lightweight call to get just the transcript
+                        try:
+                            transcript_resp = gemini_client.chat.completions.create(
+                                model=GEMINI_MODEL,
+                                messages=[
+                                    {"role": "system", "content": "Ты транскрибатор речи. Верни ТОЛЬКО распознанный текст из аудио, без пояснений и комментариев."},
+                                    {"role": "user", "content": [
+                                        {"type": "input_audio", "input_audio": {"data": audio_b64_gc, "format": "wav"}},
+                                        {"type": "text", "text": "Распознай речь и верни только текст."}
+                                    ]}
+                                ],
+                                temperature=0.1,
+                                max_tokens=300,
+                            )
+                            transcript_gc = transcript_resp.choices[0].message.content.strip()
+                            print(f"[GEMINI] Transcript: {transcript_gc[:80]}", flush=True)
+                        except Exception as te:
+                            print(f"[GEMINI] Transcript extraction failed: {te}", flush=True)
+                            transcript_gc = None
+
+                except Exception as e_gc:
+                    print(f"[GEMINI] FAIL: {type(e_gc).__name__}: {str(e_gc)[:200]}", flush=True)
+                    answer_gc = None
+
+                if not answer_gc:
+                    answer_gc = 'Произошла временная ошибка при обработке запроса. Попробуй ещё раз!'
+                    return ok({
+                        'answer': answer_gc,
+                        'remaining': access_gc.get('remaining', 0),
+                        'used': access_gc.get('used', 0),
+                        'limit': access_gc.get('limit', 0),
+                        'is_premium': access_gc.get('is_premium', False),
+                        'error': True
+                    })
+
+                # Increment usage
+                increment_questions(conn_gc, uid_gc, access_gc)
+                remaining_gc = max(0, access_gc.get('remaining', 1) - 1)
+
+                # Save assistant response in background
+                def _bg_gemini_save(uid, ans, tok, session_id):
+                    try:
+                        c2 = psycopg2.connect(DATABASE_URL)
+                        c2.autocommit = True
+                        save_msg(c2, session_id, uid, 'assistant', ans, None, tok, False)
+                        c2.close()
+                    except Exception as ex:
+                        print(f"[GEMINI] bg_save err: {ex}", flush=True)
+                threading.Thread(target=_bg_gemini_save, args=(uid_gc, answer_gc, tokens_gc, sid_gc), daemon=True).start()
+
+                result_gc = {
+                    'answer': answer_gc,
+                    'remaining': remaining_gc,
+                    'used': access_gc.get('used', 0) + 1,
+                    'limit': access_gc.get('limit', 0),
+                    'is_premium': access_gc.get('is_premium', False),
+                }
+                if transcript_gc:
+                    result_gc['transcript'] = transcript_gc
+
+                return ok(result_gc)
+            finally:
+                conn_gc.close()
 
         if body_demo.get('action') == 'demo_ask':
             question = body_demo.get('question', '').strip()

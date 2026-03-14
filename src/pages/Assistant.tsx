@@ -1,745 +1,676 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
-import Icon from '@/components/ui/icon';
 import { trackActivity } from '@/lib/gamification';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import Icon from '@/components/ui/icon';
+import AIMessage from '@/components/AIMessage';
 import BottomNav from '@/components/BottomNav';
 
 const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
-const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
 
-interface Material { id: number; title: string; subject?: string; }
-interface Message { role: 'user' | 'assistant'; content: string; timestamp: Date; }
-interface Session { id: number; title: string; updated_at: string; message_count: number; }
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  image?: string;
+  timestamp: Date;
+}
 
-const THINKING_STAGES = [
-  { text: 'Анализирую вопрос...', duration: 2000 },
-  { text: 'Ищу в материалах...', duration: 3000 },
-  { text: 'Формулирую ответ...', duration: 4000 },
-  { text: 'Проверяю точность...', duration: 5000 },
-  { text: 'Дополняю примерами...', duration: 8000 },
-];
-const THINKING_STAGES_NO_MATERIALS = [
-  { text: 'Анализирую вопрос...', duration: 2000 },
-  { text: 'Подбираю информацию...', duration: 3000 },
-  { text: 'Формулирую ответ...', duration: 4000 },
-  { text: 'Проверяю точность...', duration: 6000 },
-  { text: 'Финальная проверка...', duration: 8000 },
-];
+interface Session {
+  id: number;
+  title: string;
+  updated_at: string;
+  message_count: number;
+}
 
-const ThinkingIndicator = ({ hasMaterials, elapsed }: { hasMaterials: boolean; elapsed: number }) => {
-  const stages = hasMaterials ? THINKING_STAGES : THINKING_STAGES_NO_MATERIALS;
-  let cumulative = 0;
-  let currentStage = stages[0];
-  for (const stage of stages) {
-    cumulative += stage.duration;
-    if (elapsed < cumulative) { currentStage = stage; break; }
-    currentStage = stage;
-  }
-  const dot = 'w-2 h-2 rounded-full bg-purple-400';
+const TypingDots = () => (
+  <div className="flex items-center gap-1.5 px-4 py-3">
+    {[0, 1, 2].map(i => (
+      <div
+        key={i}
+        className="w-2 h-2 rounded-full bg-blue-400 animate-bounce"
+        style={{ animationDelay: `${i * 150}ms`, animationDuration: '0.8s' }}
+      />
+    ))}
+  </div>
+);
+
+const ImagePreview = ({ src, onRemove }: { src: string; onRemove: () => void }) => (
+  <div className="relative inline-block mr-2 mb-2">
+    <img src={src} alt="preview" className="w-20 h-20 object-cover rounded-xl border border-gray-200" />
+    <button
+      onClick={onRemove}
+      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs shadow-md"
+    >
+      ✕
+    </button>
+  </div>
+);
+
+const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => (
+  <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center" onClick={onClose}>
+    <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white z-10">
+      <Icon name="X" size={28} />
+    </button>
+    <img src={src} alt="full" className="max-w-[95vw] max-h-[90vh] object-contain rounded-lg" onClick={e => e.stopPropagation()} />
+  </div>
+);
+
+const AudioRecorder = ({ onStop, onCancel }: { onStop: (blob: Blob) => void; onCancel: () => void }) => {
+  const [duration, setDuration] = useState(0);
+  const [levels, setLevels] = useState<number[]>(new Array(30).fill(8));
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const analyser = useRef<AnalyserNode | null>(null);
+  const animFrame = useRef<number>(0);
+  const chunks = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval>>();
+
+  useEffect(() => {
+    let stream: MediaStream;
+    const start = async () => {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const ctx = new AudioContext();
+      const src = ctx.createMediaStreamSource(stream);
+      const an = ctx.createAnalyser();
+      an.fftSize = 64;
+      src.connect(an);
+      analyser.current = an;
+
+      const rec = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+      chunks.current = [];
+      rec.ondataavailable = e => { if (e.data.size > 0) chunks.current.push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(chunks.current, { type: 'audio/webm' });
+        onStop(blob);
+      };
+      rec.start(100);
+      mediaRecorder.current = rec;
+
+      timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
+
+      const visualize = () => {
+        if (!analyser.current) return;
+        const data = new Uint8Array(analyser.current.frequencyBinCount);
+        analyser.current.getByteFrequencyData(data);
+        const bars = Array.from(data).slice(0, 30).map(v => Math.max(4, (v / 255) * 32));
+        setLevels(bars);
+        animFrame.current = requestAnimationFrame(visualize);
+      };
+      visualize();
+    };
+    start().catch(() => onCancel());
+
+    return () => {
+      clearInterval(timerRef.current);
+      cancelAnimationFrame(animFrame.current);
+      if (stream) stream.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
+  const handleStop = () => {
+    if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+      mediaRecorder.current.stop();
+    }
+  };
+
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
   return (
-    <div className="flex gap-2.5 justify-start">
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-        <Icon name="Sparkles" size={15} className="text-white" />
-      </div>
-      <div className="bg-white border border-purple-100 shadow-sm rounded-2xl rounded-bl-md px-4 py-3 max-w-[85%]">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex gap-1 items-end">
-            <div className={`${dot} animate-bounce`} style={{ animationDelay: '0ms' }} />
-            <div className={`${dot} animate-bounce`} style={{ animationDelay: '150ms' }} />
-            <div className={`${dot} animate-bounce`} style={{ animationDelay: '300ms' }} />
-          </div>
-          <span className="text-sm text-purple-700 font-medium">{currentStage.text}</span>
-        </div>
-        <div className="h-1.5 w-36 bg-purple-50 rounded-full overflow-hidden">
+    <div className="flex items-center gap-3 w-full bg-red-50 rounded-2xl px-4 py-3 border border-red-200">
+      <button onClick={onCancel} className="text-red-400 hover:text-red-600 flex-shrink-0">
+        <Icon name="X" size={20} />
+      </button>
+      <div className="flex items-end gap-[2px] h-8 flex-1 justify-center">
+        {levels.map((h, i) => (
           <div
-            className="h-full rounded-full bg-gradient-to-r from-purple-400 to-indigo-500 transition-all duration-1000 ease-out"
-            style={{ width: `${Math.min(90, (elapsed / 30000) * 100)}%` }}
+            key={i}
+            className="w-[3px] rounded-full bg-red-400 transition-all duration-75"
+            style={{ height: `${h}px` }}
           />
-        </div>
+        ))}
       </div>
+      <span className="text-sm font-mono text-red-600 w-10 text-right flex-shrink-0">{fmt(duration)}</span>
+      <button
+        onClick={handleStop}
+        className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-lg active:scale-95 transition-transform"
+      >
+        <Icon name="Square" size={16} />
+      </button>
     </div>
   );
 };
 
-// Paywall-экран при 0 вопросов
-const LimitScreen = ({ onClose, navigate }: { onClose: () => void; navigate: (p: string) => void }) => (
-  <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
-    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-    <div
-      className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl overflow-hidden"
-      onClick={e => e.stopPropagation()}
-      style={{ animation: 'slide-up 0.35s cubic-bezier(0.32,0.72,0,1)' }}
-    >
-      <div className="flex justify-center pt-3 pb-1">
-        <div className="w-10 h-1 bg-gray-200 rounded-full" />
-      </div>
-      <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 mx-4 rounded-2xl p-5 mb-4 mt-2 relative overflow-hidden">
-        <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full" />
-        <button onClick={onClose} className="absolute top-3 right-3 text-white/40 hover:text-white/70">✕</button>
-        <span className="text-4xl block mb-3">⏸️</span>
-        <h2 className="text-white font-extrabold text-xl mb-1">Вопросы на сегодня закончились</h2>
-        <p className="text-white/75 text-sm">Продолжай обучение без ограничений:</p>
-        <div className="mt-3 space-y-1.5">
-          {[
-            'Безлимит вопросов к ИИ',
-            'Безлимит анализа файлов',
-            'Подготовка к ЕГЭ и ОГЭ',
-            'Помощь по вузу',
-            '×2 XP за все действия',
-          ].map(f => (
-            <div key={f} className="flex items-center gap-2 text-white/85 text-sm">
-              <span className="text-white/60">✓</span>{f}
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 bg-white/20 rounded-xl px-4 py-2 inline-block">
-          <span className="text-white font-bold">499 ₽/мес</span>
-        </div>
-      </div>
-      <div className="px-5 pb-8 space-y-3">
-        <button
-          onClick={() => { onClose(); navigate('/pricing'); }}
-          className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.98] transition-all"
-        >
-          Подключить Premium
-        </button>
-        <button onClick={() => { onClose(); navigate('/achievements'); }} className="w-full py-2.5 text-sm text-indigo-500 font-medium hover:text-indigo-700 transition-colors">
-          Заработать бонусные вопросы 🎯
-        </button>
-      </div>
-    </div>
-    <style>{`@keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
+const MascotAvatar = () => (
+  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+    <Icon name="Sparkles" size={15} className="text-white" />
   </div>
 );
-
-const quickActions = [
-  { icon: '🔥', text: 'Объясни тему', action: 'send' },
-  { icon: '🎯', text: 'Дай задание', action: 'send' },
-  { icon: '📄', text: 'Разбери файл', action: 'navigate', path: '/university' },
-  { icon: '🎓', text: 'Подготовь к экзамену', action: 'navigate', path: '/session' },
-  { icon: '🏛', text: 'Помощь по вузу', action: 'navigate', path: '/university' },
-];
 
 const Assistant = () => {
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [selectedMaterials, setSelectedMaterials] = useState<number[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [question, setQuestion] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<string | null>(null);
+  const [viewImage, setViewImage] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
-  const [aiUsed, setAiUsed] = useState<number | null>(null);
-  const [aiMax, setAiMax] = useState<number | null>(null);
-  const [isPremium, setIsPremium] = useState(false);
-  const [isTrial, setIsTrial] = useState(false);
-  const [showMaterialPicker, setShowMaterialPicker] = useState(false);
-  const [showLimitScreen, setShowLimitScreen] = useState(false);
-  const [thinkingElapsed, setThinkingElapsed] = useState(0);
-  const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  const [showMenu, setShowMenu] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [showSidebar, setShowSidebar] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
-  const [loadingSession, setLoadingSession] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [showLimitScreen, setShowLimitScreen] = useState(false);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/auth'); return; }
-    loadMaterials();
-    loadAiLimits();
     loadSessions();
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
+  const getToken = () => authService.getToken() || '';
+
   const loadSessions = async () => {
     try {
-      const token = authService.getToken();
-      const resp = await fetch(`${AI_URL}?action=sessions`, { headers: { Authorization: `Bearer ${token}` } });
-      if (resp.ok) { const data = await resp.json(); setSessions(data.sessions || []); }
-    } catch { /* silent */ }
+      const resp = await fetch(`${AI_URL}?action=sessions`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setSessions(data.sessions || []);
+      }
+    } catch (e) { console.error('loadSessions', e); }
   };
 
   const loadSessionMessages = async (sessionId: number) => {
-    setLoadingSession(true);
     try {
-      const token = authService.getToken();
       const resp = await fetch(`${AI_URL}?action=messages&session_id=${sessionId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (resp.ok) {
         const data = await resp.json();
-        const msgs: Message[] = (data.messages || []).map((m: { role: 'user' | 'assistant'; content: string; timestamp: string }) => ({
-          role: m.role, content: m.content, timestamp: new Date(m.timestamp),
-        }));
-        setMessages(msgs);
+        setMessages(
+          (data.messages || []).map((m: { role: 'user' | 'assistant'; content: string; timestamp: string }, i: number) => ({
+            id: `loaded-${i}`,
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.timestamp),
+          }))
+        );
         setCurrentSessionId(sessionId);
-        setShowSidebar(false);
+        setShowMenu(false);
       }
-    } catch { /* silent */ }
-    finally { setLoadingSession(false); }
+    } catch (e) { console.error('loadMessages', e); }
   };
 
-  const startNewChat = () => {
+  const deleteSession = async (sessionId: number) => {
+    try {
+      await fetch(`${AI_URL}?action=delete_session&session_id=${sessionId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      setSessions(s => s.filter(x => x.id !== sessionId));
+      if (currentSessionId === sessionId) {
+        setMessages([]);
+        setCurrentSessionId(null);
+      }
+    } catch (e) { console.error('deleteSession', e); }
+  };
+
+  const newChat = () => {
     setMessages([]);
     setCurrentSessionId(null);
-    setShowSidebar(false);
-    setQuestion('');
-    setTimeout(() => inputRef.current?.focus(), 100);
+    setShowMenu(false);
   };
 
-  const loadMaterials = async () => {
-    try {
-      const token = authService.getToken();
-      const resp = await fetch(MATERIALS_URL, { headers: { Authorization: `Bearer ${token}` } });
-      if (resp.ok) { const data = await resp.json(); setMaterials(data.materials || []); }
-    } catch { /* silent */ }
-  };
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
-  const loadAiLimits = async () => {
-    try {
-      const token = authService.getToken();
-      const resp = await fetch(`${SUBSCRIPTION_URL}?action=limits`, { headers: { Authorization: `Bearer ${token}` } });
-      if (resp.ok) {
-        const data = await resp.json();
-        const ai = data.limits?.ai_questions;
-        const sub = data.subscription_type;
-        setIsPremium(sub === 'premium');
-        setIsTrial(!!data.is_trial);
-        if (sub === 'premium' || !!data.is_trial) {
-          setAiUsed(ai?.used ?? 0);
-          setAiMax(20);
-          setRemaining(Math.max(0, 20 - (ai?.used ?? 0)));
-        } else if (ai) {
-          setAiUsed(ai.used ?? 0);
-          setAiMax(ai.max ?? 3);
-          setRemaining(Math.max(0, (ai.max ?? 3) - (ai.used ?? 0)));
-        }
-      }
-    } catch { /* silent */ }
-  };
-
-  const startThinking = () => {
-    setThinkingElapsed(0);
-    if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
-    const start = Date.now();
-    thinkingTimerRef.current = setInterval(() => setThinkingElapsed(Date.now() - start), 200);
-  };
-  const stopThinking = () => {
-    if (thinkingTimerRef.current) { clearInterval(thinkingTimerRef.current); thinkingTimerRef.current = null; }
-    setThinkingElapsed(0);
-  };
-
-  const toggleMaterial = (id: number) => {
-    setSelectedMaterials(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const limitsLoaded = isPremium || isTrial || remaining !== null;
-  const isLimitReached = !isPremium && !isTrial && remaining !== null && remaining <= 0;
-  const showFreeCounter = !isPremium && !isTrial && aiMax !== null && aiUsed !== null;
-  const freeLeft = aiMax !== null && aiUsed !== null ? Math.max(0, aiMax - aiUsed) : 0;
-
-  const handleOk = useCallback(async (resp: Response) => {
-    const data = await resp.json();
-    if (data.remaining !== undefined) {
-      // Зажимаем по aiMax чтобы не показывать 999+ при unlimited
-      const capped = aiMax !== null ? Math.min(Math.max(0, data.remaining), aiMax) : Math.max(0, data.remaining);
-      setRemaining(capped);
-      if (aiMax !== null) setAiUsed(Math.max(0, aiMax - capped));
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Фото слишком большое. Максимум 10 МБ');
+      return;
     }
-    setMessages(prev => [...prev, { role: 'assistant', content: data.answer || '', timestamp: new Date() }]);
-    loadSessions();
-    try { await trackActivity('ai_question', 3); } catch { /* silent */ }
-  }, [aiMax]);
+    const b64 = await fileToBase64(file);
+    setImageFile(b64);
+    setImagePreview(URL.createObjectURL(file));
+    e.target.value = '';
+  };
 
-  const sendMessage = useCallback(async (overrideText?: string) => {
-    const q = (overrideText ?? question).trim();
-    if (!q || isLoading) return;
-    if (isLimitReached) { setShowLimitScreen(true); return; }
-    setQuestion('');
-    if (inputRef.current) inputRef.current.style.height = '44px';
+  const handleAudioStop = async (blob: Blob) => {
+    setIsRecording(false);
+    const b64 = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(',')[1]);
+      reader.readAsDataURL(blob);
+    });
+    await sendMessage('', null, b64);
+  };
+
+  const cancelRequest = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setIsLoading(false);
+    }
+  };
+
+  const sendMessage = async (text?: string, imgB64?: string | null, audioB64?: string | null) => {
+    const messageText = text ?? input.trim();
+    const img = imgB64 ?? imageFile;
+    const audio = audioB64 ?? null;
+
+    if (!messageText && !img && !audio) return;
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: audio ? '🎤 Голосовое сообщение...' : messageText,
+      image: imagePreview || undefined,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setImagePreview(null);
+    setImageFile(null);
     setIsLoading(true);
-    setMessages(prev => [...prev, { role: 'user', content: q, timestamp: new Date() }]);
-    startThinking();
 
-    const doFetch = async (): Promise<Response> => {
-      const token = authService.getToken();
-      const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 110000);
+    const controller = new AbortController();
+    setAbortController(controller);
+
+    try {
+      const body: Record<string, unknown> = {
+        action: 'gemini_chat',
+        message: messageText || undefined,
+        history: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+      };
+      if (img) body.image_base64 = img;
+      if (audio) body.audio_base64 = audio;
+      if (currentSessionId) body.session_id = currentSessionId;
+
       const resp = await fetch(AI_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          question: q,
-          material_ids: selectedMaterials,
-          history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify(body),
         signal: controller.signal,
       });
-      clearTimeout(tid);
-      return resp;
-    };
 
-    const tryFetch = async (attempt: number): Promise<void> => {
-      try {
-        const resp = await doFetch();
-        if (resp.ok) {
-          await handleOk(resp);
-        } else if (resp.status === 403) {
-          setRemaining(0);
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        if (resp.status === 403 && data.error === 'limit') {
           setShowLimitScreen(true);
-        } else if ((resp.status === 504 || resp.status >= 500) && attempt < 2) {
-          await tryFetch(attempt + 1);
-        } else {
-          throw new Error('server_error');
+          setMessages(prev => prev.filter(m => m.id !== userMsg.id));
+          return;
         }
-      } catch (e: unknown) {
-        const name = (e instanceof Error) ? e.name : '';
-        if ((name === 'AbortError' || name === 'TypeError') && attempt < 2) {
-          await tryFetch(attempt + 1);
-        } else {
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            content: 'Уточни вопрос — и я отвечу подробно! 🙂',
-            timestamp: new Date(),
-          }]);
-        }
+        throw new Error(data.message || data.error || 'Ошибка');
       }
-    };
 
-    try { await tryFetch(0); }
-    finally { stopThinking(); setIsLoading(false); setTimeout(() => inputRef.current?.focus(), 100); }
-  }, [question, isLoading, selectedMaterials, handleOk, isLimitReached]);
+      if (data.transcript && audio) {
+        setMessages(prev =>
+          prev.map(m => m.id === userMsg.id ? { ...m, content: `🎤 ${data.transcript}` } : m)
+        );
+      }
+
+      const assistantMsg: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: data.answer,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMsg]);
+
+      if (data.remaining !== undefined && data.remaining !== null) {
+        setRemaining(data.remaining);
+      }
+
+      trackActivity('ai_questions_asked').catch(() => {});
+      loadSessions();
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === 'AbortError') return;
+      const errMsg: ChatMessage = {
+        id: `err-${Date.now()}`,
+        role: 'assistant',
+        content: 'Не удалось получить ответ. Попробуй ещё раз.',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errMsg]);
+    } finally {
+      setIsLoading(false);
+      setAbortController(null);
+    }
+  };
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    sendMessage();
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
   };
 
-  const hasMessages = messages.length > 0;
+  const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }, []);
 
-  const formatSessionDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    if (diff < 86400000) return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    if (diff < 604800000) return d.toLocaleDateString('ru-RU', { weekday: 'short' });
-    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-  };
+  const hasContent = input.trim().length > 0 || !!imageFile;
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-white relative">
-
-      {/* Сайдбар с историей */}
-      {showSidebar && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="w-72 bg-white h-full flex flex-col shadow-2xl border-r border-gray-100">
-            <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-              <h2 className="font-bold text-gray-900">История чатов</h2>
-              <button onClick={() => setShowSidebar(false)} className="p-1.5 rounded-lg hover:bg-gray-100">
-                <Icon name="X" size={18} className="text-gray-600" />
-              </button>
-            </div>
-            <button
-              onClick={startNewChat}
-              className="mx-3 mt-3 mb-2 flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-medium transition-colors"
-            >
-              <Icon name="Plus" size={16} />Новый чат
-            </button>
-            <div className="flex-1 overflow-y-auto px-3 pb-4">
-              {sessions.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center mt-8">Чатов пока нет</p>
-              ) : (
-                <div className="space-y-1">
-                  {sessions.map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => loadSessionMessages(s.id)}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors ${currentSessionId === s.id ? 'bg-purple-50 border border-purple-200' : 'hover:bg-gray-50'}`}
-                    >
-                      <p className="text-sm font-medium text-gray-800 truncate">{s.title || 'Новый чат'}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] text-gray-400">{formatSessionDate(s.updated_at)}</span>
-                        <span className="text-[11px] text-gray-300">·</span>
-                        <span className="text-[11px] text-gray-400">{s.message_count} сообщ.</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="flex-1 bg-black/40" onClick={() => setShowSidebar(false)} />
-        </div>
-      )}
+    <div className="flex flex-col h-[100dvh] bg-gray-50">
+      {viewImage && <ImageViewer src={viewImage} onClose={() => setViewImage(null)} />}
 
       {/* Header */}
-      <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-3">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-              <Icon name="ArrowLeft" size={22} className="text-gray-700" />
-            </button>
-            <button onClick={() => setShowSidebar(true)} className="flex items-center gap-2 hover:opacity-80">
-              <div>
-                <h1 className="text-base font-bold text-gray-900 leading-tight">ИИ-помощь</h1>
-                <p className="text-xs text-gray-400 leading-none">
-                  {isLoading ? (
-                    <span className="text-purple-600 font-medium">Думаю...</span>
-                  ) : (isPremium || isTrial) && remaining !== null ? (
-                    <span className="text-emerald-600 font-medium">Осталось: {remaining} из {aiMax ?? 20} 🔥</span>
-                  ) : remaining === null ? (
-                    <span className="text-gray-400">Загружаю лимиты...</span>
-                  ) : showFreeCounter ? (
-                    <span className={freeLeft === 0 ? 'text-red-500 font-medium' : freeLeft === 1 ? 'text-amber-600' : 'text-gray-400'}>
-                      Осталось: {freeLeft} из {aiMax}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">Studyfay</span>
-                  )}
-                </p>
-              </div>
-              <Icon name="ChevronDown" size={14} className="text-gray-400 mt-0.5" />
-            </button>
+      <header className="flex items-center justify-between px-4 h-14 bg-white border-b border-gray-100 flex-shrink-0 z-20">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowMenu(!showMenu)} className="p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors">
+            <Icon name="Menu" size={22} className="text-gray-700" />
+          </button>
+          <div>
+            <h1 className="text-[17px] font-bold text-gray-900 leading-tight">Studyfay</h1>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="text-[11px] text-gray-500">онлайн</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            {materials.length > 0 && (
-              <button
-                onClick={() => setShowMaterialPicker(!showMaterialPicker)}
-                className={`p-2 rounded-lg transition-colors relative ${showMaterialPicker ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-600'}`}
-              >
-                <Icon name="Paperclip" size={20} />
-                {selectedMaterials.length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-purple-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {selectedMaterials.length}
-                  </span>
-                )}
-              </button>
-            )}
-            <button onClick={startNewChat} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors">
-              <Icon name="Plus" size={20} />
-            </button>
-            <button onClick={() => { setShowSidebar(true); loadSessions(); }} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors">
-              <Icon name="Clock" size={20} />
-            </button>
-          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {remaining !== null && remaining !== undefined && (
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+              {remaining} {remaining === 1 ? 'вопрос' : remaining < 5 ? 'вопроса' : 'вопросов'}
+            </span>
+          )}
+          <button onClick={newChat} className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors">
+            <Icon name="Plus" size={20} className="text-blue-600" />
+          </button>
         </div>
       </header>
 
-      {/* Статус-бар с лимитом — Premium */}
-      {(isPremium || isTrial) && remaining !== null && (
-        <div className="flex-shrink-0 px-4 py-2 border-b bg-emerald-50 border-emerald-100">
-          <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-emerald-700">Premium: {remaining} из {aiMax ?? 20} вопросов</span>
-            </div>
-          </div>
-          <div className="max-w-2xl mx-auto mt-1">
-            <div className="h-1 bg-emerald-100 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500 bg-emerald-500"
-                style={{ width: `${((remaining) / (aiMax ?? 20)) * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Статус-бар с лимитом — Free */}
-      {showFreeCounter && (
-        <div className={`flex-shrink-0 px-4 py-2 border-b ${freeLeft === 0 ? 'bg-red-50 border-red-100' : freeLeft === 1 ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
-          <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-600">Бесплатно: {aiMax ?? 3} вопроса в день</span>
-              <span className="text-gray-300">·</span>
-              <span className={`text-xs font-bold ${freeLeft === 0 ? 'text-red-600' : freeLeft === 1 ? 'text-amber-600' : 'text-gray-700'}`}>
-                Осталось: {freeLeft}
-              </span>
-            </div>
-            {freeLeft <= 1 && (
+      {/* Sidebar overlay */}
+      {showMenu && (
+        <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div
+            className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+            style={{ animation: 'slideInLeft 0.2s ease-out' }}
+          >
+            <div className="p-4 border-b border-gray-100">
               <button
-                onClick={() => setShowLimitScreen(true)}
-                className="text-xs text-purple-600 font-semibold hover:text-purple-800"
+                onClick={newChat}
+                className="w-full flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl font-medium active:scale-[0.98] transition-transform"
               >
-                Premium →
+                <Icon name="Plus" size={18} />
+                Новый чат
               </button>
-            )}
-          </div>
-          {freeLeft > 0 && (
-            <div className="max-w-2xl mx-auto mt-1">
-              <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${freeLeft === 1 ? 'bg-amber-400' : 'bg-purple-500'}`}
-                  style={{ width: `${(freeLeft / (aiMax || 3)) * 100}%` }}
-                />
-              </div>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Material picker */}
-      {showMaterialPicker && (
-        <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50 px-4 py-3">
-          <div className="max-w-2xl mx-auto">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-700">Контекст из материалов</p>
-              {selectedMaterials.length > 0 && (
-                <button onClick={() => setSelectedMaterials([])} className="text-xs text-purple-600 hover:text-purple-800">Сбросить</button>
+            <div className="p-3">
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-2 mb-2">История</p>
+              {sessions.length === 0 ? (
+                <p className="text-sm text-gray-400 px-2 py-4 text-center">Пока пусто</p>
+              ) : (
+                sessions.map(s => (
+                  <div
+                    key={s.id}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 mb-1 cursor-pointer transition-colors ${
+                      currentSessionId === s.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0" onClick={() => loadSessionMessages(s.id)}>
+                      <p className="text-sm font-medium truncate">{s.title || 'Без названия'}</p>
+                      <p className="text-[11px] text-gray-400">{s.message_count} сообщ.</p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }}
+                      className="p-1 text-gray-300 hover:text-red-500 flex-shrink-0"
+                    >
+                      <Icon name="Trash2" size={14} />
+                    </button>
+                  </div>
+                ))
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {materials.map(m => (
+            <div className="p-3 border-t border-gray-100 space-y-1">
+              <button onClick={() => { setShowMenu(false); navigate('/achievements'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 rounded-xl">
+                <Icon name="Trophy" size={16} className="text-amber-500" /> Ачивки
+              </button>
+              <button onClick={() => { setShowMenu(false); navigate('/referral'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 rounded-xl">
+                <Icon name="Gift" size={16} className="text-purple-500" /> Рефералки
+              </button>
+              <button onClick={() => { setShowMenu(false); navigate('/settings'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 rounded-xl">
+                <Icon name="Settings" size={16} className="text-gray-400" /> Настройки
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ paddingBottom: '140px' }}>
+        {messages.length === 0 && !isLoading && (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg">
+              <Icon name="Sparkles" size={28} className="text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Привет! Я Studyfay</h2>
+            <p className="text-sm text-gray-500 mb-6 max-w-xs">Задай вопрос, отправь фото задачи или запиши голосовое</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { icon: '🔥', text: 'Объясни тему' },
+                { icon: '🎯', text: 'Дай задание' },
+                { icon: '📸', text: 'Решить по фото' },
+                { icon: '🎓', text: 'Подготовь к ЕГЭ' },
+              ].map(q => (
                 <button
-                  key={m.id}
-                  onClick={() => toggleMaterial(m.id)}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${selectedMaterials.includes(m.id) ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}`}
+                  key={q.text}
+                  onClick={() => { setInput(q.text); inputRef.current?.focus(); }}
+                  className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-4 py-2.5 text-sm text-gray-700 hover:border-blue-300 hover:bg-blue-50 active:scale-[0.97] transition-all shadow-sm"
                 >
-                  {m.title.length > 30 ? m.title.slice(0, 30) + '...' : m.title}
+                  <span>{q.icon}</span>{q.text}
                 </button>
               ))}
             </div>
-            {selectedMaterials.length === 0 && (
-              <p className="text-xs text-gray-400 mt-1.5">Не выбрано — используются все материалы</p>
+          </div>
+        )}
+
+        {messages.map(msg => (
+          <div key={msg.id} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {msg.role === 'assistant' && <MascotAvatar />}
+            <div
+              className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
+                msg.role === 'user'
+                  ? 'bg-blue-600 text-white rounded-br-md'
+                  : 'bg-white border border-gray-100 rounded-bl-md'
+              }`}
+            >
+              {msg.image && (
+                <img
+                  src={msg.image}
+                  alt="attached"
+                  className="w-48 h-auto rounded-xl mb-2 cursor-pointer"
+                  onClick={() => setViewImage(msg.image!)}
+                />
+              )}
+              {msg.role === 'assistant' ? (
+                <AIMessage content={msg.content} />
+              ) : (
+                <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+              )}
+              <p className={`text-[10px] mt-1.5 ${msg.role === 'user' ? 'text-blue-200' : 'text-gray-300'}`}>
+                {msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+          </div>
+        ))}
+
+        {isLoading && (
+          <div className="flex gap-2.5 justify-start">
+            <MascotAvatar />
+            <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md shadow-sm">
+              <TypingDots />
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input area */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-20" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 56px)' }}>
+        {imagePreview && (
+          <div className="px-4 pt-3">
+            <ImagePreview src={imagePreview} onRemove={() => { setImagePreview(null); setImageFile(null); }} />
+          </div>
+        )}
+
+        {isRecording ? (
+          <div className="px-4 py-3">
+            <AudioRecorder
+              onStop={handleAudioStop}
+              onCancel={() => setIsRecording(false)}
+            />
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex items-end gap-2 px-3 py-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                try { setIsRecording(true); } catch { alert('Нет доступа к микрофону'); }
+              }}
+              className="p-2.5 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors flex-shrink-0"
+              disabled={isLoading}
+            >
+              <Icon name="Mic" size={22} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2.5 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors flex-shrink-0"
+              disabled={isLoading}
+            >
+              <Icon name="Paperclip" size={22} />
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => { setInput(e.target.value); autoResize(e.target); }}
+              onKeyDown={handleKeyDown}
+              placeholder="Спроси что-нибудь..."
+              rows={1}
+              className="flex-1 resize-none bg-gray-100 rounded-2xl px-4 py-2.5 text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all max-h-[120px] leading-relaxed"
+              disabled={isLoading}
+            />
+
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={cancelRequest}
+                className="p-2.5 rounded-full bg-red-100 text-red-600 hover:bg-red-200 active:bg-red-300 transition-colors flex-shrink-0"
+              >
+                <Icon name="Square" size={20} />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!hasContent}
+                className={`p-2.5 rounded-full transition-all flex-shrink-0 ${
+                  hasContent
+                    ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 active:scale-95'
+                    : 'bg-gray-100 text-gray-300'
+                }`}
+              >
+                <Icon name="ArrowUp" size={20} />
+              </button>
             )}
+          </form>
+        )}
+      </div>
+
+      {/* Limit screen */}
+      {showLimitScreen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowLimitScreen(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+            style={{ animation: 'slideUp 0.35s cubic-bezier(0.32,0.72,0,1)' }}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 mx-4 rounded-2xl p-5 mb-4 mt-2 relative overflow-hidden">
+              <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full" />
+              <button onClick={() => setShowLimitScreen(false)} className="absolute top-3 right-3 text-white/40 hover:text-white/70">✕</button>
+              <span className="text-4xl block mb-3">⏸️</span>
+              <h2 className="text-white font-extrabold text-xl mb-1">Вопросы на сегодня закончились</h2>
+              <p className="text-white/75 text-sm">Продолжай обучение без ограничений:</p>
+              <div className="mt-3 space-y-1.5">
+                {['Безлимит вопросов к ИИ', 'Распознавание голоса', 'Решение по фото', 'Подготовка к ЕГЭ и ОГЭ', '×2 XP'].map(f => (
+                  <div key={f} className="flex items-center gap-2 text-white/85 text-sm">
+                    <span className="text-white/60">✓</span>{f}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 bg-white/20 rounded-xl px-4 py-2 inline-block">
+                <span className="text-white font-bold">499 ₽/мес</span>
+              </div>
+            </div>
+            <div className="px-5 pb-8 space-y-3">
+              <button
+                onClick={() => { setShowLimitScreen(false); navigate('/pricing'); }}
+                className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.98] transition-all"
+              >
+                Подключить Premium
+              </button>
+              <button onClick={() => { setShowLimitScreen(false); navigate('/achievements'); }} className="w-full py-2.5 text-sm text-blue-500 font-medium hover:text-blue-700 transition-colors">
+                Заработать бонусные вопросы 🎯
+              </button>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Сообщения */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          {loadingSession ? (
-            <div className="flex items-center justify-center min-h-[40vh]">
-              <div className="w-10 h-10 border-4 border-purple-100 border-t-purple-500 rounded-full animate-spin" />
-            </div>
-          ) : !hasMessages ? (
-            /* === ПУСТОЙ ЭКРАН === */
-            <div className="flex flex-col items-center pt-6 px-2">
-              {/* Аватар */}
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-purple-200">
-                <Icon name="Sparkles" size={32} className="text-white" />
-              </div>
-
-              {/* Заголовок */}
-              <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">Привет! Я Studyfay ✨</h2>
-              <p className="text-gray-500 text-center text-sm leading-relaxed mb-1 max-w-xs">
-                ИИ-репетитор для учёбы и экзаменов.
-              </p>
-              <p className="text-gray-400 text-center text-xs mb-5 max-w-xs">
-                Объясняю темы, даю задания и разбираю материалы.
-              </p>
-
-              {/* Быстрые действия */}
-              <div className="w-full space-y-2 mb-3">
-                {quickActions.map((qa, i) => (
-                  <button
-                    key={i}
-                    onClick={() => qa.action === 'navigate' && qa.path ? navigate(qa.path) : sendMessage(qa.text)}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-purple-50 rounded-2xl border border-gray-100 hover:border-purple-200 transition-all active:scale-[0.98] text-left"
-                  >
-                    <span className="text-xl flex-shrink-0">{qa.icon}</span>
-                    <span className="text-gray-700 font-medium text-sm flex-1">{qa.text}</span>
-                    <Icon name={qa.action === 'navigate' ? 'ExternalLink' : 'ChevronRight'} size={14} className="text-gray-300 flex-shrink-0" />
-                  </button>
-                ))}
-              </div>
-
-              <p className="text-gray-400 text-xs mb-5">Каждое действие считается вопросом</p>
-
-              {/* Блок Premium — только для бесплатных */}
-              {!isTrial && !isPremium && (
-                <div className="w-full bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-4 mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">💎</span>
-                      <span className="font-bold text-gray-800 text-sm">Premium</span>
-                    </div>
-                    <span className="text-indigo-500 text-xs font-bold">449 ₽/мес</span>
-                  </div>
-                  <div className="space-y-1 mb-3">
-                    {['Безлимит вопросов к ИИ', 'Безлимит анализа файлов', 'Подготовка к ЕГЭ и ОГЭ', '×2 XP за все действия'].map(f => (
-                      <div key={f} className="flex items-center gap-2 text-gray-600 text-xs">
-                        <span className="text-indigo-400">✓</span>{f}
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => navigate('/pricing')}
-                    className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-bold rounded-xl active:scale-[0.98] transition-all"
-                  >
-                    Попробовать бесплатно
-                  </button>
-                </div>
-              )}
-
-              {sessions.length > 0 && (
-                <button
-                  onClick={() => setShowSidebar(true)}
-                  className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1.5 border border-purple-200 rounded-full px-4 py-2 hover:bg-purple-50 transition-colors"
-                >
-                  <Icon name="Clock" size={13} />
-                  История чатов ({sessions.length})
-                </button>
-              )}
-            </div>
-          ) : (
-            /* === СООБЩЕНИЯ === */
-            <div className="space-y-4">
-              {messages.map((msg, i) => {
-                const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1 && !isLoading;
-                return (
-                  <div key={i}>
-                    <div className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      {msg.role === 'assistant' && (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Icon name="Sparkles" size={16} className="text-white" />
-                        </div>
-                      )}
-                      <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-first' : ''}`}>
-                        <div className={`px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-md' : 'bg-gray-50 border border-gray-100 text-gray-800 rounded-bl-md'}`}>
-                          {msg.role === 'assistant' ? (
-                            <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:text-gray-900 prose-strong:text-gray-900 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:rounded text-sm">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                            </div>
-                          ) : (
-                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                          )}
-                        </div>
-                        <p className={`text-[11px] mt-1 px-1 ${msg.role === 'user' ? 'text-right text-gray-400' : 'text-gray-400'}`}>
-                          {msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Плашка после последнего ответа ИИ */}
-                    {isLastAssistant && (
-                      <>
-                        {/* Лимит 0 */}
-                        {!isPremium && !isTrial && remaining !== null && remaining === 0 && (
-                          <div className="mt-3 ml-10 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-4">
-                            <p className="font-bold text-gray-800 text-sm mb-0.5">Ты задал все бесплатные вопросы на сегодня</p>
-                            <p className="text-gray-500 text-xs mb-3">Продолжай обучение без ограничений</p>
-                            <button
-                              onClick={() => setShowLimitScreen(true)}
-                              className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-bold rounded-xl active:scale-[0.98] transition-all"
-                            >
-                              Подключить Premium
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Последний вопрос */}
-                        {!isPremium && !isTrial && remaining !== null && remaining === 1 && (
-                          <div className="mt-2 ml-10 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                            <span className="text-sm">⚡</span>
-                            <span className="text-amber-800 text-xs flex-1">Остался 1 вопрос — </span>
-                            <button onClick={() => setShowLimitScreen(true)} className="text-amber-700 text-xs font-bold hover:text-amber-900">Premium →</button>
-                          </div>
-                        )}
-
-                        {/* Блок "Продолжить обучение" — всегда после ответа */}
-                        <div className="mt-2 ml-10 flex gap-2 flex-wrap">
-                          <button
-                            onClick={() => sendMessage('Дай ещё задание')}
-                            className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-purple-50 hover:text-purple-700 rounded-full text-gray-600 transition-colors border border-gray-200 hover:border-purple-200"
-                          >
-                            Дай ещё задание
-                          </button>
-                          <button
-                            onClick={() => sendMessage('Объясни проще')}
-                            className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-purple-50 hover:text-purple-700 rounded-full text-gray-600 transition-colors border border-gray-200 hover:border-purple-200"
-                          >
-                            Объясни проще
-                          </button>
-                          {!isPremium && !isTrial && (
-                            <button
-                              onClick={() => setShowLimitScreen(true)}
-                              className="text-xs px-3 py-1.5 bg-purple-600 text-white rounded-full font-medium hover:bg-purple-700 transition-colors"
-                            >
-                              Подключить Premium
-                            </button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-              {isLoading && <ThinkingIndicator hasMaterials={selectedMaterials.length > 0} elapsed={thinkingElapsed} />}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Input */}
-      <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-3 pb-[calc(0.75rem+4rem+env(safe-area-inset-bottom,0px))] md:pb-3">
-        <div className="max-w-2xl mx-auto flex items-end gap-2">
-          <div className="flex-1">
-            <textarea
-              ref={inputRef}
-              value={question}
-              onChange={e => setQuestion(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isLimitReached ? 'Лимит вопросов исчерпан' : 'Задай любой вопрос…'}
-              rows={1}
-              disabled={isLoading || isLimitReached}
-              className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-purple-400 focus:bg-white transition-colors disabled:opacity-50 max-h-32"
-              style={{ minHeight: '44px' }}
-              onInput={(e) => {
-                const t = e.target as HTMLTextAreaElement;
-                t.style.height = 'auto';
-                t.style.height = Math.min(t.scrollHeight, 128) + 'px';
-              }}
-            />
-          </div>
-          <button
-            onClick={() => {
-              if (!limitsLoaded || isLoading) return;
-              if (isLimitReached) { setShowLimitScreen(true); } else { sendMessage(); }
-            }}
-            disabled={(!limitsLoaded || isLoading) || (!question.trim() && !isLimitReached)}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
-              isLimitReached
-                ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                : 'bg-purple-600 hover:bg-purple-700 disabled:bg-gray-200 disabled:cursor-not-allowed'
-            }`}
-          >
-            {isLoading
-              ? <Icon name="Loader2" size={20} className="text-white animate-spin" />
-              : !limitsLoaded
-              ? <Icon name="Loader2" size={18} className="text-gray-400 animate-spin" />
-              : isLimitReached
-              ? <Icon name="Lock" size={18} className="text-white" />
-              : <Icon name="ArrowUp" size={20} className={question.trim() ? 'text-white' : 'text-gray-400'} />
-            }
-          </button>
-        </div>
-        {!isTrial && !isPremium && (
-          <p className="max-w-2xl mx-auto mt-1.5 text-center text-[11px] text-gray-400">
-            Бесплатно: 3 вопроса в день · Безлимит — в Premium
-          </p>
-        )}
-        {isLoading && (
-          <p className="max-w-2xl mx-auto mt-1 text-center text-[11px] text-purple-400 animate-pulse">
-            Готовлю ответ, не закрывай страницу…
-          </p>
-        )}
-      </div>
 
       <BottomNav />
 
-      {showLimitScreen && (
-        <LimitScreen onClose={() => setShowLimitScreen(false)} navigate={navigate} />
-      )}
+      <style>{`
+        @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+      `}</style>
     </div>
   );
 };
