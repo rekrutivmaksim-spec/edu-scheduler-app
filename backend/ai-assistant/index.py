@@ -508,12 +508,50 @@ def _increment_photo_count(conn, user_id: int, from_bonus: bool):
     conn.commit()
     cur.close()
 
+def _is_ocr_refusal(text: str) -> bool:
+    refusal_markers = [
+        'не могу просматривать', 'не могу видеть', 'cannot view', 'can\'t view',
+        'cannot see', 'can\'t see', 'не вижу изображен', 'нет изображен',
+        'i cannot', 'i can\'t', 'unable to', 'не удалось', 'sorry',
+        'к сожалению', 'не предоставили', 'не могу распознать',
+        'however, i can help', 'однако, я могу помочь',
+    ]
+    lower = text.lower()
+    return any(m in lower for m in refusal_markers) or len(text.strip()) < 10
+
 def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
-    """OCR через DeepSeek Vision → решение через Llama-4-Maverick."""
+    """OCR через Gemini Vision / DeepSeek Vision → решение через Llama-4-Maverick."""
     recognized_text = None
 
-    # Шаг 1: OCR через DeepSeek Vision (если есть ключ)
-    if DEEPSEEK_API_KEY:
+    # Шаг 1a: OCR через Gemini Vision (приоритет — лучше всего работает с фото)
+    if AITUNNEL_GEMINI_KEY:
+        try:
+            with httpx.Client(timeout=httpx.Timeout(25.0, connect=5.0)) as h:
+                r_g = h.post("https://api.aitunnel.ru/v1/chat/completions", json={
+                    "model": "gemini-2.5-flash",
+                    "messages": [{"role": "user", "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+                        {"type": "text", "text": (
+                            "Это фото с учебным заданием. Точно распознай и перепиши ВЕСЬ текст дословно, "
+                            "включая цифры, формулы, условия, варианты ответов. Отвечай только текстом задачи, без комментариев."
+                        )}
+                    ]}],
+                    "temperature": 0.1, "max_tokens": 1500
+                }, headers={"Authorization": f"Bearer {AITUNNEL_GEMINI_KEY}", "Content-Type": "application/json"})
+                if r_g.status_code == 200:
+                    ocr_text = r_g.json()["choices"][0]["message"]["content"].strip()
+                    if not _is_ocr_refusal(ocr_text):
+                        recognized_text = ocr_text
+                        print(f"[PHOTO] OCR gemini ok: {recognized_text[:80]}", flush=True)
+                    else:
+                        print(f"[PHOTO] OCR gemini refused: {ocr_text[:80]}", flush=True)
+                else:
+                    print(f"[PHOTO] OCR gemini status={r_g.status_code}", flush=True)
+        except Exception as e:
+            print(f"[PHOTO] OCR gemini error: {e}", flush=True)
+
+    # Шаг 1b: Фолбек — DeepSeek Vision
+    if not recognized_text and DEEPSEEK_API_KEY:
         try:
             ocr_payload = {
                 "model": "deepseek-vl2",
@@ -530,12 +568,16 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
                 r = h.post("https://api.deepseek.com/v1/chat/completions", json=ocr_payload,
                            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"})
                 if r.status_code == 200:
-                    recognized_text = r.json()["choices"][0]["message"]["content"].strip()
-                    print(f"[PHOTO] OCR deepseek ok: {recognized_text[:80]}", flush=True)
+                    ocr_text = r.json()["choices"][0]["message"]["content"].strip()
+                    if not _is_ocr_refusal(ocr_text):
+                        recognized_text = ocr_text
+                        print(f"[PHOTO] OCR deepseek ok: {recognized_text[:80]}", flush=True)
+                    else:
+                        print(f"[PHOTO] OCR deepseek refused: {ocr_text[:80]}", flush=True)
         except Exception as e:
             print(f"[PHOTO] OCR deepseek error: {e}", flush=True)
 
-    # Фолбек: Llama Vision через aitunnel
+    # Шаг 1c: Фолбек — Llama Vision через aitunnel
     if not recognized_text and OPENROUTER_API_KEY:
         try:
             with httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0)) as h:
@@ -543,18 +585,22 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
                     "model": "meta-llama/llama-4-maverick",
                     "messages": [{"role": "user", "content": [
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
-                        {"type": "text", "text": "Распознай и перепиши весь текст задачи с этого фото точно дословно."}
+                        {"type": "text", "text": "Распознай и перепиши весь текст задачи с этого фото точно дословно. Только текст, без комментариев."}
                     ]}],
                     "temperature": 0.1, "max_tokens": 1000
                 }, headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"})
                 if r2.status_code == 200:
-                    recognized_text = r2.json()["choices"][0]["message"]["content"].strip()
-                    print(f"[PHOTO] OCR llama ok: {recognized_text[:80]}", flush=True)
+                    ocr_text = r2.json()["choices"][0]["message"]["content"].strip()
+                    if not _is_ocr_refusal(ocr_text):
+                        recognized_text = ocr_text
+                        print(f"[PHOTO] OCR llama ok: {recognized_text[:80]}", flush=True)
+                    else:
+                        print(f"[PHOTO] OCR llama refused: {ocr_text[:80]}", flush=True)
         except Exception as e2:
             print(f"[PHOTO] OCR llama error: {e2}", flush=True)
 
     if not recognized_text:
-        return {'recognized_text': '', 'solution': 'Не удалось распознать текст. Сфотографируй чётче при хорошем освещении.', 'subject': 'Неизвестно'}
+        return {'recognized_text': '', 'solution': 'Не удалось распознать текст. Попробуй сфотографировать чётче при хорошем освещении, чтобы весь текст задачи был виден.', 'subject': 'Неизвестно'}
 
     hint_text = f"\nДополнительно от ученика: {hint}" if hint else ""
     solve_prompt = (
