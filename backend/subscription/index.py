@@ -187,22 +187,25 @@ def get_limits(conn, user_id: int) -> dict:
     days_since_reg = (datetime.now() - created_at.replace(tzinfo=None)).days if created_at else 999
 
     if status['is_premium']:
+        daily_used = (u['daily_questions_used'] or 0) if u else 0
         return {
             **status,
             'is_soft_landing': False,
             'days_since_registration': days_since_reg,
             'free_days_total': 3,
             'limits': {
-                'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
-                'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
-                'materials': {'used': files_today, 'max': None, 'unlimited': True},
+                'schedule': {'used': schedule_count, 'max': 100, 'unlimited': True},
+                'tasks': {'used': tasks_count, 'max': 100, 'unlimited': True},
+                'materials': {'used': files_today, 'max': 100, 'unlimited': True},
                 'ai_questions': {
-                    'used': 0,
-                    'max': None,
+                    'used': daily_used,
+                    'max': 100,
                     'unlimited': True
                 },
+                'photos': {'used': 0, 'max': 100, 'unlimited': True},
+                'audio': {'used': 0, 'max': 100, 'unlimited': True},
                 'exam_predictions': {'unlimited': True},
-                'sessions': {'used': sessions_used, 'max': None, 'unlimited': True}
+                'sessions': {'used': sessions_used, 'max': 100, 'unlimited': True}
             }
         }
     elif status['is_trial']:
@@ -212,12 +215,14 @@ def get_limits(conn, user_id: int) -> dict:
             'days_since_registration': days_since_reg,
             'free_days_total': 3,
             'limits': {
-                'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
-                'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
-                'materials': {'used': files_today, 'max': None, 'unlimited': True},
-                'ai_questions': {'used': 0, 'max': None, 'unlimited': True},
+                'schedule': {'used': schedule_count, 'max': 100, 'unlimited': True},
+                'tasks': {'used': tasks_count, 'max': 100, 'unlimited': True},
+                'materials': {'used': files_today, 'max': 100, 'unlimited': True},
+                'ai_questions': {'used': 0, 'max': 100, 'unlimited': True},
+                'photos': {'used': 0, 'max': 100, 'unlimited': True},
+                'audio': {'used': 0, 'max': 100, 'unlimited': True},
                 'exam_predictions': {'unlimited': True, 'available': True},
-                'sessions': {'used': sessions_used, 'max': None, 'unlimited': True}
+                'sessions': {'used': sessions_used, 'max': 100, 'unlimited': True}
             }
         }
     elif is_soft_landing:

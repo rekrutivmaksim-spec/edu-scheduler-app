@@ -212,8 +212,8 @@ export default function Index() {
                   <Icon name="Zap" size={18} className="text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm">Бесплатный план — заходи каждый день</p>
-                  <p className="text-white/70 text-xs">Бонусные вопросы за ежедневный вход и стрик</p>
+                  <p className="text-white font-bold text-sm">Открой безлимит — подключи Premium</p>
+                  <p className="text-white/70 text-xs">Безлимит вопросов, фото, аудио и занятий каждый день</p>
                 </div>
                 <Icon name="ChevronRight" size={16} className="text-white/60" />
               </button>
@@ -229,8 +229,8 @@ export default function Index() {
                   <Icon name="Gift" size={18} className="text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm">Расширенный доступ: {daysLeft} {daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'}</p>
-                  <p className="text-white/70 text-xs">10 вопросов/день — потом плавно снизится</p>
+                  <p className="text-white font-bold text-sm">Безлимит ещё {daysLeft} {daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'} — успей попробовать всё!</p>
+                  <p className="text-white/70 text-xs">Все функции без ограничений — потом лимиты вернутся</p>
                 </div>
                 <Icon name="ChevronRight" size={16} className="text-white/60" />
               </button>

@@ -39,11 +39,11 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
       case 'streak_freeze':
         return 'Не потеряй свой стрик! С Premium ты можешь заморозить серию';
       case 'daily_quest':
-        return 'Premium — безлимитный доступ ко всем функциям и квестам';
+        return 'Premium — безлимит ко всем функциям, квестам и заданиям!';
       case 'pomodoro':
-        return 'Помодоро + аналитика = понимание, когда ты учишься эффективнее всего';
+        return 'С Premium — безлимитный помодоро + аналитика продуктивности';
       case 'limit':
-        return 'Ты на пороге! Разблокируй безлимит и не останавливай учёбу';
+        return 'Не останавливай учёбу! С Premium — безлимит на всё без ограничений';
       case 'daily_limit':
         return 'Суточный лимит исчерпан. Купи пакет — он не сгорает завтра!';
       default:

@@ -422,18 +422,18 @@ const Pricing = () => {
             </div>
             <div className="bg-green-50 rounded-2xl p-3 text-center">
               <p className="text-xs text-green-500 mb-1">С Premium</p>
-              <p className="text-2xl font-extrabold text-green-600">20</p>
-              <p className="text-[10px] text-green-500">вопросов в день</p>
+              <p className="text-2xl font-extrabold text-green-600">∞</p>
+              <p className="text-[10px] text-green-500">безлимит вопросов</p>
               <div className="mt-2 bg-green-100 rounded-lg h-2">
                 <div className="bg-green-500 rounded-lg h-2 w-full" />
               </div>
-              <p className="text-[10px] text-green-500 mt-1">~600 вопросов/мес</p>
+              <p className="text-[10px] text-green-500 mt-1">безлимит каждый день</p>
             </div>
           </div>
           <div className="mt-3 bg-indigo-50 rounded-xl p-3 flex items-center gap-2">
             <span className="text-lg">🎯</span>
             <p className="text-xs text-indigo-700">
-              <span className="font-bold">В 6 раз больше практики</span> — больше вопросов = больше подготовки каждый день
+              <span className="font-bold">Безлимитная практика</span> — без ограничений на вопросы, фото, аудио и занятия
             </p>
           </div>
         </div>

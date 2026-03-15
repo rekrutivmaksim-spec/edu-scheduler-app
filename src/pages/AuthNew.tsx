@@ -992,7 +992,7 @@ export default function AuthNew() {
           <div className="relative">
             <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white/25 shadow-2xl">
               <img
-                src="https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/b69685c0-746e-4777-94a7-ccdfb3f8c109.jpg"
+                src="https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/ef592987-60a8-4d25-bd1c-5df290ab0020.jpg"
                 alt="Ломоносов"
                 className="w-full h-full object-cover"
               />
