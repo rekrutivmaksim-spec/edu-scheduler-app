@@ -52,8 +52,6 @@ def err(status: int, msg: str) -> dict:
 
 def _get_user_id(token: str):
     """Декодирует JWT и возвращает user_id или None"""
-    if token in ('mock-token', 'guest_token'):
-        return 1
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
         return payload.get('user_id')

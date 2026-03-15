@@ -298,7 +298,7 @@ const Profile = () => {
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>
-              <p className="text-white/60 text-xs text-center mt-1.5">Отмена в любой момент · В 20 раз дешевле репетитора</p>
+              <p className="text-white/60 text-xs text-center mt-1.5">Отмена в любой момент · Безопасная оплата</p>
             </div>
             {/* Потеря */}
             <div className="bg-purple-900/90 px-5 py-3 flex items-center gap-2">

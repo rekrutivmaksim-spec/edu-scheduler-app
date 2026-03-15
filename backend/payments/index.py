@@ -80,8 +80,6 @@ SEASONAL_PLANS = {
 }
 
 def verify_token(token: str) -> dict:
-    if token == 'mock-token':
-        return {'user_id': 1}
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
     except Exception:

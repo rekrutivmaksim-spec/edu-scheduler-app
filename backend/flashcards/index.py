@@ -34,8 +34,6 @@ def err(status: int, body: dict) -> dict:
 
 
 def get_user_id(token: str):
-    if token in ('mock-token', 'guest_token'):
-        return 1
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
         return payload['user_id']

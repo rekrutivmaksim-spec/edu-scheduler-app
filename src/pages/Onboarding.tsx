@@ -86,7 +86,7 @@ export default function Onboarding() {
     setSaving(true);
     try {
       const token = authService.getToken();
-      if (token && token !== 'guest_token') {
+      if (token) {
         const res = await fetch(AUTH_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

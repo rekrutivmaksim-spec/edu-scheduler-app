@@ -11,7 +11,7 @@ const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-
 const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
 
 const PREMIUM_FEATURES = [
-  { icon: '🤖', text: '20 вопросов к ИИ в день (вместо 3–5)' },
+  { icon: '🤖', text: '20 вопросов к ИИ в день (вместо 3)' },
   { icon: '📚', text: 'До 5 занятий в день (вместо 3)' },
   { icon: '📄', text: '3 загрузки файлов в день (вместо 1)' },
   { icon: '🎓', text: 'Подготовка к ЕГЭ и ОГЭ по всем предметам' },
@@ -30,7 +30,7 @@ const GUARANTEE_FEATURES = [
 const FAQ = [
   {
     q: 'Чем отличается Premium от бесплатного?',
-    a: 'Бесплатно: от 3 до 10 вопросов к ИИ в день + до 3 занятий. При регистрации — 3 дня Premium бесплатно. Premium даёт 20 вопросов/день, 5 занятий и 3 загрузки файлов.',
+    a: 'Бесплатно: 3 вопроса к ИИ и 3 занятия в день + 1 загрузка файла. При регистрации — 3 дня Premium бесплатно. Premium даёт 20 вопросов/день, 5 занятий и 3 загрузки файлов.',
   },
   {
     q: 'Что такое пакет вопросов?',
@@ -243,7 +243,7 @@ const Pricing = () => {
           <div className="text-4xl mb-2">🚀</div>
           <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Studyfay Premium</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
-            Полный доступ к ИИ-репетитору каждый день.<br />В 20 раз дешевле живого репетитора.
+            Полный доступ к ИИ-репетитору каждый день.<br />Доступнее, чем живой репетитор.
           </p>
         </div>
 
@@ -257,7 +257,7 @@ const Pricing = () => {
             ))}
           </div>
           <div className="text-left">
-            <p className="text-sm font-bold text-gray-900">12 000+ учеников</p>
+            <p className="text-sm font-bold text-gray-900">Ученики выбирают</p>
             <p className="text-xs text-gray-500">готовятся к экзаменам с Studyfay</p>
           </div>
         </div>
@@ -433,7 +433,7 @@ const Pricing = () => {
           <div className="mt-3 bg-indigo-50 rounded-xl p-3 flex items-center gap-2">
             <span className="text-lg">🎯</span>
             <p className="text-xs text-indigo-700">
-              <span className="font-bold">В 6.7 раз больше практики</span> — ученики с Premium набирают в среднем на 15+ баллов больше на ЕГЭ
+              <span className="font-bold">В 6 раз больше практики</span> — больше вопросов = больше подготовки каждый день
             </p>
           </div>
         </div>
@@ -507,7 +507,7 @@ const Pricing = () => {
           </div>
           <div className="mt-3 bg-yellow-400/20 rounded-2xl px-4 py-3 flex items-center gap-2">
             <span className="text-yellow-300 text-xl">🏆</span>
-            <p className="text-yellow-300 font-bold text-sm">Экономия от 11 500 ₽ в месяц</p>
+            <p className="text-yellow-300 font-bold text-sm">Выгоднее репетитора в десятки раз</p>
           </div>
         </div>
 

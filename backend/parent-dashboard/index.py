@@ -75,8 +75,6 @@ def get_db_connection():
 
 def verify_student_token(token: str) -> dict:
     """Проверяет JWT токен студента и возвращает payload или None"""
-    if token == 'mock-token':
-        return {'user_id': 1}
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
         if payload.get('type') == 'parent':

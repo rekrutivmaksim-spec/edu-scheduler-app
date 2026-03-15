@@ -98,26 +98,6 @@ const LEVEL_REWARDS: Record<number, string> = {
   50: 'достижение «Уровень 50»',
 };
 
-const STREAK_REWARDS_INFO = [
-  { days: 3, reward: '+3 вопроса ИИ' },
-  { days: 7, reward: '+5 вопросов ИИ' },
-  { days: 14, reward: '+5 вопросов ИИ' },
-  { days: 21, reward: '+5 вопросов ИИ' },
-  { days: 30, reward: '+10 вопросов ИИ' },
-  { days: 60, reward: '+20 вопросов ИИ' },
-  { days: 90, reward: '+30 вопросов ИИ' },
-];
-
-const DEMO_ACHIEVEMENTS = [
-  { code: 'first_ai', title: 'Первый вопрос ИИ', icon: '🤖', xp_reward: 10, is_unlocked: false },
-  { code: 'first_session', title: 'Первое занятие', icon: '📚', xp_reward: 10, is_unlocked: false },
-  { code: 'streak_3', title: 'Серия 3 дня', icon: '🔥', xp_reward: 15, is_unlocked: false },
-  { code: 'streak_7', title: 'Серия 7 дней', icon: '🔥', xp_reward: 30, is_unlocked: false },
-  { code: 'streak_30', title: 'Серия 30 дней', icon: '🏆', xp_reward: 100, is_unlocked: false },
-  { code: 'first_file', title: 'Первый анализ файла', icon: '📎', xp_reward: 15, is_unlocked: false },
-  { code: 'first_exam', title: 'Первая подготовка к экзамену', icon: '🎓', xp_reward: 20, is_unlocked: false },
-];
-
 function LeaderRow({ item }: { item: LeaderItem }) {
   return (
     <div
@@ -259,13 +239,14 @@ export default function Achievements() {
       const data = await res.json();
       if (res.ok && data.success) {
         await loadProfile();
-        const nextReward = STREAK_REWARDS_INFO.find(r => r.days > streakDays);
+        const streakRewards = profile?.streak_rewards || [];
+        const nextReward = streakRewards.find(r => r.streak_days > streakDays && !r.is_claimed);
         setRewardModal({
           type: 'streak_reward',
           data: {
             streakDays,
             reward: data.reward_description || `+${streakDays} бонус-вопросов ИИ`,
-            nextReward: nextReward ? `через ${nextReward.days} дн.: ${nextReward.reward}` : undefined,
+            nextReward: nextReward ? `через ${nextReward.streak_days} дн.: ${nextReward.title}` : undefined,
           },
         });
       } else if (res.status === 403) {
@@ -306,9 +287,7 @@ export default function Achievements() {
     ? Math.min(100, Math.round((profile.xp_progress / profile.xp_needed) * 100))
     : 0;
 
-  const achievements = profile?.achievements?.length
-    ? profile.achievements
-    : DEMO_ACHIEVEMENTS;
+  const achievements = profile?.achievements || [];
 
   if (loading) {
     return (
@@ -419,7 +398,14 @@ export default function Achievements() {
                     </div>
                   );
                 })}
-                <p className="text-gray-400 text-xs mt-2 pl-2">Дальше награды повторяются.</p>
+                {(() => {
+                  const currentLevel = profile?.level || 1;
+                  const levelKeys = Object.keys(LEVEL_REWARDS).map(Number).sort((a, b) => a - b);
+                  const nextLevel = levelKeys.find(l => l > currentLevel);
+                  return nextLevel ? (
+                    <p className="text-gray-400 text-xs mt-2 pl-2">Следующая награда на уровне {nextLevel}</p>
+                  ) : null;
+                })()}
               </div>
             </div>
 
@@ -447,24 +433,23 @@ export default function Achievements() {
 
               <h4 className="font-bold text-gray-700 text-sm mb-2">Награды за серию:</h4>
               <div className="space-y-1.5 mb-4">
-                {STREAK_REWARDS_INFO.map(r => {
+                {(profile?.streak_rewards || []).map(r => {
                   const current = profile?.streak.current || 0;
-                  const reached = current >= r.days;
-                  const serverReward = profile?.streak_rewards?.find(sr => sr.streak_days === r.days);
-                  const canClaim = serverReward?.is_available && !serverReward?.is_claimed;
+                  const reached = current >= r.streak_days;
+                  const canClaim = r.is_available && !r.is_claimed;
                   return (
-                    <div key={r.days} className={`flex items-center gap-3 py-2 px-3 rounded-xl ${reached ? 'bg-orange-50' : 'bg-gray-50'}`}>
-                      <span className={`text-xs font-bold w-12 flex-shrink-0 ${reached ? 'text-orange-600' : 'text-gray-400'}`}>{r.days} дн.</span>
-                      <span className={`text-sm flex-1 ${reached ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{r.reward}</span>
+                    <div key={r.streak_days} className={`flex items-center gap-3 py-2 px-3 rounded-xl ${reached ? 'bg-orange-50' : 'bg-gray-50'}`}>
+                      <span className={`text-xs font-bold w-12 flex-shrink-0 ${reached ? 'text-orange-600' : 'text-gray-400'}`}>{r.streak_days} дн.</span>
+                      <span className={`text-sm flex-1 ${reached ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{r.title}</span>
                       {canClaim ? (
                         <button
-                          onClick={() => claimStreakReward(r.days)}
-                          disabled={claimingReward === r.days}
-                          className="text-xs bg-orange-500 text-white px-2.5 py-1 rounded-full font-medium"
+                          onClick={() => claimStreakReward(r.streak_days)}
+                          disabled={claimingReward === r.streak_days}
+                          className="text-xs bg-orange-500 text-white px-2.5 py-1 rounded-full font-medium disabled:opacity-50"
                         >
-                          {claimingReward === r.days ? '...' : 'Забрать'}
+                          {claimingReward === r.streak_days ? '...' : 'Забрать'}
                         </button>
-                      ) : reached ? (
+                      ) : r.is_claimed ? (
                         <span className="text-green-500 text-xs">✓</span>
                       ) : null}
                     </div>
@@ -524,10 +509,9 @@ export default function Achievements() {
                   ))}
                 </div>
                 <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                  <p className="text-gray-500 text-xs">Награда за все задания:</p>
+                  <p className="text-gray-500 text-xs">Бонус за все задания:</p>
                   <div className="flex gap-2">
-                    <span className="text-purple-600 text-xs font-bold">+10 XP</span>
-                    <span className="text-orange-500 text-xs font-bold">+2 бонусных вопроса</span>
+                    <span className="text-purple-600 text-xs font-bold">+100 XP</span>
                   </div>
                 </div>
               </div>
@@ -553,7 +537,7 @@ export default function Achievements() {
             </div>
 
             {/* Premium блок */}
-            {!profile?.is_premium && (
+            {!profile?.is_premium && !profile?.is_trial && (
               <div className="bg-gradient-to-br from-gray-900 to-purple-900 rounded-3xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-xl">👑</span>
@@ -618,26 +602,34 @@ export default function Achievements() {
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-1 gap-2">
-              {achievements.map(ach => (
-                <div
-                  key={ach.code}
-                  className={`bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4 ${!ach.is_unlocked ? 'opacity-50' : ''}`}
-                >
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl ${ach.is_unlocked ? 'bg-yellow-50' : 'bg-gray-100'}`}>
-                    {ach.icon || '🏆'}
+            {achievements.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 shadow-sm text-center">
+                <span className="text-4xl block mb-3">🏆</span>
+                <p className="font-bold text-gray-700">Пока нет достижений</p>
+                <p className="text-gray-400 text-sm mt-1">Занимайся, чтобы открывать награды</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2">
+                {achievements.map(ach => (
+                  <div
+                    key={ach.code}
+                    className={`bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4 ${!ach.is_unlocked ? 'opacity-50' : ''}`}
+                  >
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl ${ach.is_unlocked ? 'bg-yellow-50' : 'bg-gray-100'}`}>
+                      {ach.icon || '🏆'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-bold text-sm ${ach.is_unlocked ? 'text-gray-800' : 'text-gray-400'}`}>{ach.title}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">XP + бонусы</p>
+                    </div>
+                    {ach.is_unlocked
+                      ? <span className="text-green-500 text-lg flex-shrink-0">✓</span>
+                      : <Icon name="Lock" size={16} className="text-gray-300 flex-shrink-0" />
+                    }
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-bold text-sm ${ach.is_unlocked ? 'text-gray-800' : 'text-gray-400'}`}>{ach.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">XP + бонусы</p>
-                  </div>
-                  {ach.is_unlocked
-                    ? <span className="text-green-500 text-lg flex-shrink-0">✓</span>
-                    : <Icon name="Lock" size={16} className="text-gray-300 flex-shrink-0" />
-                  }
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </>
         )}
 
@@ -710,6 +702,7 @@ export default function Achievements() {
                 <span className="text-4xl block mb-3">📊</span>
                 <p className="font-bold text-gray-700">Рейтинг формируется</p>
                 <p className="text-gray-400 text-sm mt-1">Занимайся больше — попади в топ</p>
+                <p className="text-gray-400 text-sm mt-0.5">Заходи позже, данные скоро появятся</p>
               </div>
             ) : (
               <div className="space-y-2">

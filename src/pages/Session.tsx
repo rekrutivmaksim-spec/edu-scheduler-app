@@ -166,7 +166,7 @@ export default function Session() {
         setDaysToExam(getDaysToExam(user?.exam_date));
         // Перезагружаем лимиты
         const token = authService.getToken();
-        if (token && token !== 'guest_token') {
+        if (token) {
           fetch(`${SUBSCRIPTION_URL}?action=limits`, {
             headers: { Authorization: `Bearer ${token}` },
           }).then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => {
@@ -480,7 +480,7 @@ export default function Session() {
         if (isPremium) return;
         if (showCorrectAnswer) return;
         const token = authService.getToken();
-        if (token && token !== 'guest_token') {
+        if (token) {
           const countKey = 'sessions_completed_total';
           const prev = parseInt(localStorage.getItem(countKey) || '0', 10);
           const total = prev + 1;

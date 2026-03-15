@@ -18,18 +18,18 @@ const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-
 const QUICK_ACCESS_EGE = [
   { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/exam', color: 'bg-indigo-50 text-indigo-600' },
   { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
-  { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
+  { icon: 'Paperclip', label: 'Разобрать файл', path: '/materials', color: 'bg-pink-50 text-pink-600' },
 ];
 
 const QUICK_ACCESS_UNI = [
-  { icon: 'GraduationCap', label: 'ВУЗ и конспекты', path: '/university', color: 'bg-indigo-50 text-indigo-600' },
+  { icon: 'GraduationCap', label: 'Учёба и конспекты', path: '/university', color: 'bg-indigo-50 text-indigo-600' },
   { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
-  { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
+  { icon: 'Paperclip', label: 'Разобрать файл', path: '/materials', color: 'bg-pink-50 text-pink-600' },
 ];
 
 const QUICK_ACCESS_OTHER = [
   { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
-  { icon: 'Paperclip', label: 'Разобрать файл', path: '/university', color: 'bg-pink-50 text-pink-600' },
+  { icon: 'Paperclip', label: 'Разобрать файл', path: '/materials', color: 'bg-pink-50 text-pink-600' },
   { icon: 'Trophy', label: 'Достижения', path: '/achievements', color: 'bg-amber-50 text-amber-600' },
 ];
 
@@ -74,7 +74,7 @@ export default function Index() {
   const navigate = useNavigate();
   const [user, setUser] = useState(authService.getUser());
   const [gamification, setGamification] = useState<GamificationProfile | null>(null);
-  const [todayLessons, setTodayLessons] = useState<Lesson[]>([]);
+  const [todayLessons] = useState<Lesson[]>([]);
   const limits = useLimits();
   // sessionDone — пользователь уже прошёл занятие сегодня (храним в localStorage)
   const [sessionDone, setSessionDone] = useState(() => {
@@ -101,7 +101,6 @@ export default function Index() {
       setUser(verifiedUser);
       if (!verifiedUser.onboarding_completed) { navigate('/onboarding'); return; }
       loadGamification();
-      loadTodaySchedule();
       dailyCheckin();
     };
     init();
@@ -119,10 +118,6 @@ export default function Index() {
     } catch { /* silent */ }
   };
 
-  const loadTodaySchedule = async () => {
-    // Schedule function not available yet
-    setTodayLessons([]);
-  };
 
   const firstName = user?.full_name?.split(' ')[0] || 'Студент';
   const streak = gamification?.streak?.current ?? 0;
@@ -320,7 +315,7 @@ export default function Index() {
               <div className="flex items-center justify-between mb-1">
                 <span className="text-white/80 text-xs font-medium uppercase tracking-wide">Сегодняшняя сессия</span>
                 <span className="text-white/80 text-xs flex items-center gap-1 bg-white/20 rounded-lg px-2 py-0.5">
-                  <Icon name="Zap" size={11} /> 2 мин
+                  <Icon name="Zap" size={11} /> ~5 мин
                 </span>
               </div>
               <h2 className="text-white font-bold text-lg leading-tight">{topic.topic}</h2>
@@ -346,7 +341,7 @@ export default function Index() {
                 className="w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.45)] active:scale-[0.98] transition-all"
                 style={{ animation: 'pulse-cta 2.5s ease-in-out infinite' }}
               >
-                Начать за 2 минуты <Icon name="Zap" size={16} className="ml-1.5" />
+                Начать занятие <Icon name="Zap" size={16} className="ml-1.5" />
               </Button>
               <p className="text-center text-xs text-gray-400 mt-2">
                 Объяснение → пример → задание → готово
@@ -490,10 +485,10 @@ export default function Index() {
           </div>
         )}
 
-        {/* ===== БЛОК 4: МОНЕТИЗАЦИЯ (streak ≥ 5, есть лимиты) ===== */}
-        {streak >= 5 && (limits.isPremium || limits.isTrial || (limits.aiRemaining() > 0 && limits.sessionsRemaining() > 0)) && (
+        {/* ===== БЛОК 4: МОТИВАЦИЯ (streak ≥ 5) ===== */}
+        {streak >= 5 && (
           <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-3xl px-5 py-4 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3">
               <span className="text-2xl">🚀</span>
               <div>
                 <p className="text-white font-bold text-base">Ты занимаешься {streak} {streakWord(streak)} подряд!</p>
@@ -502,12 +497,14 @@ export default function Index() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => navigate('/pricing')}
-              className="w-full bg-white text-orange-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
-            >
-              Полный доступ — от 200 ₽/мес
-            </button>
+            {!limits.isPremium && !limits.isTrial && (
+              <button
+                onClick={() => navigate('/pricing')}
+                className="w-full mt-3 bg-white text-orange-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
+              >
+                Полный доступ — от 200 ₽/мес
+              </button>
+            )}
           </div>
         )}
 

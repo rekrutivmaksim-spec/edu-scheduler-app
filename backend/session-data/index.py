@@ -82,7 +82,7 @@ def handler(event: dict, context) -> dict:
     is_premium = False
 
     token = auth_header.replace('Bearer ', '').strip() if auth_header else ''
-    if token and token != 'guest_token':
+    if token:
         payload = verify_token(token)
         if payload:
             user_id = payload.get('user_id')
