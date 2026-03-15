@@ -1017,9 +1017,7 @@ export default function AuthNew() {
           <p className="text-white/70 text-sm leading-relaxed mb-2">
             ИИ-репетитор для ЕГЭ, ОГЭ и учёбы в вузе.<br />Объяснит тему, даст задание, разберёт ошибки.
           </p>
-          <p className="text-white/90 text-sm font-medium">
-            Уже помогает 12 000+ учеников по всей России
-          </p>
+          <p className="text-white/90 text-sm font-medium">Уже помогает 500+ учеников по всей России</p>
         </div>
 
         {/* 3 выгоды */}
