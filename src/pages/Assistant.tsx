@@ -575,7 +575,7 @@ const Assistant = () => {
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ paddingBottom: '140px' }}>
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ paddingBottom: '180px' }}>
         {/* Empty state with quick actions */}
         {messages.length === 0 && !isLoading && (
           <div className="flex-1 flex flex-col items-center justify-center px-6 pb-8 pt-8">
@@ -662,7 +662,7 @@ const Assistant = () => {
       </div>
 
       {/* Input area */}
-      <div className="fixed bottom-14 left-0 right-0 bg-white border-t border-gray-100 z-20" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className="fixed left-0 right-0 bg-white border-t border-gray-100 z-20" style={{ bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}>
         {imagePreview && (
           <div className="px-4 pt-3">
             <ImagePreview src={imagePreview} onRemove={() => { setImagePreview(null); setImageFile(null); }} />
