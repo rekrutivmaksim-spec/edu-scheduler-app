@@ -119,14 +119,11 @@ export const refundReplicateBalance = async (
     });
 
     if (!refundResponse.ok) {
-      console.error('Failed to refund balance');
       return false;
     }
 
-    console.log(`Refunded ${steps} steps for user ${user.id}`);
     return true;
-  } catch (error) {
-    console.error('Error refunding balance:', error);
+  } catch {
     return false;
   }
 };

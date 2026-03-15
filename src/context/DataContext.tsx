@@ -83,7 +83,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('session_token');
     
     if (!token) {
-      console.error('[DataContext] Нет токена в localStorage при запросе данных!');
       throw new Error('Нет токена авторизации');
     }
     
@@ -131,8 +130,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
       setHasMoreLookbooks(hasMore);
       setHasFetchedLookbooks(true);
-    } catch (error) {
-      console.error('Error fetching lookbooks:', error);
+    } catch {
       if (reset) {
         setLookbooks([]);
       }
@@ -178,8 +176,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
       setHasMoreHistory(hasMore);
       setHasFetchedHistory(true);
-    } catch (error) {
-      console.error('Error fetching history:', error);
+    } catch {
       if (reset) {
         setHistory([]);
       }
@@ -237,8 +234,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
       setHasMoreColorType(hasMore);
       setHasFetchedColorTypeHistory(true);
-    } catch (error) {
-      console.error('Error fetching color type history:', error);
+    } catch {
       if (reset) {
         setColorTypeHistory([]);
       }

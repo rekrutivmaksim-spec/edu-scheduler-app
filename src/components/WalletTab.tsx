@@ -103,8 +103,8 @@ export default function WalletTab() {
         setBalanceHistory(data.transactions || []);
         setTotalTransactions(data.total || data.transactions.length);
       }
-    } catch (error) {
-      console.error("Ошибка загрузки истории операций:", error);
+    } catch {
+      /* silent */
     }
   };
 

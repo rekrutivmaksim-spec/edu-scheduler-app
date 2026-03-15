@@ -67,17 +67,14 @@ export default function ImageCropper({
 
   const handleCropComplete = async () => {
     if (!imgRef.current || !completedCrop) {
-      console.error('Missing imgRef or completedCrop');
       return;
     }
 
     if (!imgRef.current.complete || imgRef.current.naturalWidth === 0) {
-      console.error('Image not loaded properly');
       return;
     }
 
     if (completedCrop.width <= 0 || completedCrop.height <= 0) {
-      console.error('Invalid crop dimensions');
       return;
     }
 
@@ -87,7 +84,6 @@ export default function ImageCropper({
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        console.error('Failed to get canvas context');
         setIsProcessing(false);
         return;
       }
@@ -111,12 +107,10 @@ export default function ImageCropper({
       );
 
       const croppedImage = canvas.toDataURL('image/jpeg', 0.95);
-      console.log('Crop complete, calling callback');
       onCropComplete(croppedImage);
       setIsProcessing(false);
       onClose();
-    } catch (error) {
-      console.error('Error cropping image:', error);
+    } catch {
       setIsProcessing(false);
     }
   };

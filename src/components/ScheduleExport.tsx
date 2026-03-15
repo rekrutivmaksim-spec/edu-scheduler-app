@@ -111,8 +111,7 @@ const ScheduleExport = ({ schedule }: ScheduleExportProps) => {
         title: "PDF создан!",
         description: "Расписание успешно экспортировано",
       });
-    } catch (error) {
-      console.error('Export PDF error:', error);
+    } catch {
       toast({
         title: "Ошибка экспорта",
         description: "Не удалось создать PDF",
@@ -188,8 +187,7 @@ const ScheduleExport = ({ schedule }: ScheduleExportProps) => {
         title: "Картинка создана!",
         description: "Расписание сохранено как изображение",
       });
-    } catch (error) {
-      console.error('Export PNG error:', error);
+    } catch {
       toast({
         title: "Ошибка экспорта",
         description: "Не удалось создать картинку",

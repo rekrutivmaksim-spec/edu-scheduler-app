@@ -42,8 +42,8 @@ const ReferralProgram = () => {
         const data = await response.json();
         setReferralData(data);
       }
-    } catch (error) {
-      console.error('Failed to load referral data:', error);
+    } catch {
+      /* silent */
     } finally {
       setLoading(false);
     }

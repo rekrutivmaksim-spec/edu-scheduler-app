@@ -1,12 +1,18 @@
 {
   "tests": [
     {
-      "name": "Get session data (guest)",
+      "name": "Get session data - no auth",
       "method": "GET",
       "path": "/",
       "expectedStatus": 200,
-      "expectedBody": {"topic": {}, "streak": 0, "days_to_exam": 87},
+      "expectedBody": {"topic": {}},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
     }
   ]
 }

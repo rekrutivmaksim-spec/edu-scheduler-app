@@ -51,8 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setUser(null);
         }
-      } catch (error) {
-        console.error('Session validation failed:', error);
+      } catch {
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -108,8 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: 'include',
         body: JSON.stringify({ action: 'logout' })
       });
-    } catch (error) {
-      console.error('Logout failed:', error);
+    } catch {
+      /* silent */
     }
     localStorage.removeItem('session_token');
     setUser(null);

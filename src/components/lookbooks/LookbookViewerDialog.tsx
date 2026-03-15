@@ -70,29 +70,20 @@ export default function LookbookViewerDialog({ lookbook, onClose, imageProxyApi 
       yPos += 20;
       
       const loadImage = async (url: string): Promise<string> => {
-        console.log('[PDF] Loading image:', url);
-        try {
-          if (url.startsWith('data:')) {
-            console.log('[PDF] Image is already base64');
-            return url;
-          }
-
-          console.log('[PDF] Using image proxy for:', url);
-          const proxyUrl = `${imageProxyApi}?url=${encodeURIComponent(url)}`;
-          const response = await fetch(proxyUrl);
-          
-          if (!response.ok) {
-            throw new Error(`Proxy failed: HTTP ${response.status}`);
-          }
-          
-          const data = await response.json();
-          console.log('[PDF] Image loaded via proxy, size:', data.data_url.length);
-          
-          return data.data_url;
-        } catch (error) {
-          console.error('[PDF] Error loading image:', url, error);
-          throw error;
+        if (url.startsWith('data:')) {
+          return url;
         }
+
+        const proxyUrl = `${imageProxyApi}?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+          throw new Error(`Proxy failed: HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        return data.data_url;
       };
       
       const photos = lookbook.photos;
@@ -116,8 +107,8 @@ export default function LookbookViewerDialog({ lookbook, onClose, imageProxyApi 
         try {
           const imgData = await loadImage(photos[i]);
           pdf.addImage(imgData, 'JPEG', currentX, currentY, imageWidth, imageHeight, undefined, 'FAST');
-        } catch (e) {
-          console.error('Failed to load image:', e);
+        } catch {
+          /* silent - skip failed image */
         }
         
         photosInRow++;
@@ -133,8 +124,7 @@ export default function LookbookViewerDialog({ lookbook, onClose, imageProxyApi 
       
       pdf.save(`${encodeText(lookbook.name)}.pdf`);
       toast.success('PDF скачан!');
-    } catch (error) {
-      console.error('PDF generation error:', error);
+    } catch {
       toast.error('Ошибка создания PDF');
     } finally {
       setIsGeneratingPDF(false);

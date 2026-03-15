@@ -40,11 +40,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setBalanceInfo(data);
-      } else {
-        console.error('Failed to fetch balance:', response.status);
       }
-    } catch (error) {
-      console.error('Error fetching balance:', error);
+    } catch {
+      /* silent */
     } finally {
       setIsLoading(false);
     }

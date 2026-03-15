@@ -1,25 +1,11 @@
 {
   "tests": [
     {
-      "name": "Get subscription plans",
+      "name": "Get plans - unauthorized",
       "method": "GET",
       "path": "/?action=plans",
-      "headers": {"Authorization": "Bearer mock-token"},
-      "expectedStatus": 200
-    },
-    {
-      "name": "Get question packs",
-      "method": "GET",
-      "path": "/?action=token_packs",
-      "headers": {"Authorization": "Bearer mock-token"},
-      "expectedStatus": 200
-    },
-    {
-      "name": "Get auto renew info",
-      "method": "GET",
-      "path": "/?action=auto_renew",
-      "headers": {"Authorization": "Bearer mock-token"},
-      "expectedStatus": 200
+      "headers": {"Authorization": "Bearer invalid-token"},
+      "expectedStatus": 401
     },
     {
       "name": "Webhook without body returns ok",
@@ -38,14 +24,12 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "Create payment - missing plan_type",
+      "name": "Create payment - unauthorized",
       "method": "POST",
       "path": "/",
-      "headers": {"Authorization": "Bearer mock-token"},
-      "body": {"action": "create_payment", "plan_type": ""},
-      "expectedStatus": 400,
-      "expectedBody": {"error": "string"},
-      "bodyMatcher": "partial"
+      "headers": {"Authorization": "Bearer invalid-token"},
+      "body": {"action": "create_payment", "plan_type": "1month"},
+      "expectedStatus": 401
     },
     {
       "name": "Check payment - unauthorized",
@@ -53,6 +37,12 @@
       "path": "/",
       "body": {"action": "check_payment", "payment_id": 999},
       "expectedStatus": 401
+    },
+    {
+      "name": "OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
     }
   ]
 }

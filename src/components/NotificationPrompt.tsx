@@ -63,8 +63,7 @@ const NotificationPrompt = () => {
         setIsVisible(false);
         localStorage.setItem('notification_prompt_dismissed', 'true');
       }
-    } catch (error) {
-      console.error('Ошибка включения уведомлений:', error);
+    } catch {
       toast({
         title: 'Ошибка',
         description: 'Не удалось включить уведомления',
@@ -87,8 +86,7 @@ const NotificationPrompt = () => {
         title: 'Уведомления отключены',
         description: 'Вы не будете получать push-уведомления'
       });
-    } catch (error) {
-      console.error('Ошибка отключения уведомлений:', error);
+    } catch {
       toast({
         title: 'Ошибка',
         description: 'Не удалось отключить уведомления',

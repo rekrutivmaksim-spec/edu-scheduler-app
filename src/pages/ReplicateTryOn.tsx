@@ -87,21 +87,17 @@ const proxyFalImage = async (falUrl: string): Promise<string> => {
       return falUrl;
     }
 
-    console.log("[ImageProxy] Proxying fal.ai image:", falUrl);
     const response = await fetch(
       `${IMAGE_PROXY_API}?url=${encodeURIComponent(falUrl)}`,
     );
 
     if (!response.ok) {
-      console.error("[ImageProxy] Failed to proxy image:", response.status);
       return falUrl;
     }
 
     const data = await response.json();
-    console.log("[ImageProxy] Successfully proxied image");
     return data.data_url;
-  } catch (error) {
-    console.error("[ImageProxy] Error proxying image:", error);
+  } catch {
     return falUrl;
   }
 };
@@ -247,8 +243,7 @@ export default function ReplicateTryOn() {
         img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
-    } catch (error) {
-      console.error("Image upload error:", error);
+    } catch {
       toast.error("Ошибка загрузки изображения");
     }
   };
@@ -259,8 +254,7 @@ export default function ReplicateTryOn() {
       setShowCropper(false);
       setTempImageForCrop(null);
       toast.success("Фото обрезано и загружено");
-    } catch (error) {
-      console.error("Crop processing error:", error);
+    } catch {
       toast.error("Ошибка обработки обрезанного изображения");
     }
   };
@@ -328,8 +322,7 @@ export default function ReplicateTryOn() {
       );
 
       setSelectedClothingItems((prev) => [...prev, ...resizedImages]);
-    } catch (error) {
-      console.error("Image resize error:", error);
+    } catch {
       toast.error("Ошибка обработки изображений");
     }
 
@@ -418,20 +411,11 @@ export default function ReplicateTryOn() {
   };
 
   const handleGenerate = async () => {
-    const callId = Math.random().toString(36).substring(7);
-    console.log(
-      `[NanoBananaPro-CALL-START] Function called, ID: ${callId}, isGenerating: ${isGenerating}, inProgress: ${isNanoBananaRequestInProgress.current}`,
-    );
-
     if (isNanoBananaRequestInProgress.current) {
-      console.log(
-        `[NanoBananaPro-CALL-${callId}] BLOCKED: Request already in progress`,
-      );
       return;
     }
 
     isNanoBananaRequestInProgress.current = true;
-    console.log(`[NanoBananaPro-CALL-${callId}] Lock acquired, proceeding...`);
 
     try {
       if (!uploadedImage) {
@@ -504,10 +488,6 @@ export default function ReplicateTryOn() {
         {
           duration: 8000,
         },
-      );
-
-      console.log(
-        `[NanoBananaPro-CALL-${callId}] About to send fetch request...`,
       );
 
       const token = localStorage.getItem("session_token");

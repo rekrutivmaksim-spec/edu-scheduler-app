@@ -38,7 +38,6 @@ export default function HistoryTab({ userId }: HistoryTabProps) {
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    console.log('[HistoryTab] userId received:', userId);
     setIsLoading(false);
   }, [userId]);
 
@@ -104,8 +103,7 @@ export default function HistoryTab({ userId }: HistoryTabProps) {
       } else {
         throw new Error('Failed to update lookbook');
       }
-    } catch (error) {
-      console.error('Failed to add to lookbook:', error);
+    } catch {
       toast.error('Ошибка добавления в лукбук');
     } finally {
       setIsAdding(false);
@@ -135,8 +133,7 @@ export default function HistoryTab({ userId }: HistoryTabProps) {
       } else {
         throw new Error('Failed to delete');
       }
-    } catch (error) {
-      console.error('Failed to delete from history:', error);
+    } catch {
       toast.error('Ошибка удаления');
     }
   };
@@ -168,8 +165,7 @@ export default function HistoryTab({ userId }: HistoryTabProps) {
       toast.success(`Удалено ${count} ${photoWord}`);
       setSelectedItems([]);
       await refetchHistory();
-    } catch (error) {
-      console.error('Failed to delete selected:', error);
+    } catch {
       toast.error('Ошибка удаления');
     }
   };
@@ -182,7 +178,6 @@ export default function HistoryTab({ userId }: HistoryTabProps) {
       const needsProxy = !imageUrl.includes('cdn.poehali.dev');
       
       if (needsProxy) {
-        console.log('[HistoryTab] External URL detected, proxying for download...');
         const IMAGE_PROXY_API = 'https://functions.poehali.dev/7f105c4b-f9e7-4df3-9f64-3d35895b8e90';
         
         const proxyResponse = await fetch(IMAGE_PROXY_API, {
@@ -202,8 +197,6 @@ export default function HistoryTab({ userId }: HistoryTabProps) {
         const response = await fetch(dataUrl);
         blob = await response.blob();
       } else {
-        // cdn.poehali.dev URL - direct fetch
-        console.log('[HistoryTab] Own CDN URL detected, downloading directly');
         const response = await fetch(imageUrl);
         blob = await response.blob();
       }
@@ -221,8 +214,7 @@ export default function HistoryTab({ userId }: HistoryTabProps) {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
       
       toast.success('Фото скачано');
-    } catch (error) {
-      console.error('Failed to download image:', error);
+    } catch {
       toast.error('Ошибка скачивания');
     }
   };

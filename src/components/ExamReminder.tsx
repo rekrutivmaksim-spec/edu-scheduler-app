@@ -100,8 +100,8 @@ const ExamReminder = ({ isOpen, onClose }: ExamReminderProps) => {
               requireInteraction: false,
               vibrate: [200, 100, 200]
             });
-          } catch (error) {
-            console.error('Ошибка показа уведомления:', error);
+          } catch {
+            /* silent */
           }
         }
 
@@ -118,8 +118,7 @@ const ExamReminder = ({ isOpen, onClose }: ExamReminderProps) => {
       } else {
         throw new Error('Не удалось создать напоминание');
       }
-    } catch (error) {
-      console.error('Ошибка создания напоминания:', error);
+    } catch {
       toast({
         title: 'Ошибка',
         description: 'Не удалось создать напоминание об экзамене',

@@ -198,8 +198,7 @@ export async function startGeneration(params: GenerationParams) {
           } else if (statusData.status === 'failed') {
             throw new Error(statusData.error || 'Generation failed');
           }
-        } catch (error) {
-          console.error('Status check error:', error);
+        } catch {
           setIsGenerating(false);
           setGenerationStatus('');
           setTaskId(null);
