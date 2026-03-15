@@ -267,10 +267,10 @@ const Profile = () => {
               </div>
               <div className="space-y-2 mb-4">
                 {[
-                  'Безлимит занятий',
-                  'Слабые темы определяются автоматически',
-                  'Подготовка к ЕГЭ быстрее в 2 раза',
-                  'Задавай вопросы без ограничений',
+                  '20 вопросов к ИИ каждый день',
+                  '5 занятий с разбором ошибок',
+                  'Загрузка PDF, фото задач и конспектов',
+                  'Подготовка к ЕГЭ/ОГЭ по всем предметам',
                 ].map(f => (
                   <div key={f} className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded-full bg-white/25 flex items-center justify-center flex-shrink-0">
@@ -298,13 +298,13 @@ const Profile = () => {
                   <p className="text-white/50 text-xs">в месяц</p>
                 </div>
               </div>
-              <p className="text-white/60 text-xs text-center mt-1.5">🔓 Отмена в любой момент · Бесплатно: 1 занятие сегодня</p>
+              <p className="text-white/60 text-xs text-center mt-1.5">Отмена в любой момент · В 20 раз дешевле репетитора</p>
             </div>
             {/* Потеря */}
             <div className="bg-purple-900/90 px-5 py-3 flex items-center gap-2">
               <span className="text-yellow-400 text-sm">⚠️</span>
               <p className="text-white/70 text-xs">
-                Сегодня доступно: <span className="text-white font-semibold">1 занятие.</span> Остальное откроется с Premium
+                Premium открывает <span className="text-white font-semibold">20 вопросов/день</span> и 5 занятий ежедневно
               </p>
             </div>
           </div>

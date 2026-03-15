@@ -17,16 +17,34 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
       label: "Главная",
     },
     {
-      id: "virtual-fitting",
-      path: "/virtualfitting",
-      icon: "Shirt",
-      label: "Виртуальная примерочная",
+      id: "assistant",
+      path: "/assistant",
+      icon: "Bot",
+      label: "ИИ-репетитор",
     },
     {
-      id: "color-analysis",
-      path: "/colortype",
-      icon: "Palette",
-      label: "Определение цветотипа",
+      id: "exam",
+      path: "/exam",
+      icon: "BookOpen",
+      label: "Подготовка к ЕГЭ",
+    },
+    {
+      id: "university",
+      path: "/university",
+      icon: "GraduationCap",
+      label: "Учёба",
+    },
+    {
+      id: "achievements",
+      path: "/achievements",
+      icon: "Trophy",
+      label: "Достижения",
+    },
+    {
+      id: "pricing",
+      path: "/pricing",
+      icon: "Crown",
+      label: "Premium",
     },
   ];
 

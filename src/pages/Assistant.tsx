@@ -767,16 +767,16 @@ const Assistant = () => {
               </button>
               <span className="text-4xl block mb-3">&#9199;</span>
               <h2 className="text-white font-extrabold text-xl mb-1">Вопросы на сегодня закончились</h2>
-              <p className="text-white/75 text-sm">Продолжай обучение без ограничений:</p>
+              <p className="text-white/75 text-sm">С Premium ты сможешь учиться без ограничений:</p>
               <div className="mt-3 space-y-1.5">
-                {['Безлимит вопросов к ИИ', 'Распознавание голоса', 'Решение по фото', 'Подготовка к ЕГЭ и ОГЭ', 'x2 XP'].map(f => (
+                {['20 вопросов к ИИ каждый день', 'Распознавание голоса', 'Решение задач по фото', 'Подготовка к ЕГЭ/ОГЭ по всем предметам', 'x2 XP за каждое действие'].map(f => (
                   <div key={f} className="flex items-center gap-2 text-white/85 text-sm">
                     <Icon name="Check" size={14} className="text-white/60" />{f}
                   </div>
                 ))}
               </div>
               <div className="mt-3 bg-white/20 rounded-xl px-4 py-2 inline-block">
-                <span className="text-white font-bold">499 rub/мес</span>
+                <span className="text-white font-bold">от 200 ₽/мес</span>
               </div>
             </div>
             <div className="px-5 pb-8 space-y-3">

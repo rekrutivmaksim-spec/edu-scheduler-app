@@ -59,9 +59,9 @@ const VK_AUTH_URL = 'https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f34
 const DEMO_LIMIT = 2;
 
 const benefits = [
-  { icon: 'Lightbulb', text: 'Объясню тему простыми словами' },
-  { icon: 'Target', text: 'Подберу задания под твой уровень' },
-  { icon: 'FileText', text: 'Загружай PDF/Word — объясню и отвечу по материалу' },
+  { icon: 'Lightbulb', text: 'Объясню любую тему за 2 минуты' },
+  { icon: 'Target', text: 'Подберу задания и проверю ответы' },
+  { icon: 'FileText', text: 'Разберу PDF, фото задачи и конспекты' },
 ];
 
 // Категории → чипы тем
@@ -103,7 +103,7 @@ interface DemoMessage {
 
 const GREETING: DemoMessage = {
   role: 'assistant',
-  text: 'Привет! Я помогу объяснить тему, разобрать задание или ответить по материалу.\nВыбери с чего начать 👇',
+  text: 'Привет! Я твой ИИ-репетитор. Объясню любую тему, дам задание и проверю ответ.\nПопробуй — выбери категорию 👇',
 };
 
 // --- Статичные компоненты ВНЕ AuthNew — не пересоздаются при каждом ренедере ---
@@ -636,12 +636,12 @@ export default function AuthNew() {
                 <Icon name="GraduationCap" size={18} className="text-indigo-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-800 text-base">Продолжим?</h3>
-                <p className="text-gray-400 text-xs">Регистрация займёт 10 секунд</p>
+                <h3 className="font-bold text-gray-800 text-base">Тебе понравилось?</h3>
+                <p className="text-gray-400 text-xs">Создай аккаунт и продолжи бесплатно</p>
               </div>
             </div>
             <div className="space-y-1.5 mb-4 pl-1">
-              {['3 дня Premium бесплатно', 'История диалога сохранится', 'Доступ каждый день'].map(t => (
+              {['3 дня полного доступа — бесплатно', 'Вся история диалогов сохранится', 'До 20 вопросов к ИИ каждый день'].map(t => (
                 <p key={t} className="text-gray-500 text-xs flex items-center gap-1.5">
                   <span className="text-green-500">✓</span> {t}
                 </p>
@@ -654,7 +654,7 @@ export default function AuthNew() {
               >
                 Создать аккаунт
               </Button>
-              <p className="text-center text-gray-400 text-xs">Бесплатно. Без карты.</p>
+              <p className="text-center text-gray-400 text-xs">Без карты. Отменять нечего.</p>
               <Button
                 variant="outline"
                 onClick={() => setScreen('login')}
@@ -805,13 +805,16 @@ export default function AuthNew() {
           <div className="bg-white rounded-3xl p-6 shadow-2xl">
             {/* Заголовок с контекстом */}
             <div className="mb-5">
-              <h2 className="text-2xl font-extrabold text-gray-800 mb-1">Продолжим?</h2>
+              <h2 className="text-2xl font-extrabold text-gray-800 mb-1">Создай аккаунт за 10 сек</h2>
               <div className="flex flex-col gap-1">
                 <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                  <span className="text-green-500">✓</span> 3 дня Premium бесплатно
+                  <span className="text-green-500">✓</span> 3 дня Premium — бесплатно
                 </p>
                 <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                  <span className="text-green-500">✓</span> История диалога сохранится
+                  <span className="text-green-500">✓</span> Вся история диалогов сохранится
+                </p>
+                <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                  <span className="text-green-500">✓</span> Без карты, без подписки
                 </p>
               </div>
             </div>
@@ -984,16 +987,32 @@ export default function AuthNew() {
           <span className="text-white/70 text-xs font-semibold tracking-widest uppercase">Studyfay</span>
         </div>
 
+        {/* Ломоносов */}
+        <div className="flex justify-center">
+          <div className="relative">
+            <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white/25 shadow-2xl">
+              <img
+                src="https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/b69685c0-746e-4777-94a7-ccdfb3f8c109.jpg"
+                alt="Ломоносов"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
+              <span className="text-lg">🎓</span>
+            </div>
+          </div>
+        </div>
+
         {/* Ценность */}
         <div className="text-center">
           <h1 className="text-[2rem] font-extrabold text-white leading-tight tracking-tight mb-2">
-            ИИ-репетитор для<br />экзаменов и учёбы
+            Сдай экзамен<br />на высший балл
           </h1>
           <p className="text-white/70 text-sm leading-relaxed mb-2">
-            ЕГЭ/ОГЭ и ВУЗ: объяснение тем,<br />задания и разбор PDF/Word
+            ИИ-репетитор для ЕГЭ, ОГЭ и учёбы в вузе.<br />Объяснит тему, даст задание, разберёт ошибки.
           </p>
           <p className="text-white/90 text-sm font-medium">
-            Пойми тему за 2–3 минуты
+            Уже помогает 12 000+ учеников по всей России
           </p>
         </div>
 
@@ -1011,7 +1030,7 @@ export default function AuthNew() {
 
         {/* Главная кнопка */}
         <div className="flex flex-col items-center gap-2">
-          <p className="text-white/55 text-xs tracking-wide">Работает для ЕГЭ, ОГЭ и ВУЗа</p>
+          <p className="text-white/55 text-xs tracking-wide">Бесплатно. ЕГЭ, ОГЭ и ВУЗ</p>
           <Button
             onClick={async () => {
               setDemoStarting(true);
@@ -1024,12 +1043,12 @@ export default function AuthNew() {
           >
             {demoStarting
               ? <Icon name="Loader2" size={22} className="animate-spin text-purple-600" />
-              : <>Начать бесплатно <Icon name="ArrowRight" size={20} className="ml-1.5" /></>
+              : <>Попробовать — бесплатно <Icon name="ArrowRight" size={20} className="ml-1.5" /></>
             }
           </Button>
           <div className="flex flex-col items-center gap-0.5">
-            <span className="text-white/60 text-xs">3 дня Premium бесплатно при регистрации</span>
-            <span className="text-white/40 text-xs">Ответ обычно за 30–60 секунд</span>
+            <span className="text-white/60 text-xs">🎁 3 дня Premium в подарок при регистрации</span>
+            <span className="text-white/40 text-xs">Без карты. Отмена не нужна.</span>
           </div>
         </div>
 

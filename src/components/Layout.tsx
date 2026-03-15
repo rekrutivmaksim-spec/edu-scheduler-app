@@ -38,8 +38,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {user && <HeaderBalance />}
               </div>
               
-              <Link to="/" className="absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0 lg:mr-auto flex items-center hover:opacity-80 transition-opacity">
-                <img src="https://cdn.poehali.dev/projects/ae951cd8-f121-4577-8ee7-ada3d70ee89c/bucket/logo-fitting-room-1.svg" alt="Virtual Fitting" className="h-8 md:h-10" />
+              <Link to="/" className="absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0 lg:mr-auto flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <Icon name="GraduationCap" size={20} className="text-white" />
+                </div>
+                <span className="font-bold text-lg hidden sm:inline bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Studyfay</span>
               </Link>
               <div className="flex items-center gap-2 lg:gap-4">
               {user ? (

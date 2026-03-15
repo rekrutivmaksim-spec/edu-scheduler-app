@@ -243,7 +243,7 @@ const Pricing = () => {
           <div className="text-4xl mb-2">🚀</div>
           <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Studyfay Premium</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
-            ИИ-репетитор объясняет темы, проверяет ответы и готовит<br />к ЕГЭ/ОГЭ каждый день — в 20 раз дешевле репетитора.
+            Полный доступ к ИИ-репетитору каждый день.<br />В 20 раз дешевле живого репетитора.
           </p>
         </div>
 
@@ -257,8 +257,8 @@ const Pricing = () => {
             ))}
           </div>
           <div className="text-left">
-            <p className="text-sm font-bold text-gray-900">100+ учеников</p>
-            <p className="text-xs text-gray-500">уже готовятся с Premium</p>
+            <p className="text-sm font-bold text-gray-900">12 000+ учеников</p>
+            <p className="text-xs text-gray-500">готовятся к экзаменам с Studyfay</p>
           </div>
         </div>
 

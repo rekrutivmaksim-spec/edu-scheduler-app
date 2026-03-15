@@ -477,15 +477,15 @@ export default function Index() {
             <div className="flex items-center gap-3 mb-3">
               <span className="text-2xl">⚡</span>
               <div>
-                <p className="text-white font-bold text-base">Лимиты на сегодня исчерпаны</p>
-                <p className="text-white/70 text-xs">Подключи Premium — продолжай без ограничений</p>
+                <p className="text-white font-bold text-base">Вопросы на сегодня закончились</p>
+                <p className="text-white/70 text-xs">С Premium — 20 вопросов и 5 занятий каждый день</p>
               </div>
             </div>
             <button
               onClick={() => navigate('/pricing')}
               className="w-full bg-white text-indigo-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
             >
-              Premium — 499 ₽/мес
+              Подключить Premium — от 200 ₽/мес
             </button>
           </div>
         )}
@@ -498,7 +498,7 @@ export default function Index() {
               <div>
                 <p className="text-white font-bold text-base">Ты занимаешься {streak} {streakWord(streak)} подряд!</p>
                 <p className="text-white/70 text-xs">
-                  {isExamGoal ? 'Хочешь готовиться без ограничений?' : 'Хочешь безлимит ИИ-вопросов?'}
+                  {isExamGoal ? 'Продолжай готовиться — результат уже близко!' : 'Так держать — прогресс налицо!'}
                 </p>
               </div>
             </div>
@@ -506,7 +506,7 @@ export default function Index() {
               onClick={() => navigate('/pricing')}
               className="w-full bg-white text-orange-600 font-bold text-sm rounded-2xl py-2.5 active:scale-[0.98] transition-all shadow-sm"
             >
-              {isExamGoal ? 'Безлимит занятий — 499 ₽/мес' : 'Premium — 499 ₽/мес'}
+              Полный доступ — от 200 ₽/мес
             </button>
           </div>
         )}
