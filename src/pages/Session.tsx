@@ -175,7 +175,7 @@ export default function Session() {
             const sessions = d.limits?.sessions;
             if (sub === 'premium' || trial) {
               setIsPremium(true);
-              const max = sessions?.max ?? 5;
+              const max = sessions?.max ?? 100;
               const used = sessions?.used ?? 0;
               setSessionsMax(max);
               setSessionsLeft(Math.max(0, max - used));
@@ -565,7 +565,7 @@ export default function Session() {
               onClick={() => navigate('/pricing')}
               className="w-full h-14 bg-white text-purple-700 font-extrabold text-lg rounded-2xl shadow-2xl active:scale-[0.97] transition-all"
             >
-              Безлимит — 449 ₽/мес →
+              Безлимит — 499 ₽/мес →
             </button>
           </div>
         ) : (
@@ -583,7 +583,7 @@ export default function Session() {
             {sessionsLeft !== null && (
               <p className="text-white/50 text-xs mb-3">
                 {isPremium
-                  ? `Осталось занятий сегодня: ${sessionsLeft} из ${sessionsMax}`
+                  ? 'Безлимит занятий — Premium'
                   : 'Бесплатно: 1 занятие в день'}
               </p>
             )}
@@ -595,7 +595,7 @@ export default function Session() {
             <p className="text-white font-bold text-sm mb-1">🔥 Ты занимаешься {streak} дней подряд!</p>
             <p className="text-white/60 text-xs mb-3">Убери ограничения — занимайся без лимита</p>
             <button onClick={() => navigate('/pricing')} className="bg-white text-purple-700 font-bold text-sm px-5 py-2 rounded-xl w-full">
-              Безлимит — 449 ₽/мес →
+              Безлимит — 499 ₽/мес →
             </button>
           </div>
         )}

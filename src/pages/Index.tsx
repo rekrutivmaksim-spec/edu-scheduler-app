@@ -348,7 +348,7 @@ export default function Index() {
               </p>
               <p className="text-center text-[11px] text-indigo-400 font-medium mt-1">
                 {limits.isPremium || limits.isTrial
-                  ? `Сегодня: ${limits.sessionsRemaining()} из ${limits.data.limits.sessions.max} занятий`
+                  ? 'Безлимит занятий — Premium активен'
                   : `Сегодня доступно: ${limits.sessionsRemaining()} из 3 занятий бесплатно`}
               </p>
             </div>
@@ -439,7 +439,7 @@ export default function Index() {
                   <span className="text-base">⚠️</span>
                   <div className="flex-1 text-left">
                     <p className="text-amber-700 font-bold text-xs">Осталось {limits.aiRemaining()} {limits.aiRemaining() === 1 ? 'вопрос' : 'вопроса'} ИИ</p>
-                    <p className="text-amber-500 text-[10px]">Подключи Premium — 20 вопросов/день</p>
+                    <p className="text-amber-500 text-[10px]">Подключи Premium — безлимит вопросов</p>
                   </div>
                   <Icon name="ChevronRight" size={14} className="text-amber-400" />
                 </button>
@@ -473,7 +473,7 @@ export default function Index() {
               <span className="text-2xl">⚡</span>
               <div>
                 <p className="text-white font-bold text-base">Вопросы на сегодня закончились</p>
-                <p className="text-white/70 text-xs">С Premium — 20 вопросов и 5 занятий каждый день</p>
+                <p className="text-white/70 text-xs">С Premium — безлимит вопросов, фото, аудио и занятий</p>
               </div>
             </div>
             <button

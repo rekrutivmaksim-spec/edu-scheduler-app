@@ -267,9 +267,9 @@ const Profile = () => {
               </div>
               <div className="space-y-2 mb-4">
                 {[
-                  '20 вопросов к ИИ каждый день',
-                  '5 занятий с разбором ошибок',
-                  'Загрузка PDF, фото задач и конспектов',
+                  'Безлимитные вопросы к ИИ',
+                  'Безлимитные занятия с разбором ошибок',
+                  'Безлимитные фото и аудио решения',
                   'Подготовка к ЕГЭ/ОГЭ по всем предметам',
                 ].map(f => (
                   <div key={f} className="flex items-center gap-2">
@@ -304,7 +304,7 @@ const Profile = () => {
             <div className="bg-purple-900/90 px-5 py-3 flex items-center gap-2">
               <span className="text-yellow-400 text-sm">⚠️</span>
               <p className="text-white/70 text-xs">
-                Premium открывает <span className="text-white font-semibold">20 вопросов/день</span> и 5 занятий ежедневно
+                Premium открывает <span className="text-white font-semibold">безлимит</span> вопросов, фото, аудио и занятий
               </p>
             </div>
           </div>
@@ -325,16 +325,16 @@ const Profile = () => {
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-white/15 rounded-2xl px-2 py-2">
-                <p className="text-white font-bold text-sm">{limits.aiRemaining() >= 999 ? '∞' : limits.aiRemaining()}</p>
-                <p className="text-white/60 text-[10px]">вопросов ИИ</p>
+                <p className="text-white font-bold text-sm">{limits.data.limits.ai_questions.unlimited ? '∞' : limits.aiRemaining()}</p>
+                <p className="text-white/60 text-[10px]">{limits.data.limits.ai_questions.unlimited ? 'безлимит' : 'вопросов ИИ'}</p>
               </div>
               <div className="bg-white/15 rounded-2xl px-2 py-2">
-                <p className="text-white font-bold text-sm">{limits.sessionsRemaining() >= 999 ? '∞' : limits.sessionsRemaining()}</p>
-                <p className="text-white/60 text-[10px]">занятий</p>
+                <p className="text-white font-bold text-sm">{limits.data.limits.sessions.unlimited ? '∞' : limits.sessionsRemaining()}</p>
+                <p className="text-white/60 text-[10px]">{limits.data.limits.sessions.unlimited ? 'безлимит' : 'занятий'}</p>
               </div>
               <div className="bg-white/15 rounded-2xl px-2 py-2">
-                <p className="text-white font-bold text-sm">{limits.materialsRemaining() >= 999 ? '∞' : limits.materialsRemaining()}</p>
-                <p className="text-white/60 text-[10px]">загрузки</p>
+                <p className="text-white font-bold text-sm">{limits.data.limits.materials.unlimited ? '∞' : limits.materialsRemaining()}</p>
+                <p className="text-white/60 text-[10px]">{limits.data.limits.materials.unlimited ? 'безлимит' : 'загрузки'}</p>
               </div>
             </div>
           </div>
