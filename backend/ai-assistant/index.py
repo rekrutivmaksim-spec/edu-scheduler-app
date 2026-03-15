@@ -556,42 +556,60 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
     if not recognized_text:
         return {'recognized_text': '', 'solution': 'Не удалось распознать текст. Сфотографируй чётче при хорошем освещении.', 'subject': 'Неизвестно'}
 
-    # Шаг 2: Решение через Llama-4-Maverick
     hint_text = f"\nДополнительно от ученика: {hint}" if hint else ""
     solve_prompt = (
         f"Задание с фото:{hint_text}\n\n{recognized_text}\n\n"
-        "Реши это задание пошагово. Формат:\n"
-        "1. Определи предмет и тип задачи\n"
-        "2. Реши полностью, показывая ВСЕ шаги\n"
-        "3. Чётко напиши: 'Ответ: ...'\n"
-        "4. Если тест — объясни почему правильный вариант именно тот\n"
-        "Формулы текстом (x^2, sqrt(x), a/b). Отвечай по-русски."
+        "Реши задание и верни ответ СТРОГО в JSON-формате (без markdown-обёрток, без ```json):\n"
+        '{"steps":[{"icon":"arrow","title":"заголовок шага","text":"подробное объяснение с формулами"}],'
+        '"answer":"итоговый ответ кратко",'
+        '"check":"краткая проверка подстановкой или пояснение",'
+        '"tip":"совет эксперта: на что обратить внимание на экзамене",'
+        '"practice":[{"text":"условие похожей задачи 1"},{"text":"условие похожей задачи 2"}],'
+        '"motivation":"короткая фраза поддержки ученику"}\n\n'
+        "Правила:\n"
+        "- steps: 3-5 шагов, icon может быть arrow/pin/check\n"
+        "- Формулы текстом: x^2, sqrt(x), a/b\n"
+        "- answer: только значение ответа\n"
+        "- practice: 2 похожие задачи для тренировки\n"
+        "- motivation: тёплая и дружелюбная фраза\n"
+        "- Отвечай по-русски. Только JSON, без обёрток."
     )
     solution = None
+    structured = None
     try:
         resp_s = client.chat.completions.create(
             model=LLAMA_MODEL,
             messages=[
                 {"role": "system", "content": (
-                    "Ты лучший репетитор для российских школьников и студентов. "
-                    "Решай задания ЕГЭ/ОГЭ/вузовские ПОЛНОСТЬЮ пошагово — каждый шаг на отдельной строке с пояснением. "
+                    "Ты лучший репетитор для российских школьников и студентов (Studyfay). "
+                    "Решай задания ЕГЭ/ОГЭ/вузовские ПОЛНОСТЬЮ пошагово. "
                     "Проверяй свои вычисления. Определяй предмет. Формулы текстом. Русский. "
-                    "В конце дай совет: как решать подобные задачи быстрее."
+                    "ВСЕГДА отвечай ТОЛЬКО валидным JSON без markdown-обёрток и без ```."
                 )},
                 {"role": "user", "content": solve_prompt}
             ],
             temperature=0.3,
-            max_tokens=800,
+            max_tokens=1200,
         )
-        solution = sanitize_answer(resp_s.choices[0].message.content)
-        print(f"[PHOTO] Solve llama ok: {solution[:80]}", flush=True)
+        raw_answer = resp_s.choices[0].message.content.strip()
+        print(f"[PHOTO] Solve raw: {raw_answer[:120]}", flush=True)
+        import re as _re
+        json_match = _re.search(r'\{.*\}', raw_answer, _re.DOTALL)
+        if json_match:
+            try:
+                structured = json.loads(json_match.group(0))
+            except Exception:
+                pass
+        if not structured:
+            solution = sanitize_answer(raw_answer)
     except Exception as es:
         print(f"[PHOTO] Solve error: {es}", flush=True)
 
-    if not solution:
+    if not structured and not solution:
         solution = f"Задание распознано:\n\n{recognized_text}\n\nПопробуй задать вопрос в разделе «Ассистент»."
 
-    sol_lower = (solution + recognized_text).lower()
+    detect_text = ((structured.get('answer', '') + ' '.join(s.get('text', '') for s in structured.get('steps', []))) if structured else (solution or '')) + ' ' + recognized_text
+    sol_lower = detect_text.lower()
     subject = 'Общее'
     if any(w in sol_lower for w in ['математика', 'уравнение', 'функция', 'интеграл', 'производная', 'геометрия', 'треугольник']):
         subject = 'Математика'
@@ -610,7 +628,13 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
     elif any(w in sol_lower for w in ['english', 'verb', 'grammar', 'sentence', 'английский']):
         subject = 'Английский'
 
-    return {'recognized_text': recognized_text, 'solution': solution, 'subject': subject}
+    result = {'recognized_text': recognized_text, 'subject': subject}
+    if structured:
+        result['structured'] = structured
+        result['solution'] = structured.get('answer', '')
+    else:
+        result['solution'] = solution or ''
+    return result
 # ── END PHOTO SOLVE ──────────────────────────────────────────────────────────
 
 def _call_openai_compat(http_client, url: str, api_key: str, question: str, history: list = None, max_tokens: int = 600) -> str | None:
@@ -1094,7 +1118,7 @@ def handler(event: dict, context) -> dict:
                 conn_ps.close()
             print(f"[PHOTO] User:{uid_ps} solving photo hint={hint_ps[:30]}", flush=True)
             result_ps = _ocr_and_solve(image_b64, hint_ps)
-            return ok({
+            resp_body = {
                 'recognized_text': result_ps['recognized_text'],
                 'solution': result_ps['solution'],
                 'subject': result_ps['subject'],
@@ -1102,7 +1126,10 @@ def handler(event: dict, context) -> dict:
                 'used': new_used_ps,
                 'limit': limit_info_ps['limit'],
                 'bonus_remaining': new_bonus_ps,
-            })
+            }
+            if 'structured' in result_ps:
+                resp_body['structured'] = result_ps['structured']
+            return ok(resp_body)
 
         # --- SMART CHAT (multimodal: text + audio + image via Llama + Whisper) ---
         if body_demo.get('action') == 'gemini_chat':
