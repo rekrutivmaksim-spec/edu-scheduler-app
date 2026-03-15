@@ -416,7 +416,11 @@ _http_fallback = httpx.Client(timeout=httpx.Timeout(5.0, connect=2.5))
 
 # ── PHOTO SOLVE ──────────────────────────────────────────────────────────────
 FREE_DAILY_PHOTOS = 1
-PREMIUM_DAILY_PHOTOS = 5
+PREMIUM_DAILY_PHOTOS = 999999
+
+# ── AUDIO LIMITS ─────────────────────────────────────────────────────────────
+FREE_DAILY_AUDIO = 1
+PREMIUM_DAILY_AUDIO = 999999
 
 def _check_photo_limit(conn, user_id: int) -> dict:
     from datetime import timedelta as _td
@@ -462,6 +466,47 @@ def _increment_photo_count(conn, user_id: int, from_bonus: bool):
                     (now + _td(days=1), user_id))
     conn.commit()
     cur.close()
+
+def _check_audio_limit(conn, user_id: int) -> dict:
+    from datetime import timedelta as _td
+    now = datetime.now()
+    cur = conn.cursor()
+    cur.execute(f'''
+        SELECT subscription_type, subscription_expires_at,
+               audio_used_today, audio_daily_reset_at
+        FROM {SCHEMA_NAME}.users WHERE id = %s
+    ''', (user_id,))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        return {'has_access': False, 'reason': 'not_found'}
+    sub_type, expires, audio_today, reset_at = row
+    audio_today = audio_today or 0
+    is_premium = sub_type == 'premium' and expires and (expires.replace(tzinfo=None) if hasattr(expires, 'tzinfo') and expires.tzinfo else expires) > now
+    daily_limit = PREMIUM_DAILY_AUDIO if is_premium else FREE_DAILY_AUDIO
+    if reset_at:
+        reset_naive = reset_at.replace(tzinfo=None) if hasattr(reset_at, 'tzinfo') and reset_at.tzinfo else reset_at
+        if reset_naive < now:
+            cur2 = conn.cursor()
+            cur2.execute(f'UPDATE {SCHEMA_NAME}.users SET audio_used_today=0, audio_daily_reset_at=%s WHERE id=%s',
+                         (now + _td(days=1), user_id))
+            conn.commit()
+            cur2.close()
+            audio_today = 0
+    if audio_today >= daily_limit:
+        return {'has_access': False, 'reason': 'limit', 'is_premium': is_premium, 'used': audio_today, 'limit': daily_limit}
+    return {'has_access': True, 'is_premium': is_premium, 'used': audio_today, 'limit': daily_limit}
+
+
+def _increment_audio_count(conn, user_id: int):
+    from datetime import timedelta as _td
+    now = datetime.now()
+    cur = conn.cursor()
+    cur.execute(f'UPDATE {SCHEMA_NAME}.users SET audio_used_today=COALESCE(audio_used_today,0)+1, audio_daily_reset_at=COALESCE(audio_daily_reset_at,%s),updated_at=CURRENT_TIMESTAMP WHERE id=%s',
+                (now + _td(days=1), user_id))
+    conn.commit()
+    cur.close()
+
 
 def _is_ocr_refusal(text: str) -> bool:
     refusal_markers = [
@@ -1173,19 +1218,27 @@ def handler(event: dict, context) -> dict:
                         'is_premium': access_gc.get('is_premium', False),
                     })
 
-                if audio_b64_gc and access_gc.get('is_free'):
-                    return err(403, {
-                        'error': 'premium_only',
-                        'message': 'Голосовой ввод доступен только в Premium. Оформи подписку!',
-                        'feature': 'audio',
-                    })
+                if audio_b64_gc:
+                    audio_limit = _check_audio_limit(conn_gc, uid_gc)
+                    if not audio_limit['has_access']:
+                        return err(403, {
+                            'error': 'limit',
+                            'message': f'Лимит аудио на сегодня исчерпан ({audio_limit["used"]}/{audio_limit["limit"]}). С Premium — безлимитный голосовой ввод!',
+                            'feature': 'audio',
+                            'used': audio_limit['used'],
+                            'limit': audio_limit['limit'],
+                        })
 
-                if image_b64_gc and access_gc.get('is_free'):
-                    return err(403, {
-                        'error': 'premium_only',
-                        'message': 'Решение по фото доступно только в Premium. Оформи подписку!',
-                        'feature': 'photo',
-                    })
+                if image_b64_gc:
+                    photo_limit = _check_photo_limit(conn_gc, uid_gc)
+                    if not photo_limit['has_access']:
+                        return err(403, {
+                            'error': 'limit',
+                            'message': f'Лимит фото на сегодня исчерпан ({photo_limit["used"]}/{photo_limit["limit"]}). С Premium — безлимитное решение по фото!',
+                            'feature': 'photo',
+                            'used': photo_limit['used'],
+                            'limit': photo_limit['limit'],
+                        })
 
                 sid_gc = get_session(conn_gc, uid_gc)
 
@@ -1342,6 +1395,11 @@ def handler(event: dict, context) -> dict:
                 increment_questions(conn_gc, uid_gc, access_gc)
                 remaining_gc = max(0, access_gc.get('remaining', 1) - 1)
 
+                if audio_b64_gc:
+                    _increment_audio_count(conn_gc, uid_gc)
+                if image_b64_gc:
+                    _increment_photo_count(conn_gc, uid_gc, False)
+
                 def _bg_chat_save(uid, ans, tok, session_id):
                     try:
                         c2 = psycopg2.connect(DATABASE_URL)
@@ -1361,6 +1419,15 @@ def handler(event: dict, context) -> dict:
                 }
                 if transcript_gc:
                     result_gc['transcript'] = transcript_gc
+
+                if audio_b64_gc and not access_gc.get('is_premium'):
+                    a_info = _check_audio_limit(conn_gc, uid_gc)
+                    result_gc['audio_used'] = a_info.get('used', 0)
+                    result_gc['audio_limit'] = a_info.get('limit', FREE_DAILY_AUDIO)
+                if image_b64_gc and not access_gc.get('is_premium'):
+                    p_info = _check_photo_limit(conn_gc, uid_gc)
+                    result_gc['photo_used'] = p_info.get('used', 0)
+                    result_gc['photo_limit'] = p_info.get('limit', FREE_DAILY_PHOTOS)
 
                 return ok(result_gc)
             finally:
@@ -1421,6 +1488,21 @@ def handler(event: dict, context) -> dict:
                 msgs = [{'role':r[0],'content':r[1],'timestamp':r[2].isoformat() if r[2] else None} for r in cur.fetchall()]
                 cur.close()
                 return ok({'messages': msgs})
+
+            elif action == 'limits':
+                access_info = check_access(conn, user_id)
+                photo_info = _check_photo_limit(conn, user_id)
+                audio_info = _check_audio_limit(conn, user_id)
+                return ok({
+                    'is_premium': access_info.get('is_premium', False),
+                    'questions_remaining': access_info.get('remaining', 0),
+                    'questions_limit': access_info.get('limit', 0),
+                    'questions_used': access_info.get('used', 0),
+                    'photo_used': photo_info.get('used', 0),
+                    'photo_limit': photo_info.get('limit', FREE_DAILY_PHOTOS),
+                    'audio_used': audio_info.get('used', 0),
+                    'audio_limit': audio_info.get('limit', FREE_DAILY_AUDIO),
+                })
 
             return ok({'status': 'ok'})
 

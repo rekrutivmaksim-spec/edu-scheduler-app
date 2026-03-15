@@ -228,10 +228,39 @@ const Assistant = () => {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [showLimitScreen, setShowLimitScreen] = useState(false);
   const [loadingHint, setLoadingHint] = useState('');
+  const [isPremium, setIsPremium] = useState(false);
+  const [audioUsed, setAudioUsed] = useState(0);
+  const [audioLimit, setAudioLimit] = useState(1);
+  const [photoUsed, setPhotoUsed] = useState(0);
+  const [photoLimit, setPhotoLimit] = useState(1);
+  const [showFeatureLimitScreen, setShowFeatureLimitScreen] = useState<'audio' | 'photo' | null>(null);
+
+  const audioLocked = !isPremium && audioUsed >= audioLimit;
+  const photoLocked = !isPremium && photoUsed >= photoLimit;
+
+  const loadLimits = async () => {
+    try {
+      const resp = await fetch(`${AI_URL}?action=limits`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (resp.ok) {
+        const d = await resp.json();
+        setIsPremium(d.is_premium || false);
+        setAudioUsed(d.audio_used || 0);
+        setAudioLimit(d.audio_limit || 1);
+        setPhotoUsed(d.photo_used || 0);
+        setPhotoLimit(d.photo_limit || 1);
+        if (d.questions_remaining !== undefined && d.questions_remaining < 999) {
+          setRemaining(d.questions_remaining);
+        }
+      }
+    } catch (e) { console.error('loadLimits', e); }
+  };
 
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/auth'); return; }
     loadSessions();
+    loadLimits();
   }, []);
 
   useEffect(() => {
@@ -322,6 +351,11 @@ const Assistant = () => {
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (photoLocked) {
+      e.target.value = '';
+      setShowFeatureLimitScreen('photo');
+      return;
+    }
     if (file.size > 15 * 1024 * 1024) {
       alert('Фото слишком большое. Максимум 15 МБ');
       return;
@@ -411,6 +445,18 @@ const Assistant = () => {
       const data = await resp.json();
 
       if (!resp.ok) {
+        if (resp.status === 403 && data.feature === 'audio') {
+          setShowFeatureLimitScreen('audio');
+          setAudioUsed(data.used || audioLimit);
+          setMessages(prev => prev.filter(m => m.id !== userMsg.id));
+          return;
+        }
+        if (resp.status === 403 && data.feature === 'photo') {
+          setShowFeatureLimitScreen('photo');
+          setPhotoUsed(data.used || photoLimit);
+          setMessages(prev => prev.filter(m => m.id !== userMsg.id));
+          return;
+        }
         if (resp.status === 403 && (data.error === 'limit' || data.error === 'premium_only')) {
           setShowLimitScreen(true);
           setMessages(prev => prev.filter(m => m.id !== userMsg.id));
@@ -436,6 +482,11 @@ const Assistant = () => {
       if (data.remaining !== undefined && data.remaining !== null) {
         setRemaining(data.remaining);
       }
+      if (data.audio_used !== undefined) setAudioUsed(data.audio_used);
+      if (data.audio_limit !== undefined) setAudioLimit(data.audio_limit);
+      if (data.photo_used !== undefined) setPhotoUsed(data.photo_used);
+      if (data.photo_limit !== undefined) setPhotoLimit(data.photo_limit);
+      if (data.is_premium !== undefined) setIsPremium(data.is_premium);
 
       trackActivity('ai_questions_asked').catch(() => {});
       loadSessions();
@@ -588,20 +639,30 @@ const Assistant = () => {
             </p>
             <div className="w-full max-w-sm space-y-2">
               {([
-                { icon: 'Camera', text: 'Сфоткать задание', action: () => cameraInputRef.current?.click() },
-                { icon: 'Mic', text: 'Спросить голосом', action: () => setIsRecording(true) },
-                { icon: 'Calculator', text: 'Реши уравнение 2x\u00B2 - 5x + 3 = 0', action: () => { setInput('Реши уравнение 2x^2 - 5x + 3 = 0'); } },
-                { icon: 'BookOpen', text: 'Объясни теорему Пифагора', action: () => { setInput('Объясни теорему Пифагора простыми словами'); } },
+                { icon: 'Camera', text: 'Сфоткать задание', action: () => { if (photoLocked) { setShowFeatureLimitScreen('photo'); return; } cameraInputRef.current?.click(); }, locked: photoLocked },
+                { icon: 'Mic', text: 'Спросить голосом', action: () => { if (audioLocked) { setShowFeatureLimitScreen('audio'); return; } setIsRecording(true); }, locked: audioLocked },
+                { icon: 'Calculator', text: 'Реши уравнение 2x\u00B2 - 5x + 3 = 0', action: () => { setInput('Реши уравнение 2x^2 - 5x + 3 = 0'); }, locked: false },
+                { icon: 'BookOpen', text: 'Объясни теорему Пифагора', action: () => { setInput('Объясни теорему Пифагора простыми словами'); }, locked: false },
               ] as const).map((item, i) => (
                 <button
                   key={i}
                   onClick={item.action}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left active:scale-[0.98]"
+                  className={`w-full flex items-center gap-3 px-4 py-3 bg-white rounded-xl border transition-all text-left active:scale-[0.98] ${
+                    item.locked ? 'border-gray-100 opacity-75' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                  }`}
                 >
-                  <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <Icon name={item.icon} size={18} className="text-blue-600" />
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 relative ${item.locked ? 'bg-gray-100' : 'bg-blue-100'}`}>
+                    <Icon name={item.icon} size={18} className={item.locked ? 'text-gray-400' : 'text-blue-600'} />
+                    {item.locked && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
+                        <Icon name="Lock" size={9} className="text-white" />
+                      </span>
+                    )}
                   </div>
-                  <span className="text-sm text-gray-700 font-medium">{item.text}</span>
+                  <div className="flex-1">
+                    <span className={`text-sm font-medium ${item.locked ? 'text-gray-400' : 'text-gray-700'}`}>{item.text}</span>
+                    {item.locked && <p className="text-[11px] text-amber-600 mt-0.5">Лимит исчерпан</p>}
+                  </div>
                 </button>
               ))}
             </div>
@@ -682,12 +743,24 @@ const Assistant = () => {
             {/* Attach button */}
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors flex-shrink-0 mb-0.5"
+              onClick={() => {
+                if (photoLocked) { setShowFeatureLimitScreen('photo'); return; }
+                fileInputRef.current?.click();
+              }}
+              className={`p-2 rounded-full transition-colors flex-shrink-0 mb-0.5 relative ${
+                photoLocked
+                  ? 'text-gray-300 cursor-pointer'
+                  : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100'
+              }`}
               disabled={isLoading}
-              title="Прикрепить фото"
+              title={photoLocked ? 'Лимит фото исчерпан' : 'Прикрепить фото'}
             >
               <Icon name="Paperclip" size={20} />
+              {photoLocked && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
+                  <Icon name="Lock" size={9} className="text-white" />
+                </span>
+              )}
             </button>
 
             <input
@@ -737,16 +810,83 @@ const Assistant = () => {
             ) : (
               <button
                 type="button"
-                onClick={() => { try { setIsRecording(true); } catch (e) { console.error(e); } }}
-                className="p-2 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors flex-shrink-0 mb-0.5"
+                onClick={() => {
+                  if (audioLocked) { setShowFeatureLimitScreen('audio'); return; }
+                  try { setIsRecording(true); } catch (e) { console.error(e); }
+                }}
+                className={`p-2 rounded-full transition-colors flex-shrink-0 mb-0.5 relative ${
+                  audioLocked
+                    ? 'text-gray-300 cursor-pointer'
+                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100'
+                }`}
                 disabled={isLoading}
               >
                 <Icon name="Mic" size={20} />
+                {audioLocked && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
+                    <Icon name="Lock" size={9} className="text-white" />
+                  </span>
+                )}
               </button>
             )}
           </div>
         </form>
       </div>
+
+      {/* Feature limit screen (audio/photo) */}
+      {showFeatureLimitScreen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowFeatureLimitScreen(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+            style={{ animation: 'slideUp 0.35s cubic-bezier(0.32,0.72,0,1)' }}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 mx-4 rounded-2xl p-5 mb-4 mt-2 relative overflow-hidden">
+              <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full" />
+              <button onClick={() => setShowFeatureLimitScreen(null)} className="absolute top-3 right-3 text-white/40 hover:text-white/70">
+                <Icon name="X" size={18} />
+              </button>
+              <span className="text-4xl block mb-3">{showFeatureLimitScreen === 'audio' ? '🎤' : '📸'}</span>
+              <h2 className="text-white font-extrabold text-xl mb-1">
+                {showFeatureLimitScreen === 'audio' ? 'Голосовой лимит исчерпан' : 'Лимит фото исчерпан'}
+              </h2>
+              <p className="text-white/75 text-sm">
+                {showFeatureLimitScreen === 'audio'
+                  ? `Ты использовал ${audioUsed} из ${audioLimit} голосовых запросов на сегодня`
+                  : `Ты использовал ${photoUsed} из ${photoLimit} фото-запросов на сегодня`
+                }
+              </p>
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center gap-2 text-white/85 text-sm">
+                  <Icon name="Infinity" size={14} className="text-white/60" />Безлимитные голосовые запросы
+                </div>
+                <div className="flex items-center gap-2 text-white/85 text-sm">
+                  <Icon name="Infinity" size={14} className="text-white/60" />Безлимитное решение по фото
+                </div>
+                <div className="flex items-center gap-2 text-white/85 text-sm">
+                  <Icon name="Infinity" size={14} className="text-white/60" />Безлимитные вопросы к ИИ
+                </div>
+              </div>
+              <div className="mt-3 bg-white/20 rounded-xl px-4 py-2 inline-block">
+                <span className="text-white font-bold">Premium от 200 ₽/мес</span>
+              </div>
+            </div>
+            <div className="px-5 pb-8 space-y-3">
+              <button
+                onClick={() => { setShowFeatureLimitScreen(null); navigate('/pricing'); }}
+                className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.98] transition-all"
+              >
+                Подключить Premium
+              </button>
+              <p className="text-center text-xs text-gray-400">Лимит обновится завтра</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Limit screen */}
       {showLimitScreen && (
