@@ -8,8 +8,7 @@ import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
-
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+import { API } from '@/lib/api-urls';
 
 interface Invite {
   name: string;
@@ -48,7 +47,7 @@ export default function Referral() {
   const loadData = async () => {
     try {
       const token = authService.getToken();
-      const resp = await fetch(`${SUBSCRIPTION_URL}?action=referral`, {
+      const resp = await fetch(`${API.SUBSCRIPTION}?action=referral`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (resp.ok) {
@@ -88,7 +87,7 @@ export default function Referral() {
     setSubmitting(true);
     try {
       const token = authService.getToken();
-      const resp = await fetch(SUBSCRIPTION_URL, {
+      const resp = await fetch(API.SUBSCRIPTION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ action: 'use_referral', referral_code: code.trim().toUpperCase() })

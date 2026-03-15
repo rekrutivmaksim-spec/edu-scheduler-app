@@ -6,10 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import BottomNav from '@/components/BottomNav';
-
-const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
-const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
-const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+import { API } from '@/lib/api-urls';
 
 interface Lesson {
   id: number;
@@ -83,9 +80,9 @@ const Analytics = () => {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [scheduleRes, tasksRes, materialsRes, gamRes] = await Promise.all([
-        fetch(`${SCHEDULE_URL}?path=schedule`, { headers }),
-        fetch(`${SCHEDULE_URL}?path=tasks`, { headers }),
-        fetch(MATERIALS_URL, { headers }),
+        fetch(`${API.SCHEDULE}?path=schedule`, { headers }),
+        fetch(`${API.SCHEDULE}?path=tasks`, { headers }),
+        fetch(API.MATERIALS, { headers }),
         fetch(`${GAMIFICATION_URL}?action=profile`, { headers }),
       ]);
 

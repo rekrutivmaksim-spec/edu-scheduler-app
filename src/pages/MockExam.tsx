@@ -8,9 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import BottomNav from '@/components/BottomNav';
 import { authService } from '@/lib/auth';
-
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
-const MOCK_EXAM_GEN_URL = 'https://functions.poehali.dev/43ea3fd5-9176-442a-9764-b78ee89ff332';
+import { API } from '@/lib/api-urls';
 
 interface Question {
   id: number;
@@ -378,7 +376,7 @@ export default function MockExam() {
       const token = authService.getToken();
       if (!token) { navigate('/auth'); return; }
       try {
-        const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+        const res = await fetch(`${API.SUBSCRIPTION}?action=limits`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         const d = await res.json();
@@ -449,7 +447,7 @@ export default function MockExam() {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 25000);
 
-        const res = await fetch(MOCK_EXAM_GEN_URL, {
+        const res = await fetch(API.MOCK_EXAM_GEN, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ exam_type: examType, subject: selectedSubject.id, count: 15 }),

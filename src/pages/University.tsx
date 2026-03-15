@@ -6,10 +6,7 @@ import BottomNav from '@/components/BottomNav';
 import PaywallSheet from '@/components/PaywallSheet';
 import RewardModal from '@/components/RewardModal';
 import { authService } from '@/lib/auth';
-
-const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
-const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+import { API } from '@/lib/api-urls';
 
 type Mode = 'home' | 'file' | 'question';
 
@@ -55,7 +52,7 @@ export default function University() {
     const loadLimits = async () => {
       try {
         const token = authService.getToken();
-        const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+        const res = await fetch(`${API.SUBSCRIPTION}?action=limits`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -108,7 +105,7 @@ export default function University() {
     setAnswer('');
     try {
       const token = authService.getToken();
-      const res = await fetch(AI_URL, {
+      const res = await fetch(API.AI_ASSISTANT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ question: question.trim() }),
@@ -149,7 +146,7 @@ export default function University() {
       reader.onload = async () => {
         try {
           const base64 = (reader.result as string).split(',')[1];
-          const uploadRes = await fetch(MATERIALS_URL, {
+          const uploadRes = await fetch(API.MATERIALS, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({

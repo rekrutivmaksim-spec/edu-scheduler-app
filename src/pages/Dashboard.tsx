@@ -10,9 +10,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardSuggestions from '@/components/dashboard/DashboardSuggestions';
 import DashboardCards from '@/components/dashboard/DashboardCards';
 import DashboardQuickLinks from '@/components/dashboard/DashboardQuickLinks';
-
-const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
-const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+import { API } from '@/lib/api-urls';
 
 interface DashboardData {
   user: {
@@ -85,7 +83,7 @@ const Dashboard = () => {
   const loadTutorSavings = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(`${GAMIFICATION_URL}?action=profile`, {
+      const res = await fetch(`${API.GAMIFICATION}?action=profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -98,7 +96,7 @@ const Dashboard = () => {
   const loadDashboard = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(`${SCHEDULE_URL}?path=dashboard`, {
+      const res = await fetch(`${API.SCHEDULE}?path=dashboard`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -110,7 +108,7 @@ const Dashboard = () => {
   const loadSuggestions = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(`${SCHEDULE_URL}?path=suggestions`, {
+      const res = await fetch(`${API.SCHEDULE}?path=suggestions`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -132,7 +130,7 @@ const Dashboard = () => {
   const generateAutoTasks = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(`${SCHEDULE_URL}?path=auto-tasks`, {
+      const res = await fetch(`${API.SCHEDULE}?path=auto-tasks`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });

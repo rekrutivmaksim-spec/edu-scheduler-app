@@ -11,8 +11,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { trackActivity } from '@/lib/gamification';
 import BottomNav from '@/components/BottomNav';
-
-const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
+import { API } from '@/lib/api-urls';
 
 interface PomodoroSession {
   id: number;
@@ -89,7 +88,7 @@ const Pomodoro = () => {
   const loadStats = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=pomodoro-stats`, {
+      const response = await fetch(`${API.SCHEDULE}?path=pomodoro-stats`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -104,7 +103,7 @@ const Pomodoro = () => {
   const loadTasks = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=tasks`, {
+      const response = await fetch(`${API.SCHEDULE}?path=tasks`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -117,7 +116,7 @@ const Pomodoro = () => {
   const loadSubjects = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${SCHEDULE_URL}?path=schedule`, {
+      const response = await fetch(`${API.SCHEDULE}?path=schedule`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -176,7 +175,7 @@ const Pomodoro = () => {
     try {
       const token = authService.getToken();
       const subj = selectedTask?.subject || selectedSubject || 'Другое';
-      await fetch(`${SCHEDULE_URL}?path=pomodoro-session`, {
+      await fetch(`${API.SCHEDULE}?path=pomodoro-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
 
+// Legacy admin URL -- not in func2url.json, kept as hardcoded constant
 const ADMIN_AUTH_API = 'https://functions.poehali.dev/156d6db7-8fea-4da2-b896-f4e597df9bc3';
 
 export default function AdminLogin() {

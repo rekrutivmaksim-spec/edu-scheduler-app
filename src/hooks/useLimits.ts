@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { authService } from '@/lib/auth';
+import { API } from '@/lib/api-urls';
 
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+const SUBSCRIPTION_URL = API.SUBSCRIPTION;
 
 export interface LimitItem {
   used: number;

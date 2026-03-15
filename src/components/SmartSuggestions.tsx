@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import { Card } from '@/components/ui/card';
 import Icon from '@/components/ui/icon';
+import { API } from '@/lib/api-urls';
 
-const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
+const SCHEDULE_URL = API.SCHEDULE;
 
 interface Suggestion {
   type: string;

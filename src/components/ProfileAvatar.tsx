@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { authService } from '@/lib/auth';
+import { API } from '@/lib/api-urls';
 
-const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+const GAMIFICATION_URL = API.GAMIFICATION;
 
 interface AvatarTier {
   minLevel: number;

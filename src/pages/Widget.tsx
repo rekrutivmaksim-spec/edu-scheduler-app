@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { authService } from '@/lib/auth';
 import { offlineCache } from '@/lib/offline-cache';
 import Icon from '@/components/ui/icon';
-
-const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
+import { API } from '@/lib/api-urls';
 
 interface Lesson {
   id: number;
@@ -63,8 +62,8 @@ const Widget = () => {
 
     try {
       const [sRes, tRes] = await Promise.all([
-        fetch(`${SCHEDULE_URL}?path=schedule`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${SCHEDULE_URL}?path=tasks`, { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch(`${API.SCHEDULE}?path=schedule`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API.SCHEDULE}?path=tasks`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
       if (sRes.ok) {

@@ -7,6 +7,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { notificationService } from '@/lib/notifications';
 import { authService } from '@/lib/auth';
+import { API } from '@/lib/api-urls';
 
 interface ExamReminderProps {
   isOpen: boolean;
@@ -69,9 +70,7 @@ const ExamReminder = ({ isOpen, onClose }: ExamReminderProps) => {
 
       // Создаем напоминание в календаре (сохраняем как задачу с высоким приоритетом)
       const examDateTime = new Date(`${examDate}T${examTime}`);
-      const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
-      
-      const response = await fetch(`${SCHEDULE_URL}?path=tasks`, {
+      const response = await fetch(`${API.SCHEDULE}?path=tasks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

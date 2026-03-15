@@ -1,6 +1,7 @@
 import { authService } from '@/lib/auth';
+import { API } from '@/lib/api-urls';
 
-const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+const GAMIFICATION_URL = API.GAMIFICATION;
 
 type ActivityType = 'tasks_completed' | 'pomodoro_minutes' | 'ai_questions_asked' | 'materials_uploaded' | 'schedule_views' | 'exam_tasks_done';
 

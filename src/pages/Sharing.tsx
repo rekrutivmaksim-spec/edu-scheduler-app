@@ -10,8 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import { API } from '@/lib/api-urls';
 
-const SHARING_URL = 'https://functions.poehali.dev/9ba1c403-37df-437c-91a3-ad31dbcb0fa5';
+const SHARING_URL = API.SHARING;
 
 interface SharedSchedule {
   id: number;

@@ -7,9 +7,7 @@ import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
-
-const FLASHCARDS_URL = 'https://functions.poehali.dev/81b8e2fb-95cd-4dc8-97db-7e1c255471d0';
-const MATERIALS_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
+import { API } from '@/lib/api-urls';
 
 interface FlashcardSet {
   id: number;
@@ -96,7 +94,7 @@ const Flashcards = () => {
 
   const loadSets = useCallback(async () => {
     try {
-      const res = await fetch(`${FLASHCARDS_URL}?action=sets`, { headers: authHeaders() });
+      const res = await fetch(`${API.FLASHCARDS}?action=sets`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setSets(data.sets || []);
@@ -109,7 +107,7 @@ const Flashcards = () => {
   const loadCards = useCallback(async (setId: number) => {
     setLoadingCards(true);
     try {
-      const res = await fetch(`${FLASHCARDS_URL}?action=cards&set_id=${setId}`, { headers: authHeaders() });
+      const res = await fetch(`${API.FLASHCARDS}?action=cards&set_id=${setId}`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setCards(data.cards || []);
@@ -126,7 +124,7 @@ const Flashcards = () => {
   const loadReviewCards = useCallback(async () => {
     setLoadingCards(true);
     try {
-      const res = await fetch(`${FLASHCARDS_URL}?action=review`, { headers: authHeaders() });
+      const res = await fetch(`${API.FLASHCARDS}?action=review`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setCards(data.cards || []);
@@ -141,7 +139,7 @@ const Flashcards = () => {
   const loadMaterials = useCallback(async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(`${MATERIALS_URL}?action=list`, {
+      const res = await fetch(`${API.MATERIALS}?action=list`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -206,7 +204,7 @@ const Flashcards = () => {
 
     setGenerating(true);
     try {
-      const res = await fetch(FLASHCARDS_URL, {
+      const res = await fetch(API.FLASHCARDS, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ action: 'generate', material_ids: selectedMaterials }),
@@ -244,7 +242,7 @@ const Flashcards = () => {
     }
 
     try {
-      await fetch(FLASHCARDS_URL, {
+      await fetch(API.FLASHCARDS, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ action: 'answer', flashcard_id: card.id, quality }),
@@ -265,7 +263,7 @@ const Flashcards = () => {
   const handleDeleteSet = async (setId: number) => {
     setDeletingSetId(setId);
     try {
-      const res = await fetch(FLASHCARDS_URL, {
+      const res = await fetch(API.FLASHCARDS, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ action: 'delete_set', set_id: setId }),

@@ -4,9 +4,7 @@ import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import BottomNav from '@/components/BottomNav';
 import { trackActivity } from '@/lib/gamification';
-
-const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+import { API } from '@/lib/api-urls';
 
 // Дата ЕГЭ 2026 — первый день основного периода
 const EGE_DATE = new Date('2026-05-25');
@@ -484,8 +482,6 @@ const EXAM_EXAMPLES: Record<string, { ege: Array<{num: string; type: string; tex
   },
 };
 
-const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
-
 function calcSubjectStats(examTasksDone: number, totalSessions: number): { progress: number; level: string; scoreForecast: number } {
   const tasks = examTasksDone || 0;
   const sessions = totalSessions || 0;
@@ -588,7 +584,7 @@ export default function Exam() {
 
     // Загружаем реальную статистику из gamification
     try {
-      const res = await fetch(GAMIFICATION_URL, {
+      const res = await fetch(API.GAMIFICATION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ action: 'get_profile' }),
@@ -603,7 +599,7 @@ export default function Exam() {
     } catch { /* silent */ }
 
     try {
-      const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+      const res = await fetch(`${API.SUBSCRIPTION}?action=limits`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const d = await res.json();
@@ -682,7 +678,7 @@ export default function Exam() {
         body = { action: 'demo_ask', question, history: hist };
       }
 
-      return fetch(AI_API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
+      return fetch(API.AI_ASSISTANT, { method: 'POST', headers, body: JSON.stringify(body) });
     };
 
     // До 3 попыток — пока не получим читаемый ответ от ИИ

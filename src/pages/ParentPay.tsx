@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { openPaymentUrl } from '@/lib/payment-utils';
+import { API } from '@/lib/api-urls';
 
-const API_URL = 'https://functions.poehali.dev/fac60d23-7f1e-428a-99cf-820ddb897781';
+const API_URL = API.PARENT_DASHBOARD;
 
 const ParentPay = () => {
   const navigate = useNavigate();

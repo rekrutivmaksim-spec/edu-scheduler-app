@@ -8,10 +8,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
-
-const NOTIFICATIONS_URL = 'https://functions.poehali.dev/710399d8-fbc7-4df6-8c6c-200b2828678f';
-const VK_AUTH_URL = 'https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f343ebd7d3';
-const PARENT_API_URL = 'https://functions.poehali.dev/fac60d23-7f1e-428a-99cf-820ddb897781';
+import { API } from '@/lib/api-urls';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -37,7 +34,7 @@ export default function Settings() {
       localStorage.setItem('vk_state', state);
       localStorage.setItem('vk_link_mode', 'true');
 
-      const res = await fetch(VK_AUTH_URL, {
+      const res = await fetch(API.VK_AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_auth_url', code_verifier: codeVerifier, state })
@@ -86,7 +83,7 @@ export default function Settings() {
   const loadSettings = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(NOTIFICATIONS_URL, {
+      const response = await fetch(API.NOTIFICATIONS, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -107,7 +104,7 @@ export default function Settings() {
     
     try {
       const token = authService.getToken();
-      const response = await fetch(NOTIFICATIONS_URL, {
+      const response = await fetch(API.NOTIFICATIONS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,7 +139,7 @@ export default function Settings() {
     setGeneratingCode(true);
     try {
       const token = authService.getToken();
-      const response = await fetch(PARENT_API_URL, {
+      const response = await fetch(API.PARENT_DASHBOARD, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ action: 'generate_code' }),

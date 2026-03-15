@@ -9,8 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { API } from '@/lib/api-urls';
 
-const NOTIFICATIONS_URL = 'https://functions.poehali.dev/710399d8-fbc7-4df6-8c6c-200b2828678f';
+const NOTIFICATIONS_URL = API.NOTIFICATIONS;
 
 interface Notification {
   id: number;

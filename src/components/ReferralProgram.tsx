@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { API } from '@/lib/api-urls';
 
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+const SUBSCRIPTION_URL = API.SUBSCRIPTION;
 
 interface ReferralData {
   referral_code: string;

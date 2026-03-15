@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
-
-const API_URL = 'https://functions.poehali.dev/fac60d23-7f1e-428a-99cf-820ddb897781';
+import { API } from '@/lib/api-urls';
 
 interface DashboardData {
   child: {
@@ -79,7 +78,7 @@ const ParentDashboard = () => {
   const loadDashboard = async (token: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}?action=dashboard`, {
+      const response = await fetch(`${API.PARENT_DASHBOARD}?action=dashboard`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -107,7 +106,7 @@ const ParentDashboard = () => {
   const loadActivity = async () => {
     const token = localStorage.getItem('parent_token');
     try {
-      const response = await fetch(`${API_URL}?action=activity_history&days=30`, {
+      const response = await fetch(`${API.PARENT_DASHBOARD}?action=activity_history&days=30`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
@@ -120,7 +119,7 @@ const ParentDashboard = () => {
   const loadGrades = async () => {
     const token = localStorage.getItem('parent_token');
     try {
-      const response = await fetch(`${API_URL}?action=grades`, {
+      const response = await fetch(`${API.PARENT_DASHBOARD}?action=grades`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {

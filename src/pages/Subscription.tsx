@@ -7,9 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { openPaymentUrl } from '@/lib/payment-utils';
-
-const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+import { API } from '@/lib/api-urls';
 
 interface Plan {
   id: string;
@@ -109,7 +107,7 @@ const Subscription = () => {
     const token = authService.getToken();
     for (let i = 0; i < 12; i++) {
       await new Promise(r => setTimeout(r, 5000));
-      const response = await fetch(PAYMENTS_URL, {
+      const response = await fetch(API.PAYMENTS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ action: 'check_payment', payment_id: parseInt(paymentId) })
@@ -157,7 +155,7 @@ const Subscription = () => {
   const loadPlans = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${PAYMENTS_URL}?action=plans`, {
+      const response = await fetch(`${API.PAYMENTS}?action=plans`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -170,7 +168,7 @@ const Subscription = () => {
   const loadTokenPacks = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${PAYMENTS_URL}?action=token_packs`, {
+      const response = await fetch(`${API.PAYMENTS}?action=token_packs`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -185,7 +183,7 @@ const Subscription = () => {
   const loadSubscriptionStatus = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${SUBSCRIPTION_URL}?action=status`, {
+      const response = await fetch(`${API.SUBSCRIPTION}?action=status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -198,7 +196,7 @@ const Subscription = () => {
   const loadPaymentHistory = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${PAYMENTS_URL}?action=history`, {
+      const response = await fetch(`${API.PAYMENTS}?action=history`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -216,7 +214,7 @@ const Subscription = () => {
       const token = authService.getToken();
       const returnUrl = `${window.location.origin}/subscription?payment=success`;
 
-      const response = await fetch(PAYMENTS_URL, {
+      const response = await fetch(API.PAYMENTS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -252,7 +250,7 @@ const Subscription = () => {
     setIsProcessing(true);
     try {
       const token = authService.getToken();
-      const response = await fetch(SUBSCRIPTION_URL, {
+      const response = await fetch(API.SUBSCRIPTION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ action: 'upgrade_demo' })

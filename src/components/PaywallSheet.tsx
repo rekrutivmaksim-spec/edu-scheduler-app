@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { openPaymentUrl } from '@/lib/payment-utils';
+import { API } from '@/lib/api-urls';
 
-const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
+const PAYMENTS_URL = API.PAYMENTS;
 
 interface Props {
   trigger?: 'session_limit' | 'ai_limit' | 'after_session' | 'after_session_3rd';

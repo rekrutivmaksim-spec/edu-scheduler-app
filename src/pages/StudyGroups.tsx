@@ -14,8 +14,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import BottomNav from '@/components/BottomNav';
-
-const API_URL = 'https://functions.poehali.dev/d92d1f53-826f-4a85-bc2e-dec19a2ee674';
+import { API } from '@/lib/api-urls';
 
 interface Group {
   id: number;
@@ -138,7 +137,7 @@ const StudyGroups = () => {
 
   const apiGet = async (params: string) => {
     const token = authService.getToken();
-    const response = await fetch(`${API_URL}?${params}`, {
+    const response = await fetch(`${API.STUDY_GROUPS}?${params}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Request failed');
@@ -147,7 +146,7 @@ const StudyGroups = () => {
 
   const apiPost = async (body: Record<string, unknown>) => {
     const token = authService.getToken();
-    const response = await fetch(API_URL, {
+    const response = await fetch(API.STUDY_GROUPS, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

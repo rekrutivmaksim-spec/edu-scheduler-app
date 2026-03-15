@@ -5,8 +5,7 @@ import Icon from '@/components/ui/icon';
 import BottomNav from '@/components/BottomNav';
 import PaywallSheet from '@/components/PaywallSheet';
 import { authService } from '@/lib/auth';
-
-const STUDY_PLAN_URL = 'https://functions.poehali.dev/bf62ca8a-918e-4f00-bfe4-c80b0ed0eab9';
+import { API } from '@/lib/api-urls';
 
 type ExamType = 'ege' | 'oge' | null;
 
@@ -109,7 +108,7 @@ export default function ExamPrep() {
       setPlanError('Нет соединения. Проверь интернет и попробуй снова.');
     }, 20000);
     try {
-      const res = await fetch(`${STUDY_PLAN_URL}?action=list`, {
+      const res = await fetch(`${API.STUDY_PLAN}?action=list`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 403) { setShowPaywall(true); return; }
@@ -119,7 +118,7 @@ export default function ExamPrep() {
         (p: StudyPlan) => p.subject.toLowerCase() === subject.toLowerCase()
       );
       if (existing) {
-        const detailRes = await fetch(`${STUDY_PLAN_URL}?action=detail&plan_id=${existing.id}`, {
+        const detailRes = await fetch(`${API.STUDY_PLAN}?action=detail&plan_id=${existing.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!detailRes.ok) throw new Error('server_error');
@@ -141,7 +140,7 @@ export default function ExamPrep() {
     setGenerating(true);
     setPlanError(null);
     try {
-      const res = await fetch(STUDY_PLAN_URL, {
+      const res = await fetch(API.STUDY_PLAN, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -153,7 +152,7 @@ export default function ExamPrep() {
       });
       const data = await res.json();
       if (data.plan) {
-        const detailRes = await fetch(`${STUDY_PLAN_URL}?action=detail&plan_id=${data.plan.id}`, {
+        const detailRes = await fetch(`${API.STUDY_PLAN}?action=detail&plan_id=${data.plan.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const detailData = await detailRes.json();
@@ -176,7 +175,7 @@ export default function ExamPrep() {
     if (!token || !plan) return;
     setCompletingDay(dayId);
     try {
-      await fetch(STUDY_PLAN_URL, {
+      await fetch(API.STUDY_PLAN, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'complete_day', day_id: dayId }),

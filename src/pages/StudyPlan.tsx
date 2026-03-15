@@ -11,8 +11,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import { trackActivity } from '@/lib/gamification';
-
-const API_URL = 'https://functions.poehali.dev/bf62ca8a-918e-4f00-bfe4-c80b0ed0eab9';
+import { API } from '@/lib/api-urls';
 
 interface StudyPlan {
   id: number;
@@ -117,7 +116,7 @@ const StudyPlan = () => {
 
   const loadPlans = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}?action=list`, { headers: authHeaders() });
+      const res = await fetch(`${API.STUDY_PLAN}?action=list`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setPlans(data.plans || []);
@@ -133,7 +132,7 @@ const StudyPlan = () => {
 
   const loadPlanDetail = useCallback(async (planId: number) => {
     try {
-      const res = await fetch(`${API_URL}?action=detail&plan_id=${planId}`, { headers: authHeaders() });
+      const res = await fetch(`${API.STUDY_PLAN}?action=detail&plan_id=${planId}`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setSelectedPlan(data.plan);
@@ -188,7 +187,7 @@ const StudyPlan = () => {
 
     setGenerating(true);
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.STUDY_PLAN, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
@@ -243,7 +242,7 @@ const StudyPlan = () => {
   const handleCompleteDay = async (dayId: number, planId: number) => {
     setCompletingDayId(dayId);
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.STUDY_PLAN, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ action: 'complete_day', plan_id: planId, day_id: dayId }),
@@ -300,7 +299,7 @@ const StudyPlan = () => {
   const handleDelete = async (planId: number) => {
     setDeleting(true);
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.STUDY_PLAN, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ action: 'delete', plan_id: planId }),

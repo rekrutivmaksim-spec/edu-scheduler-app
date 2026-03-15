@@ -12,8 +12,7 @@ import DailyBonusPopup from '@/components/DailyBonusPopup';
 import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 import { getTodayTopic } from '@/lib/topics';
 import { useLimits } from '@/hooks/useLimits';
-
-const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+import { API } from '@/lib/api-urls';
 
 const QUICK_ACCESS_EGE = [
   { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/exam', color: 'bg-indigo-50 text-indigo-600' },
@@ -109,7 +108,7 @@ export default function Index() {
   const loadGamification = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(GAMIFICATION_URL, {
+      const res = await fetch(API.GAMIFICATION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'get_profile' }),

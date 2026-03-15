@@ -4,9 +4,7 @@ import { authService } from '@/lib/auth';
 import Icon from '@/components/ui/icon';
 import BottomNav from '@/components/BottomNav';
 import RewardModal, { RewardType } from '@/components/RewardModal';
-
-const API_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+import { API } from '@/lib/api-urls';
 
 interface Achievement {
   code: string;
@@ -164,7 +162,7 @@ export default function Achievements() {
   const loadProfile = useCallback(async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.GAMIFICATION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'get_profile' }),
@@ -193,7 +191,7 @@ export default function Achievements() {
     } catch { /* ignore */ }
     try {
       const token = authService.getToken();
-      const res = await fetch(`${API_URL}?action=leaderboard&period=${period}`, {
+      const res = await fetch(`${API.GAMIFICATION}?action=leaderboard&period=${period}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -212,7 +210,7 @@ export default function Achievements() {
   const performCheckin = useCallback(async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.GAMIFICATION, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'checkin' }),
@@ -231,7 +229,7 @@ export default function Achievements() {
     setClaimingReward(streakDays);
     try {
       const token = authService.getToken();
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.GAMIFICATION, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'claim_streak_reward', streak_days: streakDays }),
@@ -259,7 +257,7 @@ export default function Achievements() {
   const freezeStreak = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.GAMIFICATION, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'use_freeze' }),

@@ -7,8 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import NetworkError from '@/components/NetworkError';
-
-const SCHEDULE_URL = 'https://functions.poehali.dev/7030dc26-77cd-4b59-91e6-1be52f31cf8d';
+import { API } from '@/lib/api-urls';
 
 interface Lesson {
   id: number;
@@ -63,8 +62,8 @@ const Calendar = () => {
       const token = authService.getToken();
       const headers = { 'Authorization': `Bearer ${token}` };
       const [scheduleRes, tasksRes] = await Promise.all([
-        fetch(`${SCHEDULE_URL}?path=schedule`, { headers }),
-        fetch(`${SCHEDULE_URL}?path=tasks`, { headers }),
+        fetch(`${API.SCHEDULE}?path=schedule`, { headers }),
+        fetch(`${API.SCHEDULE}?path=tasks`, { headers }),
       ]);
       if (scheduleRes.ok) setSchedule((await scheduleRes.json()).schedule || []);
       if (tasksRes.ok) setTasks((await tasksRes.json()).tasks || []);

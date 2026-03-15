@@ -6,8 +6,7 @@ import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 import PaywallSheet from '@/components/PaywallSheet';
-
-const PHOTO_SOLVE_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
+import { API } from '@/lib/api-urls';
 
 const SUBJECT_COLORS: Record<string, string> = {
   'Математика': 'from-blue-500 to-indigo-600',
@@ -405,7 +404,7 @@ export default function PhotoSolve() {
 
     try {
       const token = authService.getToken();
-      const resp = await fetch(PHOTO_SOLVE_URL, {
+      const resp = await fetch(API.AI_ASSISTANT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

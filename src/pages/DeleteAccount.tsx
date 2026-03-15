@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
-
-const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
+import { API } from '@/lib/api-urls';
 
 export default function DeleteAccount() {
   const navigate = useNavigate();
@@ -26,7 +25,7 @@ export default function DeleteAccount() {
     setIsDeleting(true);
     try {
       const token = authService.getToken();
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'delete_account', password }),

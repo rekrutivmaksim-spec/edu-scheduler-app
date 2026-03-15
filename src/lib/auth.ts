@@ -1,4 +1,6 @@
-const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
+import { API } from '@/lib/api-urls';
+
+const API_URL = API.AUTH;
 
 export interface User {
   id: number;

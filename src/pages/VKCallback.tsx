@@ -4,8 +4,7 @@ import { Card } from '@/components/ui/card';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
-
-const VK_AUTH_URL = 'https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f343ebd7d3';
+import { API } from '@/lib/api-urls';
 
 export default function VKCallback() {
   const navigate = useNavigate();
@@ -59,7 +58,7 @@ export default function VKCallback() {
 
     const exchangeCode = async () => {
       try {
-        const response = await fetch(VK_AUTH_URL, {
+        const response = await fetch(API.VK_AUTH, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -81,7 +80,7 @@ export default function VKCallback() {
           if (isLinkMode) {
             const existingToken = authService.getToken();
             if (existingToken && data.user?.vk_id) {
-              await fetch(VK_AUTH_URL, {
+              await fetch(API.VK_AUTH, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

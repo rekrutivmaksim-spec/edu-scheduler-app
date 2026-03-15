@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import Layout from '@/components/Layout';
 import Captcha from '@/components/ui/captcha';
 
+// Legacy URL - not in func2url.json
 const PASSWORD_RESET_API = 'https://functions.poehali.dev/94d17619-aeab-4b07-b099-fafb742f304c';
 
 export default function ForgotPassword() {

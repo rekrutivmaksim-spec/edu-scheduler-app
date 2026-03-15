@@ -10,10 +10,7 @@ import ProfileAvatar from '@/components/ProfileAvatar';
 import BottomNav from '@/components/BottomNav';
 import { COMPANIONS, getCompanion, getCompanionStage, getCompanionFromStorage, saveCompanionToStorage, type CompanionId } from '@/lib/companion';
 import { useLimits } from '@/hooks/useLimits';
-
-const API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
-const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+import { API } from '@/lib/api-urls';
 
 const COST_PER_SESSION = 300;
 
@@ -75,7 +72,7 @@ const Profile = () => {
   const loadGamification = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(GAMIFICATION_URL, {
+      const res = await fetch(API.GAMIFICATION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'get_profile' }),
@@ -92,7 +89,7 @@ const Profile = () => {
   const loadSubscription = async () => {
     try {
       const token = authService.getToken();
-      const res = await fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+      const res = await fetch(`${API.SUBSCRIPTION}?action=limits`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -110,7 +107,7 @@ const Profile = () => {
     setIsSaving(true);
     try {
       const token = authService.getToken();
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -141,7 +138,7 @@ const Profile = () => {
     setIsDeleting(true);
     try {
       const token = authService.getToken();
-      const res = await fetch(API_URL, {
+      const res = await fetch(API.AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'delete_account', password: deletePassword }),
@@ -167,7 +164,7 @@ const Profile = () => {
     saveCompanionToStorage(id);
     try {
       const token = authService.getToken();
-      await fetch(API_URL, {
+      await fetch(API.AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'update_profile', companion: id }),

@@ -10,8 +10,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { trackActivity } from '@/lib/gamification';
 import ReactMarkdown from 'react-markdown';
-
-const API_URL = 'https://functions.poehali.dev/177e7001-b074-41cb-9553-e9c715d36f09';
+import { API } from '@/lib/api-urls';
 
 interface Material {
   id: number;
@@ -51,7 +50,7 @@ const Materials = () => {
   const loadSharedMaterial = useCallback(async (code: string) => {
     setLoadingShared(true);
     try {
-      const response = await fetch(`${API_URL}?action=shared&code=${encodeURIComponent(code)}`);
+      const response = await fetch(`${API.MATERIALS}?action=shared&code=${encodeURIComponent(code)}`);
       if (response.ok) {
         const data = await response.json();
         setSharedMaterial(data);
@@ -94,7 +93,7 @@ const Materials = () => {
   const loadMaterials = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch(API_URL, {
+      const response = await fetch(API.MATERIALS, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -173,7 +172,7 @@ const Materials = () => {
       });
 
       // Отправляем файл на backend
-      const response = await fetch(API_URL, {
+      const response = await fetch(API.MATERIALS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -228,7 +227,7 @@ const Materials = () => {
   const handleDelete = async (id: number) => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`${API_URL}?id=${id}`, {
+      const response = await fetch(`${API.MATERIALS}?id=${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -256,7 +255,7 @@ const Materials = () => {
     setSharingId(materialId);
     try {
       const token = authService.getToken();
-      const response = await fetch(API_URL, {
+      const response = await fetch(API.MATERIALS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

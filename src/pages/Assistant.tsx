@@ -2,11 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import { trackActivity } from '@/lib/gamification';
+import { API } from '@/lib/api-urls';
 import Icon from '@/components/ui/icon';
 import AIMessage from '@/components/AIMessage';
 import BottomNav from '@/components/BottomNav';
-
-const AI_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
 
 interface ChatMessage {
   id: string;
@@ -26,49 +25,52 @@ interface Session {
 /* ---- WAV conversion ---- */
 const audioToWav = async (blob: Blob): Promise<string> => {
   const audioContext = new AudioContext({ sampleRate: 16000 });
-  const arrayBuffer = await blob.arrayBuffer();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-  const numChannels = 1;
-  const sampleRate = 16000;
-  const bitsPerSample = 16;
-  const length = audioBuffer.length;
-  const buffer = new ArrayBuffer(44 + length * 2);
-  const view = new DataView(buffer);
+    const numChannels = 1;
+    const sampleRate = 16000;
+    const bitsPerSample = 16;
+    const length = audioBuffer.length;
+    const buffer = new ArrayBuffer(44 + length * 2);
+    const view = new DataView(buffer);
 
-  const writeString = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-  };
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + length * 2, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
-  view.setUint16(32, numChannels * (bitsPerSample / 8), true);
-  view.setUint16(34, bitsPerSample, true);
-  writeString(36, 'data');
-  view.setUint32(40, length * 2, true);
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + length * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
+    view.setUint16(32, numChannels * (bitsPerSample / 8), true);
+    view.setUint16(34, bitsPerSample, true);
+    writeString(36, 'data');
+    view.setUint32(40, length * 2, true);
 
-  const channelData = audioBuffer.getChannelData(0);
-  let offset = 44;
-  for (let i = 0; i < length; i++) {
-    const sample = Math.max(-1, Math.min(1, channelData[i]));
-    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-    offset += 2;
+    const channelData = audioBuffer.getChannelData(0);
+    let offset = 44;
+    for (let i = 0; i < length; i++) {
+      const sample = Math.max(-1, Math.min(1, channelData[i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += 2;
+    }
+
+    const wavBytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < wavBytes.length; i++) {
+      binary += String.fromCharCode(wavBytes[i]);
+    }
+
+    return btoa(binary);
+  } finally {
+    await audioContext.close();
   }
-
-  const wavBytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < wavBytes.length; i++) {
-    binary += String.fromCharCode(wavBytes[i]);
-  }
-
-  await audioContext.close();
-  return btoa(binary);
 };
 
 /* ---- Small components ---- */
@@ -240,7 +242,7 @@ const Assistant = () => {
 
   const loadLimits = async () => {
     try {
-      const resp = await fetch(`${AI_URL}?action=limits`, {
+      const resp = await fetch(`${API.AI_ASSISTANT}?action=limits`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (resp.ok) {
@@ -271,7 +273,7 @@ const Assistant = () => {
 
   const loadSessions = async () => {
     try {
-      const resp = await fetch(`${AI_URL}?action=sessions`, {
+      const resp = await fetch(`${API.AI_ASSISTANT}?action=sessions`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (resp.ok) {
@@ -283,7 +285,7 @@ const Assistant = () => {
 
   const loadSessionMessages = async (sessionId: number) => {
     try {
-      const resp = await fetch(`${AI_URL}?action=messages&session_id=${sessionId}`, {
+      const resp = await fetch(`${API.AI_ASSISTANT}?action=messages&session_id=${sessionId}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (resp.ok) {
@@ -304,7 +306,7 @@ const Assistant = () => {
 
   const deleteSession = async (sessionId: number) => {
     try {
-      await fetch(`${AI_URL}?action=delete_session&session_id=${sessionId}`, {
+      await fetch(`${API.AI_ASSISTANT}?action=delete_session&session_id=${sessionId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${getToken()}` },
       });
@@ -428,7 +430,7 @@ const Assistant = () => {
       }
       if (currentSessionId) body.session_id = currentSessionId;
 
-      const resp = await fetch(AI_URL, {
+      const resp = await fetch(API.AI_ASSISTANT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

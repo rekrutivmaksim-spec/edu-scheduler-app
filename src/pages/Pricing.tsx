@@ -6,9 +6,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 import { openPaymentUrl } from '@/lib/payment-utils';
-
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
-const PAYMENTS_URL = 'https://functions.poehali.dev/b45c4361-c9fa-4b81-b687-67d3a9406f1b';
+import { API } from '@/lib/api-urls';
 
 const PREMIUM_FEATURES = [
   { icon: '🤖', text: 'Безлимитные вопросы к ИИ' },
@@ -30,11 +28,11 @@ const GUARANTEE_FEATURES = [
 const FAQ = [
   {
     q: 'Чем отличается Premium от бесплатного?',
-    a: 'При регистрации — 3 дня полного Premium бесплатно. После этого: 3 вопроса к ИИ в день, 1 фото и 1 аудио. Premium даёт безлимитный доступ ко всему: вопросы, фото, аудио, занятия, материалы.',
+    a: 'При регистрации доступен бесплатный период. После него: 3 вопроса к ИИ в день, 1 фото и 1 аудио. Premium даёт безлимитный доступ ко всему: вопросы, фото, аудио, занятия, материалы.',
   },
   {
-    q: 'Что входит в 3 дня Premium?',
-    a: 'Полный безлимитный доступ ко всем функциям: ИИ-вопросы, фото-решения, аудио, занятия, материалы. Без ограничений.',
+    q: 'Что входит в бесплатный период?',
+    a: 'Полный безлимитный доступ ко всем функциям: ИИ-вопросы, фото-решения, аудио, занятия, материалы. Без ограничений. Длительность может отличаться.',
   },
   {
     q: 'Как происходит оплата?',
@@ -110,7 +108,7 @@ const Pricing = () => {
       window.history.replaceState({}, '', '/pricing');
     }
 
-    fetch(`${SUBSCRIPTION_URL}?action=status`, {
+    fetch(`${API.SUBSCRIPTION}?action=status`, {
       headers: { Authorization: `Bearer ${authService.getToken()}` },
     })
       .then(r => r.ok ? r.json() : null)
@@ -130,7 +128,7 @@ const Pricing = () => {
     for (let i = 0; i < 24; i++) {
       await new Promise(r => setTimeout(r, 3000));
       try {
-        const response = await fetch(PAYMENTS_URL, {
+        const response = await fetch(API.PAYMENTS, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ action: 'check_payment', payment_id: parseInt(paymentId) })
@@ -159,7 +157,7 @@ const Pricing = () => {
         toast({ title: 'Проверяем оплату...', description: 'Подождите несколько секунд' });
         checkPaymentStatus(pendingId);
       }
-      fetch(`${SUBSCRIPTION_URL}?action=status`, {
+      fetch(`${API.SUBSCRIPTION}?action=status`, {
         headers: { Authorization: `Bearer ${authService.getToken()}` },
       })
         .then(r => r.ok ? r.json() : null)
@@ -184,7 +182,7 @@ const Pricing = () => {
       const token = authService.getToken();
       const returnUrl = `${window.location.origin}/pricing?payment=success`;
 
-      const response = await fetch(PAYMENTS_URL, {
+      const response = await fetch(API.PAYMENTS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({

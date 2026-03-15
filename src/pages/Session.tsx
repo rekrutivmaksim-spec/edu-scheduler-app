@@ -7,9 +7,7 @@ import PaywallSheet from '@/components/PaywallSheet';
 import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 import { getTodayTopic as getTodayTopicBase, TOPICS_BY_SUBJECT, DEFAULT_TOPICS } from '@/lib/topics';
 import { trackActivity } from '@/lib/gamification';
-
-const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
-const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+import { API } from '@/lib/api-urls';
 
 function getTodayTopic(examSubject?: string | null, offset = 0): { subject: string; topic: string; number: number; total: number } {
   // Используем хеш даты как базовый индекс, offset сдвигает на каждое новое занятие
@@ -46,7 +44,7 @@ function getDaysToExam(examDate?: string | null): number {
   return Math.max(0, Math.ceil((d.getTime() - now.getTime()) / 86400000));
 }
 
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
+
 
 interface StepDef {
   label: string;
@@ -167,7 +165,7 @@ export default function Session() {
         // Перезагружаем лимиты
         const token = authService.getToken();
         if (token) {
-          fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+          fetch(`${API.SUBSCRIPTION}?action=limits`, {
             headers: { Authorization: `Bearer ${token}` },
           }).then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => {
             const sub = d.subscription_type;
@@ -215,7 +213,7 @@ export default function Session() {
       }
     }).catch(() => {});
 
-    fetch(GAMIFICATION_URL, {
+    fetch(API.GAMIFICATION, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ action: 'get_profile' }),
@@ -224,7 +222,7 @@ export default function Session() {
       .then(d => { if (d?.streak?.current != null) setStreak(d.streak.current); })
       .catch(() => {});
 
-    fetch(`${SUBSCRIPTION_URL}?action=limits`, {
+    fetch(`${API.SUBSCRIPTION}?action=limits`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
@@ -286,7 +284,7 @@ export default function Session() {
     // Записываем использование сессии
     const token = authService.getToken();
     if (token && token !== 'guest_token') {
-      fetch(SUBSCRIPTION_URL, {
+      fetch(API.SUBSCRIPTION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'use_session' }),
@@ -351,7 +349,7 @@ export default function Session() {
     let raw = '';
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const res = await fetch(AI_API_URL, { method: 'POST', headers, body });
+        const res = await fetch(API.AI_ASSISTANT, { method: 'POST', headers, body });
         if (res.status === 403) {
           stopLoaderPhrases();
           setLoading(false);
@@ -399,7 +397,7 @@ export default function Session() {
     let raw = '';
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const res = await fetch(AI_API_URL, {
+        const res = await fetch(API.AI_ASSISTANT, {
           method: 'POST',
           headers,
           body: token ? bodyAuth : bodyDemo,
@@ -450,7 +448,7 @@ export default function Session() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
       const solutionPrompt = `Задание: ${content}\n\nДай подробное правильное решение этого задания с объяснением каждого шага. Кратко и понятно.`;
-      const res = await fetch(AI_API_URL, {
+      const res = await fetch(API.AI_ASSISTANT, {
         method: 'POST',
         headers,
         body: token

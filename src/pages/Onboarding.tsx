@@ -5,8 +5,7 @@ import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { COMPANIONS, type CompanionId } from '@/lib/companion';
-
-const AUTH_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
+import { API } from '@/lib/api-urls';
 
 const GOALS = [
   { id: 'ege', label: 'Готовлюсь к ЕГЭ', icon: '🎯', desc: '11 класс' },
@@ -87,7 +86,7 @@ export default function Onboarding() {
     try {
       const token = authService.getToken();
       if (token) {
-        const res = await fetch(AUTH_URL, {
+        const res = await fetch(API.AUTH, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({

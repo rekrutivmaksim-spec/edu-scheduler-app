@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
+import { API } from '@/lib/api-urls';
 
-const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-dfd6941a7080';
+const GAMIFICATION_URL = API.GAMIFICATION;
 const STORAGE_KEY = 'studyfay_last_visit';
 const BONUS_CLAIMED_KEY = 'studyfay_wb_claimed';
 

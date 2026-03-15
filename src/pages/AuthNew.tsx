@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
+import { API } from '@/lib/api-urls';
 import { Device } from '@capacitor/device';
 
 async function getDeviceId(): Promise<string> {
@@ -51,10 +52,7 @@ async function getBrowserFingerprint(): Promise<string> {
   }
 }
 
-const AUTH_API_URL = 'https://functions.poehali.dev/0c04829e-3c05-40bd-a560-5dcd6c554dd5';
-const AI_API_URL = 'https://functions.poehali.dev/8e8cbd4e-7731-4853-8e29-a84b3d178249';
-const SUBSCRIPTION_URL = 'https://functions.poehali.dev/7fe183c2-49af-4817-95f3-6ab4912778c4';
-const VK_AUTH_URL = 'https://functions.poehali.dev/1875b272-ccd5-4605-acd1-44f343ebd7d3';
+
 
 const DEMO_LIMIT = 2;
 
@@ -287,7 +285,7 @@ export default function AuthNew() {
     let raw = '';
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const res = await fetch(AI_API_URL, {
+        const res = await fetch(API.AI_ASSISTANT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'demo_ask', question: q, history: historySnap }),
@@ -325,7 +323,7 @@ export default function AuthNew() {
     if (!pending) return;
     localStorage.removeItem('pendingReferral');
     try {
-      await fetch(SUBSCRIPTION_URL, {
+      await fetch(API.SUBSCRIPTION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'use_referral', referral_code: pending.toUpperCase() }),
@@ -351,7 +349,7 @@ export default function AuthNew() {
     setLoading(true);
     try {
       const device_id = await getDeviceId();
-      const res = await fetch(AUTH_API_URL, {
+      const res = await fetch(API.AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', email, password, device_id }),
@@ -383,14 +381,22 @@ export default function AuthNew() {
     try {
       const [device_id, browser_fp] = await Promise.all([getDeviceId(), getBrowserFingerprint()]);
       // Бэкенд использует action 'login' — если email новый, создаёт аккаунт автоматически
-      const res = await fetch(AUTH_API_URL, {
+      const res = await fetch(API.AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', email, password, device_id, browser_fp }),
       });
       const data = await res.json();
       if (res.ok && data.token) {
-        await afterLogin(data);
+        if (data.is_new_user && data.trial_available === false) {
+          authService.setToken(data.token);
+          authService.setUser(data.user);
+          await applyReferral(data.token);
+          toast({ title: 'Аккаунт создан!', description: 'Добро пожаловать! У вас бесплатный тариф — 3 вопроса к ИИ в день.' });
+          navigate('/');
+        } else {
+          await afterLogin(data);
+        }
       } else {
         setFieldErrors({ email: data.error || 'Не удалось создать аккаунт' });
       }
@@ -412,7 +418,7 @@ export default function AuthNew() {
       localStorage.setItem('vk_code_verifier', codeVerifier);
       localStorage.setItem('vk_state', state);
 
-      const res = await fetch(VK_AUTH_URL, {
+      const res = await fetch(API.VK_AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -441,7 +447,7 @@ export default function AuthNew() {
 
     setLoading(true);
     try {
-      const res = await fetch(AUTH_API_URL, {
+      const res = await fetch(API.AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'reset_password', email, new_password: password }),
@@ -641,7 +647,7 @@ export default function AuthNew() {
               </div>
             </div>
             <div className="space-y-1.5 mb-4 pl-1">
-              {['3 дня полного доступа — бесплатно', 'Вся история диалогов сохранится', 'Безлимитные вопросы к ИИ'].map(t => (
+              {['Бесплатный доступ к ИИ-репетитору', 'Вся история диалогов сохранится', 'Безлимитные вопросы при регистрации'].map(t => (
                 <p key={t} className="text-gray-500 text-xs flex items-center gap-1.5">
                   <span className="text-green-500">✓</span> {t}
                 </p>
@@ -808,7 +814,7 @@ export default function AuthNew() {
               <h2 className="text-2xl font-extrabold text-gray-800 mb-1">Создай аккаунт за 10 сек</h2>
               <div className="flex flex-col gap-1">
                 <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                  <span className="text-green-500">✓</span> 3 дня Premium — бесплатно
+                  <span className="text-green-500">✓</span> Бесплатный доступ к ИИ-репетитору
                 </p>
                 <p className="text-xs text-gray-500 flex items-center gap-1.5">
                   <span className="text-green-500">✓</span> Вся история диалогов сохранится
@@ -899,7 +905,7 @@ export default function AuthNew() {
 
               <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-2.5 flex items-center gap-2 border border-emerald-200">
                 <span className="text-base">🎁</span>
-                <p className="text-xs text-emerald-700 font-medium">3 дня Premium бесплатно при регистрации</p>
+                <p className="text-xs text-emerald-700 font-medium">Бесплатный Premium при регистрации</p>
               </div>
 
               <p className="text-center text-xs text-gray-400">Без карты. Отмена не нужна.</p>

@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
-
-const API_URL = 'https://functions.poehali.dev/fac60d23-7f1e-428a-99cf-820ddb897781';
+import { API } from '@/lib/api-urls';
 
 const ParentAuth = () => {
   const navigate = useNavigate();
@@ -58,7 +57,7 @@ const ParentAuth = () => {
       };
       if (!isLogin && name.trim()) body.full_name = name.trim();
 
-      const response = await fetch(API_URL, {
+      const response = await fetch(API.PARENT_DASHBOARD, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
