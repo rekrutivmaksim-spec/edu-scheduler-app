@@ -411,7 +411,7 @@ const Assistant = () => {
       const data = await resp.json();
 
       if (!resp.ok) {
-        if (resp.status === 403 && data.error === 'limit') {
+        if (resp.status === 403 && (data.error === 'limit' || data.error === 'premium_only')) {
           setShowLimitScreen(true);
           setMessages(prev => prev.filter(m => m.id !== userMsg.id));
           return;
@@ -503,7 +503,7 @@ const Assistant = () => {
               Стоп
             </button>
           ) : (
-            remaining !== null && remaining !== undefined && (
+            remaining !== null && remaining !== undefined && remaining < 999 && (
               <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
                 {remaining} {remaining === 1 ? 'вопрос' : remaining < 5 ? 'вопроса' : 'вопросов'}
               </span>
@@ -769,7 +769,7 @@ const Assistant = () => {
               <h2 className="text-white font-extrabold text-xl mb-1">Вопросы на сегодня закончились</h2>
               <p className="text-white/75 text-sm">С Premium ты сможешь учиться без ограничений:</p>
               <div className="mt-3 space-y-1.5">
-                {['20 вопросов к ИИ каждый день', 'Распознавание голоса', 'Решение задач по фото', 'Подготовка к ЕГЭ/ОГЭ по всем предметам', 'x2 XP за каждое действие'].map(f => (
+                {['Безлимитные вопросы к ИИ', 'Распознавание голоса', 'Решение задач по фото', 'Подготовка к ЕГЭ/ОГЭ по всем предметам', 'x2 XP за каждое действие'].map(f => (
                   <div key={f} className="flex items-center gap-2 text-white/85 text-sm">
                     <Icon name="Check" size={14} className="text-white/60" />{f}
                   </div>

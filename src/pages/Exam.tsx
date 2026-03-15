@@ -613,10 +613,8 @@ export default function Exam() {
 
       const ai = d.limits?.ai_questions;
       if (premium || trial) {
-        const max = 20;
-        const used = ai?.used ?? 0;
-        setQuestionsLimit(max);
-        setQuestionsLeft(Math.max(0, max - used));
+        setQuestionsLimit(999999);
+        setQuestionsLeft(999999);
       } else {
         const max = ai?.max ?? 3;
         const used = ai?.used ?? 0;
@@ -1437,7 +1435,7 @@ export default function Exam() {
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
               <p className="text-2xl text-center mb-2">✨</p>
               <h3 className="font-extrabold text-gray-800 text-xl text-center mb-2">Вопросы на сегодня закончились</h3>
-              <p className="text-gray-500 text-sm text-center mb-6">Подключи Premium — 20 вопросов в день, или подожди до завтра</p>
+              <p className="text-gray-500 text-sm text-center mb-6">Подключи Premium — безлимитные вопросы к ИИ, или подожди до завтра</p>
               <button
                 onClick={() => navigate('/pricing')}
                 className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-base mb-3"
@@ -1495,13 +1493,7 @@ export default function Exam() {
         {/* Лимит вопросов */}
         {(() => {
           if (subLoading) return null;
-          if (isPremium) return (
-            <div className="px-4 py-2 bg-indigo-50 flex items-center justify-between">
-              <p className="text-xs font-semibold text-indigo-600">
-                Premium: {questionsLeft !== null ? `осталось ${questionsLeft} из ${questionsLimit}` : '...'} сегодня
-              </p>
-            </div>
-          );
+          if (isPremium) return null;
           // Бесплатный
           const left = questionsLeft ?? 0;
           return (

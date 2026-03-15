@@ -119,42 +119,13 @@ def check_access(conn, user_id: int) -> dict:
                 'soft_landing_days_left': days_left_sl
             }
 
-    # --- ПРЕМИУМ ---
+    # --- ПРЕМИУМ: БЕЗЛИМИТ ---
     if sub_type == 'premium' and expires_at and expires_at > now:
-        # Сброс дневного счётчика
-        if prem_daily_reset and prem_daily_reset < now:
-            cur2 = conn.cursor()
-            cur2.execute(f'''UPDATE {SCHEMA_NAME}.users
-                SET daily_premium_questions_used=0,
-                    daily_premium_questions_reset_at=%s
-                WHERE id=%s''', (now + timedelta(days=1), user_id))
-            conn.commit()
-            cur2.close()
-            prem_daily_used = 0
-
-        remaining_daily = max(0, PREMIUM_DAILY_LIMIT - prem_daily_used)
-        remaining_bonus = bonus
-
-        if remaining_daily > 0:
-            return {
-                'has_access': True, 'is_premium': True,
-                'used': prem_daily_used, 'limit': PREMIUM_DAILY_LIMIT,
-                'remaining': remaining_daily, 'bonus_remaining': remaining_bonus,
-                'source': 'daily'
-            }
-        elif remaining_bonus > 0:
-            return {
-                'has_access': True, 'is_premium': True,
-                'used': prem_daily_used, 'limit': PREMIUM_DAILY_LIMIT,
-                'remaining': remaining_bonus, 'bonus_remaining': remaining_bonus,
-                'source': 'bonus', 'daily_exhausted': True
-            }
-        else:
-            return {
-                'has_access': False, 'reason': 'daily_limit',
-                'used': prem_daily_used, 'limit': PREMIUM_DAILY_LIMIT,
-                'is_premium': True, 'bonus_remaining': 0
-            }
+        return {
+            'has_access': True, 'is_premium': True,
+            'used': 0, 'limit': 999999, 'remaining': 999999,
+            'source': 'unlimited'
+        }
 
     # --- БЕСПЛАТНЫЙ ---
     if daily_reset and daily_reset < now:
@@ -205,34 +176,20 @@ def increment_questions(conn, user_id: int, access_info: dict = None):
         source = access_info.get('source', 'daily')
 
     if is_trial:
-        # триал не тратит реальные счётчики
         cur.close()
         return
 
     if is_premium:
-        if source == 'bonus':
-            # Списываем из пакета
-            cur.execute(f'''UPDATE {SCHEMA_NAME}.users
-                SET bonus_questions = GREATEST(0, bonus_questions - 1),
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id=%s AND bonus_questions > 0''', (user_id,))
-        else:
-            # Списываем дневной лимит
-            cur.execute(f'''UPDATE {SCHEMA_NAME}.users
-                SET daily_premium_questions_used = COALESCE(daily_premium_questions_used,0) + 1,
-                    daily_premium_questions_reset_at = COALESCE(
-                        NULLIF(daily_premium_questions_reset_at, NULL),
-                        %s
-                    ),
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id=%s''', (now + timedelta(days=1), user_id))
+        cur.close()
+        return
+
     else:
         # Бесплатный: сначала базовые 3, потом бонусные
         cur.execute(f'''SELECT daily_questions_used, bonus_questions FROM {SCHEMA_NAME}.users WHERE id=%s''', (user_id,))
         row = cur.fetchone()
         if row:
             daily_used, bonus = row[0] or 0, row[1] or 0
-            if daily_used < FREE_DAILY_LIMIT:
+            if daily_used < FREE_DAILY_LIMIT_DEFAULT:
                 cur.execute(f'''UPDATE {SCHEMA_NAME}.users
                     SET daily_questions_used = COALESCE(daily_questions_used,0) + 1,
                         daily_questions_reset_at = COALESCE(daily_questions_reset_at, %s),
@@ -1214,6 +1171,20 @@ def handler(event: dict, context) -> dict:
                         'used': access_gc.get('used', 0),
                         'limit': access_gc.get('limit', 0),
                         'is_premium': access_gc.get('is_premium', False),
+                    })
+
+                if audio_b64_gc and access_gc.get('is_free'):
+                    return err(403, {
+                        'error': 'premium_only',
+                        'message': 'Голосовой ввод доступен только в Premium. Оформи подписку!',
+                        'feature': 'audio',
+                    })
+
+                if image_b64_gc and access_gc.get('is_free'):
+                    return err(403, {
+                        'error': 'premium_only',
+                        'message': 'Решение по фото доступно только в Premium. Оформи подписку!',
+                        'feature': 'photo',
                     })
 
                 sid_gc = get_session(conn_gc, uid_gc)

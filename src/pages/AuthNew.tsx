@@ -641,7 +641,7 @@ export default function AuthNew() {
               </div>
             </div>
             <div className="space-y-1.5 mb-4 pl-1">
-              {['3 дня полного доступа — бесплатно', 'Вся история диалогов сохранится', 'До 20 вопросов к ИИ каждый день'].map(t => (
+              {['3 дня полного доступа — бесплатно', 'Вся история диалогов сохранится', 'Безлимитные вопросы к ИИ'].map(t => (
                 <p key={t} className="text-gray-500 text-xs flex items-center gap-1.5">
                   <span className="text-green-500">✓</span> {t}
                 </p>
