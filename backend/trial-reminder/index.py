@@ -49,7 +49,7 @@ FREE_GENEROUS_DAYS = 3
 
 
 def handler(event: dict, context) -> dict:
-    """Находит пользователей, у которых завтра снизятся лимиты (с 10 до 3 вопросов/день), и отправляет уведомления"""
+    """Находит пользователей, у которых завтра закончатся 3 дня Premium и снизятся лимиты"""
     method = event.get('httpMethod', 'POST')
 
     if method == 'OPTIONS':
@@ -95,8 +95,8 @@ def handler(event: dict, context) -> dict:
                 user_id = user['id']
                 days_used = (now - user['created_at'].replace(tzinfo=None)).days
 
-                title = 'Завтра лимит снизится'
-                message = 'Сейчас у тебя 10 вопросов/день — завтра станет 3. Подключи Premium со скидкой 40%!'
+                title = '3 дня Premium заканчиваются'
+                message = 'Завтра лимит снизится до 3 вопросов/день + 1 фото + 1 аудио. Подключи Premium — безлимит ко всему!'
 
                 create_in_app_notification(conn, user_id, title, message, '/pricing')
                 send_push(user_id, title, message, '/pricing', f'limit-drop-{user_id}')

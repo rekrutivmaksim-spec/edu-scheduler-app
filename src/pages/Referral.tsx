@@ -71,7 +71,7 @@ export default function Referral() {
 
   const handleShare = async () => {
     if (!data) return;
-    const text = `Я учусь с Studyfay — ИИ-репетитор для подготовки к экзаменам. Регистрируйся по моей ссылке — получишь +5 бонусных вопросов к ИИ!`;
+    const text = `Я учусь с Studyfay — ИИ-репетитор для подготовки к экзаменам. Регистрируйся по моей ссылке!`;
     
     if (navigator.share) {
       try {
@@ -128,11 +128,11 @@ export default function Referral() {
   }
 
   const rewards = [
-    { count: 1, label: '+7 дней Premium', icon: 'Star', done: data.referral_count >= 1 },
-    { count: 3, label: '+7 дней Premium за каждого', icon: 'Flame', done: data.referral_count >= 3 },
-    { count: 5, label: '+7 дней Premium за каждого', icon: 'Zap', done: data.referral_count >= 5 },
-    { count: 10, label: '+7 дней + достижение', icon: 'Trophy', done: data.referral_count >= 10 },
-    { count: 20, label: '+7 дней + статус VIP', icon: 'Crown', done: data.referral_count >= 20 },
+    { count: 1, label: '+1 день Premium', icon: 'Star', done: data.referral_count >= 1 },
+    { count: 3, label: '+1 день Premium', icon: 'Flame', done: data.referral_count >= 3 },
+    { count: 5, label: '+1 день Premium', icon: 'Zap', done: data.referral_count >= 5 },
+    { count: 10, label: '+1 день + достижение', icon: 'Trophy', done: data.referral_count >= 10 },
+    { count: 20, label: '+1 день + статус VIP', icon: 'Crown', done: data.referral_count >= 20 },
   ];
 
   return (
@@ -149,7 +149,7 @@ export default function Referral() {
             </div>
             <div>
               <h1 className="text-2xl font-bold">Пригласи друга</h1>
-              <p className="text-white/80 text-sm">+7 дней Premium тебе за каждого</p>
+              <p className="text-white/80 text-sm">+1 день Premium тебе за каждого</p>
             </div>
           </div>
 
@@ -192,8 +192,8 @@ export default function Referral() {
           <div className="space-y-3 mt-3">
             {[
               { step: '1', text: 'Отправь ссылку другу', icon: 'Send' },
-              { step: '2', text: 'Друг регистрируется и получает +5 вопросов к ИИ', icon: 'UserPlus' },
-              { step: '3', text: 'Ты получаешь +7 дней Premium', icon: 'Crown' },
+              { step: '2', text: 'Друг регистрируется и получает 3 дня Premium', icon: 'UserPlus' },
+              { step: '3', text: 'Ты получаешь +1 день Premium', icon: 'Crown' },
             ].map((s) => (
               <div key={s.step} className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-gradient-to-br from-violet-100 to-purple-100 rounded-lg flex items-center justify-center shrink-0">

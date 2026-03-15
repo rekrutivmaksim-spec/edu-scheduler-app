@@ -53,7 +53,7 @@ const FAQ_ITEMS = [
   { q: 'Как происходит оплата?', a: 'Через ЮKassa — безопасная оплата картой. После нажатия «Оформить» вы перейдёте на страницу оплаты.' },
   { q: 'Подписка продлевается автоматически?', a: 'Нет, подписка не продлевается автоматически. По окончании срока можно оформить заново.' },
   { q: 'Могу ли я вернуть деньги?', a: 'Возврат возможен в течение 14 дней, если платные функции не были использованы. Напишите в поддержку.' },
-  { q: 'Что будет после окончания?', a: 'Базовые функции остаются + 3 бесплатных вопроса к ИИ в день + 3 занятия. Бонусы за стрик и ежедневный вход.' },
+  { q: 'Что будет после окончания?', a: 'Базовые функции остаются: 3 вопроса к ИИ в день, 1 фото и 1 аудио. Premium — безлимитный доступ ко всему.' },
 ];
 
 const Subscription = () => {
@@ -259,7 +259,7 @@ const Subscription = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        toast({ title: 'Пробный период активирован!', description: '7 дней безлимитного доступа' });
+        toast({ title: 'Пробный период активирован!', description: '3 дня безлимитного доступа' });
         await loadSubscriptionStatus();
       } else {
         toast({ title: 'Не удалось активировать', description: data.error || 'Пробный период уже был использован', variant: 'destructive' });
@@ -323,8 +323,8 @@ const Subscription = () => {
                 <Icon name="Gift" size={24} className="text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-white">7 дней бесплатно</h3>
-                <p className="text-sm text-purple-200 mt-0.5">Попробуй всё без ограничений — ИИ-ассистент, материалы, расписание</p>
+                <h3 className="text-base font-bold text-white">3 дня Premium бесплатно</h3>
+                <p className="text-sm text-purple-200 mt-0.5">Безлимитный доступ ко всему — ИИ-вопросы, фото, аудио, занятия</p>
               </div>
               <Button
                 onClick={handleActivateTrial}
@@ -349,7 +349,7 @@ const Subscription = () => {
                   До {new Date(trialEndsAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
-              <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5 flex-shrink-0">7 дней</Badge>
+              <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5 flex-shrink-0">3 дня</Badge>
             </div>
           </Card>
         )}
@@ -405,7 +405,7 @@ const Subscription = () => {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{pricePerMonth} ₽/мес · 20 ИИ-вопросов/день</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{pricePerMonth} ₽/мес · безлимит ко всему</p>
                     </div>
 
                     <div className="text-right flex-shrink-0 mr-2">

@@ -37,15 +37,15 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
   const getContextMessage = () => {
     switch (trigger) {
       case 'streak_freeze':
-        return 'Не потеряй свой стрик! С Premium ты можешь заморозить серию 1 раз в неделю';
+        return 'Не потеряй свой стрик! С Premium ты можешь заморозить серию';
       case 'daily_quest':
-        return 'Premium-юзеры получают 5 квестов вместо 3 и зарабатывают в 2 раза больше XP';
+        return 'Premium — безлимитный доступ ко всем функциям и квестам';
       case 'pomodoro':
         return 'Помодоро + аналитика = понимание, когда ты учишься эффективнее всего';
       case 'limit':
         return 'Ты на пороге! Разблокируй безлимит и не останавливай учёбу';
       case 'daily_limit':
-        return 'Суточный лимит 20 вопросов исчерпан. Купи пакет — он не сгорает завтра!';
+        return 'Суточный лимит исчерпан. Купи пакет — он не сгорает завтра!';
       default:
         return '';
     }
@@ -153,11 +153,15 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
             <ul className="space-y-2">
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Infinity" size={16} className="text-purple-600" />
-                Безлимитное расписание, задачи, материалы
+                Безлимитные вопросы к ИИ
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
-                <Icon name="Bot" size={16} className="text-purple-600" />
-                20 AI-вопросов в день (+ пакеты на допы)
+                <Icon name="Camera" size={16} className="text-purple-600" />
+                Безлимитные фото-решения и аудио
+              </li>
+              <li className="flex items-center gap-2 text-sm text-gray-700">
+                <Icon name="BookOpen" size={16} className="text-purple-600" />
+                Безлимитные занятия и материалы
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Timer" size={16} className="text-purple-600" />
@@ -165,17 +169,13 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-700">
                 <Icon name="Shield" size={16} className="text-purple-600" />
-                Заморозка стрика (1 раз/неделя)
-              </li>
-              <li className="flex items-center gap-2 text-sm text-gray-700">
-                <Icon name="Sparkles" size={16} className="text-purple-600" />
-                5 ежедневных квестов + бонусный XP
+                Заморозка стрика
               </li>
             </ul>
             <div className="mt-4 pt-4 border-t border-indigo-200 flex items-end justify-between">
               <div>
                 <p className="text-2xl font-bold text-indigo-600">499 &#8381;/мес</p>
-                <p className="text-xs text-gray-600">7 дней бесплатно, далее автопродление</p>
+                <p className="text-xs text-gray-600">Безлимитный доступ ко всему</p>
               </div>
               <p className="text-xs text-gray-500 line-through">10 &#8381;/день</p>
             </div>
@@ -193,7 +193,7 @@ const UpgradeModal = ({ open, onClose, feature, description, trigger = 'general'
             className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-600 hover:via-orange-600 hover:to-red-600 text-white shadow-lg shadow-orange-500/30 text-base py-6"
           >
             <Icon name="Crown" size={20} className="mr-2" />
-            Попробовать 7 дней бесплатно
+            Подключить Premium
           </Button>
 
           <Button

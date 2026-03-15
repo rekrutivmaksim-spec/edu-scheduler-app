@@ -114,9 +114,6 @@ const ReferralProgram = () => {
   if (loading) return null;
   if (!referralData) return null;
 
-  const progress1month = (referralData.progress_to_1month / 10) * 100;
-  const progress1year = (referralData.progress_to_1year / 20) * 100;
-
   return (
     <div className="space-y-6">
       <Card className="p-6 bg-gradient-to-br from-violet-50 to-purple-50 border-2 border-violet-300">
@@ -126,7 +123,7 @@ const ReferralProgram = () => {
           </div>
           <div>
             <h3 className="text-xl font-bold text-gray-800">Реферальная программа</h3>
-            <p className="text-sm text-gray-600">Приглашай друзей — получай награды</p>
+            <p className="text-sm text-gray-600">Приглашай друзей — получай +1 день Premium</p>
           </div>
         </div>
 
@@ -145,53 +142,17 @@ const ReferralProgram = () => {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="bg-white rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Прогресс до 1 месяца бесплатно</span>
-              <Badge className={referralData.has_1month_reward ? 'bg-green-500' : 'bg-gray-400'}>
-                {referralData.progress_to_1month}/10
-              </Badge>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-gradient-to-r from-violet-500 to-purple-600 h-3 rounded-full transition-all"
-                style={{ width: `${progress1month}%` }}
-              />
-            </div>
-            {referralData.has_1month_reward && (
-              <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                <Icon name="CheckCircle" size={14} />
-                Награда получена!
-              </p>
-            )}
+        <div className="bg-white rounded-lg p-4">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-gray-700">Друзей приглашено</span>
+            <Badge className="bg-violet-500">{referralData.referral_count}</Badge>
           </div>
-
-          <div className="bg-white rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Прогресс до 1 года бесплатно</span>
-              <Badge className={referralData.has_1year_reward ? 'bg-green-500' : 'bg-gray-400'}>
-                {referralData.progress_to_1year}/20
-              </Badge>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-gradient-to-r from-violet-500 to-purple-600 h-3 rounded-full transition-all"
-                style={{ width: `${progress1year}%` }}
-              />
-            </div>
-            {referralData.has_1year_reward && (
-              <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                <Icon name="CheckCircle" size={14} />
-                Награда получена!
-              </p>
-            )}
-          </div>
+          <p className="text-xs text-gray-500">+1 день Premium за каждого друга</p>
         </div>
 
         <div className="bg-violet-100 border-l-4 border-violet-500 rounded-lg p-4 mt-4">
           <p className="text-xs text-violet-900 font-medium">
-            💡 Как это работает: делись своим кодом с одногруппниками. Когда они зарегистрируются и введут твой код, ты получишь прогресс к наградам!
+            Делись кодом с одногруппниками. Когда они зарегистрируются — ты получаешь +1 день Premium, друг получает 3 дня Premium.
           </p>
         </div>
       </Card>
@@ -203,7 +164,7 @@ const ReferralProgram = () => {
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-800">Есть код от друга?</h3>
-            <p className="text-xs text-gray-600">Введи его и получи +5 бонусных вопросов</p>
+            <p className="text-xs text-gray-600">Введи его и получи 3 дня Premium</p>
           </div>
         </div>
 

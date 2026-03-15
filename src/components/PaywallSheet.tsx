@@ -17,39 +17,39 @@ interface Props {
 const TRIGGER_COPY = {
   session_limit: {
     emoji: '🚫',
-    title: 'Занятие на сегодня закончилось',
-    subtitle: 'Бесплатно — 1 занятие в день. Premium даёт 5.',
+    title: 'Лимит исчерпан',
+    subtitle: 'Бесплатно — ограниченный доступ. Premium — безлимит ко всему.',
     urgency: 'Без Premium придётся ждать до завтра',
     showPack: false,
   },
   ai_limit: {
     emoji: '⏸️',
     title: 'Вопросы закончились',
-    subtitle: 'Купи пакет вопросов или подключи Premium.',
+    subtitle: 'Бесплатно — 3 вопроса/день. Подключи Premium для безлимита.',
     urgency: 'Продолжить можно прямо сейчас',
     showPack: true,
   },
   after_session: {
     emoji: '🎉',
     title: 'Занятие завершено!',
-    subtitle: 'Хочешь заниматься каждый день без ограничений?',
+    subtitle: 'Хочешь безлимитный доступ ко всем функциям?',
     urgency: null,
     showPack: false,
   },
   after_session_3rd: {
     emoji: '🏆',
     title: 'Ты прошёл уже 3 занятия!',
-    subtitle: 'С Premium готовься в 2 раза быстрее.',
+    subtitle: 'С Premium — безлимит на всё: вопросы, фото, аудио.',
     urgency: 'Первый месяц — 299 ₽ вместо 499 ₽',
     showPack: false,
   },
 };
 
 const FEATURES = [
-  { icon: 'Zap', text: '20 вопросов к ИИ в день' },
-  { icon: 'BookOpen', text: '5 занятий вместо 1' },
+  { icon: 'Zap', text: 'Безлимитные вопросы к ИИ' },
+  { icon: 'Camera', text: 'Безлимитные фото и аудио' },
   { icon: 'Target', text: 'Подготовка к ЕГЭ/ОГЭ по всем предметам' },
-  { icon: 'TrendingUp', text: 'Проверка ответов с разбором ошибок' },
+  { icon: 'TrendingUp', text: 'Полный доступ ко всем функциям' },
 ];
 
 export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onClose }: Props) {

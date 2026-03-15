@@ -17,18 +17,18 @@ const GAMIFICATION_URL = 'https://functions.poehali.dev/0559fb04-cd62-4e50-bb12-
 
 const QUICK_ACCESS_EGE = [
   { icon: 'BookOpen', label: 'Подготовка к ЕГЭ', path: '/exam', color: 'bg-indigo-50 text-indigo-600' },
-  { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
+  { icon: 'MessageCircle', label: 'ИИ-помощник (фото+аудио)', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
   { icon: 'Paperclip', label: 'Разобрать файл', path: '/materials', color: 'bg-pink-50 text-pink-600' },
 ];
 
 const QUICK_ACCESS_UNI = [
   { icon: 'GraduationCap', label: 'Учёба и конспекты', path: '/university', color: 'bg-indigo-50 text-indigo-600' },
-  { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
+  { icon: 'MessageCircle', label: 'ИИ-помощник (фото+аудио)', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
   { icon: 'Paperclip', label: 'Разобрать файл', path: '/materials', color: 'bg-pink-50 text-pink-600' },
 ];
 
 const QUICK_ACCESS_OTHER = [
-  { icon: 'MessageCircle', label: 'ИИ-помощник', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
+  { icon: 'MessageCircle', label: 'ИИ-помощник (фото+аудио)', path: '/assistant', color: 'bg-purple-50 text-purple-600' },
   { icon: 'Paperclip', label: 'Разобрать файл', path: '/materials', color: 'bg-pink-50 text-pink-600' },
   { icon: 'Trophy', label: 'Достижения', path: '/achievements', color: 'bg-amber-50 text-amber-600' },
 ];

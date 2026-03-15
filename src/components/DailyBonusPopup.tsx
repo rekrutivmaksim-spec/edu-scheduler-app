@@ -78,10 +78,6 @@ export default function DailyBonusPopup({ onClose }: Props) {
           </div>
 
           <div className="flex gap-3 justify-center mb-5">
-            <div className="bg-purple-50 rounded-2xl px-4 py-3 text-center flex-1">
-              <div className="text-2xl font-extrabold text-purple-600">+{result.bonus}</div>
-              <div className="text-xs text-purple-500 mt-0.5">вопросов</div>
-            </div>
             <div className="bg-indigo-50 rounded-2xl px-4 py-3 text-center flex-1">
               <div className="text-2xl font-extrabold text-indigo-600">+{result.xp_earned}</div>
               <div className="text-xs text-indigo-500 mt-0.5">XP</div>

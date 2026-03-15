@@ -16,18 +16,17 @@ VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_EMAIL = os.environ.get('VAPID_EMAIL', 'mailto:admin@studyfay.app')
 
 STREAK_REWARDS = [
-    {'streak_days': 3,   'reward_type': 'bonus_questions', 'value': 3,  'title': '3 дня подряд 🔥',      'description': '+3 вопроса к ИИ'},
-    {'streak_days': 7,   'reward_type': 'bonus_questions', 'value': 5,  'title': 'Неделя стрика 💪',      'description': '+5 вопросов к ИИ'},
-    {'streak_days': 14,  'reward_type': 'bonus_questions', 'value': 5,  'title': '2 недели подряд 🏆',    'description': '+5 вопросов к ИИ'},
-    {'streak_days': 21,  'reward_type': 'bonus_questions', 'value': 5,  'title': '21 день упорства!',     'description': '+5 вопросов к ИИ'},
-    {'streak_days': 30,  'reward_type': 'bonus_questions', 'value': 10, 'title': 'Месяц стрика 🥇',       'description': '+10 вопросов к ИИ'},
-    {'streak_days': 60,  'reward_type': 'bonus_questions', 'value': 20, 'title': '2 месяца стрика ⚡',    'description': '+20 вопросов к ИИ'},
-    {'streak_days': 90,  'reward_type': 'bonus_questions', 'value': 30, 'title': '90 дней! Легенда 🌟',   'description': '+30 вопросов к ИИ'},
-    {'streak_days': 180, 'reward_type': 'bonus_questions', 'value': 15, 'title': 'Полгода стрика 🚀',     'description': '+15 вопросов к ИИ'},
-    {'streak_days': 365, 'reward_type': 'bonus_questions', 'value': 20, 'title': 'Год стрика 👑',         'description': '+20 вопросов к ИИ'},
+    {'streak_days': 3,   'reward_type': 'xp_only', 'value': 0,  'title': '3 дня подряд 🔥',      'description': '+50 XP'},
+    {'streak_days': 7,   'reward_type': 'xp_only', 'value': 0,  'title': 'Неделя стрика 💪',      'description': '+100 XP'},
+    {'streak_days': 14,  'reward_type': 'bonus_questions', 'value': 1,  'title': '2 недели подряд 🏆',    'description': '+1 вопрос к ИИ'},
+    {'streak_days': 30,  'reward_type': 'bonus_questions', 'value': 1,  'title': 'Месяц стрика 🥇',       'description': '+1 вопрос к ИИ'},
+    {'streak_days': 60,  'reward_type': 'bonus_questions', 'value': 2,  'title': '2 месяца стрика ⚡',    'description': '+2 вопроса к ИИ'},
+    {'streak_days': 90,  'reward_type': 'bonus_questions', 'value': 2,  'title': '90 дней! Легенда 🌟',   'description': '+2 вопроса к ИИ'},
+    {'streak_days': 180, 'reward_type': 'bonus_questions', 'value': 3,  'title': 'Полгода стрика 🚀',     'description': '+3 вопроса к ИИ'},
+    {'streak_days': 365, 'reward_type': 'bonus_questions', 'value': 3,  'title': 'Год стрика 👑',         'description': '+3 вопроса к ИИ'},
 ]
 
-BONUS_QUESTIONS_MAX = 50
+BONUS_QUESTIONS_MAX = 15
 
 QUEST_POOL = [
     {'type': 'complete_tasks', 'title': 'Выполни {n} задач', 'min': 1, 'max': 3, 'xp_min': 20, 'xp_max': 40, 'premium_only': False},
@@ -1071,12 +1070,7 @@ def handler(event: dict, context) -> dict:
                 streak = cur.fetchone()
                 current_streak = streak['current_streak'] if streak else 1
 
-                if current_streak >= 7:
-                    bonus_q = 3
-                elif current_streak >= 3:
-                    bonus_q = 2
-                else:
-                    bonus_q = 1
+                bonus_q = 0
                 xp_bonus = 10 + min(current_streak, 7) * 5
 
                 cur.execute("""
@@ -1086,10 +1080,9 @@ def handler(event: dict, context) -> dict:
 
                 cur.execute("""
                     UPDATE users
-                    SET bonus_questions = LEAST(COALESCE(bonus_questions, 0) + %s, %s),
-                        xp_total = xp_total + %s
+                    SET xp_total = xp_total + %s
                     WHERE id = %s RETURNING xp_total
-                """, (bonus_q, BONUS_QUESTIONS_MAX, xp_bonus, user_id))
+                """, (xp_bonus, user_id))
                 row = cur.fetchone()
                 if row:
                     new_level = calculate_level(row['xp_total'])
@@ -1107,7 +1100,7 @@ def handler(event: dict, context) -> dict:
                         'bonus': bonus_q,
                         'xp_earned': xp_bonus,
                         'streak_day': current_streak,
-                        'message': f'+{bonus_q} вопросов и +{xp_bonus} XP за ежедневный вход!'
+                        'message': f'+{xp_bonus} XP за ежедневный вход!'
                     })
                 }
 
@@ -1115,7 +1108,7 @@ def handler(event: dict, context) -> dict:
                 days_away = min(int(body.get('days_away', 0)), 30)
                 if days_away < 2:
                     return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Нет бонуса'})}
-                bonus = 5 if days_away >= 7 else 3
+                bonus = 1 if days_away >= 7 else 0
                 cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     UPDATE users SET bonus_questions = LEAST(COALESCE(bonus_questions, 0) + %s, %s) WHERE id = %s

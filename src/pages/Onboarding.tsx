@@ -141,7 +141,7 @@ export default function Onboarding() {
   };
 
   const stepSubtitle = () => {
-    if (step === 0) return 'Это поможет подобрать темы именно для тебя';
+    if (step === 0) return 'Это поможет подобрать темы именно для тебя. ИИ-помощник (фото+аудио) уже ждёт!';
     if (step === 1) return 'Он будет учиться вместе с тобой и расти';
     if (step === 2) return goal === 'university' ? 'Адаптируем программу под твой курс' : 'Адаптируем программу под твой уровень';
     if (step === 3) return 'Начнём с него — остальные добавишь позже';
@@ -325,6 +325,16 @@ export default function Onboarding() {
             </div>
           )}
         </div>
+
+        {step === 0 && goal && (
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-4 mt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">🎁</span>
+              <p className="font-bold text-sm text-purple-800">3 дня Premium бесплатно</p>
+            </div>
+            <p className="text-xs text-purple-600">Безлимит на всё: вопросы к ИИ, фото-решения, аудио, занятия и материалы</p>
+          </div>
+        )}
 
         {/* Кнопки */}
         <div className="mt-6">

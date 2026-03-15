@@ -169,14 +169,6 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
                 WHERE id = %s
             """, update_values)
 
-            # +15 бонусных вопросов при покупке любой подписки
-            cur.execute(f"""
-                UPDATE {SCHEMA_NAME}.users
-                SET bonus_questions = COALESCE(bonus_questions, 0) + 15
-                WHERE id = %s
-            """, (payment['user_id'],))
-
-
         conn.commit()
         return True
 

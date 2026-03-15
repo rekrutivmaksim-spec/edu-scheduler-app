@@ -165,11 +165,9 @@ def get_limits(conn, user_id: int) -> dict:
     sessions_used = (u['daily_sessions_used'] or 0) if u else 0
 
     # Лимиты по тарифу:
-    # Free (дни 1-3): 3 сессии/день, 10 AI вопросов/день, 1 загрузка файла/ДЕНЬ
-    # Free (день 4-7): 3 сессии/день, 5 AI вопросов/день, 1 загрузка файла/ДЕНЬ
-    # Free (день 8+): 3 сессии/день, 3 AI вопроса/день, 1 загрузка файла/ДЕНЬ
-    # Premium: 5 сессий/день, 20 AI вопросов/день, 3 загрузки файла/ДЕНЬ
-    # Trial:   всё как Premium (5 сессий, 20 AI, 3 загрузки)
+    # Free (после 3 дней): 3 AI вопроса/день, 1 фото/день, 1 аудио/день
+    # Premium: БЕЗЛИМИТ ко всему
+    # Trial (3 дня при регистрации): БЕЗЛИМИТ ко всему (как Premium)
 
     files_today = (u.get('files_uploaded_today') or 0) if u else 0
 
@@ -189,8 +187,6 @@ def get_limits(conn, user_id: int) -> dict:
     days_since_reg = (datetime.now() - created_at.replace(tzinfo=None)).days if created_at else 999
 
     if status['is_premium']:
-        bonus = status.get('bonus_questions', 0) or 0
-        prem_used = status.get('daily_premium_questions_used', 0) or 0
         return {
             **status,
             'is_soft_landing': False,
@@ -199,16 +195,14 @@ def get_limits(conn, user_id: int) -> dict:
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
-                'materials': {'used': files_today, 'max': 3, 'unlimited': False},
+                'materials': {'used': files_today, 'max': None, 'unlimited': True},
                 'ai_questions': {
-                    'used': prem_used,
-                    'max': 20 + bonus,
-                    'unlimited': False,
-                    'daily_limit': 20,
-                    'bonus_available': bonus
+                    'used': 0,
+                    'max': None,
+                    'unlimited': True
                 },
                 'exam_predictions': {'unlimited': True},
-                'sessions': {'used': sessions_used, 'max': 5, 'unlimited': False}
+                'sessions': {'used': sessions_used, 'max': None, 'unlimited': True}
             }
         }
     elif status['is_trial']:
@@ -220,10 +214,10 @@ def get_limits(conn, user_id: int) -> dict:
             'limits': {
                 'schedule': {'used': schedule_count, 'max': None, 'unlimited': True},
                 'tasks': {'used': tasks_count, 'max': None, 'unlimited': True},
-                'materials': {'used': files_today, 'max': 3, 'unlimited': False},
-                'ai_questions': {'used': status.get('daily_questions_used', 0), 'max': 20, 'unlimited': False},
+                'materials': {'used': files_today, 'max': None, 'unlimited': True},
+                'ai_questions': {'used': 0, 'max': None, 'unlimited': True},
                 'exam_predictions': {'unlimited': True, 'available': True},
-                'sessions': {'used': sessions_used, 'max': 5, 'unlimited': False}
+                'sessions': {'used': sessions_used, 'max': None, 'unlimited': True}
             }
         }
     elif is_soft_landing:
@@ -241,11 +235,13 @@ def get_limits(conn, user_id: int) -> dict:
                 'materials': {'used': files_today, 'max': 1, 'unlimited': False},
                 'ai_questions': {
                     'used': daily_used,
-                    'max': SOFT_LANDING_LIMIT + bonus,
+                    'max': 3 + bonus,
                     'unlimited': False,
-                    'daily_limit': SOFT_LANDING_LIMIT,
+                    'daily_limit': 3,
                     'bonus_available': bonus
                 },
+                'photos': {'used': 0, 'max': 1, 'unlimited': False},
+                'audio': {'used': 0, 'max': 1, 'unlimited': False},
                 'exam_predictions': {'unlimited': False, 'available': False},
                 'sessions': {'used': sessions_used, 'max': 3, 'unlimited': False}
             }
@@ -253,13 +249,7 @@ def get_limits(conn, user_id: int) -> dict:
     else:
         daily_used = status.get('daily_questions_used', 0)
         bonus = status.get('bonus_questions', 0)
-
-        if days_since_reg < 3:
-            free_limit = 10
-        elif days_since_reg < 7:
-            free_limit = 5
-        else:
-            free_limit = 3
+        free_limit = 3
         total_available = free_limit + bonus
 
         return {
@@ -279,6 +269,8 @@ def get_limits(conn, user_id: int) -> dict:
                     'daily_limit': free_limit,
                     'bonus_available': bonus
                 },
+                'photos': {'used': 0, 'max': 1, 'unlimited': False},
+                'audio': {'used': 0, 'max': 1, 'unlimited': False},
                 'exam_predictions': {'unlimited': False, 'available': False},
                 'sessions': {'used': sessions_used, 'max': 3, 'unlimited': False}
             }
@@ -370,7 +362,7 @@ def handler(event: dict, context) -> dict:
                         conn.commit()
                     
                     count = user['referral_count'] or 0
-                    total_days = count * 7
+                    total_days = count * 1
                     
                     cur.execute("""
                         SELECT ri.created_at, u.full_name
@@ -400,11 +392,11 @@ def handler(event: dict, context) -> dict:
                             'referral_count': count,
                             'rewards_earned': user['referral_rewards_earned'] or 0,
                             'total_premium_days': total_days,
-                            'next_reward': '+7 дней Premium за каждого друга',
-                            'progress_to_1month': min(count, 10),
-                            'progress_to_1year': min(count, 20),
-                            'has_1month_reward': count >= 10,
-                            'has_1year_reward': count >= 20,
+                            'next_reward': '+1 день Premium за каждого друга',
+                            'progress_to_1month': 0,
+                            'progress_to_1year': 0,
+                            'has_1month_reward': False,
+                            'has_1year_reward': False,
                             'invites': invite_list
                         })
                     }
@@ -485,7 +477,7 @@ def handler(event: dict, context) -> dict:
                     if current_expires and current_expires > datetime.now():
                         cur.execute("""
                             UPDATE users 
-                            SET subscription_expires_at = subscription_expires_at + INTERVAL '7 days',
+                            SET subscription_expires_at = subscription_expires_at + INTERVAL '1 day',
                                 referral_rewards_earned = COALESCE(referral_rewards_earned, 0) + 1
                             WHERE id = %s
                         """, (referrer['id'],))
@@ -493,22 +485,16 @@ def handler(event: dict, context) -> dict:
                         cur.execute("""
                             UPDATE users 
                             SET subscription_type = 'premium',
-                                subscription_expires_at = CURRENT_TIMESTAMP + INTERVAL '7 days',
+                                subscription_expires_at = CURRENT_TIMESTAMP + INTERVAL '1 day',
                                 referral_rewards_earned = COALESCE(referral_rewards_earned, 0) + 1
                             WHERE id = %s
                         """, (referrer['id'],))
                     
                     cur.execute("""
                         INSERT INTO referral_invites (referrer_id, invited_id, reward_type, reward_granted)
-                        VALUES (%s, %s, '7_days_premium', TRUE)
+                        VALUES (%s, %s, '1_day_premium', TRUE)
                         ON CONFLICT (invited_id) DO NOTHING
                     """, (referrer['id'], user_id))
-                    
-                    cur.execute("""
-                        UPDATE users 
-                        SET bonus_questions = COALESCE(bonus_questions, 0) + 5
-                        WHERE id = %s
-                    """, (user_id,))
                     
                     conn.commit()
                     
@@ -516,9 +502,9 @@ def handler(event: dict, context) -> dict:
                         'statusCode': 200,
                         'headers': headers,
                         'body': json.dumps({
-                            'message': 'Код применён! Ты получил +5 бонусных вопросов к ИИ-ассистенту',
-                            'bonus_added': 5,
-                            'referrer_reward': '7 дней Premium'
+                            'message': 'Код применён! Твой друг получит +1 день Premium',
+                            'bonus_added': 0,
+                            'referrer_reward': '1 день Premium'
                         })
                     }
             
@@ -568,7 +554,7 @@ def handler(event: dict, context) -> dict:
                     # Активируем триал: выставляем trial_ends_at и is_trial_used=false (триал активен, но не "использован")
                     cur.execute("""
                         UPDATE users 
-                        SET trial_ends_at = CURRENT_TIMESTAMP + INTERVAL '7 days',
+                        SET trial_ends_at = CURRENT_TIMESTAMP + INTERVAL '3 days',
                             is_trial_used = FALSE,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE id = %s
@@ -579,8 +565,8 @@ def handler(event: dict, context) -> dict:
                     'statusCode': 200,
                     'headers': headers,
                     'body': json.dumps({
-                        'message': 'Пробный период активирован на 7 дней!',
-                        'trial_ends_at': (datetime.now().timestamp() + 7*24*60*60)
+                        'message': 'Пробный период активирован на 3 дня!',
+                        'trial_ends_at': (datetime.now().timestamp() + 3*24*60*60)
                     })
                 }
         
