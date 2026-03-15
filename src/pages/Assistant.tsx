@@ -662,7 +662,7 @@ const Assistant = () => {
       </div>
 
       {/* Input area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-20" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 56px)' }}>
+      <div className="fixed bottom-14 left-0 right-0 bg-white border-t border-gray-100 z-20" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {imagePreview && (
           <div className="px-4 pt-3">
             <ImagePreview src={imagePreview} onRemove={() => { setImagePreview(null); setImageFile(null); }} />
