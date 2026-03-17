@@ -247,13 +247,16 @@ const Assistant = () => {
       });
       if (resp.ok) {
         const d = await resp.json();
-        setIsPremium(d.is_premium || false);
+        const premium = d.is_premium || d.is_trial || false;
+        setIsPremium(premium);
         setAudioUsed(d.audio_used || 0);
         setAudioLimit(d.audio_limit || 1);
         setPhotoUsed(d.photo_used || 0);
         setPhotoLimit(d.photo_limit || 1);
-        if (d.questions_remaining !== undefined && d.questions_remaining < 999) {
+        if (!premium && d.questions_remaining !== undefined && d.questions_remaining < 900) {
           setRemaining(d.questions_remaining);
+        } else if (premium) {
+          setRemaining(null);
         }
       }
     } catch (e) { console.error('loadLimits', e); }
@@ -481,7 +484,10 @@ const Assistant = () => {
       };
       setMessages(prev => [...prev, assistantMsg]);
 
-      if (data.remaining !== undefined && data.remaining !== null) {
+      const prem = data.is_premium || false;
+      if (prem) {
+        setRemaining(null);
+      } else if (data.remaining !== undefined && data.remaining !== null && data.remaining < 900) {
         setRemaining(data.remaining);
       }
       if (data.audio_used !== undefined) setAudioUsed(data.audio_used);
@@ -556,7 +562,7 @@ const Assistant = () => {
               Стоп
             </button>
           ) : (
-            remaining !== null && remaining !== undefined && remaining < 999 && (
+            !isPremium && remaining !== null && remaining !== undefined && remaining < 900 && (
               <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
                 {remaining} {remaining === 1 ? 'вопрос' : remaining < 5 ? 'вопроса' : 'вопросов'}
               </span>

@@ -89,9 +89,9 @@ def check_access(conn, user_id: int) -> dict:
     bonus = bonus or 0
     prem_daily_used = prem_daily_used or 0
 
-    # --- ТРИАЛ: безлимит ---
+    # --- ТРИАЛ: безлимит (как Premium) ---
     if trial_ends and not trial_used and trial_ends > now:
-        return {'has_access': True, 'is_trial': True, 'used': 0, 'limit': 999, 'remaining': 999}
+        return {'has_access': True, 'is_trial': True, 'is_premium': True, 'used': 0, 'limit': 999, 'remaining': 999}
 
     # --- ПЕРЕХОДНЫЙ ПЕРИОД (дни 8-10 после окончания триала): 10 вопросов/день ---
     if trial_ends and trial_ends <= now:
@@ -428,17 +428,21 @@ def _check_photo_limit(conn, user_id: int) -> dict:
     cur = conn.cursor()
     cur.execute(f'''
         SELECT subscription_type, subscription_expires_at,
-               photos_uploaded_today, photos_daily_reset_at, bonus_photos
+               photos_uploaded_today, photos_daily_reset_at, bonus_photos,
+               trial_ends_at, is_trial_used
         FROM {SCHEMA_NAME}.users WHERE id = %s
     ''', (user_id,))
     row = cur.fetchone()
     cur.close()
     if not row:
         return {'has_access': False, 'reason': 'not_found'}
-    sub_type, expires, photos_today, reset_at, bonus = row
+    sub_type, expires, photos_today, reset_at, bonus, trial_ends, trial_used = row
     photos_today = photos_today or 0
     bonus = bonus or 0
-    is_premium = sub_type == 'premium' and expires and expires.replace(tzinfo=None) > now if hasattr(expires, 'tzinfo') else (sub_type == 'premium' and expires and expires > now)
+    is_premium = sub_type == 'premium' and expires and (expires.replace(tzinfo=None) if hasattr(expires, 'tzinfo') and expires.tzinfo else expires) > now
+    is_trial = bool(trial_ends and not trial_used and (trial_ends.replace(tzinfo=None) if hasattr(trial_ends, 'tzinfo') and trial_ends.tzinfo else trial_ends) > now)
+    if is_trial:
+        is_premium = True
     daily_limit = PREMIUM_DAILY_PHOTOS if is_premium else FREE_DAILY_PHOTOS
     if reset_at:
         reset_naive = reset_at.replace(tzinfo=None) if hasattr(reset_at, 'tzinfo') and reset_at.tzinfo else reset_at
@@ -473,16 +477,20 @@ def _check_audio_limit(conn, user_id: int) -> dict:
     cur = conn.cursor()
     cur.execute(f'''
         SELECT subscription_type, subscription_expires_at,
-               audio_used_today, audio_daily_reset_at
+               audio_used_today, audio_daily_reset_at,
+               trial_ends_at, is_trial_used
         FROM {SCHEMA_NAME}.users WHERE id = %s
     ''', (user_id,))
     row = cur.fetchone()
     cur.close()
     if not row:
         return {'has_access': False, 'reason': 'not_found'}
-    sub_type, expires, audio_today, reset_at = row
+    sub_type, expires, audio_today, reset_at, trial_ends, trial_used = row
     audio_today = audio_today or 0
     is_premium = sub_type == 'premium' and expires and (expires.replace(tzinfo=None) if hasattr(expires, 'tzinfo') and expires.tzinfo else expires) > now
+    is_trial = bool(trial_ends and not trial_used and (trial_ends.replace(tzinfo=None) if hasattr(trial_ends, 'tzinfo') and trial_ends.tzinfo else trial_ends) > now)
+    if is_trial:
+        is_premium = True
     daily_limit = PREMIUM_DAILY_AUDIO if is_premium else FREE_DAILY_AUDIO
     if reset_at:
         reset_naive = reset_at.replace(tzinfo=None) if hasattr(reset_at, 'tzinfo') and reset_at.tzinfo else reset_at
@@ -1491,10 +1499,12 @@ def handler(event: dict, context) -> dict:
 
             elif action == 'limits':
                 access_info = check_access(conn, user_id)
+                is_prem = access_info.get('is_premium', False) or access_info.get('is_trial', False)
                 photo_info = _check_photo_limit(conn, user_id)
                 audio_info = _check_audio_limit(conn, user_id)
                 return ok({
-                    'is_premium': access_info.get('is_premium', False),
+                    'is_premium': is_prem,
+                    'is_trial': access_info.get('is_trial', False),
                     'questions_remaining': access_info.get('remaining', 0),
                     'questions_limit': access_info.get('limit', 0),
                     'questions_used': access_info.get('used', 0),

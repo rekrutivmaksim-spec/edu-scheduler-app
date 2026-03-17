@@ -30,6 +30,8 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  const [isTrial, setIsTrial] = useState(false);
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [streak, setStreak] = useState(0);
   const [totalDays, setTotalDays] = useState(0);
   const limits = useLimits();
@@ -94,6 +96,8 @@ const Profile = () => {
       });
       if (res.ok) {
         const d = await res.json();
+        setIsTrial(!!d.is_trial);
+        setTrialEndsAt(d.trial_ends_at || null);
         setIsPremium(d.subscription_type === 'premium' || !!d.is_trial);
       }
     } catch { /* silent */ }
@@ -251,8 +255,85 @@ const Profile = () => {
           );
         })()}
 
-        {/* 1. PREMIUM — главный блок */}
-        {!isPremium ? (
+        {/* 1. ПОДПИСКА — главный блок */}
+        {isTrial && trialEndsAt ? (
+          /* ТРИАЛ — 3 дня Premium */
+          (() => {
+            const trialDaysLeft = Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000));
+            const trialEndDate = new Date(trialEndsAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+            return (
+              <div className="rounded-3xl overflow-hidden shadow-xl">
+                <div className="bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                      <Icon name="Gift" size={24} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white font-bold text-base">3 дня Premium</p>
+                      <p className="text-white/70 text-sm">
+                        {trialDaysLeft > 0 ? `Осталось ${trialDaysLeft} ${trialDaysLeft === 1 ? 'день' : trialDaysLeft < 5 ? 'дня' : 'дней'}` : 'Заканчивается сегодня'} — до {trialEndDate}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center mb-4">
+                    <div className="bg-white/15 rounded-2xl px-2 py-2">
+                      <p className="text-white font-bold text-sm">∞</p>
+                      <p className="text-white/60 text-[10px]">вопросы ИИ</p>
+                    </div>
+                    <div className="bg-white/15 rounded-2xl px-2 py-2">
+                      <p className="text-white font-bold text-sm">∞</p>
+                      <p className="text-white/60 text-[10px]">фото/аудио</p>
+                    </div>
+                    <div className="bg-white/15 rounded-2xl px-2 py-2">
+                      <p className="text-white font-bold text-sm">∞</p>
+                      <p className="text-white/60 text-[10px]">занятия</p>
+                    </div>
+                  </div>
+                  <Button onClick={() => navigate('/pricing')} className="w-full h-11 bg-white text-purple-700 font-bold text-sm rounded-2xl">
+                    Продлить Premium
+                  </Button>
+                </div>
+                <div className="bg-orange-600/90 px-5 py-3">
+                  <p className="text-white/90 text-xs text-center">
+                    После окончания: <span className="font-semibold text-white">3 вопроса к ИИ, 1 фото, 1 аудио в день</span>
+                  </p>
+                </div>
+              </div>
+            );
+          })()
+        ) : isPremium && !isTrial ? (
+          /* ОПЛАЧЕННЫЙ PREMIUM */
+          <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                <Icon name="Crown" size={24} className="text-yellow-300" />
+              </div>
+              <div className="flex-1">
+                <p className="text-white font-bold text-base">Premium активен</p>
+                {limits.data.subscription_expires_at && (
+                  <p className="text-white/70 text-sm">
+                    до {new Date(limits.data.subscription_expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-white/15 rounded-2xl px-2 py-2">
+                <p className="text-white font-bold text-sm">∞</p>
+                <p className="text-white/60 text-[10px]">безлимит ИИ</p>
+              </div>
+              <div className="bg-white/15 rounded-2xl px-2 py-2">
+                <p className="text-white font-bold text-sm">∞</p>
+                <p className="text-white/60 text-[10px]">фото/аудио</p>
+              </div>
+              <div className="bg-white/15 rounded-2xl px-2 py-2">
+                <p className="text-white font-bold text-sm">∞</p>
+                <p className="text-white/60 text-[10px]">занятия</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* БЕСПЛАТНЫЙ ТАРИФ */
           <div
             className="rounded-3xl overflow-hidden shadow-xl cursor-pointer active:scale-[0.98] transition-all"
             onClick={() => navigate('/pricing')}
@@ -277,7 +358,6 @@ const Profile = () => {
                   </div>
                 ))}
               </div>
-              {/* Срочность — только для ЕГЭ/ОГЭ */}
               {(formData.goal === 'ege' || formData.goal === 'oge') && (
                 <div className="bg-white/15 rounded-2xl px-4 py-2.5 mb-4 flex items-center gap-2">
                   <span className="text-base">🔥</span>
@@ -297,42 +377,11 @@ const Profile = () => {
               </div>
               <p className="text-white/60 text-xs text-center mt-1.5">Отмена в любой момент · Безопасная оплата</p>
             </div>
-            {/* Потеря */}
-            <div className="bg-purple-900/90 px-5 py-3 flex items-center gap-2">
-              <span className="text-yellow-400 text-sm">⚠️</span>
+            <div className="bg-gray-800/90 px-5 py-3 flex items-center gap-2">
+              <span className="text-sm">📊</span>
               <p className="text-white/70 text-xs">
-                Premium открывает <span className="text-white font-semibold">безлимит</span> вопросов, фото, аудио и занятий
+                Сейчас: <span className="text-white font-semibold">3 вопроса, 1 фото, 1 аудио в день</span>
               </p>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl p-5 shadow-xl">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                <Icon name="Crown" size={24} className="text-yellow-300" />
-              </div>
-              <div className="flex-1">
-                <p className="text-white font-bold text-base">Premium активен ✓</p>
-                {limits.data.subscription_expires_at && (
-                  <p className="text-white/60 text-sm">
-                    до {new Date(limits.data.subscription_expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-white/15 rounded-2xl px-2 py-2">
-                <p className="text-white font-bold text-sm">{limits.data.limits.ai_questions.unlimited ? '∞' : limits.aiRemaining()}</p>
-                <p className="text-white/60 text-[10px]">{limits.data.limits.ai_questions.unlimited ? 'безлимит' : 'вопросов ИИ'}</p>
-              </div>
-              <div className="bg-white/15 rounded-2xl px-2 py-2">
-                <p className="text-white font-bold text-sm">{limits.data.limits.sessions.unlimited ? '∞' : limits.sessionsRemaining()}</p>
-                <p className="text-white/60 text-[10px]">{limits.data.limits.sessions.unlimited ? 'безлимит' : 'занятий'}</p>
-              </div>
-              <div className="bg-white/15 rounded-2xl px-2 py-2">
-                <p className="text-white font-bold text-sm">{limits.data.limits.materials.unlimited ? '∞' : limits.materialsRemaining()}</p>
-                <p className="text-white/60 text-[10px]">{limits.data.limits.materials.unlimited ? 'безлимит' : 'загрузки'}</p>
-              </div>
             </div>
           </div>
         )}
