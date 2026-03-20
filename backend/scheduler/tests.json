@@ -1,14 +1,18 @@
 {
   "tests": [
     {
-      "name": "Get scheduler status",
+      "name": "Status",
       "method": "GET",
       "path": "/?action=status",
       "expectedStatus": 200,
-      "expectedBody": {
-        "status": "ready"
-      },
+      "expectedBody": {"status": "ready"},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
     }
   ]
 }
