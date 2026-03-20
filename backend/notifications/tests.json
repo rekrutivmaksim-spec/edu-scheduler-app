@@ -1,43 +1,47 @@
 {
   "tests": [
     {
-      "name": "Test unauthorized subscribe",
-      "method": "POST",
-      "path": "/",
-      "body": {
-        "action": "subscribe",
-        "subscription": {
-          "endpoint": "https://fcm.googleapis.com/fcm/send/test123",
-          "keys": {
-            "p256dh": "test-p256dh-key",
-            "auth": "test-auth-key"
-          }
-        }
-      },
-      "expectedStatus": 401,
-      "expectedBody": {"error": "string"},
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Test unauthorized streak check",
-      "method": "GET",
-      "path": "/?action=streak_check",
-      "expectedStatus": 401,
-      "expectedBody": {"error": "string"},
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Test OPTIONS CORS",
+      "name": "OPTIONS CORS",
       "method": "OPTIONS",
       "path": "/",
       "expectedStatus": 200
     },
     {
-      "name": "Comeback reminders cron",
+      "name": "Unauthorized request",
       "method": "GET",
-      "path": "/?cron=comeback_reminders",
+      "path": "/?action=status",
+      "expectedStatus": 401
+    },
+    {
+      "name": "Cron onboarding",
+      "method": "GET",
+      "path": "/?cron=onboarding",
       "expectedStatus": 200,
-      "expectedBody": {"success": true},
+      "expectedBody": {"welcome": {}, "reminder": {}},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Cron streak reminder",
+      "method": "GET",
+      "path": "/?cron=streak",
+      "expectedStatus": 200,
+      "expectedBody": {"sent": 0},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Cron trial ending",
+      "method": "GET",
+      "path": "/?cron=trial_ending",
+      "expectedStatus": 200,
+      "expectedBody": {"sent": 0},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Cron reactivation",
+      "method": "GET",
+      "path": "/?cron=reactivation",
+      "expectedStatus": 200,
+      "expectedBody": {"day3": {}},
       "bodyMatcher": "partial"
     }
   ]

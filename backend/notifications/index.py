@@ -1,705 +1,420 @@
+"""
+Push-уведомления Studyfay — 5 категорий по плану:
+1. Онбординг (приветствие, первый вопрос, активация триала)
+2. Удержание (streak, ежедневное задание)
+3. Монетизация (окончание триала, лимиты, скидки)
+4. Виральность (рефералка)
+5. Реактивация (3, 7, 30 дней без активности)
+
+Cron-эндпоинты (вызываются планировщиком):
+GET ?cron=onboarding         — приветствие + напоминание задать вопрос
+GET ?cron=streak             — напоминание о сгорающей серии (каждый день 20:00)
+GET ?cron=trial_ending       — триал заканчивается через 24ч
+GET ?cron=trial_expired      — триал только что закончился
+GET ?cron=reactivation       — реактивация спящих (3/7/30 дней)
+GET ?cron=referral_promo     — предложение рефералки (7 день)
+GET ?cron=discount           — скидка на 3й день после окончания триала
+POST action=send_test        — тестовый пуш текущему пользователю
+GET  action=status           — статус подписки
+"""
 import json
 import os
 import jwt
 import psycopg2
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pywebpush import webpush, WebPushException
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
-JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key')
+SCHEMA = os.environ.get('MAIN_DB_SCHEMA', 'public')
+JWT_SECRET = os.environ.get('JWT_SECRET', 'secret')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
-VAPID_EMAIL = os.environ.get('VAPID_EMAIL', 'mailto:admin@studyfay.app')
+VAPID_CLAIMS = {'sub': 'mailto:support@studyfay.ru'}
 
-def get_user_id_from_token(token: str) -> int:
-    """Извлечение user_id из JWT токена"""
+CORS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Authorization',
+    'Content-Type': 'application/json',
+}
+
+def ok(body): return {'statusCode': 200, 'headers': CORS, 'body': json.dumps(body, ensure_ascii=False)}
+def err(code, msg): return {'statusCode': code, 'headers': CORS, 'body': json.dumps({'error': msg}, ensure_ascii=False)}
+
+
+def get_user_id(token: str):
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
         return payload['user_id']
-    except:
+    except Exception:
         return None
 
-def handler(event: dict, context) -> dict:
-    """API для управления push-уведомлениями и их отправки"""
-    method = event.get('httpMethod', 'GET')
-    
-    if method == 'OPTIONS':
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            },
-            'body': ''
-        }
-    
-    token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')
-    user_id = get_user_id_from_token(token)
-    
-    conn = psycopg2.connect(DATABASE_URL)
 
+def get_conn():
+    return psycopg2.connect(DATABASE_URL)
+
+
+def send_push(endpoint: str, p256dh: str, auth: str, title: str, body: str, url: str = '/', tag: str = 'general') -> bool:
+    if not VAPID_PRIVATE_KEY:
+        return False
     try:
-        if method == 'GET':
-            qs = event.get('queryStringParameters', {}) or {}
-            cron_action = qs.get('cron')
-            if cron_action == 'comeback_reminders':
-                return handle_comeback_reminders(conn)
+        webpush(
+            subscription_info={'endpoint': endpoint, 'keys': {'p256dh': p256dh, 'auth': auth}},
+            data=json.dumps({'title': title, 'body': body, 'url': url, 'tag': tag}),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims=VAPID_CLAIMS,
+        )
+        return True
+    except WebPushException as e:
+        if e.response and e.response.status_code in (404, 410):
+            return None  # expired subscription
+        return False
+
+
+def send_to_users(conn, user_ids: list, title: str, body: str, url: str = '/', tag: str = 'general') -> dict:
+    if not user_ids:
+        return {'sent': 0, 'failed': 0}
+    cur = conn.cursor()
+    placeholders = ','.join(['%s'] * len(user_ids))
+    cur.execute(
+        f'SELECT user_id, endpoint, p256dh, auth FROM {SCHEMA}.push_subscriptions WHERE user_id IN ({placeholders}) AND endpoint IS NOT NULL',
+        user_ids
+    )
+    subs = cur.fetchall()
+    expired = []
+    sent = failed = 0
+    for uid, endpoint, p256dh, auth in subs:
+        result = send_push(endpoint, p256dh, auth, title, body, url, tag)
+        if result is True:
+            sent += 1
+        elif result is None:
+            expired.append(endpoint)
+        else:
+            failed += 1
+    if expired:
+        for ep in expired:
+            cur.execute(f'DELETE FROM {SCHEMA}.push_subscriptions WHERE endpoint = %s', (ep,))
+        conn.commit()
+    cur.close()
+    return {'sent': sent, 'failed': failed}
+
+
+def handler(event: dict, context) -> dict:
+    """Обработчик push-уведомлений Studyfay"""
+    if event.get('httpMethod') == 'OPTIONS':
+        return {'statusCode': 200, 'headers': CORS, 'body': ''}
+
+    method = event.get('httpMethod', 'GET')
+    qs = event.get('queryStringParameters') or {}
+    auth_header = event.get('headers', {}).get('X-Authorization') or event.get('headers', {}).get('Authorization', '')
+    token = auth_header.replace('Bearer ', '').strip()
+    user_id = get_user_id(token)
+
+    conn = get_conn()
+    try:
+        # ── Cron-задачи ───────────────────────────────────────────────────────
+        cron = qs.get('cron')
+        if method == 'GET' and cron:
+            if cron == 'onboarding':
+                return cron_onboarding(conn)
+            if cron == 'streak':
+                return cron_streak(conn)
+            if cron == 'trial_ending':
+                return cron_trial_ending(conn)
+            if cron == 'trial_expired':
+                return cron_trial_expired(conn)
+            if cron == 'reactivation':
+                return cron_reactivation(conn)
+            if cron == 'referral_promo':
+                return cron_referral_promo(conn)
+            if cron == 'discount':
+                return cron_discount(conn)
+            return err(400, 'Unknown cron')
 
         if not user_id:
-            return {
-                'statusCode': 401,
-                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'Unauthorized'})
-            }
+            return err(401, 'Unauthorized')
 
+        # ── POST-действия ─────────────────────────────────────────────────────
         if method == 'POST':
-            body = json.loads(event.get('body', '{}'))
+            body = json.loads(event.get('body') or '{}')
             action = body.get('action')
-            
-            if action == 'subscribe':
-                return handle_subscribe(conn, user_id, body.get('subscription'))
-            elif action == 'unsubscribe':
-                return handle_unsubscribe(conn, user_id)
-            elif action == 'send_test':
-                return handle_send_test(conn, user_id)
-            elif action == 'send_lesson_reminders':
-                return handle_send_lesson_reminders(conn)
-            elif action == 'send_deadline_reminders':
-                return handle_send_deadline_reminders(conn)
-            elif action == 'send_streak_reminders':
-                return handle_send_streak_reminders(conn)
-            elif action == 'send_smart_reminders':
-                return handle_send_smart_reminders(conn)
-        
-        elif method == 'GET':
-            action = event.get('queryStringParameters', {}).get('action')
-            
-            if action == 'status':
-                return get_subscription_status(conn, user_id)
-            elif action == 'streak_check':
-                return handle_streak_check(conn, user_id)
-            elif action == 'list':
-                limit = int(event.get('queryStringParameters', {}).get('limit', '10'))
-                return get_notifications_list(conn, user_id, limit)
-        
-        elif method == 'PUT':
-            body = json.loads(event.get('body', '{}'))
-            notification_id = body.get('notification_id')
-            is_read = body.get('is_read')
-            return mark_notification_read(conn, user_id, notification_id, is_read)
-        
-        return {
-            'statusCode': 400,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Invalid action'})
-        }
-    
+            if action == 'send_test':
+                return send_test(conn, user_id)
+
+        # ── GET статус ────────────────────────────────────────────────────────
+        if method == 'GET' and qs.get('action') == 'status':
+            cur = conn.cursor()
+            cur.execute(f'SELECT COUNT(*) FROM {SCHEMA}.push_subscriptions WHERE user_id=%s AND endpoint IS NOT NULL', (user_id,))
+            count = cur.fetchone()[0]
+            cur.close()
+            return ok({'subscribed': count > 0, 'vapid_public_key': VAPID_PUBLIC_KEY})
+
+        return err(400, 'Unknown action')
     finally:
         conn.close()
 
-def handle_subscribe(conn, user_id: int, subscription: dict) -> dict:
-    """Подписка пользователя на push-уведомления"""
-    if not subscription:
-        return {
-            'statusCode': 400,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Subscription data required'})
-        }
-    
-    endpoint = subscription.get('endpoint')
-    keys = subscription.get('keys', {})
-    p256dh = keys.get('p256dh')
-    auth = keys.get('auth')
-    
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
-        VALUES (%s, %s, %s, %s)
-        ON CONFLICT (user_id, endpoint) DO UPDATE
-        SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth
-    ''', (user_id, endpoint, p256dh, auth))
-    
-    cursor.execute('''
-        INSERT INTO notification_settings (user_id)
-        VALUES (%s)
-        ON CONFLICT (user_id) DO NOTHING
-    ''', (user_id,))
-    
-    conn.commit()
-    cursor.close()
-    
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'success': True, 'message': 'Subscribed to notifications'})
-    }
 
-def handle_unsubscribe(conn, user_id: int) -> dict:
-    """Отписка от push-уведомлений"""
-    cursor = conn.cursor()
-    cursor.execute('UPDATE push_subscriptions SET endpoint = NULL WHERE user_id = %s', (user_id,))
-    conn.commit()
-    cursor.close()
-    
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'success': True, 'message': 'Unsubscribed from notifications'})
-    }
+# ═══════════════════════════════════════════════════════════════════════════════
+# 1. ОНБОРДИНГ
+# ═══════════════════════════════════════════════════════════════════════════════
 
-def get_subscription_status(conn, user_id: int) -> dict:
-    """Проверка статуса подписки"""
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT COUNT(*) FROM push_subscriptions 
-        WHERE user_id = %s AND endpoint IS NOT NULL
-    ''', (user_id,))
-    count = cursor.fetchone()[0]
-    cursor.close()
-    
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'subscribed': count > 0})
-    }
-
-def handle_send_test(conn, user_id: int) -> dict:
-    """Отправка тестового уведомления"""
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT endpoint, p256dh, auth FROM push_subscriptions
-        WHERE user_id = %s AND endpoint IS NOT NULL
-    ''', (user_id,))
-    
-    subscriptions = cursor.fetchall()
-    cursor.close()
-    
-    if not subscriptions:
-        return {
-            'statusCode': 404,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'No subscriptions found'})
-        }
-    
-    notification_data = {
-        'title': '🎓 Studyfay',
-        'body': 'Уведомления работают отлично!',
-        'tag': 'test',
-        'url': '/'
-    }
-    
-    sent_count = 0
-    for endpoint, p256dh, auth in subscriptions:
-        try:
-            send_push_notification(endpoint, p256dh, auth, notification_data)
-            sent_count += 1
-        except Exception:
-            pass
-    
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'success': True, 'sent': sent_count})
-    }
-
-def handle_send_lesson_reminders(conn) -> dict:
-    """Отправка напоминаний о занятиях (запускается по расписанию)"""
-    cursor = conn.cursor()
-    
-    today = datetime.now()
-    day_of_week = today.isoweekday()
-    
-    cursor.execute('''
-        SELECT DISTINCT u.id, u.full_name, ps.endpoint, ps.p256dh, ps.auth
-        FROM users u
-        JOIN push_subscriptions ps ON u.id = ps.user_id
-        JOIN notification_settings ns ON u.id = ns.user_id
-        JOIN schedule s ON u.id = s.user_id
-        WHERE ps.endpoint IS NOT NULL
-        AND ns.lessons_reminder = TRUE
-        AND s.day_of_week = %s
-        AND s.start_time > CURRENT_TIME
-        AND s.start_time <= CURRENT_TIME + INTERVAL '2 hours'
-    ''', (day_of_week,))
-    
-    users = cursor.fetchall()
-    
-    for user_id, full_name, endpoint, p256dh, auth in users:
-        cursor.execute('''
-            SELECT subject, start_time, room FROM schedule
-            WHERE user_id = %s AND day_of_week = %s
-            AND start_time > CURRENT_TIME
-            ORDER BY start_time LIMIT 1
-        ''', (user_id, day_of_week))
-        
-        lesson = cursor.fetchone()
-        if lesson:
-            subject, start_time, room = lesson
-            notification_data = {
-                'title': f'📚 Скоро пара: {subject}',
-                'body': f'Начало в {start_time.strftime("%H:%M")}' + (f', {room}' if room else ''),
-                'tag': f'lesson-{user_id}',
-                'url': '/'
-            }
-            
-            try:
-                send_push_notification(endpoint, p256dh, auth, notification_data)
-            except Exception:
-                pass
-    
-    cursor.close()
-    
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'success': True, 'sent': len(users)})
-    }
-
-def handle_send_deadline_reminders(conn) -> dict:
-    """Отправка напоминаний о дедлайнах (запускается по расписанию)"""
-    from psycopg2.extras import RealDictCursor
-    
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
-    # Проверяем task_notifications которые нужно отправить
-    cursor.execute('''
-        SELECT 
-            tn.id as notification_id,
-            tn.user_id,
-            tn.notification_type,
-            t.title as task_title,
-            t.deadline,
-            u.full_name,
-            ps.endpoint,
-            ps.p256dh,
-            ps.auth
-        FROM task_notifications tn
-        JOIN tasks t ON tn.task_id = t.id
-        JOIN users u ON tn.user_id = u.id
-        LEFT JOIN push_subscriptions ps ON u.id = ps.user_id
-        WHERE tn.is_sent = FALSE
-        AND tn.notification_time <= NOW()
-        AND t.completed = FALSE
-        ORDER BY tn.notification_time ASC
-        LIMIT 100
-    ''')
-    
-    notifications_to_send = cursor.fetchall()
-    sent_count = 0
-    
-    for notif in notifications_to_send:
-        if notif['deadline']:
-            hours_left = int((notif['deadline'] - datetime.now()).total_seconds() / 3600)
-            
-            if notif['notification_type'] == '1hour':
-                message = f'⏰ Меньше часа до дедлайна!'
-            elif notif['notification_type'] == '1day':
-                message = f'📅 Завтра дедлайн!'
-            elif notif['notification_type'] == '3days':
-                message = f'📌 Через 3 дня дедлайн'
-            else:
-                message = f'⏰ Осталось {hours_left}ч'
-            
-            # Отправляем push если есть подписка
-            if notif.get('endpoint') and notif.get('p256dh') and notif.get('auth'):
-                notification_data = {
-                    'title': notif['task_title'],
-                    'body': message,
-                    'tag': f'deadline-{notif["user_id"]}-{notif["notification_id"]}',
-                    'url': '/?tab=tasks'
-                }
-                
-                try:
-                    send_push_notification(notif['endpoint'], notif['p256dh'], notif['auth'], notification_data)
-                except Exception as e:
-                    print(f'Failed to send deadline reminder: {e}')
-            
-            # Помечаем как отправленное
-            cursor.execute('''
-                UPDATE task_notifications
-                SET is_sent = TRUE, sent_at = NOW()
-                WHERE id = %s
-            ''', (notif['notification_id'],))
-            
-            sent_count += 1
-    
-    conn.commit()
-    
-    cursor.close()
-    
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'success': True, 'sent': sent_count})
-    }
-
-def get_notifications_list(conn, user_id: int, limit: int = 10) -> dict:
-    """Получение списка уведомлений пользователя"""
-    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
-    cursor = conn.cursor()
-    
-    # Получаем уведомления
-    cursor.execute(f'''
-        SELECT id, title, message, action_url, is_read, created_at, read_at
-        FROM {schema}.notifications
-        WHERE user_id = %s
-        ORDER BY created_at DESC
-        LIMIT %s
-    ''', (user_id, limit))
-    
-    notifications = []
-    for row in cursor.fetchall():
-        notifications.append({
-            'id': row[0],
-            'title': row[1],
-            'message': row[2],
-            'action_url': row[3],
-            'is_read': row[4],
-            'created_at': row[5].isoformat() if row[5] else None,
-            'read_at': row[6].isoformat() if row[6] else None
-        })
-    
-    # Подсчитываем непрочитанные
-    cursor.execute(f'''
-        SELECT COUNT(*) FROM {schema}.notifications
-        WHERE user_id = %s AND is_read = false
-    ''', (user_id,))
-    unread_count = cursor.fetchone()[0]
-    
-    cursor.close()
-    
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({
-            'notifications': notifications,
-            'unread_count': unread_count
-        })
-    }
-
-
-def mark_notification_read(conn, user_id: int, notification_id: int, is_read: bool) -> dict:
-    """Отметка уведомления как прочитанного"""
-    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
-    cursor = conn.cursor()
-    
-    cursor.execute(f'''
-        UPDATE {schema}.notifications
-        SET is_read = %s, read_at = CASE WHEN %s = true THEN CURRENT_TIMESTAMP ELSE NULL END
-        WHERE id = %s AND user_id = %s
-    ''', (is_read, is_read, notification_id, user_id))
-    
-    conn.commit()
-    cursor.close()
-    
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'success': True})
-    }
-
-def handle_streak_check(conn, user_id: int) -> dict:
-    """Проверка статуса страйка текущего пользователя"""
-    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
-    cursor = conn.cursor()
-
-    cursor.execute(f'''
-        SELECT current_streak, last_activity_date
-        FROM {schema}.user_streaks
-        WHERE user_id = %s
-    ''', (user_id,))
-    row = cursor.fetchone()
-
-    if not row:
-        cursor.close()
-        return {
-            'statusCode': 200,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({
-                'current_streak': 0,
-                'active_today': False,
-                'at_risk': False
-            })
-        }
-
-    current_streak, last_activity_date = row
-
-    today = datetime.now().date()
-    active_today = last_activity_date == today if last_activity_date else False
-
-    # Also check daily_activity table for today's entry
-    if not active_today:
-        cursor.execute(f'''
-            SELECT COUNT(*) FROM {schema}.daily_activity
-            WHERE user_id = %s AND date = %s
-        ''', (user_id, today))
-        active_today = cursor.fetchone()[0] > 0
-
-    at_risk = current_streak > 0 and not active_today
-
-    cursor.close()
-
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({
-            'current_streak': current_streak or 0,
-            'active_today': active_today,
-            'at_risk': at_risk
-        })
-    }
-
-
-def handle_send_streak_reminders(conn) -> dict:
-    """Отправка напоминаний о сгорающих страйках (запускается по расписанию)"""
-    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
-    cursor = conn.cursor()
-    today = datetime.now().date()
-
-    # Находим пользователей с активным страйком, у которых нет активности сегодня
-    # и у которых есть push-подписка
-    cursor.execute(f'''
-        SELECT us.user_id, us.current_streak, ps.endpoint, ps.p256dh, ps.auth
-        FROM {schema}.user_streaks us
-        JOIN {schema}.push_subscriptions ps ON ps.user_id = us.user_id
-        WHERE us.current_streak > 0
-        AND ps.endpoint IS NOT NULL
-        AND NOT EXISTS (
-            SELECT 1 FROM {schema}.daily_activity da
-            WHERE da.user_id = us.user_id AND da.date = %s
-        )
-    ''', (today,))
-
-    users_at_risk = cursor.fetchall()
-    sent_count = 0
-
-    for user_id, current_streak, endpoint, p256dh, auth in users_at_risk:
-        notification_data = {
-            'title': 'Страйк сгорит!',
-            'body': f'Зайди в Studyfay, чтобы сохранить страйк {current_streak} дней!',
-            'tag': f'streak-risk-{user_id}',
-            'url': '/achievements'
-        }
-
-        try:
-            send_push_notification(endpoint, p256dh, auth, notification_data)
-            sent_count += 1
-        except Exception as e:
-            print(f'Failed to send streak reminder to user {user_id}: {e}')
-
-        # Save in-app notification
-        try:
-            cursor.execute(f'''
-                INSERT INTO {schema}.notifications (user_id, title, message, action_url)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                user_id,
-                'Страйк сгорит!',
-                f'Зайди в Studyfay, чтобы сохранить страйк {current_streak} дней!',
-                '/achievements'
-            ))
-        except Exception as e:
-            print(f'Failed to save streak notification for user {user_id}: {e}')
-
-    conn.commit()
-    cursor.close()
-
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({
-            'success': True,
-            'users_at_risk': len(users_at_risk),
-            'sent': sent_count
-        }, ensure_ascii=False)
-    }
-
-
-def handle_send_smart_reminders(conn) -> dict:
-    """Отправка контекстных умных уведомлений (запускается по расписанию)"""
-    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
-    cursor = conn.cursor()
+def cron_onboarding(conn) -> dict:
+    """
+    Приветствие — сразу после регистрации (первые 5 минут).
+    Напоминание — через 2 часа если не задал вопрос.
+    """
     now = datetime.now()
-    today = now.date()
-    sent_count = 0
+    cur = conn.cursor()
 
-    cursor.execute(f'''
-        SELECT u.id, ps.endpoint, ps.p256dh, ps.auth
-        FROM {schema}.users u
-        JOIN {schema}.push_subscriptions ps ON ps.user_id = u.id
+    # Приветствие: зарегистрировались 2-5 минут назад, ещё не задали вопрос
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
         WHERE ps.endpoint IS NOT NULL
-    ''')
-    users_with_push = cursor.fetchall()
+          AND u.created_at BETWEEN %s AND %s
+          AND u.ai_questions_used = 0
+    ''', (now - timedelta(minutes=5), now - timedelta(minutes=2)))
+    welcome_users = [r[0] for r in cur.fetchall()]
 
-    for user_id, endpoint, p256dh, auth in users_with_push:
-        cursor.execute(f'''
-            SELECT subject, SUM(duration) as total_min
-            FROM {schema}.pomodoro_sessions
-            WHERE user_id = %s AND completed_at > CURRENT_TIMESTAMP - INTERVAL '14 days'
-            GROUP BY subject
-        ''', (user_id,))
-        studied = set(r[0] for r in cursor.fetchall())
+    # Напоминание: зарегистрировались 2-2.5 часа назад, всё ещё не задали вопрос
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND u.created_at BETWEEN %s AND %s
+          AND u.ai_questions_used = 0
+    ''', (now - timedelta(hours=2, minutes=30), now - timedelta(hours=2)))
+    reminder_users = [r[0] for r in cur.fetchall()]
+    cur.close()
 
-        cursor.execute(f'''
-            SELECT DISTINCT subject FROM {schema}.schedule WHERE user_id = %s
-        ''', (user_id,))
-        all_subjects = set(r[0] for r in cursor.fetchall())
-        neglected = all_subjects - studied
+    r1 = send_to_users(conn, welcome_users,
+        '👋 Привет! Добро пожаловать в Studyfay',
+        'У тебя 3 дня Premium бесплатно. Задай первый вопрос — я помогу разобраться!',
+        '/assistant', 'onboarding_welcome')
 
-        for subj in list(neglected)[:1]:
-            notification_data = {
-                'title': f'\u0422\u044b \u0434\u0430\u0432\u043d\u043e \u043d\u0435 \u0437\u0430\u043d\u0438\u043c\u0430\u043b\u0441\u044f \u00ab{subj}\u00bb',
-                'body': '\u0417\u0430\u043f\u0443\u0441\u0442\u0438 \u043f\u043e\u043c\u043e\u0434\u043e\u0440\u043a\u0443 \u043f\u043e \u044d\u0442\u043e\u043c\u0443 \u043f\u0440\u0435\u0434\u043c\u0435\u0442\u0443!',
-                'tag': f'neglected-{user_id}-{subj}',
-                'url': '/pomodoro'
-            }
-            try:
-                send_push_notification(endpoint, p256dh, auth, notification_data)
-                sent_count += 1
-            except Exception as e:
-                print(f'Smart notif failed for user {user_id}: {e}')
+    r2 = send_to_users(conn, reminder_users,
+        '🤔 Не знаешь, с чего начать?',
+        'Попробуй спросить: «как решить уравнение x² – 5x + 6 = 0» — я объясню по шагам',
+        '/assistant', 'onboarding_hint')
 
-            try:
-                cursor.execute(f'''
-                    INSERT INTO {schema}.notifications (user_id, title, message, action_url)
-                    VALUES (%s, %s, %s, %s)
-                ''', (user_id, notification_data['title'], notification_data['body'], '/pomodoro'))
-            except Exception:
-                pass
-
-        cursor.execute(f'''
-            SELECT id, title, deadline FROM {schema}.tasks
-            WHERE user_id = %s AND completed = false AND deadline IS NOT NULL
-            AND deadline BETWEEN CURRENT_TIMESTAMP AND CURRENT_TIMESTAMP + INTERVAL '2 days'
-            ORDER BY deadline ASC LIMIT 1
-        ''', (user_id,))
-        urgent_task = cursor.fetchone()
-
-        if urgent_task:
-            task_id, task_title, deadline = urgent_task
-            days_left = (deadline.date() - today).days
-            notification_data = {
-                'title': f'\u0414\u043e \u0434\u0435\u0434\u043b\u0430\u0439\u043d\u0430 {days_left} \u0434\u043d.',
-                'body': f'\u00ab{task_title}\u00bb \u2014 \u043f\u0435\u0440\u0435\u043d\u0435\u0441\u0442\u0438 \u0437\u0430\u0434\u0430\u0447\u0438?',
-                'tag': f'deadline-smart-{user_id}-{task_id}',
-                'url': '/?tab=tasks'
-            }
-            try:
-                send_push_notification(endpoint, p256dh, auth, notification_data)
-                sent_count += 1
-            except Exception as e:
-                print(f'Deadline smart notif failed: {e}')
-
-            try:
-                cursor.execute(f'''
-                    INSERT INTO {schema}.notifications (user_id, title, message, action_url)
-                    VALUES (%s, %s, %s, %s)
-                ''', (user_id, notification_data['title'], notification_data['body'], '/'))
-            except Exception:
-                pass
-
-    conn.commit()
-    cursor.close()
-
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'success': True, 'sent': sent_count})
-    }
+    return ok({'welcome': r1, 'reminder': r2})
 
 
-def send_push_notification(endpoint: str, p256dh: str, auth: str, data: dict):
-    """Отправка push-уведомления через Web Push API"""
-    subscription_info = {
-        'endpoint': endpoint,
-        'keys': {
-            'p256dh': p256dh,
-            'auth': auth
-        }
-    }
+# ═══════════════════════════════════════════════════════════════════════════════
+# 2. УДЕРЖАНИЕ
+# ═══════════════════════════════════════════════════════════════════════════════
 
-    webpush(
-        subscription_info=subscription_info,
-        data=json.dumps(data),
-        vapid_private_key=VAPID_PRIVATE_KEY,
-        vapid_claims={
-            'sub': VAPID_EMAIL
-        }
-    )
-
-
-def handle_comeback_reminders(conn) -> dict:
-    """Отправка напоминаний неактивным пользователям (cron: раз в день)"""
-    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
-    cursor = conn.cursor()
+def cron_streak(conn) -> dict:
+    """
+    Каждый день в 20:00 — напоминание тем, кто ещё не зашёл сегодня и имеет streak > 0.
+    """
     today = datetime.now().date()
-    sent_count = 0
+    cur = conn.cursor()
+    cur.execute(f'''
+        SELECT u.id, us.current_streak FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        JOIN {SCHEMA}.user_streaks us ON u.id = us.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND us.current_streak > 0
+          AND us.last_activity_date < %s
+    ''', (today,))
+    rows = cur.fetchall()
+    cur.close()
 
-    messages = [
-        {
-            'days': 3,
-            'title': 'Ты давно не заходил',
-            'body': 'Твоя подготовка к экзамену на паузе уже 3 дня. Вернись — всего 2 минуты!',
-        },
-        {
-            'days': 7,
-            'title': 'Неделя без занятий',
-            'body': 'За неделю можно разобрать 7 тем! Не теряй время — вернись в Studyfay',
-        },
-        {
-            'days': 14,
-            'title': 'Мы скучаем!',
-            'body': 'Тебя не было 2 недели. У нас бонус за возвращение — +5 вопросов к ИИ!',
-        },
-    ]
+    sent = failed = 0
+    for uid, streak in rows:
+        emoji = '🔥' if streak >= 7 else '🦉'
+        days_word = 'день' if streak == 1 else ('дня' if streak < 5 else 'дней')
+        result = send_to_users(conn, [uid],
+            f'{emoji} Не потеряй серию {streak} {days_word}!',
+            'Зайди и реши хотя бы один вопрос — серия сохранится и ты получишь +10 XP',
+            '/', 'streak_reminder')
+        sent += result['sent']
+        failed += result['failed']
 
-    for msg in messages:
-        target_date = today - timedelta(days=msg['days'])
-        cursor.execute(f'''
-            SELECT u.id, ps.endpoint, ps.p256dh, ps.auth
-            FROM {schema}.users u
-            JOIN {schema}.push_subscriptions ps ON ps.user_id = u.id
-            LEFT JOIN {schema}.user_streaks us ON us.user_id = u.id
-            WHERE ps.endpoint IS NOT NULL
-            AND (us.last_activity_date = %s OR (us.last_activity_date IS NULL AND DATE(u.created_at) = %s))
-            AND NOT EXISTS (
-                SELECT 1 FROM {schema}.notifications n
-                WHERE n.user_id = u.id
-                AND n.title = %s
-                AND n.created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
-            )
-        ''', (target_date, target_date, msg['title']))
+    return ok({'sent': sent, 'failed': failed})
 
-        users = cursor.fetchall()
 
-        for user_id, endpoint, p256dh, auth in users:
-            notification_data = {
-                'title': msg['title'],
-                'body': msg['body'],
-                'tag': f'comeback-{msg["days"]}d-{user_id}',
-                'url': '/'
-            }
+# ═══════════════════════════════════════════════════════════════════════════════
+# 3. МОНЕТИЗАЦИЯ
+# ═══════════════════════════════════════════════════════════════════════════════
 
-            try:
-                send_push_notification(endpoint, p256dh, auth, notification_data)
-                sent_count += 1
-            except Exception as e:
-                print(f'Comeback push failed for user {user_id}: {e}')
+def cron_trial_ending(conn) -> dict:
+    """
+    За 24 часа до окончания триала.
+    """
+    now = datetime.now()
+    window_start = now + timedelta(hours=23)
+    window_end = now + timedelta(hours=25)
+    cur = conn.cursor()
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND u.trial_ends_at BETWEEN %s AND %s
+          AND u.subscription_type != 'premium'
+    ''', (window_start, window_end))
+    user_ids = [r[0] for r in cur.fetchall()]
+    cur.close()
 
-            try:
-                cursor.execute(f'''
-                    INSERT INTO {schema}.notifications (user_id, title, message, action_url)
-                    VALUES (%s, %s, %s, %s)
-                ''', (user_id, msg['title'], msg['body'], '/'))
-            except Exception:
-                pass
+    return ok(send_to_users(conn, user_ids,
+        '⏰ Твой бесплатный Premium заканчивается завтра',
+        'Успел попробовать фото-решение и голос? Продли сейчас — первый месяц со скидкой 20% 👌',
+        '/pricing?source=push_trial_ending', 'trial_ending'))
 
-    conn.commit()
-    cursor.close()
 
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-        'body': json.dumps({'success': True, 'sent': sent_count})
-    }
+def cron_trial_expired(conn) -> dict:
+    """
+    В день окончания триала (trial_ends_at < now, subscription != premium).
+    """
+    now = datetime.now()
+    cur = conn.cursor()
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND u.trial_ends_at BETWEEN %s AND %s
+          AND u.subscription_type != 'premium'
+    ''', (now - timedelta(hours=2), now))
+    user_ids = [r[0] for r in cur.fetchall()]
+    cur.close()
+
+    return ok(send_to_users(conn, user_ids,
+        '😔 Теперь у тебя 3 вопроса в день',
+        'Хочешь вернуть безлимит? Всего 499₽/мес — и готовься без ограничений 🚀',
+        '/pricing?source=push_trial_expired', 'trial_expired'))
+
+
+def cron_discount(conn) -> dict:
+    """
+    Через 3 дня после окончания триала — скидка 40%.
+    """
+    now = datetime.now()
+    cur = conn.cursor()
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND u.trial_ends_at BETWEEN %s AND %s
+          AND u.subscription_type != 'premium'
+    ''', (now - timedelta(days=3, hours=2), now - timedelta(days=3)))
+    user_ids = [r[0] for r in cur.fetchall()]
+    cur.close()
+
+    return ok(send_to_users(conn, user_ids,
+        '🔥 Только сегодня: первый месяц за 299₽',
+        'Специально для тебя — скидка 40% на Premium. Предложение сгорает через 24 часа!',
+        '/pricing?source=push_discount', 'discount'))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 4. ВИРАЛЬНОСТЬ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def cron_referral_promo(conn) -> dict:
+    """
+    На 7й день после регистрации — предложение рефералки (если ещё не приглашал).
+    """
+    now = datetime.now()
+    cur = conn.cursor()
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND u.created_at BETWEEN %s AND %s
+          AND COALESCE(u.referral_count, 0) = 0
+    ''', (now - timedelta(days=7, hours=2), now - timedelta(days=7)))
+    user_ids = [r[0] for r in cur.fetchall()]
+    cur.close()
+
+    return ok(send_to_users(conn, user_ids,
+        '👫 Пригласи друга — получи 7 дней Premium',
+        'Друг тоже получит бонус при регистрации. Поделись своей ссылкой!',
+        '/referral?source=push', 'referral_promo'))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 5. РЕАКТИВАЦИЯ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def cron_reactivation(conn) -> dict:
+    """
+    3 дня без активности — мягкое напоминание.
+    7 дней — предложение триала (если не использован).
+    30 дней — щедрый бонус.
+    """
+    now = datetime.now()
+    cur = conn.cursor()
+
+    # 3 дня
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND u.last_login_at BETWEEN %s AND %s
+    ''', (now - timedelta(days=3, hours=2), now - timedelta(days=3)))
+    day3 = [r[0] for r in cur.fetchall()]
+
+    # 7 дней (и триал не использован)
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND u.last_login_at BETWEEN %s AND %s
+          AND (u.is_trial_used = FALSE OR u.is_trial_used IS NULL)
+    ''', (now - timedelta(days=7, hours=2), now - timedelta(days=7)))
+    day7_no_trial = [r[0] for r in cur.fetchall()]
+
+    # 7 дней (триал уже был)
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND u.last_login_at BETWEEN %s AND %s
+          AND u.is_trial_used = TRUE
+    ''', (now - timedelta(days=7, hours=2), now - timedelta(days=7)))
+    day7_with_trial = [r[0] for r in cur.fetchall()]
+
+    # 30 дней
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE ps.endpoint IS NOT NULL
+          AND u.last_login_at BETWEEN %s AND %s
+    ''', (now - timedelta(days=30, hours=2), now - timedelta(days=30)))
+    day30 = [r[0] for r in cur.fetchall()]
+    cur.close()
+
+    r1 = send_to_users(conn, day3,
+        '🦉 Мы скучали по тебе!',
+        'У тебя накопилось 3 вопроса. Зайди, порешаем вместе?',
+        '/', 'reactivation_3d')
+
+    r2 = send_to_users(conn, day7_no_trial,
+        '📸 Ты ещё не пробовал Premium!',
+        'Решай задачи по фото и голосу — попробуй 3 дня бесплатно 🎁',
+        '/pricing?source=push_reactivation', 'reactivation_7d_trial')
+
+    r3 = send_to_users(conn, day7_with_trial,
+        '📚 Знаешь, что нового в Studyfay?',
+        'Мы добавили пробные экзамены и флэшкарты. Зайди и проверь!',
+        '/', 'reactivation_7d')
+
+    r4 = send_to_users(conn, day30,
+        '🎁 Соскучились! Держи 100 бонусных вопросов',
+        'Возвращайся — мы дарим тебе 100 вопросов к ИИ в подарок',
+        '/', 'reactivation_30d')
+
+    return ok({'day3': r1, 'day7_no_trial': r2, 'day7': r3, 'day30': r4})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ТЕСТ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def send_test(conn, user_id: int) -> dict:
+    result = send_to_users(conn, [user_id],
+        '🎓 Studyfay',
+        'Push-уведомления работают! Теперь ты не пропустишь ничего важного.',
+        '/', 'test')
+    return ok(result)
