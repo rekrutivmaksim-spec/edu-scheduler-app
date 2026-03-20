@@ -147,6 +147,10 @@ def handler(event: dict, context) -> dict:
 
         return ok({'sent': sent, 'failed': len(failed_endpoints)})
 
+    # ── VAPID публичный ключ (без авторизации) ───────────────────────────────
+    if method == 'GET' and action == 'vapid_key':
+        return ok({'vapid_public_key': VAPID_PUBLIC_KEY})
+
     # ── Статус подписки ───────────────────────────────────────────────────────
     if method == 'GET':
         if not user_id:
@@ -157,6 +161,6 @@ def handler(event: dict, context) -> dict:
         count = cur.fetchone()[0]
         cur.close()
         conn.close()
-        return ok({'subscribed': count > 0, 'count': count})
+        return ok({'subscribed': count > 0, 'count': count, 'vapid_public_key': VAPID_PUBLIC_KEY})
 
     return err(400, 'Неизвестный запрос')

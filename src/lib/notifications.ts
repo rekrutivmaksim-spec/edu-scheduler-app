@@ -277,6 +277,67 @@ export function shouldShowBanner(): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Web Push (Service Worker + pushManager)
+// ---------------------------------------------------------------------------
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function getVapidPublicKey(): Promise<string> {
+  const { API } = await import('@/lib/api-urls');
+  const res = await fetch(`${API.PUSH_NOTIFICATIONS}?action=vapid_key`);
+  const data = await res.json();
+  return data.vapid_public_key as string;
+}
+
+async function registerWebPush(token: string): Promise<void> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  const sw = await navigator.serviceWorker.ready;
+  const vapidKey = await getVapidPublicKey();
+  if (!vapidKey) return;
+
+  const subscription = await sw.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(vapidKey),
+  });
+
+  const { API } = await import('@/lib/api-urls');
+  const sub = subscription.toJSON();
+  await fetch(API.PUSH_NOTIFICATIONS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      action: 'subscribe',
+      endpoint: sub.endpoint,
+      p256dh: sub.keys?.p256dh,
+      auth: sub.keys?.auth,
+    }),
+  });
+}
+
+async function unregisterWebPush(token: string): Promise<void> {
+  if (!('serviceWorker' in navigator)) return;
+  const sw = await navigator.serviceWorker.ready;
+  const subscription = await sw.pushManager.getSubscription();
+  if (!subscription) return;
+
+  const endpoint = subscription.endpoint;
+  await subscription.unsubscribe();
+
+  const { API } = await import('@/lib/api-urls');
+  await fetch(API.PUSH_NOTIFICATIONS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action: 'unsubscribe', endpoint }),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Legacy compat -- the old service-worker-based notificationService object
 // that other components still import.
 // ---------------------------------------------------------------------------
@@ -285,25 +346,28 @@ export const notificationService = {
     return requestPermission();
   },
   isSupported(): boolean {
-    return 'Notification' in window;
+    return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
   },
   getPermission(): NotificationPermission {
     if (!('Notification' in window)) return 'denied';
     return Notification.permission;
   },
-  // Stubs for methods that relied on service workers / push subscription.
-  // Kept so existing components (NotificationPrompt, etc.) don't break.
-  async getSubscription(): Promise<null> {
-    return null;
+  async getSubscription(): Promise<PushSubscription | null> {
+    if (!('serviceWorker' in navigator)) return null;
+    const sw = await navigator.serviceWorker.ready;
+    return sw.pushManager.getSubscription();
   },
-  async subscribe(_token: string): Promise<void> {
-    await requestPermission();
+  async subscribe(token: string): Promise<void> {
+    const permission = await requestPermission();
+    if (permission !== 'granted') return;
+    await registerWebPush(token);
   },
-  async unsubscribe(_token: string): Promise<void> {
+  async unsubscribe(token: string): Promise<void> {
     const settings = loadSettings();
     settings.enabled = false;
     saveSettings(settings);
     cancelAllNotifications();
+    await unregisterWebPush(token);
   },
 };
 

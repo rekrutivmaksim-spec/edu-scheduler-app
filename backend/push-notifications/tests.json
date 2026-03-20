@@ -7,7 +7,15 @@
       "expectedStatus": 200
     },
     {
-      "name": "GET without auth returns 401",
+      "name": "GET VAPID public key",
+      "method": "GET",
+      "path": "/?action=vapid_key",
+      "expectedStatus": 200,
+      "expectedBody": {"vapid_public_key": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET status without auth returns 401",
       "method": "GET",
       "path": "/",
       "expectedStatus": 401
