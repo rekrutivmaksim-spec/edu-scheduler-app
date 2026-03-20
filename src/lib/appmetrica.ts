@@ -1,66 +1,62 @@
-const COUNTER = 108174568;
+const COUNTER_ID = "3751314";
 
 declare global {
   interface Window {
-    ym: (id: number, action: string, target?: string, params?: Record<string, unknown>) => void;
+    _tmr: Array<Record<string, unknown>>;
   }
 }
 
-function ym(action: string, target?: string, params?: Record<string, unknown>) {
-  if (typeof window.ym !== 'function') return;
-  if (target) {
-    window.ym(COUNTER, action, target, params);
-  } else {
-    window.ym(COUNTER, action);
-  }
+function tmr(event: Record<string, unknown>) {
+  window._tmr = window._tmr || [];
+  window._tmr.push({ id: COUNTER_ID, ...event });
 }
 
 export const am = {
   hit(path: string) {
-    ym('hit', path);
+    tmr({ type: "pageView", url: path });
   },
 
   event(name: string, params?: Record<string, unknown>) {
-    ym('reachGoal', name, params);
+    tmr({ type: "reachGoal", goal: name, ...params });
   },
 
   register(method: 'phone' | 'vk' | 'guest') {
-    ym('reachGoal', 'registration_complete', { method });
+    tmr({ type: "reachGoal", goal: "registration_complete", method });
   },
 
   login(method: 'phone' | 'vk') {
-    ym('reachGoal', 'login', { method });
+    tmr({ type: "reachGoal", goal: "login", method });
   },
 
   onboardingStep(step: number, total: number) {
-    ym('reachGoal', 'onboarding_step', { step, total });
+    tmr({ type: "reachGoal", goal: "onboarding_step", step, total });
   },
 
   onboardingComplete() {
-    ym('reachGoal', 'onboarding_complete');
+    tmr({ type: "reachGoal", goal: "onboarding_complete" });
   },
 
   trialStart() {
-    ym('reachGoal', 'trial_start');
+    tmr({ type: "reachGoal", goal: "trial_start" });
   },
 
   pricingView(source?: string) {
-    ym('reachGoal', 'pricing_view', { source });
+    tmr({ type: "reachGoal", goal: "pricing_view", source });
   },
 
   purchaseClick(plan: string, price: number) {
-    ym('reachGoal', 'purchase_click', { plan, price });
+    tmr({ type: "reachGoal", goal: "purchase_click", plan, price });
   },
 
   purchaseSuccess(plan: string, price: number) {
-    ym('reachGoal', 'purchase_success', { plan, price });
+    tmr({ type: "reachGoal", goal: "purchase_success", plan, price });
   },
 
   assistantMessage(type: 'text' | 'voice' | 'photo') {
-    ym('reachGoal', 'assistant_message', { type });
+    tmr({ type: "reachGoal", goal: "assistant_message", msg_type: type });
   },
 
   limitReached(type: 'daily' | 'audio' | 'photo') {
-    ym('reachGoal', 'limit_reached', { type });
+    tmr({ type: "reachGoal", goal: "limit_reached", limit_type: type });
   },
 };
