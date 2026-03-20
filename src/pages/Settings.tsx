@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
 import { API } from '@/lib/api-urls';
+import { notificationService } from '@/lib/notifications';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -19,6 +20,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [vkLinked, setVkLinked] = useState(false);
   const [vkLinking, setVkLinking] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
   const [parentCode, setParentCode] = useState<string | null>(null);
   const [generatingCode, setGeneratingCode] = useState(false);
 
@@ -75,6 +78,9 @@ export default function Settings() {
         setUser(verifiedUser);
         setVkLinked(!!verifiedUser.vk_id);
         loadSettings();
+        // Проверяем статус Web Push подписки
+        notificationService.getSubscription().then(sub => setPushSubscribed(!!sub));
+
       }
     };
     checkAuth();
@@ -335,13 +341,35 @@ export default function Settings() {
                     Push-уведомления
                   </Label>
                   <p className="text-sm text-gray-600 mt-1">
-                    Уведомления в браузере/приложении
+                    {pushSubscribed ? '✅ Подключены — напомним о серии и лимитах' : 'Напоминания о серии, лимитах и спецпредложениях'}
                   </p>
                 </div>
-                <Switch
-                  checked={settings.push_notifications}
-                  onCheckedChange={(checked) => handleToggle('push_notifications', checked)}
-                />
+                {pushLoading ? (
+                  <Icon name="Loader2" size={20} className="animate-spin text-purple-500" />
+                ) : (
+                  <Switch
+                    checked={pushSubscribed}
+                    onCheckedChange={async (checked) => {
+                      setPushLoading(true);
+                      const token = authService.getToken() || '';
+                      try {
+                        if (checked) {
+                          await notificationService.subscribe(token);
+                          const sub = await notificationService.getSubscription();
+                          setPushSubscribed(!!sub);
+                          if (sub) toast({ title: '🔔 Уведомления включены!' });
+                          else toast({ variant: 'destructive', title: 'Не удалось подключить', description: 'Разреши уведомления в браузере' });
+                        } else {
+                          await notificationService.unsubscribe(token);
+                          setPushSubscribed(false);
+                          toast({ title: 'Уведомления отключены' });
+                        }
+                      } finally {
+                        setPushLoading(false);
+                      }
+                    }}
+                  />
+                )}
               </div>
 
               {/* Email уведомления */}
