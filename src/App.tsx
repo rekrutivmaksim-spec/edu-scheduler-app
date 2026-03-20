@@ -40,6 +40,7 @@ import RuStoreInfo from "./pages/RuStoreInfo";
 import ParentAuth from "./pages/ParentAuth";
 import ParentPay from "./pages/ParentPay";
 import ParentDashboard from "./pages/ParentDashboard";
+import AppMetricaTracker from "@/components/AppMetricaTracker";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <AppMetricaTracker />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthNew />} />

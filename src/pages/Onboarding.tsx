@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { am } from '@/lib/appmetrica';
 import { COMPANIONS, type CompanionId } from '@/lib/companion';
 import { API } from '@/lib/api-urls';
 
@@ -116,6 +117,7 @@ export default function Onboarding() {
     } finally {
       setSaving(false);
     }
+    am.onboardingComplete();
     navigate('/session?first=1');
   };
 

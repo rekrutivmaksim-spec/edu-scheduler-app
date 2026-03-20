@@ -7,6 +7,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
 import { API } from '@/lib/api-urls';
+import { am } from '@/lib/appmetrica';
 import { Device } from '@capacitor/device';
 
 async function getDeviceId(): Promise<string> {
@@ -331,10 +332,15 @@ export default function AuthNew() {
     } catch { /* silent */ }
   };
 
-  const afterLogin = async (data: { token: string; user: { full_name: string } }) => {
+  const afterLogin = async (data: { token: string; user: { full_name: string }; is_new_user?: boolean }) => {
     authService.setToken(data.token);
     authService.setUser(data.user);
     await applyReferral(data.token);
+    if (data.is_new_user) {
+      am.register('phone');
+    } else {
+      am.login('phone');
+    }
     toast({ title: '✅ Вход выполнен!', description: `Добро пожаловать, ${data.user.full_name}!` });
     navigate('/');
   };
@@ -392,6 +398,7 @@ export default function AuthNew() {
           authService.setToken(data.token);
           authService.setUser(data.user);
           await applyReferral(data.token);
+          am.register('phone');
           toast({ title: 'Аккаунт создан!', description: 'Добро пожаловать! У вас бесплатный тариф — 3 вопроса к ИИ в день.' });
           navigate('/');
         } else {

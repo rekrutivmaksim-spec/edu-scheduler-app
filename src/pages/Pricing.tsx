@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 import { openPaymentUrl } from '@/lib/payment-utils';
 import { API } from '@/lib/api-urls';
+import { am } from '@/lib/appmetrica';
 
 const PREMIUM_FEATURES = [
   { icon: '🤖', text: 'Безлимитные вопросы к ИИ' },
@@ -93,6 +94,8 @@ const Pricing = () => {
 
   useEffect(() => {
     if (!authService.isAuthenticated()) { navigate('/auth'); return; }
+    const source = new URLSearchParams(window.location.search).get('source') || undefined;
+    am.pricingView(source);
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') === 'success') {
@@ -136,6 +139,7 @@ const Pricing = () => {
         if (response.ok) {
           const data = await response.json();
           if (data.status === 'completed') {
+            am.purchaseSuccess(data.plan_type || 'unknown', 0);
             toast({ title: 'Подписка активирована!', description: 'Полный доступ ко всем функциям' });
             setCurrentPlan('premium');
             return;
@@ -176,6 +180,7 @@ const Pricing = () => {
   }, []);
 
   const handleBuy = async (planId: string) => {
+    am.purchaseClick(planId, 0);
     setLoading(planId);
     try {
       const backendPlanId = planId === '12months' ? '1year' : planId;
