@@ -11,6 +11,7 @@ import BottomNav from '@/components/BottomNav';
 import { COMPANIONS, getCompanion, getCompanionStage, getCompanionFromStorage, saveCompanionToStorage, type CompanionId } from '@/lib/companion';
 import { useLimits } from '@/hooks/useLimits';
 import { API } from '@/lib/api-urls';
+import { am } from '@/lib/appmetrica';
 
 const COST_PER_SESSION = 300;
 
@@ -336,7 +337,7 @@ const Profile = () => {
           /* БЕСПЛАТНЫЙ ТАРИФ */
           <div
             className="rounded-3xl overflow-hidden shadow-xl cursor-pointer active:scale-[0.98] transition-all"
-            onClick={() => navigate('/pricing')}
+            onClick={() => { am.premiumClick('profile_card'); navigate('/pricing'); }}
           >
             <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-5">
               <div className="flex items-center gap-2 mb-3">
@@ -367,7 +368,7 @@ const Profile = () => {
                 </div>
               )}
               <div className="flex items-center gap-3 mb-1">
-                <Button onClick={() => navigate('/pricing')} className="flex-1 h-12 bg-white text-purple-700 font-extrabold text-base rounded-2xl shadow-lg">
+                <Button onClick={(e) => { e.stopPropagation(); am.premiumClick('profile_button'); navigate('/pricing'); }} className="flex-1 h-12 bg-white text-purple-700 font-extrabold text-base rounded-2xl shadow-lg">
                   Подключить Premium
                 </Button>
                 <div className="text-right flex-shrink-0">

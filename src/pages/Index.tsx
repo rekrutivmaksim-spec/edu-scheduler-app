@@ -6,6 +6,7 @@ import Icon from '@/components/ui/icon';
 import BottomNav from '@/components/BottomNav';
 import { trackSession } from '@/lib/review';
 import { dailyCheckin } from '@/lib/gamification';
+import { am } from '@/lib/appmetrica';
 import AppReviewPrompt from '@/components/AppReviewPrompt';
 import WelcomeBack from '@/components/WelcomeBack';
 import DailyBonusPopup from '@/components/DailyBonusPopup';
@@ -204,7 +205,7 @@ export default function Index() {
           if (daysLeft <= 0 && !limits.data.is_soft_landing) {
             return (
               <button
-                onClick={() => navigate('/pricing')}
+                onClick={() => { am.premiumClick('index_trial_expired'); navigate('/pricing'); }}
                 className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
               >
                 <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
@@ -221,7 +222,7 @@ export default function Index() {
           if (daysLeft > 0) {
             return (
               <button
-                onClick={() => navigate('/pricing')}
+                onClick={() => { am.premiumClick('index_trial_active'); navigate('/pricing'); }}
                 className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
               >
                 <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
@@ -263,7 +264,7 @@ export default function Index() {
               <p className="text-gray-700 text-sm font-medium text-center mb-1">Завтра — {topic.nextTopic || 'следующая тема'}</p>
               <p className="text-gray-400 text-xs text-center mb-3">Не пропускай, чтобы не потерять серию</p>
               <button
-                onClick={() => navigate('/assistant')}
+                onClick={() => { am.assistantOpen('index_session_done'); navigate('/assistant'); }}
                 className="w-full text-center text-indigo-500 text-sm font-medium py-2 rounded-2xl border-2 border-indigo-100 hover:bg-indigo-50 transition-colors"
               >
                 Задать дополнительный вопрос
@@ -285,7 +286,7 @@ export default function Index() {
               >
                 Разобрать конспект <Icon name="ArrowRight" size={16} className="ml-1.5" />
               </Button>
-              <button onClick={() => navigate('/assistant')} className="w-full py-2 text-indigo-500 text-sm font-medium text-center">
+              <button onClick={() => { am.assistantOpen('index_university'); navigate('/assistant'); }} className="w-full py-2 text-indigo-500 text-sm font-medium text-center">
                 Или задать вопрос ИИ
               </button>
             </div>

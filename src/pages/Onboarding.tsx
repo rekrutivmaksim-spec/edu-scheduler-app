@@ -74,8 +74,13 @@ export default function Onboarding() {
   // шаги: 0=цель, 1=помощник, 2=класс(не для other), 3=предмет(exam only), 4=дата(exam only)
   const totalSteps = isExam ? 5 : (isUniversity ? 3 : 2);
 
+  const STEP_NAMES = ['Выбор цели', 'Выбор помощника', 'Класс/курс', 'Предмет', 'Дата экзамена'];
+
   const handleNext = () => {
-    if (step < totalSteps - 1) setStep(s => s + 1);
+    if (step < totalSteps - 1) {
+      am.onboardingStep(step + 1, totalSteps, STEP_NAMES[step + 1] || `Шаг ${step + 1}`);
+      setStep(s => s + 1);
+    }
   };
 
   const handleBack = () => {
@@ -117,7 +122,7 @@ export default function Onboarding() {
     } finally {
       setSaving(false);
     }
-    am.onboardingComplete();
+    am.onboardingComplete(goal, companion || 'owl');
     navigate('/session?first=1');
   };
 

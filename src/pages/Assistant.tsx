@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import { trackActivity } from '@/lib/gamification';
 import { API } from '@/lib/api-urls';
+import { am } from '@/lib/appmetrica';
 import Icon from '@/components/ui/icon';
 import AIMessage from '@/components/AIMessage';
 import BottomNav from '@/components/BottomNav';
@@ -402,6 +403,8 @@ const Assistant = () => {
 
     if (!messageText && !img && !audio) return;
 
+    am.assistantMessage(audio ? 'voice' : img ? 'photo' : 'text');
+
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -451,18 +454,21 @@ const Assistant = () => {
 
       if (!resp.ok) {
         if (resp.status === 403 && data.feature === 'audio') {
+          am.limitReached('audio');
           setShowFeatureLimitScreen('audio');
           setAudioUsed(data.used || audioLimit);
           setMessages(prev => prev.filter(m => m.id !== userMsg.id));
           return;
         }
         if (resp.status === 403 && data.feature === 'photo') {
+          am.limitReached('photo');
           setShowFeatureLimitScreen('photo');
           setPhotoUsed(data.used || photoLimit);
           setMessages(prev => prev.filter(m => m.id !== userMsg.id));
           return;
         }
         if (resp.status === 403 && (data.error === 'limit' || data.error === 'premium_only')) {
+          am.limitReached('daily');
           setShowLimitScreen(true);
           setMessages(prev => prev.filter(m => m.id !== userMsg.id));
           return;
@@ -885,7 +891,7 @@ const Assistant = () => {
             </div>
             <div className="px-5 pb-8 space-y-3">
               <button
-                onClick={() => { setShowFeatureLimitScreen(null); navigate('/pricing'); }}
+                onClick={() => { am.premiumClick('assistant_feature_limit'); setShowFeatureLimitScreen(null); navigate('/pricing'); }}
                 className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.98] transition-all"
               >
                 Подключить Premium
@@ -929,7 +935,7 @@ const Assistant = () => {
             </div>
             <div className="px-5 pb-8 space-y-3">
               <button
-                onClick={() => { setShowLimitScreen(false); navigate('/pricing'); }}
+                onClick={() => { am.premiumClick('assistant_daily_limit'); setShowLimitScreen(false); navigate('/pricing'); }}
                 className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-[0.98] transition-all"
               >
                 Подключить Premium

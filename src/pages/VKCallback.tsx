@@ -5,6 +5,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
 import { API } from '@/lib/api-urls';
+import { am } from '@/lib/appmetrica';
 
 export default function VKCallback() {
   const navigate = useNavigate();
@@ -96,6 +97,12 @@ export default function VKCallback() {
           } else {
             authService.setToken(data.token);
             authService.setUser(data.user);
+
+            if (data.is_new_user) {
+              am.register('vk');
+            } else {
+              am.login('vk');
+            }
 
             setStatus('success');
 
