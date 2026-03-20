@@ -295,29 +295,41 @@ async function getVapidPublicKey(): Promise<string> {
 }
 
 async function registerWebPush(token: string): Promise<void> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[push] serviceWorker or PushManager not supported');
+    return;
+  }
 
-  const sw = await navigator.serviceWorker.ready;
-  const vapidKey = await getVapidPublicKey();
-  if (!vapidKey) return;
+  try {
+    const sw = await navigator.serviceWorker.ready;
+    console.log('[push] SW ready, getting VAPID key...');
 
-  const subscription = await sw.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidKey),
-  });
+    const vapidKey = await getVapidPublicKey();
+    console.log('[push] VAPID key received:', !!vapidKey);
+    if (!vapidKey) return;
 
-  const { API } = await import('@/lib/api-urls');
-  const sub = subscription.toJSON();
-  await fetch(API.PUSH_NOTIFICATIONS, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      action: 'subscribe',
-      endpoint: sub.endpoint,
-      p256dh: sub.keys?.p256dh,
-      auth: sub.keys?.auth,
-    }),
-  });
+    const subscription = await sw.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+    console.log('[push] Subscribed to pushManager:', subscription.endpoint.slice(0, 50));
+
+    const { API } = await import('@/lib/api-urls');
+    const sub = subscription.toJSON();
+    const res = await fetch(API.PUSH_NOTIFICATIONS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        action: 'subscribe',
+        endpoint: sub.endpoint,
+        p256dh: sub.keys?.p256dh,
+        auth: sub.keys?.auth,
+      }),
+    });
+    console.log('[push] Saved to server:', res.status);
+  } catch (e) {
+    console.error('[push] registerWebPush failed:', e);
+  }
 }
 
 async function unregisterWebPush(token: string): Promise<void> {
