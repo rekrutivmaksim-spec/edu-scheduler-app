@@ -1,62 +1,66 @@
-const API_KEY = 'f1d7dd79-7a82-4e32-9218-d04df31b7a15';
+const COUNTER = 108174568;
 
-function sendEvent(name: string, params?: Record<string, unknown>) {
-  try {
-    navigator.sendBeacon(
-      `https://report.appmetrica.yandex.net/report?api_key=${API_KEY}`,
-      JSON.stringify({ event_name: name, event_params: params || {}, timestamp: Date.now() })
-    );
-  } catch (e) {
-    console.debug('AppMetrica', e);
+declare global {
+  interface Window {
+    ym: (id: number, action: string, target?: string, params?: Record<string, unknown>) => void;
+  }
+}
+
+function ym(action: string, target?: string, params?: Record<string, unknown>) {
+  if (typeof window.ym !== 'function') return;
+  if (target) {
+    window.ym(COUNTER, action, target, params);
+  } else {
+    window.ym(COUNTER, action);
   }
 }
 
 export const am = {
   hit(path: string) {
-    sendEvent('screen_view', { path });
+    ym('hit', path);
   },
 
   event(name: string, params?: Record<string, unknown>) {
-    sendEvent(name, params);
+    ym('reachGoal', name, params);
   },
 
   register(method: 'phone' | 'vk' | 'guest') {
-    sendEvent('registration_complete', { method });
+    ym('reachGoal', 'registration_complete', { method });
   },
 
   login(method: 'phone' | 'vk') {
-    sendEvent('login', { method });
+    ym('reachGoal', 'login', { method });
   },
 
   onboardingStep(step: number, total: number) {
-    sendEvent('onboarding_step', { step, total });
+    ym('reachGoal', 'onboarding_step', { step, total });
   },
 
   onboardingComplete() {
-    sendEvent('onboarding_complete');
+    ym('reachGoal', 'onboarding_complete');
   },
 
   trialStart() {
-    sendEvent('trial_start');
+    ym('reachGoal', 'trial_start');
   },
 
   pricingView(source?: string) {
-    sendEvent('pricing_view', { source });
+    ym('reachGoal', 'pricing_view', { source });
   },
 
   purchaseClick(plan: string, price: number) {
-    sendEvent('purchase_click', { plan, price });
+    ym('reachGoal', 'purchase_click', { plan, price });
   },
 
   purchaseSuccess(plan: string, price: number) {
-    sendEvent('purchase_success', { plan, price });
+    ym('reachGoal', 'purchase_success', { plan, price });
   },
 
   assistantMessage(type: 'text' | 'voice' | 'photo') {
-    sendEvent('assistant_message', { type });
+    ym('reachGoal', 'assistant_message', { type });
   },
 
   limitReached(type: 'daily' | 'audio' | 'photo') {
-    sendEvent('limit_reached', { type });
+    ym('reachGoal', 'limit_reached', { type });
   },
 };
