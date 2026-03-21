@@ -208,6 +208,7 @@ export default function AuthNew() {
   const [isTyping, setIsTyping] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [answerRevealed, setAnswerRevealed] = useState(false);
+  const [flashCorrect, setFlashCorrect] = useState(false);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -558,6 +559,9 @@ export default function AuthNew() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
+        {/* Вспышка на правильный ответ */}
+        <div className={`absolute inset-0 z-50 bg-green-400/50 pointer-events-none transition-opacity duration-300 ${flashCorrect ? 'opacity-100' : 'opacity-0'}`} />
+
         {/* Шапка */}
         <div className="px-4 pb-2" style={{ paddingTop: 'max(20px, env(safe-area-inset-top, 20px))' }}>
           <div className="flex items-center gap-3 mb-3">
@@ -712,6 +716,10 @@ export default function AuthNew() {
                                 await Haptics.notification({ type: NotificationType.Error });
                               }
                             } catch { /* не Android — молча */ }
+                            if (correct) {
+                              setFlashCorrect(true);
+                              setTimeout(() => setFlashCorrect(false), 600);
+                            }
                             setTimeout(() => setLessonStage('result'), 800);
                           }}
                           className={`border backdrop-blur rounded-2xl px-4 py-3 text-left text-sm font-medium transition-all active:scale-98 ${style}`}
