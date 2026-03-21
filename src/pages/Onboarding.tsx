@@ -65,6 +65,7 @@ export default function Onboarding() {
   const [subject, setSubject] = useState('');
   const [examDate, setExamDate] = useState('');
   const [saving, setSaving] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
 
   const isExam = goal === 'ege' || goal === 'oge';
   const isUniversity = goal === 'university';
@@ -72,16 +73,32 @@ export default function Onboarding() {
   const subjectOptions = goal === 'ege' ? SUBJECTS_EGE : SUBJECTS_OGE;
   const dateOptions = goal === 'ege' ? EGE_DATES : OGE_DATES;
 
-  // шаги: 0=цель, 1=помощник, 2=класс(не для other), 3=предмет(exam only), 4=дата(exam only)
-  const totalSteps = isExam ? 5 : (isUniversity ? 3 : 2);
+  // шаги: 0=цель, 1=помощник, 2=класс(не для other), 3=предмет(exam only), 4=дата(exam only), последний=push
+  const baseSteps = isExam ? 5 : (isUniversity ? 3 : 2);
+  const totalSteps = baseSteps + 1; // +1 для шага пуш-уведомлений
+  const pushStep = baseSteps; // индекс шага пушей
 
-  const STEP_NAMES = ['Выбор цели', 'Выбор помощника', 'Класс/курс', 'Предмет', 'Дата экзамена'];
+  const STEP_NAMES = ['Выбор цели', 'Выбор помощника', 'Класс/курс', 'Предмет', 'Дата экзамена', 'Уведомления'];
 
   const handleNext = () => {
     if (step < totalSteps - 1) {
       am.onboardingStep(step + 1, totalSteps, STEP_NAMES[step + 1] || `Шаг ${step + 1}`);
       setStep(s => s + 1);
     }
+  };
+
+  const handleEnablePush = async () => {
+    setPushLoading(true);
+    const token = authService.getToken();
+    if (token) {
+      await notificationService.subscribe(token).catch(() => {});
+    }
+    setPushLoading(false);
+    await handleFinish();
+  };
+
+  const handleSkipPush = async () => {
+    await handleFinish();
   };
 
   const handleBack = () => {
@@ -124,17 +141,11 @@ export default function Onboarding() {
       setSaving(false);
     }
     am.onboardingComplete(goal, companion || 'owl');
-
-    // Запрашиваем разрешение на push-уведомления после онбординга
-    const token = authService.getToken();
-    if (token && notificationService.isSupported()) {
-      notificationService.subscribe(token).catch(() => {});
-    }
-
     navigate('/');
   };
 
   const canNext = () => {
+    if (step === pushStep) return false; // у пуш-шага нет кнопки "Продолжить"
     if (step === 0) return !!goal;
     if (step === 1) return !!companion;
     if (step === 2) return !!grade;
@@ -145,6 +156,7 @@ export default function Onboarding() {
 
   // заголовок шага с учётом other (нет шага "класс")
   const stepTitle = () => {
+    if (step === pushStep) return 'Включить уведомления?';
     if (step === 0) return 'Какова твоя цель?';
     if (step === 1) return 'Выбери помощника';
     if (!isExam && !isUniversity) return 'Начнём!';
@@ -155,6 +167,7 @@ export default function Onboarding() {
   };
 
   const stepSubtitle = () => {
+    if (step === pushStep) return 'Напомним о стрике, если забудешь зайти';
     if (step === 0) return 'Это поможет подобрать темы именно для тебя. ИИ-помощник (фото+аудио) уже ждёт!';
     if (step === 1) return 'Он будет учиться вместе с тобой и расти';
     if (step === 2) return goal === 'university' ? 'Адаптируем программу под твой курс' : 'Адаптируем программу под твой уровень';
@@ -298,6 +311,64 @@ export default function Onboarding() {
             </div>
           )}
 
+          {/* Шаг пуш-уведомлений */}
+          {step === pushStep && (
+            <div className="flex flex-col items-center gap-5 py-4">
+              <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-3xl flex items-center justify-center">
+                <span className="text-5xl">🔔</span>
+              </div>
+              <div className="w-full flex flex-col gap-3">
+                <div className="flex items-start gap-3 bg-indigo-50 rounded-2xl p-4">
+                  <span className="text-xl mt-0.5">🔥</span>
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm">Стрик не сгорит</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Напомним зайти, если ты забыл — стрик продолжится</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 bg-purple-50 rounded-2xl p-4">
+                  <span className="text-xl mt-0.5">📅</span>
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm">Напоминания о занятиях</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Не пропустишь важную пару или дедлайн</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 bg-green-50 rounded-2xl p-4">
+                  <span className="text-xl mt-0.5">🎁</span>
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm">Ежедневные бонусы</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Сообщим о новых наградах и достижениях</p>
+                  </div>
+                </div>
+              </div>
+              <div className="w-full flex flex-col gap-2 mt-2">
+                <Button
+                  onClick={handleEnablePush}
+                  disabled={pushLoading || saving}
+                  className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.35)]"
+                >
+                  {pushLoading || saving ? (
+                    <>
+                      <Icon name="Loader2" size={18} className="mr-2 animate-spin" />
+                      Подключаем...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="BellRing" size={18} className="mr-2" />
+                      Включить уведомления
+                    </>
+                  )}
+                </Button>
+                <button
+                  onClick={handleSkipPush}
+                  disabled={pushLoading || saving}
+                  className="w-full h-11 text-gray-400 text-sm font-medium rounded-2xl hover:text-gray-600 transition-colors"
+                >
+                  Пропустить
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Шаг 4: Дата экзамена */}
           {step === 4 && isExam && (
             <div className="flex flex-col gap-3">
@@ -350,28 +421,28 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* Кнопки */}
-        <div className="mt-6">
-          {step < totalSteps - 1 ? (
-            <Button
-              onClick={handleNext}
-              disabled={!canNext()}
-              className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.35)] disabled:opacity-40"
-            >
-              Продолжить <Icon name="ArrowRight" size={18} className="ml-2" />
-            </Button>
-          ) : (
-            <Button
-              onClick={handleFinish}
-              disabled={!canNext() || saving}
-              className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.35)] disabled:opacity-40"
-            >
-              {saving ? 'Сохраняю...' : 'Начать обучение 🚀'}
-            </Button>
-          )}
-
-
-        </div>
+        {/* Кнопки (скрыты на шаге пушей — там свои кнопки) */}
+        {step !== pushStep && (
+          <div className="mt-6">
+            {step < totalSteps - 1 ? (
+              <Button
+                onClick={handleNext}
+                disabled={!canNext()}
+                className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.35)] disabled:opacity-40"
+              >
+                Продолжить <Icon name="ArrowRight" size={18} className="ml-2" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleFinish}
+                disabled={saving}
+                className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.35)] disabled:opacity-40"
+              >
+                {saving ? 'Сохраняю...' : 'Начать обучение 🚀'}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
