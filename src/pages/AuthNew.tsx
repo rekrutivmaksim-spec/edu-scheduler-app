@@ -10,7 +10,7 @@ import { API } from '@/lib/api-urls';
 import { am } from '@/lib/appmetrica';
 import { Device } from '@capacitor/device';
 import FoxMascot from '@/components/FoxMascot';
-import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 async function getDeviceId(): Promise<string> {
   try {
@@ -67,16 +67,59 @@ function sanitizeText(text: string): string {
     .trim();
 }
 
-// Роли пользователя
-const USER_ROLES = [
-  { id: 'oge', emoji: '📚', label: 'Готовлюсь к ОГЭ', sublabel: '8–9 класс', percent: 71, groupLabel: 'учеников 9 класса' },
-  { id: 'ege', emoji: '🎯', label: 'Готовлюсь к ЕГЭ', sublabel: '10–11 класс', percent: 68, groupLabel: 'учеников 11 класса' },
-  { id: 'university', emoji: '🎓', label: 'Учусь в университете', sublabel: 'Студент', percent: 74, groupLabel: 'студентов твоего курса' },
+// ─── Данные ──────────────────────────────────────────────────────────────────
+
+const GOALS = [
+  { id: 'ege', emoji: '🎯', label: 'Сдать ЕГЭ', desc: '10–11 класс', percent: 68, groupLabel: 'учеников 11 класса' },
+  { id: 'oge', emoji: '📚', label: 'Сдать ОГЭ', desc: '8–9 класс', percent: 71, groupLabel: 'учеников 9 класса' },
+  { id: 'university', emoji: '🎓', label: 'Учёба в вузе', desc: 'Студент', percent: 74, groupLabel: 'студентов' },
+  { id: 'other', emoji: '✨', label: 'Саморазвитие', desc: 'Для себя', percent: 65, groupLabel: 'пользователей' },
 ] as const;
 
-type UserRoleId = typeof USER_ROLES[number]['id'];
+type GoalId = typeof GOALS[number]['id'];
 
-// Предметы для первого урока
+const MOTIVATIONS: Record<GoalId, { emoji: string; label: string }[]> = {
+  ege: [
+    { emoji: '🏆', label: 'Поступить в топ-вуз' },
+    { emoji: '💯', label: 'Набрать 80+ баллов' },
+    { emoji: '😰', label: 'Просто не провалиться' },
+    { emoji: '📈', label: 'Улучшить результат' },
+  ],
+  oge: [
+    { emoji: '✅', label: 'Сдать на отлично' },
+    { emoji: '😌', label: 'Не краснеть на экзамене' },
+    { emoji: '🎒', label: 'Перейти в 10 класс' },
+    { emoji: '📈', label: 'Подтянуть оценки' },
+  ],
+  university: [
+    { emoji: '🏅', label: 'Закрыть сессию на отлично' },
+    { emoji: '😅', label: 'Просто не завалить' },
+    { emoji: '💼', label: 'Разобраться для работы' },
+    { emoji: '🧠', label: 'Понять, а не зазубрить' },
+  ],
+  other: [
+    { emoji: '🧠', label: 'Стать умнее' },
+    { emoji: '💬', label: 'Говорить уверенно' },
+    { emoji: '🎯', label: 'Заполнить пробелы' },
+    { emoji: '🚀', label: 'Развиваться каждый день' },
+  ],
+};
+
+const SUBJECTS = [
+  { id: 'math', emoji: '📐', label: 'Математика' },
+  { id: 'russian', emoji: '📝', label: 'Русский язык' },
+  { id: 'physics', emoji: '⚡', label: 'Физика' },
+  { id: 'history', emoji: '🏛️', label: 'История' },
+  { id: 'english', emoji: '🇬🇧', label: 'Английский' },
+  { id: 'chemistry', emoji: '🧪', label: 'Химия' },
+];
+
+const LEVELS = [
+  { id: 'beginner', emoji: '🌱', label: 'С нуля', desc: 'Тема почти незнакома' },
+  { id: 'middle', emoji: '📖', label: 'Знаю основы', desc: 'Но есть пробелы' },
+  { id: 'advanced', emoji: '🔥', label: 'Уверенно', desc: 'Хочу закрепить' },
+];
+
 const LESSON_SUBJECTS = [
   { id: 'math', emoji: '📐', label: 'Математика', topic: 'Что такое производная и зачем она нужна', question: 'Скорость машины — это производная от...', answers: ['расстояния по времени', 'времени по расстоянию', 'ускорения по времени'], correct: 0 },
   { id: 'russian', emoji: '📝', label: 'Русский язык', topic: 'Как не путать -н- и -нн- в прилагательных', question: 'В слове "деревянный" пишется -нн- потому что...', answers: ['суффикс -янн-', 'слово образовано от существительного с основой на -н-', 'это исключение'], correct: 1 },
@@ -93,8 +136,22 @@ const THINKING_STEPS = [
   'Почти готово…',
 ];
 
-type Screen = 'landing' | 'role' | 'lesson' | 'hook' | 'login' | 'register' | 'forgot';
-type LessonStage = 'pick' | 'explain' | 'question' | 'result';
+// ─── Типы экранов ─────────────────────────────────────────────────────────────
+// Флоу: goal → motivation → subject → level → lesson → result → register
+// Отдельно: login, forgot
+type Screen = 'goal' | 'motivation' | 'subject' | 'level' | 'lesson' | 'result' | 'register' | 'login' | 'forgot';
+type LessonStage = 'explain' | 'question' | 'answered';
+
+// ─── Вспомогательные компоненты ───────────────────────────────────────────────
+
+const ProgressBar = ({ current, total }: { current: number; total: number }) => (
+  <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
+    <div
+      className="h-full bg-white rounded-full transition-all duration-500 ease-out"
+      style={{ width: `${Math.round((current / total) * 100)}%` }}
+    />
+  </div>
+);
 
 const FieldError = ({ name, errors }: { name: string; errors: Record<string, string> }) =>
   errors[name] ? <p className="text-red-500 text-xs mt-1">{errors[name]}</p> : null;
@@ -119,7 +176,7 @@ const PasswordInput = ({
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && onEnter?.()}
         autoComplete="current-password"
-        className={`h-11 border-2 rounded-xl text-sm pr-10 ${errors[fieldName] ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
+        className={`h-12 border-2 rounded-2xl text-sm pr-10 ${errors[fieldName] ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
       />
       <button
         type="button"
@@ -130,30 +187,6 @@ const PasswordInput = ({
       </button>
     </div>
     <FieldError name={fieldName} errors={errors} />
-  </div>
-);
-
-const TermsBlock = ({
-  agreed, onToggle, error,
-}: {
-  agreed: boolean; onToggle: (v: boolean) => void; error: boolean;
-}) => (
-  <div>
-    <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer group">
-      <Checkbox
-        id="terms"
-        checked={agreed}
-        onCheckedChange={c => onToggle(c as boolean)}
-        className="mt-0.5 w-5 h-5 flex-shrink-0 rounded-md border-2 border-gray-300 group-hover:border-purple-400 transition-colors"
-      />
-      <span className="text-xs text-gray-500 leading-relaxed pt-0.5">
-        Согласен(на) с{' '}
-        <Link to="/terms" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>условиями</Link>
-        {' '}и{' '}
-        <Link to="/privacy" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>политикой</Link>
-      </span>
-    </label>
-    {error && <p className="text-red-500 text-xs mt-1">Нужно согласиться с условиями и политикой</p>}
   </div>
 );
 
@@ -174,7 +207,7 @@ const VKButton = ({ onClick, loading, disabled }: { onClick: () => void; loading
     onClick={onClick}
     disabled={loading || disabled}
     variant="outline"
-    className="w-full h-11 rounded-xl border-2 border-[#0077FF]/30 text-[#0077FF] font-semibold hover:bg-[#0077FF]/5 active:scale-[0.98] transition-all"
+    className="w-full h-12 rounded-2xl border-2 border-[#0077FF]/30 text-[#0077FF] font-semibold hover:bg-[#0077FF]/5 active:scale-[0.98] transition-all"
   >
     {loading ? (
       <Icon name="Loader2" size={18} className="animate-spin" />
@@ -187,25 +220,33 @@ const VKButton = ({ onClick, loading, disabled }: { onClick: () => void; loading
   </Button>
 );
 
-const HookCountdown = () => {
-  const [secs, setSecs] = useState(600);
-  useEffect(() => {
-    const t = setInterval(() => setSecs(s => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const mm = String(Math.floor(secs / 60)).padStart(2, '0');
-  const ss = String(secs % 60).padStart(2, '0');
-  return (
-    <div className="bg-orange-500/20 backdrop-blur border border-orange-400/30 rounded-2xl px-4 py-2.5 flex items-center gap-3">
-      <span className="text-lg">⏳</span>
-      <div>
-        <p className="text-white text-xs font-bold">Прогресс зарезервирован на {mm}:{ss}</p>
-        <p className="text-white/60 text-xs">После — придётся начинать сначала</p>
+// ─── Обёртка для шагов онбординга ────────────────────────────────────────────
+const OnboardingShell = ({
+  step, totalSteps, onBack, children, hideBack = false,
+}: {
+  step: number; totalSteps: number; onBack?: () => void; children: React.ReactNode; hideBack?: boolean;
+}) => (
+  <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col">
+    <div className="px-5 pt-12 pb-4 flex items-center gap-3">
+      {!hideBack && onBack && (
+        <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+          <Icon name="ChevronLeft" size={20} className="text-white" />
+        </button>
+      )}
+      <div className="flex-1">
+        <ProgressBar current={step} total={totalSteps} />
       </div>
     </div>
-  );
-};
+    <div className="flex-1 flex flex-col px-5 pb-8">
+      {children}
+    </div>
+    <div className="px-5">
+      <LegalFooter showDelete />
+    </div>
+  </div>
+);
 
+// ─── Главный компонент ────────────────────────────────────────────────────────
 export default function AuthNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -213,13 +254,30 @@ export default function AuthNew() {
   const refCode = searchParams.get('ref') || '';
   if (refCode) localStorage.setItem('pendingReferral', refCode);
 
-  const [screen, setScreen] = useState<Screen>('landing');
+  // Навигация
+  const [screen, setScreen] = useState<Screen>('goal');
+  const [history, setHistory] = useState<Screen[]>([]);
 
-  // Role state
-  const [userRole, setUserRole] = useState<UserRoleId | null>(null);
+  const goTo = (s: Screen) => {
+    setHistory(h => [...h, screen]);
+    setScreen(s);
+  };
 
-  // Lesson state
-  const [lessonStage, setLessonStage] = useState<LessonStage>('pick');
+  const goBack = () => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setHistory(h => h.slice(0, -1));
+    setScreen(prev);
+  };
+
+  // Данные онбординга
+  const [goal, setGoal] = useState<GoalId | ''>('');
+  const [motivation, setMotivation] = useState('');
+  const [subject, setSubject] = useState('');
+  const [level, setLevel] = useState('');
+
+  // Урок
+  const [lessonStage, setLessonStage] = useState<LessonStage>('explain');
   const [selectedSubject, setSelectedSubject] = useState<typeof LESSON_SUBJECTS[0] | null>(null);
   const [explanation, setExplanation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -227,90 +285,103 @@ export default function AuthNew() {
   const [typingText, setTypingText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [answerRevealed, setAnswerRevealed] = useState(false);
   const [flashCorrect, setFlashCorrect] = useState(false);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Auth state
+  // Auth
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [termsError, setTermsError] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [vkLoading, setVkLoading] = useState(false);
-  const [regFieldFocused, setRegFieldFocused] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (refCode) localStorage.setItem('pendingReferral', refCode);
-    const savedEmail = localStorage.getItem('savedEmail');
-    if (savedEmail) { setEmail(savedEmail); setRememberMe(true); }
-  }, [refCode]);
+    if (authService.isAuthenticated()) navigate('/');
+  }, [navigate]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [typingText, lessonStage]);
 
   const clearErrors = () => { setFieldErrors({}); setTermsError(false); };
-
   const validateEmail = (v: string) => v.includes('@') && v.includes('.');
 
   const typeText = (fullText: string, onDone: () => void) => {
     if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-    setIsTyping(true);
     setTypingText('');
+    setIsTyping(true);
     let i = 0;
+    const speed = Math.max(8, Math.min(20, Math.floor(2000 / fullText.length)));
     typingTimerRef.current = setInterval(() => {
       i++;
       setTypingText(fullText.slice(0, i));
       if (i >= fullText.length) {
         clearInterval(typingTimerRef.current!);
         setIsTyping(false);
-        setTypingText('');
         onDone();
       }
-    }, 16);
+    }, speed);
   };
 
-  const startLesson = async (subject: typeof LESSON_SUBJECTS[0]) => {
-    setSelectedSubject(subject);
+  const startLesson = async (subj: typeof LESSON_SUBJECTS[0]) => {
+    setSelectedSubject(subj);
     setLessonStage('explain');
+    setExplanation('');
+    setTypingText('');
+    setSelectedAnswer(null);
     setIsLoading(true);
     setThinkingStep(0);
-    setExplanation('');
 
+    let step = 0;
     thinkingTimerRef.current = setInterval(() => {
-      setThinkingStep(s => Math.min(s + 1, THINKING_STEPS.length - 1));
-    }, 2000);
+      step = (step + 1) % THINKING_STEPS.length;
+      setThinkingStep(step);
+    }, 900);
 
-    let text = '';
     try {
       const res = await fetch(API.AI_ASSISTANT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'demo_ask',
-          question: `Объясни за 1-2 предложения, максимально просто, как другу: ${subject.topic}. Без списков, без терминов.`,
+          question: `Объясни за 1-2 предложения, максимально просто, как другу: ${subj.topic}. Без списков, без терминов.`,
           history: [],
         }),
       });
       const data = await res.json();
-      text = sanitizeText(data.answer || data.response || data.message || '');
-    } catch { /* silent */ }
-
-    if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
-    setIsLoading(false);
-
-    if (!text) text = `${subject.topic} — это один из ключевых разделов. Разберём на примере, чтобы всё стало понятно.`;
-
-    typeText(text, () => {
+      const text = sanitizeText(data.answer || data.response || 'Не удалось загрузить объяснение.');
+      clearInterval(thinkingTimerRef.current!);
+      setIsLoading(false);
       setExplanation(text);
-    });
+      typeText(text, () => setLessonStage('question'));
+    } catch {
+      clearInterval(thinkingTimerRef.current!);
+      setIsLoading(false);
+      setExplanation('Не удалось загрузить объяснение.');
+      setLessonStage('question');
+    }
+  };
+
+  const handleAnswer = async (idx: number) => {
+    if (selectedAnswer !== null) return;
+    setSelectedAnswer(idx);
+    setLessonStage('answered');
+    const correct = idx === selectedSubject?.correct;
+    try {
+      if (correct) {
+        await Haptics.notification({ type: 'SUCCESS' as never });
+        setFlashCorrect(true);
+        setTimeout(() => setFlashCorrect(false), 600);
+      } else {
+        await Haptics.notification({ type: 'ERROR' as never });
+      }
+    } catch { /* silent */ }
   };
 
   const applyReferral = async (token: string) => {
@@ -332,45 +403,16 @@ export default function AuthNew() {
     await applyReferral(data.token);
     if (data.is_new_user) {
       am.register('phone');
+      // Передаём собранные данные в онбординг
+      if (goal) localStorage.setItem('onboarding_goal', goal);
+      if (subject) localStorage.setItem('onboarding_subject', subject);
     } else {
       am.login('phone');
     }
-    toast({ title: '✅ Вход выполнен!', description: `Добро пожаловать, ${data.user.full_name}!` });
     if (isRegister || data.is_new_user) {
-      // Сохраняем выбранную роль чтобы не спрашивать в онбординге
-      if (userRole) localStorage.setItem('onboarding_goal', userRole);
       navigate('/onboarding');
     } else {
       navigate('/');
-    }
-  };
-
-  const handleLogin = async () => {
-    clearErrors();
-    const errs: Record<string, string> = {};
-    if (!validateEmail(email)) errs.email = 'Неверный email';
-    if (!password) errs.password = 'Введите пароль';
-    if (Object.keys(errs).length) { setFieldErrors(errs); return; }
-    setLoading(true);
-    try {
-      const device_id = await getDeviceId();
-      const res = await fetch(API.AUTH, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', email, password, device_id }),
-      });
-      const data = await res.json();
-      if (res.ok && data.token) {
-        if (rememberMe) localStorage.setItem('savedEmail', email);
-        else localStorage.removeItem('savedEmail');
-        await afterLogin(data);
-      } else {
-        setFieldErrors({ password: data.error || 'Неверный email или пароль' });
-      }
-    } catch {
-      toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось выполнить вход' });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -396,8 +438,8 @@ export default function AuthNew() {
           authService.setUser(data.user);
           await applyReferral(data.token);
           am.register('phone');
-          toast({ title: 'Аккаунт создан!', description: 'Добро пожаловать!' });
-          if (userRole) localStorage.setItem('onboarding_goal', userRole);
+          if (goal) localStorage.setItem('onboarding_goal', goal);
+          if (subject) localStorage.setItem('onboarding_subject', subject);
           navigate('/onboarding');
         } else {
           await afterLogin(data, true);
@@ -412,30 +454,30 @@ export default function AuthNew() {
     }
   };
 
-  const handleVKLogin = async () => {
-    setVkLoading(true);
+  const handleLogin = async () => {
+    clearErrors();
+    const errs: Record<string, string> = {};
+    if (!validateEmail(email)) errs.email = 'Неверный email';
+    if (!password) errs.password = 'Введите пароль';
+    if (Object.keys(errs).length) { setFieldErrors(errs); return; }
+    setLoading(true);
     try {
-      const array = new Uint8Array(32);
-      crypto.getRandomValues(array);
-      const codeVerifier = Array.from(array, b => b.toString(36).padStart(2, '0')).join('').slice(0, 64);
-      const state = Math.random().toString(36).slice(2, 15);
-      localStorage.setItem('vk_code_verifier', codeVerifier);
-      localStorage.setItem('vk_state', state);
-      const res = await fetch(API.VK_AUTH, {
+      const device_id = await getDeviceId();
+      const res = await fetch(API.AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_auth_url', code_verifier: codeVerifier, state }),
+        body: JSON.stringify({ action: 'login', email, password, device_id }),
       });
       const data = await res.json();
-      if (data.auth_url) {
-        window.location.href = data.auth_url;
+      if (res.ok && data.token) {
+        await afterLogin(data, false);
       } else {
-        toast({ variant: 'destructive', title: 'Ошибка', description: data.error || 'Не удалось получить ссылку VK' });
-        setVkLoading(false);
+        setFieldErrors({ password: data.error || 'Неверный email или пароль' });
       }
     } catch {
-      toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось подключиться к VK' });
-      setVkLoading(false);
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Нет соединения' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -466,339 +508,290 @@ export default function AuthNew() {
     }
   };
 
-  // ─── LANDING ────────────────────────────────────────────────────────────────
-  if (screen === 'landing') {
+  const handleVKLogin = async () => {
+    setVkLoading(true);
+    try {
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+      const codeVerifier = btoa(String.fromCharCode(...array)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 43);
+      const state = Math.random().toString(36).substring(2);
+      localStorage.setItem('vk_code_verifier', codeVerifier);
+      localStorage.setItem('vk_state', state);
+      const res = await fetch(API.VK_AUTH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_auth_url', code_verifier: codeVerifier, state }),
+      });
+      const data = await res.json();
+      if (data.auth_url) {
+        window.location.href = data.auth_url;
+      } else {
+        toast({ variant: 'destructive', title: 'Ошибка', description: data.error || 'Не удалось получить ссылку VK' });
+        setVkLoading(false);
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось подключиться к VK' });
+      setVkLoading(false);
+    }
+  };
+
+  // Общее число шагов онбординга: goal(1) + motivation(2) + subject(3) + level(4) + lesson(5) + result(6) + register(7)
+  const TOTAL_STEPS = 7;
+  const stepIndex: Record<Screen, number> = {
+    goal: 1, motivation: 2, subject: 3, level: 4, lesson: 5, result: 6, register: 7,
+    login: 0, forgot: 0,
+  };
+
+  // ─── ШАГ 1: Выбор цели ──────────────────────────────────────────────────────
+  if (screen === 'goal') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-8 gap-6">
-
-          {/* Персонаж + рейтинг */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative flex items-center justify-center">
-              <div className="absolute rounded-full bg-white/10 animate-ping" style={{ animationDuration: '2.8s', width: 120, height: 120 }} />
-              <FoxMascot size={120} />
-            </div>
-            {/* Звёзды */}
-            <div className="flex items-center gap-1 bg-white/15 backdrop-blur rounded-full px-3 py-1.5">
-              <span className="text-yellow-300 text-sm">★★★★★</span>
-              <span className="text-white/80 text-xs font-medium">4.9 · 12 400+ учеников</span>
-            </div>
-          </div>
-
-          {/* Текст */}
-          <div className="text-center">
-            <h1 className="text-3xl font-extrabold text-white leading-tight mb-2">
-              Репетитор в кармане —<br />объясняю за 2 минуты
-            </h1>
-            <p className="text-white/70 text-sm">
-              ЕГЭ, ОГЭ, университет.<br />Попробуй первый урок прямо сейчас
-            </p>
-          </div>
-
-          {/* Отзывы */}
-          <div className="w-full max-w-xs flex flex-col gap-2">
-            {[
-              { name: 'Аня, 11 класс', text: 'Сдала математику на 89 баллов. Studyfay объяснил лучше репетитора за 2000₽/час' },
-              { name: 'Максим, студент', text: 'Готовлюсь к сессии прямо в метро. Экономлю 4 часа в неделю' },
-            ].map((r, i) => (
-              <div key={i} className="bg-white/15 backdrop-blur rounded-2xl px-4 py-3 border border-white/20">
-                <p className="text-white text-xs leading-relaxed">"{r.text}"</p>
-                <p className="text-white/50 text-xs mt-1 font-medium">— {r.name}</p>
+      <OnboardingShell step={1} totalSteps={TOTAL_STEPS} hideBack>
+        <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3 mb-1">
+              <FoxMascot size={52} />
+              <div>
+                <h1 className="text-white font-extrabold text-2xl leading-tight">Привет!</h1>
+                <p className="text-white/70 text-sm">Я помогу тебе учиться эффективнее</p>
               </div>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <div className="w-full max-w-xs flex flex-col gap-3">
-            {refCode && (
-              <div className="bg-green-500/20 backdrop-blur border border-green-400/30 rounded-2xl p-3 w-full">
-                <p className="text-white text-xs text-center">
-                  <Icon name="Gift" size={14} className="inline mr-1" />
-                  Вас пригласил друг — получите +5 бонусных вопросов
-                </p>
-              </div>
-            )}
-            <Button
-              onClick={() => setScreen('role')}
-              className="w-full h-14 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-lg rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] transition-all"
-            >
-              Начать первый урок 🚀
-            </Button>
-            <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
-            <button
-              onClick={() => { clearErrors(); setScreen('login'); }}
-              className="text-white/60 text-sm text-center hover:text-white transition-colors"
-            >
-              Уже есть аккаунт? <span className="underline text-white/80">Войти</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="relative z-10">
-          <LegalFooter showDelete />
-        </div>
-      </div>
-    );
-  }
-
-  // ─── РОЛЬ ───────────────────────────────────────────────────────────────────
-  if (screen === 'role') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center px-6 relative overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 w-full max-w-xs flex flex-col gap-6">
-
-          <div className="flex items-center gap-3">
-            <button onClick={() => setScreen('landing')} className="text-white/60 hover:text-white transition-colors">
-              <Icon name="ArrowLeft" size={20} />
-            </button>
-            <div className="flex gap-1">
-              <div className="w-6 h-1.5 bg-white rounded-full" />
-              <div className="w-6 h-1.5 bg-white/30 rounded-full" />
-              <div className="w-6 h-1.5 bg-white/30 rounded-full" />
             </div>
-          </div>
-
-          <div>
-            <h2 className="text-2xl font-extrabold text-white mb-1">Расскажи о себе</h2>
-            <p className="text-white/60 text-sm">Подберём урок специально для тебя</p>
+            <p className="text-white font-semibold text-lg mt-2">Какая у тебя цель?</p>
           </div>
 
           <div className="flex flex-col gap-3">
-            {USER_ROLES.map(role => (
+            {GOALS.map(g => (
               <button
-                key={role.id}
+                key={g.id}
                 onClick={async () => {
                   try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
-                  setUserRole(role.id);
-                  setLessonStage('pick');
-                  setScreen('lesson');
+                  setGoal(g.id);
+                  goTo('motivation');
                 }}
-                className="flex items-center gap-4 bg-white/15 backdrop-blur border-2 border-white/20 rounded-2xl px-5 py-4 text-left hover:bg-white/25 hover:border-white/40 active:scale-[0.97] transition-all"
+                className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all shadow-lg shadow-black/10"
               >
-                <span className="text-3xl">{role.emoji}</span>
-                <div>
-                  <p className="text-white font-bold text-base leading-tight">{role.label}</p>
-                  <p className="text-white/50 text-xs mt-0.5">{role.sublabel}</p>
+                <span className="text-3xl">{g.emoji}</span>
+                <div className="flex-1">
+                  <p className="text-gray-800 font-bold text-base">{g.label}</p>
+                  <p className="text-gray-400 text-xs mt-0.5">{g.desc}</p>
                 </div>
-                <Icon name="ChevronRight" size={18} className="text-white/40 ml-auto" />
+                <Icon name="ChevronRight" size={18} className="text-gray-300" />
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => { clearErrors(); setScreen('login'); }}
+            className="text-white/50 text-sm text-center hover:text-white transition-colors mt-2"
+          >
+            Уже есть аккаунт? <span className="underline text-white/70">Войти</span>
+          </button>
+        </div>
+      </OnboardingShell>
+    );
+  }
+
+  // ─── ШАГ 2: Мотивация ───────────────────────────────────────────────────────
+  if (screen === 'motivation') {
+    const motives = MOTIVATIONS[goal as GoalId] || MOTIVATIONS.other;
+    return (
+      <OnboardingShell step={2} totalSteps={TOTAL_STEPS} onBack={goBack}>
+        <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
+          <div>
+            <p className="text-white/70 text-sm">Это важно для персонализации</p>
+            <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Зачем тебе это?</h2>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {motives.map(m => (
+              <button
+                key={m.label}
+                onClick={async () => {
+                  try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
+                  setMotivation(m.label);
+                  goTo('subject');
+                }}
+                className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all shadow-lg shadow-black/10"
+              >
+                <span className="text-2xl">{m.emoji}</span>
+                <p className="text-gray-800 font-semibold text-base flex-1">{m.label}</p>
+                <Icon name="ChevronRight" size={18} className="text-gray-300" />
               </button>
             ))}
           </div>
         </div>
-      </div>
+      </OnboardingShell>
     );
   }
 
-  // ─── ПЕРВЫЙ УРОК ────────────────────────────────────────────────────────────
-  if (screen === 'lesson') {
+  // ─── ШАГ 3: Предмет ─────────────────────────────────────────────────────────
+  if (screen === 'subject') {
+    return (
+      <OnboardingShell step={3} totalSteps={TOTAL_STEPS} onBack={goBack}>
+        <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
+          <div>
+            <p className="text-white/70 text-sm">Начнём с самого важного</p>
+            <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Какой предмет прокачаем?</h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {SUBJECTS.map(s => (
+              <button
+                key={s.id}
+                onClick={async () => {
+                  try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
+                  setSubject(s.id);
+                  goTo('level');
+                }}
+                className="flex flex-col items-center gap-2 bg-white rounded-2xl py-5 px-3 active:scale-[0.95] transition-all shadow-lg shadow-black/10"
+              >
+                <span className="text-3xl">{s.emoji}</span>
+                <p className="text-gray-800 font-bold text-sm text-center">{s.label}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </OnboardingShell>
+    );
+  }
+
+  // ─── ШАГ 4: Уровень ─────────────────────────────────────────────────────────
+  if (screen === 'level') {
+    const subjectInfo = SUBJECTS.find(s => s.id === subject);
+    return (
+      <OnboardingShell step={4} totalSteps={TOTAL_STEPS} onBack={goBack}>
+        <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
+          <div>
+            <p className="text-white/70 text-sm">{subjectInfo?.emoji} {subjectInfo?.label}</p>
+            <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Какой у тебя уровень?</h2>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {LEVELS.map(l => (
+              <button
+                key={l.id}
+                onClick={async () => {
+                  try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
+                  setLevel(l.id);
+                  const lessonSubject = LESSON_SUBJECTS.find(ls => ls.id === subject) || LESSON_SUBJECTS[0];
+                  startLesson(lessonSubject);
+                  goTo('lesson');
+                }}
+                className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all shadow-lg shadow-black/10"
+              >
+                <span className="text-3xl">{l.emoji}</span>
+                <div className="flex-1">
+                  <p className="text-gray-800 font-bold text-base">{l.label}</p>
+                  <p className="text-gray-400 text-xs mt-0.5">{l.desc}</p>
+                </div>
+                <Icon name="ChevronRight" size={18} className="text-gray-300" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </OnboardingShell>
+    );
+  }
+
+  // ─── ШАГ 5: Урок ────────────────────────────────────────────────────────────
+  if (screen === 'lesson' && selectedSubject) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
-        <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-
         {/* Вспышка на правильный ответ */}
-        <div className={`absolute inset-0 z-50 bg-green-400/50 pointer-events-none transition-opacity duration-300 ${flashCorrect ? 'opacity-100' : 'opacity-0'}`} />
+        <div className={`absolute inset-0 z-50 bg-green-400/40 pointer-events-none transition-opacity duration-300 ${flashCorrect ? 'opacity-100' : 'opacity-0'}`} />
 
         {/* Шапка */}
-        <div className="px-4 pb-2" style={{ paddingTop: 'max(20px, env(safe-area-inset-top, 20px))' }}>
+        <div className="px-5 pt-12 pb-3">
           <div className="flex items-center gap-3 mb-3">
-            <button
-              onClick={() => {
-                setScreen('landing');
-                setLessonStage('pick');
-                setSelectedSubject(null);
-                setExplanation('');
-                setSelectedAnswer(null);
-                setAnswerRevealed(false);
-                if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-                if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
-              }}
-              className="text-white/60 hover:text-white transition-colors p-1 -ml-1 flex-shrink-0"
-            >
-              <Icon name="ArrowLeft" size={20} />
-            </button>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <FoxMascot size={32} jumping={flashCorrect} />
-              <span className="text-white font-semibold text-sm">Первый урок</span>
+            <div className="flex-1">
+              <ProgressBar current={5} total={TOTAL_STEPS} />
             </div>
-            <div className="flex-1" />
-            {/* Шаг */}
-            <span className="text-white/50 text-xs flex-shrink-0">
-              {lessonStage === 'pick' ? '1 / 3' : lessonStage === 'explain' ? '2 / 3' : '3 / 3'}
-            </span>
           </div>
-          {/* Прогресс-бар */}
-          <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white rounded-full transition-all duration-700 ease-out"
-              style={{
-                width: lessonStage === 'pick' ? '10%'
-                  : lessonStage === 'explain' ? '45%'
-                  : lessonStage === 'question' ? '75%'
-                  : '100%'
-              }}
-            />
+          <div className="flex items-center gap-2">
+            <FoxMascot size={28} jumping={flashCorrect} />
+            <span className="text-white/70 text-xs font-medium">{selectedSubject.emoji} {selectedSubject.label} · {selectedSubject.topic}</span>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-4 pb-8">
+        <div className="flex-1 overflow-y-auto px-5 pb-10 flex flex-col gap-4">
 
-          {/* ШАГ 1 — Выбор предмета */}
-          {lessonStage === 'pick' && (
-            <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+          {/* Объяснение */}
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <FoxMascot size={24} />
+            </div>
+            <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1 min-h-[60px]">
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-white/60 text-xs">{THINKING_STEPS[thinkingStep]}</span>
+                </div>
+              ) : (
+                <p className="text-white text-sm leading-relaxed">
+                  {typingText}
+                  {isTyping && <span className="inline-block w-0.5 h-4 bg-white/70 ml-0.5 animate-pulse" />}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Вопрос */}
+          {(lessonStage === 'question' || lessonStage === 'answered') && (
+            <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-400">
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 -mt-1">
-                  <FoxMascot size={36} />
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <FoxMascot size={24} />
                 </div>
                 <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1">
-                  <p className="text-white text-sm font-medium">Выбери предмет — и я объясню одну важную тему прямо сейчас</p>
+                  <p className="text-white text-sm font-medium">{selectedSubject.question}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {LESSON_SUBJECTS.map(s => (
-                  <button
-                    key={s.id}
-                    onClick={async () => {
-                      try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
-                      startLesson(s);
-                    }}
-                    className="bg-white/15 backdrop-blur border border-white/25 rounded-2xl p-4 text-left hover:bg-white/25 active:scale-95 transition-all"
-                  >
-                    <span className="text-2xl block mb-1">{s.emoji}</span>
-                    <span className="text-white font-semibold text-sm">{s.label}</span>
-                  </button>
-                ))}
+
+              <div className="flex flex-col gap-2 pl-11">
+                {selectedSubject.answers.map((ans, idx) => {
+                  const isSelected = selectedAnswer === idx;
+                  const isCorrectAns = idx === selectedSubject.correct;
+                  const revealed = lessonStage === 'answered';
+                  let cls = 'bg-white/15 border-white/25 text-white';
+                  if (revealed && isCorrectAns) cls = 'bg-green-400/30 border-green-400/60 text-white';
+                  if (revealed && isSelected && !isCorrectAns) cls = 'bg-red-400/30 border-red-400/60 text-white';
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAnswer(idx)}
+                      disabled={lessonStage === 'answered'}
+                      className={`w-full text-left px-4 py-3 rounded-2xl border text-sm font-medium backdrop-blur transition-all active:scale-[0.97] ${cls}`}
+                    >
+                      <span className="mr-2 opacity-60">{String.fromCharCode(65 + idx)}.</span>
+                      {ans}
+                      {revealed && isCorrectAns && <span className="ml-2">✓</span>}
+                      {revealed && isSelected && !isCorrectAns && <span className="ml-2">✗</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* ШАГ 2 — Объяснение */}
-          {(lessonStage === 'explain' || lessonStage === 'question' || lessonStage === 'result') && selectedSubject && (
-            <div className="flex flex-col gap-4 animate-in fade-in duration-300">
-              {/* Тема */}
-              <div className="bg-white/10 rounded-2xl px-4 py-2 flex items-center gap-2">
-                <span className="text-lg">{selectedSubject.emoji}</span>
-                <span className="text-white/80 text-xs font-medium">{selectedSubject.label} · {selectedSubject.topic}</span>
+          {/* Кнопка продолжить после ответа */}
+          {lessonStage === 'answered' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-400 mt-2">
+              <div className={`rounded-2xl p-3 mb-3 ${selectedAnswer === selectedSubject?.correct ? 'bg-green-400/20 border border-green-400/30' : 'bg-white/10 border border-white/20'}`}>
+                <p className="text-white text-xs font-semibold">
+                  {selectedAnswer === selectedSubject?.correct
+                    ? '🎉 Верно!'
+                    : `💡 Правильный ответ: ${selectedSubject?.answers[selectedSubject.correct]}`}
+                </p>
               </div>
-
-              {/* Объяснение от совы */}
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 -mt-1">
-                  <FoxMascot size={36} jumping={flashCorrect} />
-                </div>
-                <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1">
-                  {isLoading ? (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        {[0, 1, 2].map(i => (
-                          <span key={i} className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
-                        ))}
-                      </div>
-                      <p className="text-white/60 text-xs">{THINKING_STEPS[thinkingStep]}</p>
-                    </div>
-                  ) : (
-                    <p className="text-white text-sm leading-relaxed">
-                      {isTyping ? typingText : explanation}
-                      {isTyping && <span className="inline-block w-0.5 h-4 bg-white/80 ml-0.5 animate-pulse" />}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Кнопка "Понял, дай задание" */}
-              {lessonStage === 'explain' && !isLoading && !isTyping && explanation && (
-                <button
-                  onClick={() => setLessonStage('question')}
-                  className="bg-white text-purple-700 font-bold rounded-2xl py-4 text-base active:scale-95 transition-all shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300"
-                >
-                  Понял! Дай задание →
-                </button>
-              )}
-
-              {/* ШАГ 3 — Вопрос */}
-              {(lessonStage === 'question' || lessonStage === 'result') && (
-                <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 -mt-1">
-                      <FoxMascot size={36} jumping={flashCorrect} />
-                    </div>
-                    <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1">
-                      <p className="text-white/70 text-xs mb-1">Проверим, как усвоил:</p>
-                      <p className="text-white text-sm font-medium">{selectedSubject.question}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    {selectedSubject.answers.map((ans, i) => {
-                      const isSelected = selectedAnswer === i;
-                      const isCorrect = i === selectedSubject.correct;
-                      const showResult = answerRevealed;
-                      let style = 'bg-white/15 border-white/25 text-white';
-                      if (showResult && isCorrect) style = 'bg-green-400/30 border-green-400 text-white';
-                      else if (showResult && isSelected && !isCorrect) style = 'bg-red-400/30 border-red-400 text-white';
-                      else if (!showResult && isSelected) style = 'bg-white/30 border-white text-white';
-
-                      return (
-                        <button
-                          key={i}
-                          disabled={answerRevealed}
-                          onClick={async () => {
-                            setSelectedAnswer(i);
-                            setAnswerRevealed(true);
-                            const correct = i === selectedSubject.correct;
-                            try {
-                              if (correct) {
-                                await Haptics.notification({ type: NotificationType.Success });
-                              } else {
-                                await Haptics.notification({ type: NotificationType.Error });
-                              }
-                            } catch { /* не Android — молча */ }
-                            if (correct) {
-                              setFlashCorrect(true);
-                              setTimeout(() => setFlashCorrect(false), 600);
-                            }
-                            setTimeout(() => setLessonStage('result'), 800);
-                          }}
-                          className={`border backdrop-blur rounded-2xl px-4 py-3 text-left text-sm font-medium transition-all active:scale-98 ${style}`}
-                        >
-                          <span className="text-white/50 mr-2">{String.fromCharCode(65 + i)}.</span>
-                          {ans}
-                          {showResult && isCorrect && <span className="ml-2">✅</span>}
-                          {showResult && isSelected && !isCorrect && <span className="ml-2">❌</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* ШАГ 4 — Результат → hook */}
-              {lessonStage === 'result' && answerRevealed && (
-                <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 -mt-1">
-                      <FoxMascot size={36} jumping={flashCorrect} />
-                    </div>
-                    <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1">
-                      {selectedAnswer === selectedSubject.correct ? (
-                        <p className="text-white text-sm">🎉 Правильно! Отличный старт. У нас ещё десятки таких тем — с заданиями и разбором ошибок.</p>
-                      ) : (
-                        <p className="text-white text-sm">Почти! Правильный ответ: <strong>{selectedSubject.answers[selectedSubject.correct]}</strong>. Это частая ошибка — именно такие разбираем в приложении.</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setScreen('hook')}
-                    className="bg-white text-purple-700 font-extrabold rounded-2xl py-4 text-base active:scale-95 transition-all shadow-lg"
-                  >
-                    Продолжить обучение →
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={() => goTo('result')}
+                className="w-full bg-white text-purple-700 font-extrabold rounded-2xl py-4 text-base active:scale-[0.98] transition-all shadow-lg"
+              >
+                Продолжить →
+              </button>
             </div>
           )}
 
@@ -808,83 +801,196 @@ export default function AuthNew() {
     );
   }
 
-  // ─── HOOK — "Продолжим?" ────────────────────────────────────────────────────
-  if (screen === 'hook') {
+  // ─── ШАГ 6: Результат — вау-момент ──────────────────────────────────────────
+  if (screen === 'result') {
     const isCorrect = selectedAnswer === selectedSubject?.correct;
-    const role = USER_ROLES.find(r => r.id === userRole) ?? USER_ROLES[1];
+    const goalData = GOALS.find(g => g.id === goal) ?? GOALS[0];
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center px-6 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center px-5 relative overflow-hidden">
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 w-full max-w-xs flex flex-col gap-4">
+        <div className="relative z-10 w-full max-w-sm flex flex-col gap-5">
 
-          {/* ВАУ-момент — сравнение */}
-          <div className="bg-white rounded-3xl p-5 shadow-2xl text-center animate-in zoom-in-95 duration-500">
-            <p className="text-4xl mb-3">{isCorrect ? '🏆' : '💪'}</p>
-            <p className="text-gray-800 font-extrabold text-xl leading-tight mb-1">
+          {/* Карточка результата */}
+          <div className="bg-white rounded-3xl p-6 shadow-2xl text-center animate-in zoom-in-95 duration-500">
+            <div className="text-5xl mb-3">{isCorrect ? '🏆' : '💪'}</div>
+            <h2 className="text-gray-900 font-extrabold text-xl leading-tight mb-2">
               {isCorrect
-                ? `Ты ответил лучше,\nчем ${role.percent}% ${role.groupLabel}`
-                : `Эту тему не знают\n${100 - role.percent}% ${role.groupLabel}`}
-            </p>
-            <p className="text-gray-400 text-sm mt-1">
+                ? `Ты лучше ${goalData.percent}% ${goalData.groupLabel}!`
+                : `Не знают ${100 - goalData.percent}% ${goalData.groupLabel}`}
+            </h2>
+            <p className="text-gray-500 text-sm">
               {isCorrect
-                ? 'Сильное начало. Продолжи — и будешь в топе.'
-                : 'Именно для этого и нужен репетитор. Разберём вместе.'}
+                ? 'Отличное начало. Сохрани прогресс и продолжай расти.'
+                : 'Именно для этого я здесь. Разберём всё вместе.'}
             </p>
-          </div>
 
-          {/* Прогресс урока */}
-          <div className="bg-white/15 backdrop-blur rounded-2xl p-4 border border-white/20 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <span>📚</span>
-              <span className="text-white text-xs">Тема пройдена: <strong>{selectedSubject?.label}</strong></span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span>🔥</span>
-              <span className="text-white text-xs">Стрик: <strong>день 1</strong> — не потеряй его</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span>🎁</span>
-              <span className="text-white text-xs"><strong>3 дня Premium</strong> — уже ждут тебя</span>
+            {/* Достижения */}
+            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-around">
+              <div className="text-center">
+                <div className="text-2xl">🔥</div>
+                <p className="text-gray-800 font-bold text-sm">День 1</p>
+                <p className="text-gray-400 text-xs">Стрик</p>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl">⭐</div>
+                <p className="text-gray-800 font-bold text-sm">+10 XP</p>
+                <p className="text-gray-400 text-xs">Заработано</p>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl">🎁</div>
+                <p className="text-gray-800 font-bold text-sm">3 дня</p>
+                <p className="text-gray-400 text-xs">Premium</p>
+              </div>
             </div>
           </div>
-
-          {/* Срочность */}
-          <HookCountdown />
 
           {/* CTA */}
-          <div className="flex flex-col gap-3">
-            <Button
-              onClick={() => { clearErrors(); setScreen('register'); }}
-              className="w-full h-14 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-base rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] transition-all"
-            >
-              Сохранить прогресс и продолжить 🚀
-            </Button>
-            <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
-            <button
-              onClick={() => { clearErrors(); setScreen('login'); }}
-              className="text-white/60 text-sm text-center hover:text-white transition-colors"
-            >
-              Уже есть аккаунт? <span className="underline text-white/80">Войти</span>
-            </button>
-          </div>
+          <Button
+            onClick={() => goTo('register')}
+            className="w-full h-14 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-base rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] transition-all"
+          >
+            Сохранить прогресс 🚀
+          </Button>
 
-          <p className="text-white/35 text-xs text-center">
-            Уйдёшь — прогресс и результат не сохранятся
+          <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
+
+          <p className="text-white/40 text-xs text-center">
+            Уйдёшь — прогресс и стрик не сохранятся
           </p>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0">
+          <LegalFooter showDelete />
         </div>
       </div>
     );
   }
 
-  // ─── LOGIN ──────────────────────────────────────────────────────────────────
+  // ─── ШАГ 7: Регистрация ─────────────────────────────────────────────────────
+  if (screen === 'register') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
+        <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="px-5 pt-12 pb-4">
+          <div className="flex items-center gap-3">
+            <button onClick={goBack} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <Icon name="ChevronLeft" size={20} className="text-white" />
+            </button>
+            <div className="flex-1">
+              <ProgressBar current={7} total={TOTAL_STEPS} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col justify-center px-5 pb-8">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl">
+            {/* Заголовок с маскотом */}
+            <div className="flex items-center gap-3 mb-5">
+              <FoxMascot size={48} />
+              <div>
+                <h2 className="text-gray-900 font-extrabold text-xl leading-tight">Почти готово!</h2>
+                <p className="text-gray-400 text-xs mt-0.5">Сохрани прогресс — это займёт 30 секунд</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Input
+                type="text"
+                placeholder="Как тебя зовут?"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                autoComplete="given-name"
+                className="h-12 border-2 rounded-2xl text-sm border-gray-200 focus:border-purple-400"
+              />
+              <div>
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  className={`h-12 border-2 rounded-2xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
+                />
+                <FieldError name="email" errors={fieldErrors} />
+              </div>
+              <div>
+                <PasswordInput
+                  placeholder="Придумай пароль"
+                  value={password}
+                  onChange={setPassword}
+                  onEnter={handleRegister}
+                  fieldName="password"
+                  errors={fieldErrors}
+                  showPassword={showPassword}
+                  onToggleShow={() => setShowPassword(p => !p)}
+                />
+                {password.length > 0 && password.length < 8 && <p className="text-xs text-amber-500 mt-1">Минимум 8 символов</p>}
+                {password.length >= 8 && <p className="text-xs text-green-500 mt-1">✓ Хороший пароль</p>}
+              </div>
+
+              <div>
+                <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer group">
+                  <Checkbox
+                    id="terms"
+                    checked={agreedToTerms}
+                    onCheckedChange={c => { setAgreedToTerms(c as boolean); setTermsError(false); }}
+                    className="mt-0.5 w-5 h-5 flex-shrink-0 rounded-md border-2 border-gray-300 group-hover:border-purple-400 transition-colors"
+                  />
+                  <span className="text-xs text-gray-500 leading-relaxed pt-0.5">
+                    Согласен(на) с{' '}
+                    <Link to="/terms" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>условиями</Link>
+                    {' '}и{' '}
+                    <Link to="/privacy" className="text-purple-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>политикой</Link>
+                  </span>
+                </label>
+                {termsError && <p className="text-red-500 text-xs mt-1">Нужно согласиться с условиями</p>}
+              </div>
+
+              <Button
+                onClick={handleRegister}
+                disabled={loading}
+                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 active:scale-[0.98] text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(99,102,241,0.35)] transition-all"
+              >
+                {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Создать аккаунт →'}
+              </Button>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-gray-400 text-xs">или</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
+              <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
+
+              <p className="text-center text-xs text-gray-400">
+                Уже есть аккаунт?{' '}
+                <button onClick={() => { clearErrors(); setScreen('login'); }} className="text-purple-600 font-medium hover:underline">
+                  Войти
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5">
+          <LegalFooter />
+        </div>
+      </div>
+    );
+  }
+
+  // ─── ЛОГИН ──────────────────────────────────────────────────────────────────
   if (screen === 'login') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-5 relative overflow-hidden">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 w-full max-w-sm flex flex-col gap-4">
-          <button onClick={() => setScreen('landing')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
+          <button onClick={() => setScreen('goal')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
             <Icon name="ArrowLeft" size={16} /> Назад
           </button>
           <div className="bg-white rounded-3xl p-6 shadow-2xl">
@@ -898,7 +1004,7 @@ export default function AuthNew() {
                   onChange={e => setEmail(e.target.value)}
                   autoComplete="email"
                   autoCapitalize="none"
-                  className={`h-11 border-2 rounded-xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
+                  className={`h-12 border-2 rounded-2xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
                 />
                 <FieldError name="email" errors={fieldErrors} />
               </div>
@@ -913,18 +1019,17 @@ export default function AuthNew() {
                   showPassword={showPassword}
                   onToggleShow={() => setShowPassword(p => !p)}
                 />
-                <button onClick={() => setScreen('forgot')} className="text-xs text-purple-500 hover:underline mt-1 block text-right w-full">
-                  Забыли пароль?
+                <button
+                  onClick={() => { clearErrors(); setScreen('forgot'); }}
+                  className="text-purple-600 text-xs hover:underline mt-1 block text-right w-full"
+                >
+                  Забыл пароль?
                 </button>
               </div>
-              <label htmlFor="remember" className="flex items-center gap-2 cursor-pointer w-fit">
-                <Checkbox id="remember" checked={rememberMe} onCheckedChange={c => setRememberMe(c as boolean)} className="w-4 h-4" />
-                <span className="text-xs text-gray-400">Запомнить меня</span>
-              </label>
               <Button
                 onClick={handleLogin}
                 disabled={loading}
-                className="w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 active:scale-[0.98] text-white font-bold text-base rounded-xl shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all"
+                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 active:scale-[0.98] text-white font-bold text-base rounded-2xl shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all"
               >
                 {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Войти'}
               </Button>
@@ -936,7 +1041,7 @@ export default function AuthNew() {
               <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
               <p className="text-center text-xs text-gray-400">
                 Нет аккаунта?{' '}
-                <button onClick={() => { clearErrors(); setScreen('register'); }} className="text-purple-600 font-medium hover:underline">
+                <button onClick={() => { clearErrors(); setScreen('goal'); }} className="text-purple-600 font-medium hover:underline">
                   Создать
                 </button>
               </p>
@@ -948,101 +1053,10 @@ export default function AuthNew() {
     );
   }
 
-  // ─── REGISTER ───────────────────────────────────────────────────────────────
-  if (screen === 'register') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 w-full max-w-sm flex flex-col gap-4">
-          <button onClick={() => setScreen(selectedSubject ? 'hook' : 'landing')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
-            <Icon name="ArrowLeft" size={16} /> Назад
-          </button>
-          <div className="bg-white rounded-3xl p-6 shadow-2xl">
-            <div className="mb-5">
-              <h2 className="text-2xl font-extrabold text-gray-800 mb-1">Создай аккаунт</h2>
-              <div className="flex flex-col gap-1 mt-2">
-                <p className="text-xs text-gray-500 flex items-center gap-1.5"><span className="text-green-500">✓</span> Прогресс урока сохранится</p>
-                <p className="text-xs text-gray-500 flex items-center gap-1.5"><span className="text-green-500">✓</span> 3 дня Premium в подарок</p>
-                <p className="text-xs text-gray-500 flex items-center gap-1.5"><span className="text-green-500">✓</span> Без карты, без подписки</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <Input
-                  type="text"
-                  placeholder="Как тебя зовут?"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  onFocus={() => setRegFieldFocused(true)}
-                  onBlur={() => setRegFieldFocused(false)}
-                  autoComplete="given-name"
-                  className="h-11 border-2 rounded-xl text-sm border-gray-200 focus:border-purple-400"
-                />
-              </div>
-              <div>
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  onFocus={() => setRegFieldFocused(true)}
-                  onBlur={() => setRegFieldFocused(false)}
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  className={`h-11 border-2 rounded-xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
-                />
-                <FieldError name="email" errors={fieldErrors} />
-              </div>
-              <div onFocus={() => setRegFieldFocused(true)} onBlur={() => setRegFieldFocused(false)}>
-                <PasswordInput
-                  placeholder="Придумай пароль"
-                  value={password}
-                  onChange={setPassword}
-                  onEnter={handleRegister}
-                  fieldName="password"
-                  errors={fieldErrors}
-                  showPassword={showPassword}
-                  onToggleShow={() => setShowPassword(p => !p)}
-                />
-                {password.length > 0 && password.length < 8 && <p className="text-xs text-amber-500 mt-1">Минимум 8 символов</p>}
-                {password.length >= 8 && <p className="text-xs text-green-500 mt-1">✓ Хороший пароль</p>}
-              </div>
-              <TermsBlock agreed={agreedToTerms} onToggle={v => { setAgreedToTerms(v); setTermsError(false); }} error={termsError} />
-              <Button
-                onClick={handleRegister}
-                disabled={loading}
-                className={`w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 active:scale-[0.98] text-white font-bold text-base rounded-xl transition-all duration-300 ${regFieldFocused ? 'shadow-[0_8px_28px_rgba(99,102,241,0.6)] scale-[1.01]' : 'shadow-[0_4px_16px_rgba(99,102,241,0.35)]'}`}
-              >
-                {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : <>Создать и продолжить <Icon name="ArrowRight" size={16} className="ml-1.5" /></>}
-              </Button>
-              <div className="flex items-center gap-3 my-1">
-                <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-gray-400 text-xs">или</span>
-                <div className="flex-1 h-px bg-gray-200" />
-              </div>
-              <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
-              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-2.5 flex items-center gap-2 border border-emerald-200">
-                <span className="text-base">🎁</span>
-                <p className="text-xs text-emerald-700 font-medium">Бесплатный Premium при регистрации</p>
-              </div>
-              <p className="text-center text-xs text-gray-400">
-                Уже есть аккаунт?{' '}
-                <button onClick={() => { clearErrors(); setScreen('login'); }} className="text-purple-600 font-medium hover:underline">
-                  Войти
-                </button>
-              </p>
-            </div>
-          </div>
-          <LegalFooter />
-        </div>
-      </div>
-    );
-  }
-
-  // ─── FORGOT ─────────────────────────────────────────────────────────────────
+  // ─── ВОССТАНОВЛЕНИЕ ПАРОЛЯ ───────────────────────────────────────────────────
   if (screen === 'forgot') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-5 relative overflow-hidden">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 w-full max-w-sm flex flex-col gap-4">
           <button onClick={() => setScreen('login')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
@@ -1060,7 +1074,7 @@ export default function AuthNew() {
                   onChange={e => setEmail(e.target.value)}
                   autoComplete="email"
                   autoCapitalize="none"
-                  className={`h-11 border-2 rounded-xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
+                  className={`h-12 border-2 rounded-2xl text-sm ${fieldErrors.email ? 'border-red-400' : 'border-gray-200 focus:border-purple-400'}`}
                 />
                 <FieldError name="email" errors={fieldErrors} />
               </div>
@@ -1075,14 +1089,13 @@ export default function AuthNew() {
                   showPassword={showPassword}
                   onToggleShow={() => setShowPassword(p => !p)}
                 />
-                {password.length >= 8 && <p className="text-xs text-green-500 mt-1">✓ Хороший пароль</p>}
               </div>
               <Button
                 onClick={handleForgot}
                 disabled={loading}
-                className="w-full h-[52px] bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-[0_4px_16px_rgba(99,102,241,0.35)]"
+                className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold text-base rounded-2xl transition-all"
               >
-                {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Сохранить новый пароль'}
+                {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Сменить пароль'}
               </Button>
             </div>
           </div>

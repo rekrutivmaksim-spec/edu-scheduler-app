@@ -59,11 +59,12 @@ export default function Onboarding() {
   }, [navigate]);
 
   const prefillGoal = localStorage.getItem('onboarding_goal') || '';
+  const prefillSubject = localStorage.getItem('onboarding_subject') || '';
   const [step, setStep] = useState(prefillGoal ? 1 : 0);
   const [goal, setGoal] = useState(prefillGoal);
+  const [subject, setSubject] = useState(prefillSubject);
   const [companion, setCompanion] = useState<CompanionId | ''>(COMPANIONS[0]?.id || '');
   const [grade, setGrade] = useState('');
-  const [subject, setSubject] = useState('');
   const [examDate, setExamDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
@@ -142,6 +143,7 @@ export default function Onboarding() {
       setSaving(false);
     }
     localStorage.removeItem('onboarding_goal');
+    localStorage.removeItem('onboarding_subject');
     am.onboardingComplete(goal, companion || 'owl');
     navigate('/');
   };
