@@ -9,6 +9,7 @@ import { authService } from '@/lib/auth';
 import { API } from '@/lib/api-urls';
 import { am } from '@/lib/appmetrica';
 import { Device } from '@capacitor/device';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 async function getDeviceId(): Promise<string> {
   try {
@@ -529,7 +530,8 @@ export default function AuthNew() {
             {USER_ROLES.map(role => (
               <button
                 key={role.id}
-                onClick={() => {
+                onClick={async () => {
+                  try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
                   setUserRole(role.id);
                   setLessonStage('pick');
                   setScreen('lesson');
@@ -605,7 +607,10 @@ export default function AuthNew() {
                 {LESSON_SUBJECTS.map(s => (
                   <button
                     key={s.id}
-                    onClick={() => startLesson(s)}
+                    onClick={async () => {
+                      try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
+                      startLesson(s);
+                    }}
                     className="bg-white/15 backdrop-blur border border-white/25 rounded-2xl p-4 text-left hover:bg-white/25 active:scale-95 transition-all"
                   >
                     <span className="text-2xl block mb-1">{s.emoji}</span>
@@ -686,9 +691,17 @@ export default function AuthNew() {
                         <button
                           key={i}
                           disabled={answerRevealed}
-                          onClick={() => {
+                          onClick={async () => {
                             setSelectedAnswer(i);
                             setAnswerRevealed(true);
+                            const correct = i === selectedSubject.correct;
+                            try {
+                              if (correct) {
+                                await Haptics.notification({ type: NotificationType.Success });
+                              } else {
+                                await Haptics.notification({ type: NotificationType.Error });
+                              }
+                            } catch { /* не Android — молча */ }
                             setTimeout(() => setLessonStage('result'), 800);
                           }}
                           className={`border backdrop-blur rounded-2xl px-4 py-3 text-left text-sm font-medium transition-all active:scale-98 ${style}`}
