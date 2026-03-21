@@ -9,6 +9,7 @@ import { authService } from '@/lib/auth';
 import { API } from '@/lib/api-urls';
 import { am } from '@/lib/appmetrica';
 import { Device } from '@capacitor/device';
+import FoxMascot from '@/components/FoxMascot';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 async function getDeviceId(): Promise<string> {
@@ -451,14 +452,10 @@ export default function AuthNew() {
 
         <div className="relative z-10 w-full max-w-xs flex flex-col items-center gap-8">
 
-          {/* Компаньон */}
+          {/* Персонаж */}
           <div className="relative flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full bg-white/15 animate-ping" style={{ animationDuration: '2.8s', width: 120, height: 120, margin: 'auto' }} />
-            <div className="w-28 h-28 bg-white/20 backdrop-blur rounded-full border-4 border-white/30 shadow-2xl flex items-center justify-center">
-              <span className="text-6xl" style={{ filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.3))' }}>🦊</span>
-            </div>
-            <span className="absolute -top-2 -right-2 text-2xl animate-bounce" style={{ animationDuration: '1.8s' }}>✨</span>
-            <span className="absolute -bottom-1 -left-3 text-lg animate-bounce" style={{ animationDuration: '2.3s', animationDelay: '0.5s' }}>⭐</span>
+            <div className="absolute rounded-full bg-white/10 animate-ping" style={{ animationDuration: '2.8s', width: 140, height: 140 }} />
+            <FoxMascot size={140} />
           </div>
 
           {/* Текст */}
@@ -581,7 +578,7 @@ export default function AuthNew() {
               <Icon name="ArrowLeft" size={20} />
             </button>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`text-xl inline-block ${flashCorrect ? 'animate-bounce' : ''}`}>🦊</span>
+              <FoxMascot size={32} jumping={flashCorrect} />
               <span className="text-white font-semibold text-sm">Первый урок</span>
             </div>
             <div className="flex-1" />
@@ -610,8 +607,8 @@ export default function AuthNew() {
           {lessonStage === 'pick' && (
             <div className="flex flex-col gap-4 animate-in fade-in duration-300">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-base">🦊</span>
+                <div className="flex-shrink-0 -mt-1">
+                  <FoxMascot size={36} />
                 </div>
                 <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1">
                   <p className="text-white text-sm font-medium">Выбери предмет — и я объясню одну важную тему прямо сейчас</p>
@@ -646,8 +643,8 @@ export default function AuthNew() {
 
               {/* Объяснение от совы */}
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-base">🦊</span>
+                <div className="flex-shrink-0 -mt-1">
+                  <FoxMascot size={36} jumping={flashCorrect} />
                 </div>
                 <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1">
                   {isLoading ? (
@@ -682,8 +679,8 @@ export default function AuthNew() {
               {(lessonStage === 'question' || lessonStage === 'result') && (
                 <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-base">🦊</span>
+                    <div className="flex-shrink-0 -mt-1">
+                      <FoxMascot size={36} jumping={flashCorrect} />
                     </div>
                     <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1">
                       <p className="text-white/70 text-xs mb-1">Проверим, как усвоил:</p>
@@ -739,8 +736,8 @@ export default function AuthNew() {
               {lessonStage === 'result' && answerRevealed && (
                 <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-base">🦊</span>
+                    <div className="flex-shrink-0 -mt-1">
+                      <FoxMascot size={36} jumping={flashCorrect} />
                     </div>
                     <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1">
                       {selectedAnswer === selectedSubject.correct ? (
