@@ -319,16 +319,29 @@ async function registerWebPush(token: string): Promise<void> {
     });
 
     const sub = subscription.toJSON();
-    await fetch(API.PUSH_NOTIFICATIONS, {
+    if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
+      throw new Error('Subscription missing required fields');
+    }
+
+    const res = await fetch(API.PUSH_NOTIFICATIONS, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'X-Authorization': `Bearer ${token}`,
+      },
       body: JSON.stringify({
         action: 'subscribe',
         endpoint: sub.endpoint,
-        p256dh: sub.keys?.p256dh,
-        auth: sub.keys?.auth,
+        p256dh: sub.keys.p256dh,
+        auth: sub.keys.auth,
       }),
     });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Server error ${res.status}: ${text}`);
+    }
   } catch (e) {
     console.error('[push] registerWebPush failed:', e);
     throw e;
