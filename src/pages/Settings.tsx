@@ -78,8 +78,16 @@ export default function Settings() {
         setUser(verifiedUser);
         setVkLinked(!!verifiedUser.vk_id);
         loadSettings();
-        // Проверяем статус Web Push подписки
-        notificationService.getSubscription().then(sub => setPushSubscribed(!!sub));
+        // Проверяем статус подписки через бэкенд (работает и для Web Push и RuStore)
+        const tok = authService.getToken();
+        if (tok) {
+          fetch(API.PUSH_NOTIFICATIONS, {
+            headers: { 'Authorization': `Bearer ${tok}`, 'X-Authorization': `Bearer ${tok}` }
+          })
+            .then(r => r.json())
+            .then(d => setPushSubscribed(!!d.subscribed))
+            .catch(() => {});
+        }
 
       }
     };
@@ -355,9 +363,14 @@ export default function Settings() {
                       try {
                         if (checked) {
                           await notificationService.subscribe(token);
-                          const sub = await notificationService.getSubscription();
-                          setPushSubscribed(!!sub);
-                          if (sub) toast({ title: '🔔 Уведомления включены!', description: 'Будем напоминать о серии, лимитах и акциях' });
+                          // Проверяем реальный статус через бэкенд
+                          const statusRes = await fetch(API.PUSH_NOTIFICATIONS, {
+                            headers: { 'Authorization': `Bearer ${token}`, 'X-Authorization': `Bearer ${token}` }
+                          });
+                          const statusData = await statusRes.json();
+                          const subscribed = !!statusData.subscribed;
+                          setPushSubscribed(subscribed);
+                          if (subscribed) toast({ title: '🔔 Уведомления включены!', description: 'Будем напоминать о серии, лимитах и акциях' });
                           else toast({ variant: 'destructive', title: 'Не удалось подключить', description: 'Разреши уведомления в настройках браузера' });
                         } else {
                           await notificationService.unsubscribe(token);
