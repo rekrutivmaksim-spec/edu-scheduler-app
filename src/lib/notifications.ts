@@ -304,19 +304,35 @@ async function registerWebPush(token: string): Promise<void> {
     const sw = await navigator.serviceWorker.ready;
     const { API } = await import('@/lib/api-urls');
 
-    // Удаляем старую подписку если есть (могла быть с другим VAPID ключом)
+    // Проверяем существующую подписку
     const existing = await sw.pushManager.getSubscription();
-    if (existing) {
-      await existing.unsubscribe();
-    }
 
     const vapidKey = await getVapidPublicKey();
-    if (!vapidKey) return;
+    if (!vapidKey) throw new Error('VAPID key not available');
 
-    const subscription = await sw.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey),
-    });
+    // Если уже есть подписка с тем же endpoint — просто сохраняем на сервер
+    let subscription = existing;
+    if (!subscription) {
+      subscription = await sw.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      });
+    } else {
+      // Проверяем что ключ совпадает, иначе пересоздаём
+      try {
+        await sw.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+      } catch {
+        // Ключ изменился — удаляем старую и создаём новую
+        await existing.unsubscribe();
+        subscription = await sw.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+      }
+    }
 
     const sub = subscription.toJSON();
     if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {

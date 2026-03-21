@@ -110,9 +110,15 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
-  const data = event.data.json();
+  let data;
+  try {
+    data = event.data.json();
+  } catch {
+    data = { title: 'Studyfay', body: event.data.text(), url: '/' };
+  }
+
   const options = {
-    body: data.body,
+    body: data.body || '',
     icon: ICON_URL,
     badge: ICON_URL,
     vibrate: [200, 100, 200],
@@ -123,7 +129,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+    self.registration.showNotification(data.title || 'Studyfay', options)
   );
 });
 

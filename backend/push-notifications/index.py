@@ -75,7 +75,8 @@ def handler(event: dict, context) -> dict:
         cur.execute(
             f'''INSERT INTO {SCHEMA}.push_subscriptions (user_id, endpoint, p256dh, auth)
                 VALUES (%s, %s, %s, %s)
-                ON CONFLICT DO NOTHING''',
+                ON CONFLICT (user_id, endpoint) DO UPDATE
+                SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth''',
             (user_id, endpoint, p256dh, auth_key)
         )
         conn.commit()
