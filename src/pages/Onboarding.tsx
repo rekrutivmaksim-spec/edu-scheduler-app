@@ -5,6 +5,7 @@ import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { am } from '@/lib/appmetrica';
+import { notificationService } from '@/lib/notifications';
 import { COMPANIONS, type CompanionId } from '@/lib/companion';
 import { API } from '@/lib/api-urls';
 
@@ -123,6 +124,13 @@ export default function Onboarding() {
       setSaving(false);
     }
     am.onboardingComplete(goal, companion || 'owl');
+
+    // Запрашиваем разрешение на push-уведомления после онбординга
+    const token = authService.getToken();
+    if (token && notificationService.isSupported()) {
+      notificationService.subscribe(token).catch(() => {});
+    }
+
     navigate('/session?first=1');
   };
 
