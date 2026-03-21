@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="ru.rustore.sdk.pushclient.RECEIVE_PUSH_NOTIFICATION" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -17,6 +21,10 @@
         <meta-data
             android:name="sdk_pay_scheme_value"
             android:value="studyfay" />
+
+        <meta-data
+            android:name="ru.rustore.sdk.pushclient.project_id"
+            android:value="2063697825" />
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
@@ -38,6 +46,14 @@
             </intent-filter>
 
         </activity>
+
+        <service
+            android:name=".RuStorePushService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="ru.rustore.sdk.pushclient.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <provider
             android:authorities="${applicationId}.fileprovider"
