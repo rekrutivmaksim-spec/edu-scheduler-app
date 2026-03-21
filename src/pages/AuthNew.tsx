@@ -275,7 +275,7 @@ export default function AuthNew() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'demo_ask',
-          question: `Объясни очень коротко (3-4 предложения максимум, без списков, простым языком как другу): ${subject.topic}`,
+          question: `Объясни за 1-2 предложения, максимально просто, как другу: ${subject.topic}. Без списков, без терминов.`,
           history: [],
         }),
       });
