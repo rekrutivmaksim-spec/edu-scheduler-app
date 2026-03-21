@@ -65,6 +65,15 @@ function sanitizeText(text: string): string {
     .trim();
 }
 
+// Роли пользователя
+const USER_ROLES = [
+  { id: 'oge', emoji: '📚', label: 'Готовлюсь к ОГЭ', sublabel: '8–9 класс', percent: 71, groupLabel: 'учеников 9 класса' },
+  { id: 'ege', emoji: '🎯', label: 'Готовлюсь к ЕГЭ', sublabel: '10–11 класс', percent: 68, groupLabel: 'учеников 11 класса' },
+  { id: 'university', emoji: '🎓', label: 'Учусь в университете', sublabel: 'Студент', percent: 74, groupLabel: 'студентов твоего курса' },
+] as const;
+
+type UserRoleId = typeof USER_ROLES[number]['id'];
+
 // Предметы для первого урока
 const LESSON_SUBJECTS = [
   { id: 'math', emoji: '📐', label: 'Математика', topic: 'Что такое производная и зачем она нужна', question: 'Скорость машины — это производная от...', answers: ['расстояния по времени', 'времени по расстоянию', 'ускорения по времени'], correct: 0 },
@@ -82,7 +91,7 @@ const THINKING_STEPS = [
   'Почти готово…',
 ];
 
-type Screen = 'landing' | 'lesson' | 'hook' | 'login' | 'register' | 'forgot';
+type Screen = 'landing' | 'role' | 'lesson' | 'hook' | 'login' | 'register' | 'forgot';
 type LessonStage = 'pick' | 'explain' | 'question' | 'result';
 
 const FieldError = ({ name, errors }: { name: string; errors: Record<string, string> }) =>
@@ -184,6 +193,9 @@ export default function AuthNew() {
   if (refCode) localStorage.setItem('pendingReferral', refCode);
 
   const [screen, setScreen] = useState<Screen>('landing');
+
+  // Role state
+  const [userRole, setUserRole] = useState<UserRoleId | null>(null);
 
   // Lesson state
   const [lessonStage, setLessonStage] = useState<LessonStage>('pick');
@@ -460,7 +472,7 @@ export default function AuthNew() {
           {/* CTA */}
           <div className="w-full flex flex-col gap-3">
             <Button
-              onClick={() => { setLessonStage('pick'); setScreen('lesson'); }}
+              onClick={() => setScreen('role')}
               className="w-full h-16 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-lg rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] transition-all"
             >
               Начать первый урок 🚀
@@ -485,6 +497,54 @@ export default function AuthNew() {
 
         <div className="absolute bottom-0 left-0 right-0">
           <LegalFooter showDelete />
+        </div>
+      </div>
+    );
+  }
+
+  // ─── РОЛЬ ───────────────────────────────────────────────────────────────────
+  if (screen === 'role') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center px-6 relative overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 w-full max-w-xs flex flex-col gap-6">
+
+          <div className="flex items-center gap-3">
+            <button onClick={() => setScreen('landing')} className="text-white/60 hover:text-white transition-colors">
+              <Icon name="ArrowLeft" size={20} />
+            </button>
+            <div className="flex gap-1">
+              <div className="w-6 h-1.5 bg-white rounded-full" />
+              <div className="w-6 h-1.5 bg-white/30 rounded-full" />
+              <div className="w-6 h-1.5 bg-white/30 rounded-full" />
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-extrabold text-white mb-1">Расскажи о себе</h2>
+            <p className="text-white/60 text-sm">Подберём урок специально для тебя</p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {USER_ROLES.map(role => (
+              <button
+                key={role.id}
+                onClick={() => {
+                  setUserRole(role.id);
+                  setLessonStage('pick');
+                  setScreen('lesson');
+                }}
+                className="flex items-center gap-4 bg-white/15 backdrop-blur border-2 border-white/20 rounded-2xl px-5 py-4 text-left hover:bg-white/25 hover:border-white/40 active:scale-[0.97] transition-all"
+              >
+                <span className="text-3xl">{role.emoji}</span>
+                <div>
+                  <p className="text-white font-bold text-base leading-tight">{role.label}</p>
+                  <p className="text-white/50 text-xs mt-0.5">{role.sublabel}</p>
+                </div>
+                <Icon name="ChevronRight" size={18} className="text-white/40 ml-auto" />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -680,43 +740,43 @@ export default function AuthNew() {
   // ─── HOOK — "Продолжим?" ────────────────────────────────────────────────────
   if (screen === 'hook') {
     const isCorrect = selectedAnswer === selectedSubject?.correct;
+    const role = USER_ROLES.find(r => r.id === userRole) ?? USER_ROLES[1];
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center px-6 relative overflow-hidden">
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 w-full max-w-xs flex flex-col gap-5">
 
-          {/* Результат урока */}
-          <div className="bg-white/15 backdrop-blur rounded-3xl p-5 border border-white/25">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">
-                {isCorrect ? '🏆' : '💪'}
-              </div>
-              <div>
-                <p className="text-white font-bold text-base">{isCorrect ? 'Отлично!' : 'Хорошее начало!'}</p>
-                <p className="text-white/70 text-xs">Первый урок пройден</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-                <span className="text-base">📚</span>
-                <span className="text-white text-xs">Тема изучена: <strong>{selectedSubject?.label}</strong></span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-                <span className="text-base">🔥</span>
-                <span className="text-white text-xs">Стрик начат: <strong>1 день</strong></span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-                <span className="text-base">⭐</span>
-                <span className="text-white text-xs">Открыто тем: <strong>1 из 500+</strong></span>
-              </div>
-            </div>
+          {/* ВАУ-момент — сравнение */}
+          <div className="bg-white rounded-3xl p-5 shadow-2xl text-center animate-in zoom-in-95 duration-500">
+            <p className="text-4xl mb-3">{isCorrect ? '🏆' : '💪'}</p>
+            <p className="text-gray-800 font-extrabold text-xl leading-tight mb-1">
+              {isCorrect
+                ? `Ты ответил лучше,\nчем ${role.percent}% ${role.groupLabel}`
+                : `Эту тему не знают\n${100 - role.percent}% ${role.groupLabel}`}
+            </p>
+            <p className="text-gray-400 text-sm mt-1">
+              {isCorrect
+                ? 'Сильное начало. Продолжи — и будешь в топе.'
+                : 'Именно для этого и нужен репетитор. Разберём вместе.'}
+            </p>
           </div>
 
-          {/* Призыв */}
-          <div className="text-center">
-            <p className="text-white font-bold text-xl mb-1">Продолжим?</p>
-            <p className="text-white/70 text-sm">Создай аккаунт — прогресс сохранится.<br />Без карты, бесплатно.</p>
+          {/* Прогресс урока */}
+          <div className="bg-white/15 backdrop-blur rounded-2xl p-4 border border-white/20 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span>📚</span>
+              <span className="text-white text-xs">Тема пройдена: <strong>{selectedSubject?.label}</strong></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>🔥</span>
+              <span className="text-white text-xs">Стрик: <strong>день 1</strong> — не потеряй его</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>⭐</span>
+              <span className="text-white text-xs">Осталось разобрать: <strong>499 тем</strong></span>
+            </div>
           </div>
 
           {/* CTA */}
@@ -736,9 +796,8 @@ export default function AuthNew() {
             </button>
           </div>
 
-          {/* Потери при уходе */}
-          <p className="text-white/40 text-xs text-center">
-            Если уйдёшь — прогресс урока не сохранится
+          <p className="text-white/35 text-xs text-center">
+            Уйдёшь — прогресс и результат не сохранятся
           </p>
         </div>
       </div>
@@ -821,7 +880,7 @@ export default function AuthNew() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 w-full max-w-sm flex flex-col gap-4">
-          <button onClick={() => setScreen(screen === 'register' && selectedSubject ? 'hook' : 'landing')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
+          <button onClick={() => setScreen(selectedSubject ? 'hook' : 'landing')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
             <Icon name="ArrowLeft" size={16} /> Назад
           </button>
           <div className="bg-white rounded-3xl p-6 shadow-2xl">
