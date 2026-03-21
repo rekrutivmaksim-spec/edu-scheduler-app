@@ -357,13 +357,15 @@ export default function Settings() {
                           await notificationService.subscribe(token);
                           const sub = await notificationService.getSubscription();
                           setPushSubscribed(!!sub);
-                          if (sub) toast({ title: '🔔 Уведомления включены!' });
-                          else toast({ variant: 'destructive', title: 'Не удалось подключить', description: 'Разреши уведомления в браузере' });
+                          if (sub) toast({ title: '🔔 Уведомления включены!', description: 'Будем напоминать о серии, лимитах и акциях' });
+                          else toast({ variant: 'destructive', title: 'Не удалось подключить', description: 'Разреши уведомления в настройках браузера' });
                         } else {
                           await notificationService.unsubscribe(token);
                           setPushSubscribed(false);
                           toast({ title: 'Уведомления отключены' });
                         }
+                      } catch {
+                        toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось настроить уведомления. Попробуй снова.' });
                       } finally {
                         setPushLoading(false);
                       }

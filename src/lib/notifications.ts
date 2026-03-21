@@ -302,21 +302,24 @@ async function registerWebPush(token: string): Promise<void> {
 
   try {
     const sw = await navigator.serviceWorker.ready;
-    console.log('[push] SW ready, getting VAPID key...');
+    const { API } = await import('@/lib/api-urls');
+
+    // Удаляем старую подписку если есть (могла быть с другим VAPID ключом)
+    const existing = await sw.pushManager.getSubscription();
+    if (existing) {
+      await existing.unsubscribe();
+    }
 
     const vapidKey = await getVapidPublicKey();
-    console.log('[push] VAPID key received:', !!vapidKey);
     if (!vapidKey) return;
 
     const subscription = await sw.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey),
     });
-    console.log('[push] Subscribed to pushManager:', subscription.endpoint.slice(0, 50));
 
-    const { API } = await import('@/lib/api-urls');
     const sub = subscription.toJSON();
-    const res = await fetch(API.PUSH_NOTIFICATIONS, {
+    await fetch(API.PUSH_NOTIFICATIONS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -326,9 +329,9 @@ async function registerWebPush(token: string): Promise<void> {
         auth: sub.keys?.auth,
       }),
     });
-    console.log('[push] Saved to server:', res.status);
   } catch (e) {
     console.error('[push] registerWebPush failed:', e);
+    throw e;
   }
 }
 
