@@ -26,6 +26,14 @@ export const authService = {
 
   setToken: (token: string): void => {
     localStorage.setItem('token', token);
+    try {
+      const w = window as unknown as { RuStorePush?: { saveAuthToken: (t: string) => void } };
+      if (w.RuStorePush?.saveAuthToken) {
+        w.RuStorePush.saveAuthToken(token);
+      }
+    } catch (e) {
+      console.warn('RuStorePush.saveAuthToken failed', e);
+    }
   },
 
   getUser: (): User | null => {

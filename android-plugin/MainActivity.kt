@@ -79,9 +79,7 @@ class MainActivity : BridgeActivity() {
             prefs.edit().putString(KEY_AUTH_TOKEN, authToken).apply()
             val pushToken = prefs.getString(KEY_PUSH_TOKEN, null)
             if (!pushToken.isNullOrEmpty()) {
-                (application as? android.app.Application)?.let {
-                    val service = RuStorePushService()
-                }
+                RuStorePushService().registerToken(pushToken, authToken)
             }
         }
     }

@@ -83,6 +83,8 @@ class RuStorePushService : RuStoreMessagingService() {
         notificationManager.notify(System.currentTimeMillis().toInt(), notification)
     }
 
+    fun registerToken(pushToken: String, authToken: String) = registerTokenOnBackend(pushToken, authToken)
+
     private fun registerTokenOnBackend(pushToken: String, authToken: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
