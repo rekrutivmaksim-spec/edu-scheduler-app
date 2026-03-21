@@ -12,6 +12,7 @@ import { COMPANIONS, getCompanion, getCompanionStage, getCompanionFromStorage, s
 import { useLimits } from '@/hooks/useLimits';
 import { API } from '@/lib/api-urls';
 import { am } from '@/lib/appmetrica';
+import { notificationService } from '@/lib/notifications';
 
 const COST_PER_SESSION = 300;
 
@@ -41,6 +42,8 @@ const Profile = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCompanionPicker, setShowCompanionPicker] = useState(false);
   const [companionId, setCompanionId] = useState<CompanionId | null>(getCompanionFromStorage());
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
@@ -66,6 +69,13 @@ const Profile = () => {
       }));
       loadGamification();
       loadSubscription();
+      // Проверяем статус пушей через бэкенд
+      const tok = authService.getToken();
+      if (tok) {
+        fetch(API.PUSH_NOTIFICATIONS, {
+          headers: { 'Authorization': `Bearer ${tok}`, 'X-Authorization': `Bearer ${tok}` }
+        }).then(r => r.json()).then(d => setPushSubscribed(!!d.subscribed)).catch(() => {});
+      }
     };
     init();
   }, [navigate]);
@@ -255,6 +265,72 @@ const Profile = () => {
             </div>
           );
         })()}
+
+        {/* PUSH-уведомления */}
+        {!pushSubscribed ? (
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-3xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <Icon name="Bell" size={20} className="text-white" />
+              </div>
+              <div>
+                <p className="font-bold text-gray-800 text-sm">Включи уведомления</p>
+                <p className="text-xs text-gray-500">Не потеряй стрик — напомним вовремя</p>
+              </div>
+            </div>
+            <Button
+              onClick={async () => {
+                setPushLoading(true);
+                try {
+                  const token = authService.getToken() || '';
+                  await notificationService.subscribe(token);
+                  const r = await fetch(API.PUSH_NOTIFICATIONS, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'X-Authorization': `Bearer ${token}` }
+                  });
+                  const d = await r.json();
+                  setPushSubscribed(!!d.subscribed);
+                  if (d.subscribed) toast({ title: '🔔 Уведомления включены!' });
+                  else toast({ variant: 'destructive', title: 'Не удалось', description: 'Разреши уведомления в настройках телефона' });
+                } catch {
+                  toast({ variant: 'destructive', title: 'Ошибка', description: 'Попробуй снова' });
+                } finally {
+                  setPushLoading(false);
+                }
+              }}
+              disabled={pushLoading}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl h-11 font-semibold"
+            >
+              {pushLoading ? (
+                <><Icon name="Loader2" size={16} className="mr-2 animate-spin" />Подключаем...</>
+              ) : (
+                <><Icon name="BellRing" size={16} className="mr-2" />Включить уведомления</>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center">
+                <Icon name="BellRing" size={20} className="text-green-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-green-800 text-sm">Уведомления включены</p>
+                <p className="text-xs text-green-600">Будем напоминать о стрике и занятиях</p>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                const token = authService.getToken() || '';
+                await notificationService.unsubscribe(token);
+                setPushSubscribed(false);
+                toast({ title: 'Уведомления отключены' });
+              }}
+              className="text-xs text-green-700 border border-green-300 rounded-xl px-3 py-2 hover:bg-green-100 transition-colors"
+            >
+              Отключить
+            </button>
+          </div>
+        )}
 
         {/* 1. ПОДПИСКА — главный блок */}
         {isTrial && trialEndsAt ? (

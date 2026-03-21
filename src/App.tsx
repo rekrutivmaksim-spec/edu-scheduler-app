@@ -41,6 +41,7 @@ import ParentAuth from "./pages/ParentAuth";
 import ParentPay from "./pages/ParentPay";
 import ParentDashboard from "./pages/ParentDashboard";
 import AppMetricaTracker from "@/components/AppMetricaTracker";
+import NotificationPrompt from "@/components/NotificationPrompt";
 import { useEffect } from "react";
 import { authService } from "@/lib/auth";
 import { API } from "@/lib/api-urls";
@@ -58,10 +59,14 @@ function RuStorePushRegistrar() {
         const authToken = authService.getToken();
         if (!authToken) return;
         const already = localStorage.getItem('rustore_push_token');
+        // Если токен изменился — это обновление APK, сбрасываем dismissed баннера
+        if (already !== token) {
+          sessionStorage.removeItem('push_banner_dismissed_v2');
+        }
         if (already === token) return;
         await fetch(API.PUSH_NOTIFICATIONS, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}`, 'X-Authorization': `Bearer ${authToken}` },
           body: JSON.stringify({ action: 'subscribe_rustore', rustore_token: token }),
         });
         localStorage.setItem('rustore_push_token', token);
@@ -84,6 +89,7 @@ const App = () => (
           <BrowserRouter>
             <AppMetricaTracker />
             <RuStorePushRegistrar />
+            <NotificationPrompt />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthNew />} />
