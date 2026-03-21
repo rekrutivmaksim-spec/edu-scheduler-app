@@ -60,7 +60,7 @@ export default function Onboarding() {
 
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState('');
-  const [companion, setCompanion] = useState<CompanionId | ''>('');
+  const [companion, setCompanion] = useState<CompanionId | ''>(COMPANIONS[0]?.id || '');
   const [grade, setGrade] = useState('');
   const [subject, setSubject] = useState('');
   const [examDate, setExamDate] = useState('');
@@ -131,7 +131,7 @@ export default function Onboarding() {
       notificationService.subscribe(token).catch(() => {});
     }
 
-    navigate('/session?first=1');
+    navigate('/');
   };
 
   const canNext = () => {
@@ -370,14 +370,7 @@ export default function Onboarding() {
             </Button>
           )}
 
-          {step === 0 && (
-            <button
-              onClick={() => navigate('/')}
-              className="w-full text-center text-gray-400 text-sm mt-3 py-2"
-            >
-              Пропустить
-            </button>
-          )}
+
         </div>
       </div>
     </div>

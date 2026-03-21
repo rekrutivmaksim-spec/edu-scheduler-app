@@ -121,6 +121,8 @@ export default function Index() {
 
   const firstName = user?.full_name?.split(' ')[0] || 'Студент';
   const streak = gamification?.streak?.current ?? 0;
+  const isNewUser = !sessionDone && streak === 0 && !localStorage.getItem('first_session_shown');
+  const hideWelcomeBack = streak === 0 && (!gamification || gamification.streak.longest === 0);
   const todayDow = new Date().getDay();
   const todayName = dayNames[todayDow === 0 ? 6 : todayDow - 1];
   const topicData = getTodayTopic(user?.exam_subject || undefined);
@@ -238,6 +240,29 @@ export default function Index() {
           }
           return null;
         })()}
+
+        {/* ===== ПРИВЕТСТВИЕ НОВОГО ПОЛЬЗОВАТЕЛЯ ===== */}
+        {isNewUser && (
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-6 text-center">
+              <div className="text-4xl mb-3">🎉</div>
+              <h2 className="text-white font-extrabold text-xl mb-1">Все готово!</h2>
+              <p className="text-white/70 text-sm">Начни с первого занятия — это займет всего 5 минут</p>
+            </div>
+            <div className="px-5 py-4">
+              <Button
+                onClick={() => {
+                  localStorage.setItem('first_session_shown', '1');
+                  navigate('/session');
+                }}
+                className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.45)]"
+                style={{ animation: 'pulse-cta 2.5s ease-in-out infinite' }}
+              >
+                Начать занятие <Icon name="Zap" size={18} className="ml-2" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* ===== БЛОК 1: СЕГОДНЯШНЯЯ СЕССИЯ ===== */}
         {sessionDone ? (
@@ -623,7 +648,7 @@ export default function Index() {
         }
       `}</style>
 
-      <WelcomeBack />
+      <WelcomeBack hide={hideWelcomeBack} />
       <AppReviewPrompt />
       {showDailyBonus && <DailyBonusPopup onClose={() => setShowDailyBonus(false)} />}
       <BottomNav />

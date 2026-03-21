@@ -25,7 +25,7 @@ function wasBonusClaimed(): boolean {
   return d === new Date().toDateString();
 }
 
-export default function WelcomeBack() {
+export default function WelcomeBack({ hide }: { hide?: boolean }) {
   const [visible, setVisible] = useState(false);
   const [daysAway, setDaysAway] = useState(0);
   const [claiming, setClaiming] = useState(false);
@@ -68,7 +68,7 @@ export default function WelcomeBack() {
     setVisible(false);
   };
 
-  if (!visible) return null;
+  if (!visible || hide) return null;
 
   return (
     <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">

@@ -332,7 +332,7 @@ export default function AuthNew() {
     } catch { /* silent */ }
   };
 
-  const afterLogin = async (data: { token: string; user: { full_name: string }; is_new_user?: boolean }) => {
+  const afterLogin = async (data: { token: string; user: { full_name: string }; is_new_user?: boolean }, isRegister = false) => {
     authService.setToken(data.token);
     authService.setUser(data.user);
     await applyReferral(data.token);
@@ -342,7 +342,11 @@ export default function AuthNew() {
       am.login('phone');
     }
     toast({ title: '✅ Вход выполнен!', description: `Добро пожаловать, ${data.user.full_name}!` });
-    navigate('/');
+    if (isRegister || data.is_new_user) {
+      navigate('/onboarding');
+    } else {
+      navigate('/');
+    }
   };
 
   const handleLogin = async () => {
@@ -400,9 +404,9 @@ export default function AuthNew() {
           await applyReferral(data.token);
           am.register('phone');
           toast({ title: 'Аккаунт создан!', description: 'Добро пожаловать! У вас бесплатный тариф — 3 вопроса к ИИ в день.' });
-          navigate('/');
+          navigate('/onboarding');
         } else {
-          await afterLogin(data);
+          await afterLogin(data, true);
         }
       } else {
         setFieldErrors({ email: data.error || 'Не удалось создать аккаунт' });
