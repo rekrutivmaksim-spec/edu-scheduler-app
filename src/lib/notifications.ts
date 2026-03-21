@@ -436,7 +436,19 @@ export const notificationService = {
   },
   async subscribe(token: string): Promise<void> {
     const permission = await requestPermission();
-    if (permission !== 'granted') return;
+    if (permission !== 'granted') {
+      // Если уже denied — открываем настройки приложения в телефоне
+      try {
+        const { NativeSettings, AndroidSettings, IOSSettings } = await import('capacitor-native-settings');
+        await NativeSettings.open({
+          optionAndroid: AndroidSettings.ApplicationDetails,
+          optionIOS: IOSSettings.App,
+        });
+      } catch {
+        // Не APK (браузер) — ничего не делаем
+      }
+      return;
+    }
     await registerWebPush(token);
     await registerRuStorePush(token);
   },
