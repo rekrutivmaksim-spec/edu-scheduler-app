@@ -137,9 +137,9 @@ const THINKING_STEPS = [
 ];
 
 // ─── Типы экранов ─────────────────────────────────────────────────────────────
-// Флоу: goal → motivation → subject → level → lesson → result → register
+// Флоу: splash → goal → subject → level → lesson → result → register
 // Отдельно: login, forgot
-type Screen = 'goal' | 'motivation' | 'subject' | 'level' | 'lesson' | 'result' | 'register' | 'login' | 'forgot';
+type Screen = 'splash' | 'goal' | 'subject' | 'level' | 'lesson' | 'result' | 'register' | 'login' | 'forgot';
 type LessonStage = 'explain' | 'question' | 'answered';
 
 // ─── Вспомогательные компоненты ───────────────────────────────────────────────
@@ -255,7 +255,7 @@ export default function AuthNew() {
   if (refCode) localStorage.setItem('pendingReferral', refCode);
 
   // Навигация
-  const [screen, setScreen] = useState<Screen>('goal');
+  const [screen, setScreen] = useState<Screen>('splash');
   const [history, setHistory] = useState<Screen[]>([]);
 
   const goTo = (s: Screen) => {
@@ -272,9 +272,12 @@ export default function AuthNew() {
 
   // Данные онбординга
   const [goal, setGoal] = useState<GoalId | ''>('');
-  const [motivation, setMotivation] = useState('');
   const [subject, setSubject] = useState('');
   const [level, setLevel] = useState('');
+
+  // Предзагрузка ИИ — стартует фоном когда пользователь на экране level
+  const preloadedExplanation = useRef<string>('');
+  const isPreloading = useRef(false);
 
   // Урок
   const [lessonStage, setLessonStage] = useState<LessonStage>('explain');
@@ -329,15 +332,47 @@ export default function AuthNew() {
     }, speed);
   };
 
+  // Фоновая предзагрузка ИИ — вызывается когда пользователь видит экран level
+  const preloadLesson = async (subj: typeof LESSON_SUBJECTS[0]) => {
+    if (isPreloading.current || preloadedExplanation.current) return;
+    isPreloading.current = true;
+    try {
+      const res = await fetch(API.AI_ASSISTANT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'demo_ask',
+          question: `Объясни за 1-2 предложения, максимально просто, как другу: ${subj.topic}. Без списков, без терминов.`,
+          history: [],
+        }),
+      });
+      const data = await res.json();
+      preloadedExplanation.current = sanitizeText(data.answer || data.response || '');
+    } catch { /* silent */ } finally {
+      isPreloading.current = false;
+    }
+  };
+
   const startLesson = async (subj: typeof LESSON_SUBJECTS[0]) => {
     setSelectedSubject(subj);
     setLessonStage('explain');
     setExplanation('');
     setTypingText('');
     setSelectedAnswer(null);
+
+    // Если уже предзагружено — показываем мгновенно
+    if (preloadedExplanation.current) {
+      const text = preloadedExplanation.current;
+      preloadedExplanation.current = '';
+      setIsLoading(false);
+      setExplanation(text);
+      typeText(text, () => setLessonStage('question'));
+      return;
+    }
+
+    // Иначе грузим с индикатором
     setIsLoading(true);
     setThinkingStep(0);
-
     let step = 0;
     thinkingTimerRef.current = setInterval(() => {
       step = (step + 1) % THINKING_STEPS.length;
@@ -535,27 +570,71 @@ export default function AuthNew() {
     }
   };
 
-  // Общее число шагов онбординга: goal(1) + motivation(2) + subject(3) + level(4) + lesson(5) + result(6) + register(7)
-  const TOTAL_STEPS = 7;
-  const stepIndex: Record<Screen, number> = {
-    goal: 1, motivation: 2, subject: 3, level: 4, lesson: 5, result: 6, register: 7,
-    login: 0, forgot: 0,
-  };
+  // Флоу: splash(0) → goal(1) → subject(2) → level(3) → lesson(4) → result(5) → register(6)
+  const TOTAL_STEPS = 6;
+
+  // ─── SPLASH ──────────────────────────────────────────────────────────────────
+  if (screen === 'splash') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-between relative overflow-hidden px-6 py-12">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-8 relative z-10">
+          {/* Маскот на весь экран */}
+          <div className="relative flex items-center justify-center">
+            <div className="absolute rounded-full bg-white/10 animate-ping" style={{ animationDuration: '2.5s', width: 180, height: 180 }} />
+            <div className="absolute rounded-full bg-white/5 animate-ping" style={{ animationDuration: '3.5s', width: 220, height: 220 }} />
+            <FoxMascot size={160} />
+          </div>
+
+          <div className="text-center">
+            <h1 className="text-white font-extrabold text-3xl leading-tight mb-3">
+              Учись быстрее.<br />Понимай глубже.
+            </h1>
+            <p className="text-white/65 text-base">
+              ИИ-репетитор объяснит любую тему<br />за 2 минуты — бесплатно
+            </p>
+          </div>
+
+          {/* Социальное доказательство */}
+          <div className="flex items-center gap-2 bg-white/15 backdrop-blur rounded-full px-4 py-2">
+            <span className="text-yellow-300 text-sm">★★★★★</span>
+            <span className="text-white/80 text-sm font-medium">12 400+ учеников</span>
+          </div>
+        </div>
+
+        <div className="w-full relative z-10 flex flex-col gap-3">
+          <Button
+            onClick={() => goTo('goal')}
+            className="w-full h-16 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-lg rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all"
+          >
+            Начать бесплатно 🚀
+          </Button>
+          <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
+          <button
+            onClick={() => { clearErrors(); setScreen('login'); }}
+            className="text-white/55 text-sm text-center hover:text-white transition-colors py-1"
+          >
+            Уже есть аккаунт? <span className="underline text-white/75">Войти</span>
+          </button>
+        </div>
+
+        <div className="relative z-10 w-full mt-2">
+          <LegalFooter showDelete />
+        </div>
+      </div>
+    );
+  }
 
   // ─── ШАГ 1: Выбор цели ──────────────────────────────────────────────────────
   if (screen === 'goal') {
     return (
-      <OnboardingShell step={1} totalSteps={TOTAL_STEPS} hideBack>
+      <OnboardingShell step={1} totalSteps={TOTAL_STEPS} onBack={goBack}>
         <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3 mb-1">
-              <FoxMascot size={52} />
-              <div>
-                <h1 className="text-white font-extrabold text-2xl leading-tight">Привет!</h1>
-                <p className="text-white/70 text-sm">Я помогу тебе учиться эффективнее</p>
-              </div>
-            </div>
-            <p className="text-white font-semibold text-lg mt-2">Какая у тебя цель?</p>
+          <div>
+            <p className="text-white/65 text-sm">Шаг 1 из 3 · Настройка</p>
+            <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Какая у тебя цель?</h2>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -565,7 +644,7 @@ export default function AuthNew() {
                 onClick={async () => {
                   try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
                   setGoal(g.id);
-                  goTo('motivation');
+                  goTo('subject');
                 }}
                 className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all shadow-lg shadow-black/10"
               >
@@ -578,90 +657,55 @@ export default function AuthNew() {
               </button>
             ))}
           </div>
-
-          <button
-            onClick={() => { clearErrors(); setScreen('login'); }}
-            className="text-white/50 text-sm text-center hover:text-white transition-colors mt-2"
-          >
-            Уже есть аккаунт? <span className="underline text-white/70">Войти</span>
-          </button>
         </div>
       </OnboardingShell>
     );
   }
 
-  // ─── ШАГ 2: Мотивация ───────────────────────────────────────────────────────
-  if (screen === 'motivation') {
-    const motives = MOTIVATIONS[goal as GoalId] || MOTIVATIONS.other;
+  // ─── ШАГ 2: Предмет ─────────────────────────────────────────────────────────
+  if (screen === 'subject') {
     return (
       <OnboardingShell step={2} totalSteps={TOTAL_STEPS} onBack={goBack}>
         <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
           <div>
-            <p className="text-white/70 text-sm">Это важно для персонализации</p>
-            <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Зачем тебе это?</h2>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {motives.map(m => (
-              <button
-                key={m.label}
-                onClick={async () => {
-                  try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
-                  setMotivation(m.label);
-                  goTo('subject');
-                }}
-                className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all shadow-lg shadow-black/10"
-              >
-                <span className="text-2xl">{m.emoji}</span>
-                <p className="text-gray-800 font-semibold text-base flex-1">{m.label}</p>
-                <Icon name="ChevronRight" size={18} className="text-gray-300" />
-              </button>
-            ))}
-          </div>
-        </div>
-      </OnboardingShell>
-    );
-  }
-
-  // ─── ШАГ 3: Предмет ─────────────────────────────────────────────────────────
-  if (screen === 'subject') {
-    return (
-      <OnboardingShell step={3} totalSteps={TOTAL_STEPS} onBack={goBack}>
-        <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
-          <div>
-            <p className="text-white/70 text-sm">Начнём с самого важного</p>
+            <p className="text-white/65 text-sm">Шаг 2 из 3 · Настройка</p>
             <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Какой предмет прокачаем?</h2>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {SUBJECTS.map(s => (
-              <button
-                key={s.id}
-                onClick={async () => {
-                  try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
-                  setSubject(s.id);
-                  goTo('level');
-                }}
-                className="flex flex-col items-center gap-2 bg-white rounded-2xl py-5 px-3 active:scale-[0.95] transition-all shadow-lg shadow-black/10"
-              >
-                <span className="text-3xl">{s.emoji}</span>
-                <p className="text-gray-800 font-bold text-sm text-center">{s.label}</p>
-              </button>
-            ))}
+            {SUBJECTS.map(s => {
+              const lessonSubj = LESSON_SUBJECTS.find(ls => ls.id === s.id) || LESSON_SUBJECTS[0];
+              return (
+                <button
+                  key={s.id}
+                  onClick={async () => {
+                    try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
+                    setSubject(s.id);
+                    // Предзагружаем ИИ фоном пока пользователь смотрит на экран уровня
+                    preloadLesson(lessonSubj);
+                    goTo('level');
+                  }}
+                  className="flex flex-col items-center gap-2 bg-white rounded-2xl py-5 px-3 active:scale-[0.95] transition-all shadow-lg shadow-black/10"
+                >
+                  <span className="text-3xl">{s.emoji}</span>
+                  <p className="text-gray-800 font-bold text-sm text-center">{s.label}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
       </OnboardingShell>
     );
   }
 
-  // ─── ШАГ 4: Уровень ─────────────────────────────────────────────────────────
+  // ─── ШАГ 3: Уровень ─────────────────────────────────────────────────────────
   if (screen === 'level') {
     const subjectInfo = SUBJECTS.find(s => s.id === subject);
     return (
-      <OnboardingShell step={4} totalSteps={TOTAL_STEPS} onBack={goBack}>
+      <OnboardingShell step={3} totalSteps={TOTAL_STEPS} onBack={goBack}>
         <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
           <div>
-            <p className="text-white/70 text-sm">{subjectInfo?.emoji} {subjectInfo?.label}</p>
+            <p className="text-white/65 text-sm">Шаг 3 из 3 · {subjectInfo?.emoji} {subjectInfo?.label}</p>
             <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Какой у тебя уровень?</h2>
           </div>
 
@@ -687,6 +731,14 @@ export default function AuthNew() {
               </button>
             ))}
           </div>
+
+          {/* Индикатор предзагрузки — успокаивает пользователя */}
+          <div className="flex items-center gap-2 justify-center opacity-60">
+            <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <span className="text-white/60 text-xs ml-1">Готовлю урок…</span>
+          </div>
         </div>
       </OnboardingShell>
     );
@@ -703,7 +755,7 @@ export default function AuthNew() {
         <div className="px-5 pt-12 pb-3">
           <div className="flex items-center gap-3 mb-3">
             <div className="flex-1">
-              <ProgressBar current={5} total={TOTAL_STEPS} />
+              <ProgressBar current={4} total={TOTAL_STEPS} />
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -869,7 +921,7 @@ export default function AuthNew() {
     );
   }
 
-  // ─── ШАГ 7: Регистрация ─────────────────────────────────────────────────────
+  // ─── ШАГ 6: Регистрация ─────────────────────────────────────────────────────
   if (screen === 'register') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
@@ -881,7 +933,7 @@ export default function AuthNew() {
               <Icon name="ChevronLeft" size={20} className="text-white" />
             </button>
             <div className="flex-1">
-              <ProgressBar current={7} total={TOTAL_STEPS} />
+              <ProgressBar current={6} total={TOTAL_STEPS} />
             </div>
           </div>
         </div>
@@ -892,20 +944,12 @@ export default function AuthNew() {
             <div className="flex items-center gap-3 mb-5">
               <FoxMascot size={48} />
               <div>
-                <h2 className="text-gray-900 font-extrabold text-xl leading-tight">Почти готово!</h2>
-                <p className="text-gray-400 text-xs mt-0.5">Сохрани прогресс — это займёт 30 секунд</p>
+                <h2 className="text-gray-900 font-extrabold text-xl leading-tight">Последний шаг!</h2>
+                <p className="text-gray-400 text-xs mt-0.5">Сохрани прогресс — займёт 15 секунд</p>
               </div>
             </div>
 
             <div className="space-y-3">
-              <Input
-                type="text"
-                placeholder="Как тебя зовут?"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                autoComplete="given-name"
-                className="h-12 border-2 rounded-2xl text-sm border-gray-200 focus:border-purple-400"
-              />
               <div>
                 <Input
                   type="email"
