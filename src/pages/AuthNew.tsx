@@ -746,90 +746,91 @@ export default function AuthNew() {
 
   // ─── ШАГ 5: Урок ────────────────────────────────────────────────────────────
   if (screen === 'lesson' && selectedSubject) {
+    const isCorrectAnswer = selectedAnswer === selectedSubject.correct;
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
         {/* Вспышка на правильный ответ */}
-        <div className={`absolute inset-0 z-50 bg-green-400/40 pointer-events-none transition-opacity duration-300 ${flashCorrect ? 'opacity-100' : 'opacity-0'}`} />
+        <div className={`absolute inset-0 z-50 bg-green-400/30 pointer-events-none transition-opacity duration-300 ${flashCorrect ? 'opacity-100' : 'opacity-0'}`} />
 
         {/* Шапка */}
-        <div className="px-5 pt-12 pb-3">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="flex-1">
-              <ProgressBar current={4} total={TOTAL_STEPS} />
-            </div>
+        <div className="px-5 pt-12 pb-4 flex items-center gap-3">
+          <div className="flex-shrink-0">
+            <FoxMascot size={36} jumping={flashCorrect} />
           </div>
-          <div className="flex items-center gap-2">
-            <FoxMascot size={28} jumping={flashCorrect} />
-            <span className="text-white/70 text-xs font-medium">{selectedSubject.emoji} {selectedSubject.label} · {selectedSubject.topic}</span>
+          <div className="flex-1">
+            <ProgressBar current={4} total={TOTAL_STEPS} />
+            <p className="text-white/55 text-xs mt-1.5">{selectedSubject.emoji} {selectedSubject.label}</p>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 pb-10 flex flex-col gap-4">
+        <div className="flex-1 overflow-y-auto px-5 pb-10 flex flex-col gap-5">
 
-          {/* Объяснение */}
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <FoxMascot size={24} />
-            </div>
-            <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1 min-h-[60px]">
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                  <span className="text-white/60 text-xs">{THINKING_STEPS[thinkingStep]}</span>
-                </div>
-              ) : (
-                <p className="text-white text-sm leading-relaxed">
-                  {typingText}
-                  {isTyping && <span className="inline-block w-0.5 h-4 bg-white/70 ml-0.5 animate-pulse" />}
-                </p>
-              )}
-            </div>
+          {/* Тема */}
+          <div className="bg-white/10 rounded-2xl px-4 py-3">
+            <p className="text-white/60 text-xs uppercase tracking-wide font-semibold mb-0.5">Тема</p>
+            <p className="text-white font-bold text-base">{selectedSubject.topic}</p>
           </div>
 
-          {/* Кнопка после объяснения — пока вопрос ещё не показан */}
-          {lessonStage === 'explain' && !isLoading && !isTyping && typingText && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-400 pl-11">
-              <button
-                onClick={() => setLessonStage('question')}
-                className="w-full bg-white text-purple-700 font-extrabold rounded-2xl py-4 text-base active:scale-[0.98] transition-all shadow-lg"
-              >
-                Понял, дальше →
-              </button>
-            </div>
-          )}
-
-          {/* Вопрос */}
-          {(lessonStage === 'question' || lessonStage === 'answered') && (
-            <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-400">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <FoxMascot size={24} />
+          {/* Объяснение */}
+          <div className="bg-white rounded-3xl px-5 py-5 shadow-xl">
+            {isLoading ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-gray-400 text-sm">{THINKING_STEPS[thinkingStep]}</span>
                 </div>
-                <div className="bg-white/15 backdrop-blur rounded-2xl rounded-tl-sm px-4 py-3 flex-1">
-                  <p className="text-white text-sm font-medium">{selectedSubject.question}</p>
+                <div className="space-y-2">
+                  <div className="h-3 bg-gray-100 rounded-full w-full animate-pulse" />
+                  <div className="h-3 bg-gray-100 rounded-full w-4/5 animate-pulse" />
+                  <div className="h-3 bg-gray-100 rounded-full w-3/5 animate-pulse" />
                 </div>
               </div>
+            ) : (
+              <p className="text-gray-800 text-base leading-relaxed font-medium">
+                {typingText}
+                {isTyping && <span className="inline-block w-0.5 h-5 bg-purple-400 ml-0.5 animate-pulse" />}
+              </p>
+            )}
+          </div>
 
-              <div className="flex flex-col gap-2 pl-11">
+          {/* Кнопка после объяснения */}
+          {lessonStage === 'explain' && !isLoading && !isTyping && typingText && (
+            <button
+              onClick={() => setLessonStage('question')}
+              className="w-full bg-white text-purple-700 font-extrabold rounded-2xl py-4 text-base active:scale-[0.98] transition-all shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-400"
+            >
+              Понял, дальше →
+            </button>
+          )}
+
+          {/* Вопрос + варианты */}
+          {(lessonStage === 'question' || lessonStage === 'answered') && (
+            <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-400">
+              <div className="bg-white/10 rounded-2xl px-4 py-3">
+                <p className="text-white/60 text-xs uppercase tracking-wide font-semibold mb-1">Вопрос</p>
+                <p className="text-white font-bold text-base leading-snug">{selectedSubject.question}</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
                 {selectedSubject.answers.map((ans, idx) => {
                   const isSelected = selectedAnswer === idx;
                   const isCorrectAns = idx === selectedSubject.correct;
                   const revealed = lessonStage === 'answered';
-                  let cls = 'bg-white/15 border-white/25 text-white';
-                  if (revealed && isCorrectAns) cls = 'bg-green-400/30 border-green-400/60 text-white';
-                  if (revealed && isSelected && !isCorrectAns) cls = 'bg-red-400/30 border-red-400/60 text-white';
+                  let cls = 'bg-white text-gray-800 border-transparent';
+                  if (revealed && isCorrectAns) cls = 'bg-green-500 text-white border-transparent';
+                  if (revealed && isSelected && !isCorrectAns) cls = 'bg-red-500 text-white border-transparent';
                   return (
                     <button
                       key={idx}
                       onClick={() => handleAnswer(idx)}
                       disabled={lessonStage === 'answered'}
-                      className={`w-full text-left px-4 py-3 rounded-2xl border text-sm font-medium backdrop-blur transition-all active:scale-[0.97] ${cls}`}
+                      className={`w-full text-left px-5 py-4 rounded-2xl border-2 font-semibold text-base transition-all active:scale-[0.97] shadow-md ${cls}`}
                     >
-                      <span className="mr-2 opacity-60">{String.fromCharCode(65 + idx)}.</span>
+                      <span className="mr-3 opacity-50 text-sm">{String.fromCharCode(65 + idx)}.</span>
                       {ans}
                       {revealed && isCorrectAns && <span className="ml-2">✓</span>}
                       {revealed && isSelected && !isCorrectAns && <span className="ml-2">✗</span>}
@@ -840,15 +841,18 @@ export default function AuthNew() {
             </div>
           )}
 
-          {/* Кнопка продолжить после ответа */}
+          {/* Фидбек + кнопка продолжить */}
           {lessonStage === 'answered' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-400 mt-2">
-              <div className={`rounded-2xl p-3 mb-3 ${selectedAnswer === selectedSubject?.correct ? 'bg-green-400/20 border border-green-400/30' : 'bg-white/10 border border-white/20'}`}>
-                <p className="text-white text-xs font-semibold">
-                  {selectedAnswer === selectedSubject?.correct
-                    ? '🎉 Верно!'
-                    : `💡 Правильный ответ: ${selectedSubject?.answers[selectedSubject.correct]}`}
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-400 flex flex-col gap-3">
+              <div className={`rounded-2xl px-5 py-4 ${isCorrectAnswer ? 'bg-green-500/20 border border-green-400/40' : 'bg-white/10 border border-white/20'}`}>
+                <p className="text-white font-bold text-base">
+                  {isCorrectAnswer ? '🎉 Верно!' : '💡 Почти!'}
                 </p>
+                {!isCorrectAnswer && (
+                  <p className="text-white/80 text-sm mt-1">
+                    Правильный ответ: <strong>{selectedSubject.answers[selectedSubject.correct]}</strong>
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => goTo('result')}
