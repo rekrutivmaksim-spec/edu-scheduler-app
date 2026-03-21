@@ -1004,16 +1004,17 @@ export default function AuthNew() {
           <span className="text-white/70 text-xs font-semibold tracking-widest uppercase">Studyfay</span>
         </div>
 
-        {/* Ломоносов */}
+        {/* Компаньон */}
         <div className="flex justify-center">
           <div className="relative">
-            <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white/25 shadow-2xl">
-              <img
-                src="https://cdn.poehali.dev/projects/3ff43efa-4f20-46c2-b4c7-d9b10642fd31/files/ef592987-60a8-4d25-bd1c-5df290ab0020.jpg"
-                alt="Ломоносов"
-                className="w-full h-full object-cover"
-              />
+            {/* Пульсирующий фон */}
+            <div className="absolute inset-0 rounded-full bg-white/20 animate-ping" style={{ animationDuration: '2.5s' }} />
+            <div className="relative w-28 h-28 bg-gradient-to-br from-indigo-400/40 to-purple-500/40 backdrop-blur rounded-full border-4 border-white/30 shadow-2xl flex items-center justify-center">
+              <span className="text-6xl" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' }}>🦉</span>
             </div>
+            {/* Звёздочки вокруг */}
+            <span className="absolute -top-1 -right-1 text-lg animate-bounce" style={{ animationDuration: '1.8s' }}>✨</span>
+            <span className="absolute -bottom-1 -left-2 text-sm animate-bounce" style={{ animationDuration: '2.2s', animationDelay: '0.4s' }}>⭐</span>
             <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
               <span className="text-lg">🎓</span>
             </div>
