@@ -382,6 +382,39 @@ async function unregisterWebPush(token: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// RuStore Push (для APK)
+// ---------------------------------------------------------------------------
+
+export async function registerRuStorePush(token: string): Promise<void> {
+  try {
+    // Capacitor RuStore Push plugin предоставляет токен через window.RuStorePush
+    const rustorePlugin = (window as unknown as Record<string, unknown>)['RuStorePush'] as { getToken?: () => Promise<{ token: string }> } | undefined;
+    if (!rustorePlugin || typeof rustorePlugin.getToken !== 'function') {
+      return;
+    }
+    const result = await rustorePlugin.getToken();
+    const rustoreToken = result?.token;
+    if (!rustoreToken) return;
+
+    const { API } = await import('@/lib/api-urls');
+    await fetch(API.PUSH_NOTIFICATIONS, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'X-Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        action: 'subscribe_rustore',
+        rustore_token: rustoreToken,
+      }),
+    });
+  } catch (e) {
+    console.warn('[push] registerRuStorePush failed:', e);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Legacy compat -- the old service-worker-based notificationService object
 // that other components still import.
 // ---------------------------------------------------------------------------
@@ -405,6 +438,7 @@ export const notificationService = {
     const permission = await requestPermission();
     if (permission !== 'granted') return;
     await registerWebPush(token);
+    await registerRuStorePush(token);
   },
   async unsubscribe(token: string): Promise<void> {
     const settings = loadSettings();

@@ -20,6 +20,7 @@ GET  action=status           — статус подписки
 import json
 import os
 import jwt
+import requests
 import psycopg2
 from datetime import datetime, timedelta, timezone
 from pywebpush import webpush, WebPushException
@@ -30,6 +31,10 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'secret')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_CLAIMS = {'sub': 'mailto:support@studyfay.ru'}
+
+RUSTORE_PROJECT_ID = os.environ.get('RUSTORE_PUSH_PROJECT_ID', '')
+RUSTORE_SERVICE_TOKEN = os.environ.get('RUSTORE_PUSH_SERVICE_TOKEN', '')
+RUSTORE_PUSH_URL = 'https://vkpns.rustore.ru/v1/projects/{project_id}/messages:send'
 
 CORS = {
     'Access-Control-Allow-Origin': '*',
@@ -52,6 +57,31 @@ def get_user_id(token: str):
 
 def get_conn():
     return psycopg2.connect(DATABASE_URL)
+
+
+def send_rustore_push(rustore_token: str, title: str, body: str, url: str = '/') -> bool:
+    if not RUSTORE_PROJECT_ID or not RUSTORE_SERVICE_TOKEN:
+        return False
+    try:
+        response = requests.post(
+            RUSTORE_PUSH_URL.format(project_id=RUSTORE_PROJECT_ID),
+            headers={
+                'Authorization': f'Bearer {RUSTORE_SERVICE_TOKEN}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'message': {
+                    'token': rustore_token,
+                    'notification': {'title': title, 'body': body},
+                    'data': {'url': url},
+                    'android': {'notification': {'channel_id': 'studyfay_default', 'click_action': url}}
+                }
+            },
+            timeout=10
+        )
+        return response.status_code == 200
+    except Exception:
+        return False
 
 
 def send_push(endpoint: str, p256dh: str, auth: str, title: str, body: str, url: str = '/', tag: str = 'general') -> bool:
@@ -77,20 +107,27 @@ def send_to_users(conn, user_ids: list, title: str, body: str, url: str = '/', t
     cur = conn.cursor()
     placeholders = ','.join(['%s'] * len(user_ids))
     cur.execute(
-        f'SELECT user_id, endpoint, p256dh, auth FROM {SCHEMA}.push_subscriptions WHERE user_id IN ({placeholders}) AND endpoint IS NOT NULL',
+        f'SELECT user_id, endpoint, p256dh, auth, rustore_token, device_type FROM {SCHEMA}.push_subscriptions WHERE user_id IN ({placeholders})',
         user_ids
     )
     subs = cur.fetchall()
     expired = []
     sent = failed = 0
-    for uid, endpoint, p256dh, auth in subs:
-        result = send_push(endpoint, p256dh, auth, title, body, url, tag)
-        if result is True:
-            sent += 1
-        elif result is None:
-            expired.append(endpoint)
-        else:
-            failed += 1
+    for uid, endpoint, p256dh, auth, rustore_token, device_type in subs:
+        if device_type == 'android' and rustore_token:
+            result = send_rustore_push(rustore_token, title, body, url)
+            if result:
+                sent += 1
+            else:
+                failed += 1
+        elif endpoint and p256dh and auth:
+            result = send_push(endpoint, p256dh, auth, title, body, url, tag)
+            if result is True:
+                sent += 1
+            elif result is None:
+                expired.append(endpoint)
+            else:
+                failed += 1
     if expired:
         for ep in expired:
             cur.execute(f'DELETE FROM {SCHEMA}.push_subscriptions WHERE endpoint = %s', (ep,))

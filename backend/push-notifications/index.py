@@ -1,12 +1,16 @@
 """
-Push-уведомления: подписка и отправка Web Push через VAPID.
-POST /subscribe — сохранить подписку браузера
-POST /send — отправить push пользователю (внутренний вызов)
-DELETE /unsubscribe — удалить подписку
+Push-уведомления: подписка и отправка Web Push (браузер) + RuStore Push (APK).
+POST ?action=subscribe        — сохранить Web Push подписку браузера
+POST ?action=subscribe_rustore — сохранить RuStore Push токен (APK)
+POST ?action=send             — отправить push пользователю (внутренний вызов)
+DELETE ?action=unsubscribe    — удалить подписку
+GET ?action=vapid_key         — получить VAPID публичный ключ
+GET                           — статус подписки
 """
 import json
 import os
 import jwt
+import requests
 import psycopg2
 from pywebpush import webpush, WebPushException
 
@@ -17,10 +21,14 @@ VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_CLAIMS = {'sub': 'mailto:support@studyfay.ru'}
 
+RUSTORE_PROJECT_ID = os.environ.get('RUSTORE_PUSH_PROJECT_ID', '')
+RUSTORE_SERVICE_TOKEN = os.environ.get('RUSTORE_PUSH_SERVICE_TOKEN', '')
+RUSTORE_PUSH_URL = 'https://vkpns.rustore.ru/v1/projects/{project_id}/messages:send'
+
 CORS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Authorization',
     'Content-Type': 'application/json',
 }
 
@@ -38,6 +46,41 @@ def get_user_id(token: str):
 
 def get_conn():
     return psycopg2.connect(DATABASE_URL)
+
+
+def send_rustore_push(rustore_token: str, title: str, body: str, url: str = '/') -> bool:
+    if not RUSTORE_PROJECT_ID or not RUSTORE_SERVICE_TOKEN:
+        return False
+    try:
+        response = requests.post(
+            RUSTORE_PUSH_URL.format(project_id=RUSTORE_PROJECT_ID),
+            headers={
+                'Authorization': f'Bearer {RUSTORE_SERVICE_TOKEN}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'message': {
+                    'token': rustore_token,
+                    'notification': {
+                        'title': title,
+                        'body': body,
+                    },
+                    'data': {
+                        'url': url,
+                    },
+                    'android': {
+                        'notification': {
+                            'channel_id': 'studyfay_default',
+                            'click_action': url,
+                        }
+                    }
+                }
+            },
+            timeout=10
+        )
+        return response.status_code == 200
+    except Exception:
+        return False
 
 
 def handler(event: dict, context) -> dict:
@@ -58,7 +101,30 @@ def handler(event: dict, context) -> dict:
 
     action = body.get('action') or event.get('queryStringParameters', {}).get('action', '')
 
-    # ── Подписка ─────────────────────────────────────────────────────────────
+    # ── Подписка RuStore (APK) ────────────────────────────────────────────────
+    if method == 'POST' and action == 'subscribe_rustore':
+        if not user_id:
+            return err(401, 'Unauthorized')
+
+        rustore_token = body.get('rustore_token', '')
+        if not rustore_token:
+            return err(400, 'rustore_token обязателен')
+
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            f'''INSERT INTO {SCHEMA}.push_subscriptions (user_id, rustore_token, device_type)
+                VALUES (%s, %s, 'android')
+                ON CONFLICT (rustore_token) DO UPDATE
+                SET user_id = EXCLUDED.user_id, device_type = 'android' ''',
+            (user_id, rustore_token)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return ok({'ok': True})
+
+    # ── Подписка Web Push (браузер) ───────────────────────────────────────────
     if method == 'POST' and action == 'subscribe':
         if not user_id:
             return err(401, 'Unauthorized')
@@ -73,8 +139,8 @@ def handler(event: dict, context) -> dict:
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
-            f'''INSERT INTO {SCHEMA}.push_subscriptions (user_id, endpoint, p256dh, auth)
-                VALUES (%s, %s, %s, %s)
+            f'''INSERT INTO {SCHEMA}.push_subscriptions (user_id, endpoint, p256dh, auth, device_type)
+                VALUES (%s, %s, %s, %s, 'web')
                 ON CONFLICT (user_id, endpoint) DO UPDATE
                 SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth''',
             (user_id, endpoint, p256dh, auth_key)
@@ -109,33 +175,38 @@ def handler(event: dict, context) -> dict:
         url = body.get('url', '/')
         tag = body.get('tag', 'general')
 
-        if not target_user_id or not VAPID_PRIVATE_KEY:
-            return err(400, 'user_id и VAPID ключи обязательны')
+        if not target_user_id:
+            return err(400, 'user_id обязателен')
 
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(f'SELECT endpoint, p256dh, auth FROM {SCHEMA}.push_subscriptions WHERE user_id=%s', (target_user_id,))
+        cur.execute(
+            f'SELECT endpoint, p256dh, auth, rustore_token, device_type FROM {SCHEMA}.push_subscriptions WHERE user_id=%s',
+            (target_user_id,)
+        )
         subs = cur.fetchall()
         cur.close()
         conn.close()
 
         sent = 0
         failed_endpoints = []
-        for endpoint, p256dh, auth_key in subs:
-            try:
-                webpush(
-                    subscription_info={
-                        'endpoint': endpoint,
-                        'keys': {'p256dh': p256dh, 'auth': auth_key}
-                    },
-                    data=json.dumps({'title': title, 'body': msg_body, 'url': url, 'tag': tag}),
-                    vapid_private_key=VAPID_PRIVATE_KEY,
-                    vapid_claims=VAPID_CLAIMS,
-                )
-                sent += 1
-            except WebPushException as e:
-                if e.response and e.response.status_code in (404, 410):
-                    failed_endpoints.append(endpoint)
+        for endpoint, p256dh, auth_key, rustore_token, device_type in subs:
+            if device_type == 'android' and rustore_token:
+                result = send_rustore_push(rustore_token, title, msg_body, url)
+                if result:
+                    sent += 1
+            elif endpoint and p256dh and auth_key and VAPID_PRIVATE_KEY:
+                try:
+                    webpush(
+                        subscription_info={'endpoint': endpoint, 'keys': {'p256dh': p256dh, 'auth': auth_key}},
+                        data=json.dumps({'title': title, 'body': msg_body, 'url': url, 'tag': tag}),
+                        vapid_private_key=VAPID_PRIVATE_KEY,
+                        vapid_claims=VAPID_CLAIMS,
+                    )
+                    sent += 1
+                except WebPushException as e:
+                    if e.response and e.response.status_code in (404, 410):
+                        failed_endpoints.append(endpoint)
 
         if failed_endpoints:
             conn2 = get_conn()
