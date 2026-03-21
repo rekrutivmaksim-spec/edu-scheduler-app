@@ -366,7 +366,7 @@ export default function AuthNew() {
       preloadedExplanation.current = '';
       setIsLoading(false);
       setExplanation(text);
-      typeText(text, () => setLessonStage('question'));
+      typeText(text, () => {});
       return;
     }
 
@@ -394,7 +394,7 @@ export default function AuthNew() {
       clearInterval(thinkingTimerRef.current!);
       setIsLoading(false);
       setExplanation(text);
-      typeText(text, () => setLessonStage('question'));
+      typeText(text, () => {});
     } catch {
       clearInterval(thinkingTimerRef.current!);
       setIsLoading(false);
@@ -790,6 +790,18 @@ export default function AuthNew() {
             </div>
           </div>
 
+          {/* Кнопка после объяснения — пока вопрос ещё не показан */}
+          {lessonStage === 'explain' && !isLoading && !isTyping && typingText && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-400 pl-11">
+              <button
+                onClick={() => setLessonStage('question')}
+                className="w-full bg-white text-purple-700 font-extrabold rounded-2xl py-4 text-base active:scale-[0.98] transition-all shadow-lg"
+              >
+                Понял, дальше →
+              </button>
+            </div>
+          )}
+
           {/* Вопрос */}
           {(lessonStage === 'question' || lessonStage === 'answered') && (
             <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-400">
@@ -904,7 +916,7 @@ export default function AuthNew() {
             onClick={() => goTo('register')}
             className="w-full h-14 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-base rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] transition-all"
           >
-            Сохранить прогресс 🚀
+            Продолжить →
           </Button>
 
           <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
