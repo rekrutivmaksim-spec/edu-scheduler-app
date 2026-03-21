@@ -41,8 +41,38 @@ import ParentAuth from "./pages/ParentAuth";
 import ParentPay from "./pages/ParentPay";
 import ParentDashboard from "./pages/ParentDashboard";
 import AppMetricaTracker from "@/components/AppMetricaTracker";
+import { useEffect } from "react";
+import { authService } from "@/lib/auth";
+import { API } from "@/lib/api-urls";
 
 const queryClient = new QueryClient();
+
+function RuStorePushRegistrar() {
+  useEffect(() => {
+    const tryRegister = async () => {
+      try {
+        const w = window as unknown as { RuStorePush?: { getToken: () => string } };
+        if (!w.RuStorePush) return;
+        const token = w.RuStorePush.getToken();
+        if (!token) return;
+        const authToken = authService.getToken();
+        if (!authToken) return;
+        const already = localStorage.getItem('rustore_push_token');
+        if (already === token) return;
+        await fetch(API.PUSH_NOTIFICATIONS, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ action: 'subscribe_rustore', rustore_token: token }),
+        });
+        localStorage.setItem('rustore_push_token', token);
+      } catch (e) {
+        console.warn('RuStore push registration failed', e);
+      }
+    };
+    setTimeout(tryRegister, 3000);
+  }, []);
+  return null;
+}
 
 const App = () => (
   <ErrorBoundary>
@@ -53,6 +83,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <AppMetricaTracker />
+            <RuStorePushRegistrar />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthNew />} />
