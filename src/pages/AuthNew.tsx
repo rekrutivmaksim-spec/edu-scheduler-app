@@ -559,34 +559,44 @@ export default function AuthNew() {
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Шапка */}
-        <div className="flex items-center gap-3 px-4 pb-3" style={{ paddingTop: 'max(24px, env(safe-area-inset-top, 24px))' }}>
-          <button
-            onClick={() => {
-              setScreen('landing');
-              setLessonStage('pick');
-              setSelectedSubject(null);
-              setExplanation('');
-              setSelectedAnswer(null);
-              setAnswerRevealed(false);
-              if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-              if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
-            }}
-            className="text-white/70 hover:text-white transition-colors p-1 -ml-1"
-          >
-            <Icon name="ArrowLeft" size={20} />
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🦉</span>
-            <span className="text-white font-semibold text-sm">Первый урок</span>
+        <div className="px-4 pb-2" style={{ paddingTop: 'max(20px, env(safe-area-inset-top, 20px))' }}>
+          <div className="flex items-center gap-3 mb-3">
+            <button
+              onClick={() => {
+                setScreen('landing');
+                setLessonStage('pick');
+                setSelectedSubject(null);
+                setExplanation('');
+                setSelectedAnswer(null);
+                setAnswerRevealed(false);
+                if (typingTimerRef.current) clearInterval(typingTimerRef.current);
+                if (thinkingTimerRef.current) clearInterval(thinkingTimerRef.current);
+              }}
+              className="text-white/60 hover:text-white transition-colors p-1 -ml-1 flex-shrink-0"
+            >
+              <Icon name="ArrowLeft" size={20} />
+            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-lg">🦉</span>
+              <span className="text-white font-semibold text-sm">Первый урок</span>
+            </div>
+            <div className="flex-1" />
+            {/* Шаг */}
+            <span className="text-white/50 text-xs flex-shrink-0">
+              {lessonStage === 'pick' ? '1 / 3' : lessonStage === 'explain' ? '2 / 3' : '3 / 3'}
+            </span>
           </div>
-          {/* Прогресс-точки */}
-          <div className="ml-auto flex items-center gap-1.5">
-            {(['pick', 'explain', 'question'] as LessonStage[]).map((s, i) => (
-              <div key={s} className={`rounded-full transition-all duration-300 ${
-                lessonStage === s ? 'w-4 h-2 bg-white' :
-                (['explain', 'question', 'result'] as LessonStage[]).indexOf(lessonStage) > i ? 'w-2 h-2 bg-white' : 'w-2 h-2 bg-white/30'
-              }`} />
-            ))}
+          {/* Прогресс-бар */}
+          <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white rounded-full transition-all duration-700 ease-out"
+              style={{
+                width: lessonStage === 'pick' ? '10%'
+                  : lessonStage === 'explain' ? '45%'
+                  : lessonStage === 'question' ? '75%'
+                  : '100%'
+              }}
+            />
           </div>
         </div>
 
