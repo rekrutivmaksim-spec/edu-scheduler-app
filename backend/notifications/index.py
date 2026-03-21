@@ -140,14 +140,45 @@ def handler(event: dict, context) -> dict:
             action = body.get('action')
             if action == 'send_test':
                 return send_test(conn, user_id)
+            if action == 'update_settings':
+                cur = conn.cursor()
+                cur.execute(f'''
+                    INSERT INTO {SCHEMA}.notification_settings
+                        (user_id, lessons_reminder, deadline_reminder)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (user_id) DO UPDATE
+                    SET lessons_reminder = EXCLUDED.lessons_reminder,
+                        deadline_reminder = EXCLUDED.deadline_reminder
+                ''', (
+                    user_id,
+                    body.get('notify_lessons', True),
+                    body.get('notify_deadlines', True),
+                ))
+                conn.commit()
+                cur.close()
+                return ok({'success': True})
 
-        # ── GET статус ────────────────────────────────────────────────────────
-        if method == 'GET' and qs.get('action') == 'status':
+        # ── GET статус / настройки ────────────────────────────────────────────
+        if method == 'GET':
+            action = qs.get('action', '')
             cur = conn.cursor()
             cur.execute(f'SELECT COUNT(*) FROM {SCHEMA}.push_subscriptions WHERE user_id=%s AND endpoint IS NOT NULL', (user_id,))
             count = cur.fetchone()[0]
             cur.close()
-            return ok({'subscribed': count > 0, 'vapid_public_key': VAPID_PUBLIC_KEY})
+            if action in ('status', ''):
+                return ok({
+                    'subscribed': count > 0,
+                    'vapid_public_key': VAPID_PUBLIC_KEY,
+                    'settings': {
+                        'push_notifications': count > 0,
+                        'sms_notifications': False,
+                        'email_notifications': False,
+                        'notify_lessons': True,
+                        'notify_deadlines': True,
+                        'notify_materials': False,
+                        'notify_before_minutes': 30,
+                    }
+                })
 
         return err(400, 'Unknown action')
     finally:
