@@ -79,8 +79,9 @@ def send_rustore_push(rustore_token: str, title: str, body: str, url: str = '/')
             },
             timeout=10
         )
-        return response.status_code == 200
-    except Exception:
+        return response.status_code in (200, 201)
+    except Exception as e:
+        print(f'[RuStore Push Error] {e}')
         return False
 
 
