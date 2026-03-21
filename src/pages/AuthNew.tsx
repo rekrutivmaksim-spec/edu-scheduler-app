@@ -187,6 +187,25 @@ const VKButton = ({ onClick, loading, disabled }: { onClick: () => void; loading
   </Button>
 );
 
+const HookCountdown = () => {
+  const [secs, setSecs] = useState(600);
+  useEffect(() => {
+    const t = setInterval(() => setSecs(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+  const ss = String(secs % 60).padStart(2, '0');
+  return (
+    <div className="bg-orange-500/20 backdrop-blur border border-orange-400/30 rounded-2xl px-4 py-2.5 flex items-center gap-3">
+      <span className="text-lg">⏳</span>
+      <div>
+        <p className="text-white text-xs font-bold">Прогресс зарезервирован на {mm}:{ss}</p>
+        <p className="text-white/60 text-xs">После — придётся начинать сначала</p>
+      </div>
+    </div>
+  );
+};
+
 export default function AuthNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -215,6 +234,7 @@ export default function AuthNew() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auth state
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -317,6 +337,8 @@ export default function AuthNew() {
     }
     toast({ title: '✅ Вход выполнен!', description: `Добро пожаловать, ${data.user.full_name}!` });
     if (isRegister || data.is_new_user) {
+      // Сохраняем выбранную роль чтобы не спрашивать в онбординге
+      if (userRole) localStorage.setItem('onboarding_goal', userRole);
       navigate('/onboarding');
     } else {
       navigate('/');
@@ -365,7 +387,7 @@ export default function AuthNew() {
       const res = await fetch(API.AUTH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', email, password, device_id, browser_fp }),
+        body: JSON.stringify({ action: 'login', email, password, full_name: name.trim() || undefined, device_id, browser_fp }),
       });
       const data = await res.json();
       if (res.ok && data.token) {
@@ -375,6 +397,7 @@ export default function AuthNew() {
           await applyReferral(data.token);
           am.register('phone');
           toast({ title: 'Аккаунт создан!', description: 'Добро пожаловать!' });
+          if (userRole) localStorage.setItem('onboarding_goal', userRole);
           navigate('/onboarding');
         } else {
           await afterLogin(data, true);
@@ -446,36 +469,65 @@ export default function AuthNew() {
   // ─── LANDING ────────────────────────────────────────────────────────────────
   if (screen === 'landing') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center relative overflow-hidden px-6">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 w-full max-w-xs flex flex-col items-center gap-8">
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-8 gap-6">
 
-          {/* Персонаж */}
-          <div className="relative flex items-center justify-center">
-            <div className="absolute rounded-full bg-white/10 animate-ping" style={{ animationDuration: '2.8s', width: 140, height: 140 }} />
-            <FoxMascot size={140} />
+          {/* Персонаж + рейтинг */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative flex items-center justify-center">
+              <div className="absolute rounded-full bg-white/10 animate-ping" style={{ animationDuration: '2.8s', width: 120, height: 120 }} />
+              <FoxMascot size={120} />
+            </div>
+            {/* Звёзды */}
+            <div className="flex items-center gap-1 bg-white/15 backdrop-blur rounded-full px-3 py-1.5">
+              <span className="text-yellow-300 text-sm">★★★★★</span>
+              <span className="text-white/80 text-xs font-medium">4.9 · 12 400+ учеников</span>
+            </div>
           </div>
 
           {/* Текст */}
           <div className="text-center">
             <h1 className="text-3xl font-extrabold text-white leading-tight mb-2">
-              Привет!<br />Я твой репетитор
+              Репетитор в кармане —<br />объясняю за 2 минуты
             </h1>
             <p className="text-white/70 text-sm">
-              Объясню любую тему за 2 минуты.<br />Попробуй прямо сейчас — бесплатно
+              ЕГЭ, ОГЭ, университет.<br />Попробуй первый урок прямо сейчас
             </p>
           </div>
 
+          {/* Отзывы */}
+          <div className="w-full max-w-xs flex flex-col gap-2">
+            {[
+              { name: 'Аня, 11 класс', text: 'Сдала математику на 89 баллов. Studyfay объяснил лучше репетитора за 2000₽/час' },
+              { name: 'Максим, студент', text: 'Готовлюсь к сессии прямо в метро. Экономлю 4 часа в неделю' },
+            ].map((r, i) => (
+              <div key={i} className="bg-white/15 backdrop-blur rounded-2xl px-4 py-3 border border-white/20">
+                <p className="text-white text-xs leading-relaxed">"{r.text}"</p>
+                <p className="text-white/50 text-xs mt-1 font-medium">— {r.name}</p>
+              </div>
+            ))}
+          </div>
+
           {/* CTA */}
-          <div className="w-full flex flex-col gap-3">
+          <div className="w-full max-w-xs flex flex-col gap-3">
+            {refCode && (
+              <div className="bg-green-500/20 backdrop-blur border border-green-400/30 rounded-2xl p-3 w-full">
+                <p className="text-white text-xs text-center">
+                  <Icon name="Gift" size={14} className="inline mr-1" />
+                  Вас пригласил друг — получите +5 бонусных вопросов
+                </p>
+              </div>
+            )}
             <Button
               onClick={() => setScreen('role')}
-              className="w-full h-16 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-lg rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] transition-all"
+              className="w-full h-14 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-lg rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] transition-all"
             >
               Начать первый урок 🚀
             </Button>
+            <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
             <button
               onClick={() => { clearErrors(); setScreen('login'); }}
               className="text-white/60 text-sm text-center hover:text-white transition-colors"
@@ -483,18 +535,9 @@ export default function AuthNew() {
               Уже есть аккаунт? <span className="underline text-white/80">Войти</span>
             </button>
           </div>
-
-          {refCode && (
-            <div className="bg-green-500/20 backdrop-blur border border-green-400/30 rounded-2xl p-3 w-full">
-              <p className="text-white text-xs text-center">
-                <Icon name="Gift" size={14} className="inline mr-1" />
-                Вас пригласил друг — получите +5 бонусных вопросов
-              </p>
-            </div>
-          )}
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0">
+        <div className="relative z-10">
           <LegalFooter showDelete />
         </div>
       </div>
@@ -774,7 +817,7 @@ export default function AuthNew() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center px-6 relative overflow-hidden">
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 w-full max-w-xs flex flex-col gap-5">
+        <div className="relative z-10 w-full max-w-xs flex flex-col gap-4">
 
           {/* ВАУ-момент — сравнение */}
           <div className="bg-white rounded-3xl p-5 shadow-2xl text-center animate-in zoom-in-95 duration-500">
@@ -802,10 +845,13 @@ export default function AuthNew() {
               <span className="text-white text-xs">Стрик: <strong>день 1</strong> — не потеряй его</span>
             </div>
             <div className="flex items-center gap-2">
-              <span>⭐</span>
-              <span className="text-white text-xs">Осталось разобрать: <strong>499 тем</strong></span>
+              <span>🎁</span>
+              <span className="text-white text-xs"><strong>3 дня Premium</strong> — уже ждут тебя</span>
             </div>
           </div>
+
+          {/* Срочность */}
+          <HookCountdown />
 
           {/* CTA */}
           <div className="flex flex-col gap-3">
@@ -921,6 +967,18 @@ export default function AuthNew() {
               </div>
             </div>
             <div className="space-y-3">
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Как тебя зовут?"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  onFocus={() => setRegFieldFocused(true)}
+                  onBlur={() => setRegFieldFocused(false)}
+                  autoComplete="given-name"
+                  className="h-11 border-2 rounded-xl text-sm border-gray-200 focus:border-purple-400"
+                />
+              </div>
               <div>
                 <Input
                   type="email"
