@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 import base64
+import threading
 import datetime as dt
 from datetime import datetime, timedelta
 import psycopg2
@@ -11,6 +12,58 @@ from psycopg2.extras import RealDictCursor
 import jwt
 import urllib.request
 import urllib.error
+
+
+def _send_payment_email(email: str, name: str, plan: str, expires: str):
+    """Отправляет email подтверждение оплаты в фоне через email-функцию."""
+    try:
+        api_key = os.environ.get('RESEND_API_KEY', '')
+        if not api_key:
+            return
+        display = name.split('@')[0] if name and '@' in name else (name or email.split('@')[0])
+        plan_names = {'1month': '1 месяц', '6months': '6 месяцев', '1year': '1 год', 'session': 'Сессия'}
+        plan_label = plan_names.get(plan, plan)
+        expires_str = expires[:10] if expires else ''
+        html = f"""<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f3ff;font-family:-apple-system,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f3ff;padding:32px 0;"><tr><td align="center">
+<table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(99,102,241,0.1);">
+<tr><td style="background:linear-gradient(135deg,#6366f1,#a855f7);padding:36px 40px 28px;text-align:center;">
+  <div style="font-size:44px;margin-bottom:10px;">🎉</div>
+  <h1 style="color:#fff;font-size:24px;font-weight:800;margin:0 0 6px;">Оплата прошла успешно!</h1>
+  <p style="color:rgba(255,255,255,0.75);font-size:14px;margin:0;">Premium активирован · {plan_label}</p>
+</td></tr>
+<tr><td style="padding:32px 40px;">
+  <p style="color:#374151;font-size:16px;margin:0 0 16px;">Привет, <strong>{display}</strong> 👋</p>
+  <p style="color:#6b7280;font-size:15px;line-height:1.65;margin:0 0 20px;">Спасибо! Твой <strong style="color:#6366f1;">Premium</strong> активирован{f' до <strong>{expires_str}</strong>' if expires_str else ''}.</p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f3ff;border-radius:14px;padding:18px 22px;margin-bottom:20px;">
+    <tr><td style="padding:4px 0;color:#6b7280;font-size:14px;">✅ &nbsp;Безлимитные вопросы ИИ</td></tr>
+    <tr><td style="padding:4px 0;color:#6b7280;font-size:14px;">✅ &nbsp;Решение задач по фото</td></tr>
+    <tr><td style="padding:4px 0;color:#6b7280;font-size:14px;">✅ &nbsp;Голосовой помощник</td></tr>
+  </table>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+    <tr><td align="center"><a href="https://studyfay.ru" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:13px 36px;border-radius:14px;">Открыть Studyfay →</a></td></tr>
+  </table>
+</td></tr>
+<tr><td style="background:#f9fafb;padding:16px 40px;text-align:center;border-top:1px solid #f3f4f6;">
+  <p style="color:#d1d5db;font-size:12px;margin:0;">© 2025 Studyfay</p>
+</td></tr>
+</table></td></tr></table></body></html>"""
+        payload = json.dumps({
+            'from': 'Studyfay <hello@studyfay.ru>',
+            'to': [email],
+            'subject': '🎉 Оплата прошла! Premium активирован — Studyfay',
+            'html': html,
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.resend.com/emails',
+            data=payload,
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            method='POST',
+        )
+        urllib.request.urlopen(req, timeout=10)
+    except Exception:
+        pass
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 SCHEMA_NAME = os.environ.get('MAIN_DB_SCHEMA', 'public')
@@ -170,6 +223,19 @@ def complete_payment(conn, payment_id: int, payment_method: str = None, external
             """, update_values)
 
         conn.commit()
+
+        # Отправляем email подтверждение в фоне
+        with conn.cursor(cursor_factory=RealDictCursor) as cur2:
+            cur2.execute(f"SELECT email, full_name FROM {SCHEMA_NAME}.users WHERE id = %s", (payment['user_id'],))
+            u = cur2.fetchone()
+            if u and u['email']:
+                expires_str = str(payment.get('expires_at', ''))
+                threading.Thread(
+                    target=_send_payment_email,
+                    args=(u['email'], u['full_name'] or '', plan_type, expires_str),
+                    daemon=True,
+                ).start()
+
         return True
 
 def get_user_payments(conn, user_id: int) -> list:

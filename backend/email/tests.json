@@ -1,12 +1,55 @@
 {
   "tests": [
     {
-      "name": "Welcome email action",
+      "name": "Welcome email - status 200",
       "method": "POST",
       "path": "/",
-      "body": {"action": "welcome", "to": "test@example.com", "name": "Тестовый"},
+      "body": {"action": "welcome", "to": "delivered@resend.dev", "name": "Тест"},
       "expectedStatus": 200,
-      "expectedBody": {"ok": false},
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Unknown action returns 400",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "unknown", "to": "test@example.com"},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "unknown action"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Missing to returns 400",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "welcome"},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "missing to"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Reset password - missing code returns 400",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "reset_password", "to": "test@example.com"},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "missing code"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Cron trial ending",
+      "method": "GET",
+      "path": "/?cron=trial_ending",
+      "expectedStatus": 200,
+      "expectedBody": {"sent": 0},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Cron reactivation",
+      "method": "GET",
+      "path": "/?cron=reactivation",
+      "expectedStatus": 200,
+      "expectedBody": {"day7": 0},
       "bodyMatcher": "partial"
     }
   ]
