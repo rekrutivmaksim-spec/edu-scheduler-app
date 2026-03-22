@@ -4,10 +4,77 @@ import json
 import os
 import bcrypt
 import jwt
+import threading
+import urllib.request
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from rate_limiter import check_rate_limit, check_failed_login, record_failed_login, reset_failed_login, get_client_ip
+
+
+def _send_welcome_email(email: str, name: str):
+    """Отправляет приветственное письмо через email-функцию. Вызывается в фоновом потоке."""
+    try:
+        api_key = os.environ.get('RESEND_API_KEY', '')
+        if not api_key:
+            return
+        display_name = name.split('@')[0] if '@' in name else name
+        html = f"""<!DOCTYPE html>
+<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f3ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f3ff;padding:40px 0;"><tr><td align="center">
+<table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(99,102,241,0.1);">
+<tr><td style="background:linear-gradient(135deg,#6366f1,#a855f7);padding:40px 40px 32px;text-align:center;">
+  <div style="font-size:48px;margin-bottom:12px;">🦊</div>
+  <h1 style="color:#ffffff;font-size:26px;font-weight:800;margin:0 0 8px;">Добро пожаловать!</h1>
+  <p style="color:rgba(255,255,255,0.8);font-size:15px;margin:0;">Ты теперь в Studyfay — твоём ИИ-репетиторе</p>
+</td></tr>
+<tr><td style="padding:36px 40px;">
+  <p style="color:#374151;font-size:16px;margin:0 0 20px;">Привет, <strong>{display_name}</strong> 👋</p>
+  <p style="color:#6b7280;font-size:15px;line-height:1.6;margin:0 0 28px;">
+    Ты зарегистрировался в Studyfay — и у тебя уже есть <strong style="color:#6366f1;">3 дня Premium бесплатно</strong>.
+    Используй их по максимуму!
+  </p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+    <tr><td style="background:#f5f3ff;border-radius:16px;padding:20px 24px;">
+      <p style="color:#374151;font-weight:700;font-size:14px;margin:0 0 12px;">Что тебя ждёт:</p>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:5px 0;color:#6b7280;font-size:14px;">🧠 &nbsp;Объяснения любой темы за 2 минуты</td></tr>
+        <tr><td style="padding:5px 0;color:#6b7280;font-size:14px;">📸 &nbsp;Решение задач по фото</td></tr>
+        <tr><td style="padding:5px 0;color:#6b7280;font-size:14px;">🔥 &nbsp;Стрик — учись каждый день</td></tr>
+        <tr><td style="padding:5px 0;color:#6b7280;font-size:14px;">⭐ &nbsp;Уровни и XP за каждый урок</td></tr>
+      </table>
+    </td></tr>
+  </table>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+    <tr><td align="center">
+      <a href="https://studyfay.ru" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#a855f7);color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:14px 40px;border-radius:16px;">
+        Начать учиться →
+      </a>
+    </td></tr>
+  </table>
+  <p style="color:#9ca3af;font-size:13px;margin:0;">Если это не ты — просто проигнорируй письмо.</p>
+</td></tr>
+<tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
+  <p style="color:#d1d5db;font-size:12px;margin:0;">© 2025 Studyfay · <a href="https://studyfay.ru/privacy" style="color:#d1d5db;">Политика конфиденциальности</a></p>
+</td></tr>
+</table></td></tr></table>
+</body></html>"""
+        payload = json.dumps({
+            'from': 'Studyfay <hello@studyfay.ru>',
+            'to': [email],
+            'subject': '🦊 Добро пожаловать в Studyfay!',
+            'html': html,
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.resend.com/emails',
+            data=payload,
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            method='POST',
+        )
+        urllib.request.urlopen(req, timeout=10)
+    except Exception:
+        pass
 
 
 def get_db_connection():
@@ -293,6 +360,13 @@ def handler(event: dict, context) -> dict:
                         conn.commit()
                         
                         reset_failed_login(client_ip)
+
+                        # Отправляем приветственное письмо в фоне — не блокируем ответ
+                        threading.Thread(
+                            target=_send_welcome_email,
+                            args=(new_user['email'], new_user['full_name'] or new_user['email']),
+                            daemon=True,
+                        ).start()
                         
                         token = generate_token(new_user['id'], new_user['email'])
                         

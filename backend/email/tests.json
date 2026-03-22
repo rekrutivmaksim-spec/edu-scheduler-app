@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Welcome email action",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "welcome", "to": "test@example.com", "name": "Тестовый"},
+      "expectedStatus": 200,
+      "expectedBody": {"ok": false},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
