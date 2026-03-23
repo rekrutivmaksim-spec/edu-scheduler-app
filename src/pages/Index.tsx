@@ -11,6 +11,10 @@ import AppReviewPrompt from '@/components/AppReviewPrompt';
 import WelcomeBack from '@/components/WelcomeBack';
 import DailyBonusPopup from '@/components/DailyBonusPopup';
 import PaywallSheet from '@/components/PaywallSheet';
+import StreakFreezePopup from '@/components/StreakFreezePopup';
+import WeekendXpBanner from '@/components/WeekendXpBanner';
+import HeartsDisplay from '@/components/HeartsDisplay';
+import { useHearts } from '@/hooks/useHearts';
 import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 import { getTodayTopic } from '@/lib/topics';
 import { useLimits } from '@/hooks/useLimits';
@@ -56,9 +60,12 @@ interface GamificationProfile {
 interface LeaderEntry {
   rank: number;
   full_name: string;
+  name?: string;
   xp_period: number;
+  xp?: number;
   level: number;
   is_me?: boolean;
+  league?: { id: string; name: string; emoji: string };
 }
 
 function useTrialTimer(freeDays: number, daysReg: number) {
@@ -112,7 +119,11 @@ export default function Index() {
   const [gamification, setGamification] = useState<GamificationProfile | null>(null);
   const [todayLessons] = useState<Lesson[]>([]);
   const [leaders, setLeaders] = useState<LeaderEntry[]>([]);
+  const [myLeague, setMyLeague] = useState<{ id: string; name: string; emoji: string } | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showFreezePopup, setShowFreezePopup] = useState(false);
+  const [isWeekend, setIsWeekend] = useState(false);
+  const hearts = useHearts();
   const limits = useLimits();
   const sessionsDoneToday = useRef(parseInt(localStorage.getItem(`sessions_done_count_${new Date().toDateString()}`) || '0'));
   const [sessionDone, setSessionDone] = useState(() => {
@@ -146,6 +157,7 @@ export default function Index() {
       if (!verifiedUser.onboarding_completed) { navigate('/onboarding'); return; }
       loadGamification();
       loadLeaders();
+      loadWeekendStatus();
       dailyCheckin();
     };
     init();
@@ -163,6 +175,19 @@ export default function Index() {
     } catch { /* silent */ }
   };
 
+  const loadWeekendStatus = async () => {
+    try {
+      const token = authService.getToken();
+      const res = await fetch(`${API.GAMIFICATION}?action=weekend_status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsWeekend(data.is_weekend);
+      }
+    } catch { /* silent */ }
+  };
+
   const loadLeaders = async () => {
     try {
       const token = authService.getToken();
@@ -171,10 +196,17 @@ export default function Index() {
       });
       if (res.ok) {
         const data = await res.json();
-        const list: LeaderEntry[] = (data.leaderboard || []).slice(0, 5);
-        const me = data.current_user;
-        if (me && !list.find(l => l.is_me)) list.push({ ...me, is_me: true });
+        const list: LeaderEntry[] = (data.leaderboard || []).slice(0, 5).map((l: LeaderEntry) => ({
+          ...l,
+          full_name: l.full_name || l.name || 'Ученик',
+          xp_period: l.xp_period ?? l.xp ?? 0,
+        }));
+        const me = data.my_entry;
+        if (me && !list.find(l => l.is_me)) {
+          list.push({ ...me, full_name: me.full_name || me.name || 'Ты', is_me: true, xp_period: me.xp_period ?? me.xp ?? 0 });
+        }
         setLeaders(list);
+        if (data.league) setMyLeague(data.league);
       }
     } catch { /* silent */ }
   };
@@ -199,8 +231,8 @@ export default function Index() {
   const daysLeft = Math.max(0, freeDays - daysReg);
   const trialTimer = useTrialTimer(freeDays, daysReg);
 
-  // Стрик в опасности: серия >= 3 и сегодня ещё не было активности
-  const streakInDanger = streak >= 3 && !sessionDone;
+  // Стрик в опасности: серия >= 2 и сегодня ещё не было активности
+  const streakInDanger = streak >= 2 && !sessionDone;
 
   // Отставание от плана: сколько тем пропущено
   const topicsBehind = Math.max(0, (topic.number ?? 1) - 1);
@@ -218,6 +250,14 @@ export default function Index() {
           <div>
             <p className="text-white/70 text-sm">Привет, {firstName} 👋</p>
             <h1 className="text-white font-bold text-xl">Сегодня — {todayName}</h1>
+            <div className="mt-1">
+              <HeartsDisplay
+                hearts={hearts.hearts}
+                maxHearts={hearts.maxHearts}
+                isPremium={hearts.isPremium}
+                nextRefillIn={hearts.nextRefillIn}
+              />
+            </div>
           </div>
           {(() => {
             const companionId = getCompanionFromStorage();
@@ -276,31 +316,41 @@ export default function Index() {
           );
         })()}
 
+        {/* ===== ⚡ ДВОЙНОЙ XP В ВЫХОДНЫЕ ===== */}
+        <WeekendXpBanner isWeekend={isWeekend} />
+
         {/* ===== 🔥 СТРИК В ОПАСНОСТИ ===== */}
         {streakInDanger && !limits.loading && (
-          <button
-            onClick={() => navigate('/achievements')}
-            className="bg-gradient-to-r from-red-500 to-orange-500 rounded-3xl px-5 py-4 w-full text-left active:scale-[0.98] transition-all shadow-lg"
-            style={{ animation: 'pulse-danger 1.5s ease-in-out infinite' }}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0">🔥</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-extrabold text-base leading-tight">Серия {streak} {streakWord(streak)} сгорит сегодня!</p>
-                <p className="text-white/80 text-xs mt-0.5">Сделай занятие прямо сейчас — не теряй прогресс</p>
-              </div>
-              <div className="flex-shrink-0">
-                <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
-                  <p className="text-white font-extrabold text-lg leading-none">🔥{streak}</p>
-                  <p className="text-white/70 text-[10px]">дней</p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => navigate('/session')}
+              className="bg-gradient-to-r from-red-500 to-orange-500 rounded-3xl px-5 py-4 w-full text-left active:scale-[0.98] transition-all shadow-lg"
+              style={{ animation: 'pulse-danger 1.5s ease-in-out infinite' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0">🔥</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-extrabold text-base leading-tight">Серия {streak} {streakWord(streak)} сгорит сегодня!</p>
+                  <p className="text-white/80 text-xs mt-0.5">Сделай занятие прямо сейчас — не теряй прогресс</p>
+                </div>
+                <div className="flex-shrink-0">
+                  <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
+                    <p className="text-white font-extrabold text-lg leading-none">🔥{streak}</p>
+                    <p className="text-white/70 text-[10px]">дней</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="mt-3 bg-white/15 rounded-2xl px-4 py-2 flex items-center justify-between">
-              <span className="text-white/80 text-xs">Начать занятие и сохранить серию</span>
-              <Icon name="ChevronRight" size={16} className="text-white" />
-            </div>
-          </button>
+            </button>
+            <button
+              onClick={() => setShowFreezePopup(true)}
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+            >
+              <span className="text-lg">❄️</span>
+              <span className="text-white font-bold text-sm">
+                Заморозить стрик {limits.isPremium ? '(бесплатно)' : '— 99 ₽'}
+              </span>
+            </button>
+          </div>
         )}
 
         {/* ===== ⏰ БОЛЬШОЙ ТАЙМЕР ПРОБНОГО ПЕРИОДА ===== */}
@@ -538,7 +588,7 @@ export default function Index() {
           )}
         </button>
 
-        {/* ===== 🏆 МИНИ-ЛИДЕРБОРД ===== */}
+        {/* ===== 🏆 МИНИ-ЛИДЕРБОРД С ЛИГОЙ ===== */}
         {leaders.length > 0 && (
           <button
             onClick={() => navigate('/achievements')}
@@ -546,9 +596,11 @@ export default function Index() {
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center text-base">🏆</div>
+                <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center text-base">
+                  {myLeague?.emoji || '🏆'}
+                </div>
                 <div>
-                  <p className="font-bold text-gray-800 text-sm">Рейтинг недели</p>
+                  <p className="font-bold text-gray-800 text-sm">{myLeague?.name || 'Рейтинг недели'}</p>
                   <p className="text-gray-400 text-xs">Топ учеников по XP</p>
                 </div>
               </div>
@@ -808,6 +860,14 @@ export default function Index() {
           trigger={paywallTrigger}
           streak={streak}
           onClose={() => setShowPaywall(false)}
+        />
+      )}
+      {showFreezePopup && streak >= 2 && (
+        <StreakFreezePopup
+          streak={streak}
+          isPremium={limits.isPremium}
+          onClose={() => setShowFreezePopup(false)}
+          onSuccess={() => loadGamification()}
         />
       )}
       <BottomNav />

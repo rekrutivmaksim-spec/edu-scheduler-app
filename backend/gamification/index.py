@@ -1,4 +1,4 @@
-"""API геймификации: стрики, достижения, XP, уровни, квесты, награды за стрик"""
+"""API геймификации: стрики, достижения, XP, уровни, квесты, награды за стрик, лиги, жизни, заморозка"""
 
 import json
 import os
@@ -39,6 +39,25 @@ QUEST_POOL = [
 PREMIUM_QUEST = {
     'type': 'complete_all_quests', 'title': 'Выполни все квесты дня', 'target': 1, 'xp_reward': 100
 }
+
+LEAGUES = [
+    {'id': 'bronze', 'name': 'Бронзовая лига', 'emoji': '🥉', 'min_xp': 0},
+    {'id': 'silver', 'name': 'Серебряная лига', 'emoji': '🥈', 'min_xp': 100},
+    {'id': 'gold', 'name': 'Золотая лига', 'emoji': '🥇', 'min_xp': 300},
+    {'id': 'diamond', 'name': 'Бриллиантовая лига', 'emoji': '💎', 'min_xp': 700},
+    {'id': 'champion', 'name': 'Лига чемпионов', 'emoji': '👑', 'min_xp': 1500},
+]
+
+FREEZE_PRICE = 99
+
+
+def get_league(xp_period):
+    """Определяет лигу по XP за период"""
+    league = LEAGUES[0]
+    for l in LEAGUES:
+        if xp_period >= l['min_xp']:
+            league = l
+    return league
 
 
 def get_db_connection():
@@ -279,6 +298,10 @@ def record_activity(conn, user_id: int, activity_type: str, value: int = 1):
         'exam_tasks_done': 10
     }
     xp_gained = value * xp_map.get(activity_type, 5)
+
+    # Двойной XP в выходные
+    if today.weekday() in (5, 6):  # суббота, воскресенье
+        xp_gained = xp_gained * 2
 
     cur.execute("""
         UPDATE daily_activity SET xp_earned = xp_earned + %s
@@ -819,8 +842,26 @@ def handler(event: dict, context) -> dict:
                 total_users = cur.fetchone()['cnt']
                 cur.close()
 
+                # Получаем недельный XP для определения лиги (если период не week, нужен отдельный запрос)
+                if period == 'week':
+                    week_xp_map = {l['id']: int(l['xp_period']) for l in leaders}
+                else:
+                    cur2 = conn.cursor(cursor_factory=RealDictCursor)
+                    cur2.execute("""
+                        SELECT u.id, COALESCE(SUM(da.xp_earned), 0) as week_xp
+                        FROM users u
+                        LEFT JOIN daily_activity da ON da.user_id = u.id
+                            AND da.activity_date >= DATE_TRUNC('week', CURRENT_DATE)
+                        WHERE u.is_guest = false
+                        GROUP BY u.id
+                    """)
+                    week_xp_map = {r['id']: int(r['week_xp']) for r in cur2.fetchall()}
+                    cur2.close()
+
                 result = []
                 for i, l in enumerate(leaders):
+                    user_week_xp = week_xp_map.get(l['id'], 0)
+                    league = get_league(user_week_xp)
                     result.append({
                         'rank': i + 1,
                         'name': l['full_name'],
@@ -830,12 +871,15 @@ def handler(event: dict, context) -> dict:
                         'xp_total': l['xp_total'],
                         'streak': l['streak'],
                         'is_me': l['id'] == user_id,
-                        'subscription_type': l.get('subscription_type', 'free')
+                        'subscription_type': l.get('subscription_type', 'free'),
+                        'league': league
                     })
 
                 my_entry = None
                 if not me_in_list and my_rank_overall:
                     if me_row:
+                        my_week_xp = week_xp_map.get(me_row['id'], int(me_row['xp_period']) if period == 'week' else 0)
+                        my_league = get_league(my_week_xp)
                         my_entry = {
                             'rank': my_rank_overall,
                             'name': me_row['full_name'],
@@ -845,8 +889,13 @@ def handler(event: dict, context) -> dict:
                             'xp_total': me_row['xp_total'],
                             'streak': me_row['streak'],
                             'is_me': True,
-                            'subscription_type': me_row.get('subscription_type', 'free')
+                            'subscription_type': me_row.get('subscription_type', 'free'),
+                            'league': my_league
                         }
+
+                # Определяем лигу текущего пользователя
+                my_user_week_xp = week_xp_map.get(user_id, 0)
+                current_league = get_league(my_user_week_xp)
 
                 return {
                     'statusCode': 200,
@@ -854,7 +903,8 @@ def handler(event: dict, context) -> dict:
                     'body': json.dumps({
                         'leaderboard': result,
                         'my_entry': my_entry,
-                        'total_users': total_users
+                        'total_users': total_users,
+                        'league': current_league
                     }, default=str)
                 }
 
@@ -866,6 +916,14 @@ def handler(event: dict, context) -> dict:
             elif action == 'streak_rewards':
                 rewards = get_streak_rewards_data(conn, user_id)
                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'streak_rewards': rewards}, default=str)}
+
+            elif action == 'weekend_status':
+                is_weekend = date.today().weekday() in (5, 6)
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({'is_weekend': is_weekend, 'xp_multiplier': 2 if is_weekend else 1})
+                }
 
             return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435'})}
 
@@ -1119,6 +1177,112 @@ def handler(event: dict, context) -> dict:
                     'statusCode': 200,
                     'headers': headers,
                     'body': json.dumps({'success': True, 'bonus': bonus})
+                }
+
+            elif action == 'buy_freeze':
+                today = date.today()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+
+                # Проверяем стрик пользователя
+                cur.execute("SELECT current_streak, last_activity_date FROM user_streaks WHERE user_id = %s", (user_id,))
+                streak = cur.fetchone()
+                if not streak or streak['current_streak'] < 2:
+                    cur.close()
+                    return {
+                        'statusCode': 400,
+                        'headers': headers,
+                        'body': json.dumps({'error': 'Стрик слишком маленький для заморозки (нужно >= 2)'})
+                    }
+
+                if streak['last_activity_date'] and streak['last_activity_date'] >= today:
+                    cur.close()
+                    return {
+                        'statusCode': 400,
+                        'headers': headers,
+                        'body': json.dumps({'error': 'Стрик не в опасности — вы уже были активны сегодня'})
+                    }
+
+                # Проверяем что заморозка не использована сегодня
+                cur.execute("""
+                    SELECT id FROM streak_freeze_log
+                    WHERE user_id = %s AND freeze_date = %s
+                    LIMIT 1
+                """, (user_id, today))
+                already_used = cur.fetchone()
+                if already_used:
+                    cur.close()
+                    return {
+                        'statusCode': 400,
+                        'headers': headers,
+                        'body': json.dumps({'error': 'Заморозка уже использована сегодня'})
+                    }
+
+                # Premium пользователи получают бесплатную заморозку
+                is_premium, _ = check_user_premium(conn, user_id)
+                price = 0 if is_premium else FREEZE_PRICE
+
+                if price > 0:
+                    # Списываем баланс атомарно
+                    cur.execute("""
+                        UPDATE users SET balance = balance - %s
+                        WHERE id = %s AND balance >= %s
+                        RETURNING balance
+                    """, (price, user_id, price))
+                    updated = cur.fetchone()
+                    if not updated:
+                        cur.close()
+                        return {
+                            'statusCode': 400,
+                            'headers': headers,
+                            'body': json.dumps({
+                                'error': 'Недостаточно средств. Пополни баланс.',
+                                'suggested_action': 'topup'
+                            })
+                        }
+
+                # Записываем заморозку
+                cur.execute("""
+                    INSERT INTO streak_freeze_log (user_id, freeze_date)
+                    VALUES (%s, %s)
+                """, (user_id, today))
+
+                # Обновляем last_activity_date чтобы стрик не сбросился
+                cur.execute("""
+                    UPDATE user_streaks
+                    SET last_activity_date = %s, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = %s
+                """, (today, user_id))
+
+                conn.commit()
+                cur.close()
+
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'success': True,
+                        'price': price,
+                        'message': 'Стрик заморожен!' if price == 0 else f'Стрик заморожен за {price}₽'
+                    })
+                }
+
+            elif action == 'get_hearts':
+                is_premium, _ = check_user_premium(conn, user_id)
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'max_hearts': 5,
+                        'refill_minutes': 60,
+                        'premium_unlimited': is_premium
+                    })
+                }
+
+            elif action == 'lose_heart':
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({'success': True})
                 }
 
             return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435'})}
