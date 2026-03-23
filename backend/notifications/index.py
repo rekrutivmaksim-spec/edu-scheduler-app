@@ -292,12 +292,17 @@ def cron_streak(conn) -> dict:
 
     sent = failed = 0
     for uid, streak in rows:
-        emoji = '🔥' if streak >= 7 else '🦉'
         days_word = 'день' if streak == 1 else ('дня' if streak < 5 else 'дней')
-        result = send_to_users(conn, [uid],
-            f'{emoji} Не потеряй серию {streak} {days_word}!',
-            'Зайди и реши хотя бы один вопрос — серия сохранится и ты получишь +10 XP',
-            '/', 'streak_reminder')
+        if streak >= 30:
+            title = f'🔥 {streak} {days_word} — это огромный результат!'
+            body = 'Не дай серии сгореть сегодня ночью. Зайди на 2 минуты — один вопрос сохранит всё!'
+        elif streak >= 7:
+            title = f'⚠️ Серия {streak} {days_word} сгорит через несколько часов!'
+            body = 'Ты столько старался. Сделай одно занятие прямо сейчас — это займёт 5 минут.'
+        else:
+            title = f'🔥 Твоя серия {streak} {days_word} в опасности!'
+            body = 'Зайди и реши хотя бы один вопрос — серия сохранится и ты получишь +10 XP'
+        result = send_to_users(conn, [uid], title, body, '/', 'streak_reminder')
         sent += result['sent']
         failed += result['failed']
 
@@ -327,8 +332,8 @@ def cron_trial_ending(conn) -> dict:
     cur.close()
 
     return ok(send_to_users(conn, user_ids,
-        '⏰ Твой бесплатный Premium заканчивается завтра',
-        'Успел попробовать фото-решение и голос? Продли сейчас — первый месяц со скидкой 20% 👌',
+        '⏰ Завтра останется только 3 вопроса в день',
+        'Твой безлимит заканчивается через 24 часа. Продли сейчас — первый месяц всего 299 ₽ 🔥',
         '/pricing?source=push_trial_ending', 'trial_ending'))
 
 
@@ -349,8 +354,8 @@ def cron_trial_expired(conn) -> dict:
     cur.close()
 
     return ok(send_to_users(conn, user_ids,
-        '😔 Теперь у тебя 3 вопроса в день',
-        'Хочешь вернуть безлимит? Всего 499₽/мес — и готовься без ограничений 🚀',
+        '😔 Безлимит закончился — осталось 3 вопроса',
+        'Вернуть безлимит легко: первый месяц всего 299 ₽. Не останавливайся! 🚀',
         '/pricing?source=push_trial_expired', 'trial_expired'))
 
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { am } from '@/lib/appmetrica';
 import AppReviewPrompt from '@/components/AppReviewPrompt';
 import WelcomeBack from '@/components/WelcomeBack';
 import DailyBonusPopup from '@/components/DailyBonusPopup';
+import PaywallSheet from '@/components/PaywallSheet';
 import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
 import { getTodayTopic } from '@/lib/topics';
 import { useLimits } from '@/hooks/useLimits';
@@ -52,6 +53,41 @@ interface GamificationProfile {
   xp_needed: number;
 }
 
+interface LeaderEntry {
+  rank: number;
+  full_name: string;
+  xp_period: number;
+  level: number;
+  is_me?: boolean;
+}
+
+function useTrialTimer(freeDays: number, daysReg: number) {
+  const [timeLeft, setTimeLeft] = useState('');
+  useEffect(() => {
+    const daysLeft = Math.max(0, freeDays - daysReg);
+    if (daysLeft <= 0) return;
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+    const totalSecondsLeft = daysLeft > 1
+      ? daysLeft * 86400
+      : Math.floor((endOfDay.getTime() - Date.now()) / 1000);
+
+    let secs = totalSecondsLeft;
+    const tick = () => {
+      if (secs <= 0) { setTimeLeft('00:00:00'); return; }
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      const s = secs % 60;
+      setTimeLeft(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+      secs--;
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [freeDays, daysReg]);
+  return timeLeft;
+}
+
 interface Lesson {
   id: number;
   subject: string;
@@ -75,8 +111,10 @@ export default function Index() {
   const [user, setUser] = useState(authService.getUser());
   const [gamification, setGamification] = useState<GamificationProfile | null>(null);
   const [todayLessons] = useState<Lesson[]>([]);
+  const [leaders, setLeaders] = useState<LeaderEntry[]>([]);
+  const [showPaywall, setShowPaywall] = useState(false);
   const limits = useLimits();
-  // sessionDone — пользователь уже прошёл занятие сегодня (храним в localStorage)
+  const sessionsDoneToday = useRef(parseInt(localStorage.getItem(`sessions_done_count_${new Date().toDateString()}`) || '0'));
   const [sessionDone, setSessionDone] = useState(() => {
     const key = `session_done_${new Date().toDateString()}`;
     return localStorage.getItem(key) === '1';
@@ -88,6 +126,12 @@ export default function Index() {
     const onDone = () => {
       localStorage.setItem(`session_done_${new Date().toDateString()}`, '1');
       setSessionDone(true);
+      const countKey = `sessions_done_count_${new Date().toDateString()}`;
+      const count = parseInt(localStorage.getItem(countKey) || '0') + 1;
+      localStorage.setItem(countKey, String(count));
+      sessionsDoneToday.current = count;
+      // Показываем paywall после 3-й сессии, или после каждой если не Premium
+      setTimeout(() => setShowPaywall(true), 1500);
     };
     window.addEventListener('session_completed', onDone);
     return () => window.removeEventListener('session_completed', onDone);
@@ -101,6 +145,7 @@ export default function Index() {
       setUser(verifiedUser);
       if (!verifiedUser.onboarding_completed) { navigate('/onboarding'); return; }
       loadGamification();
+      loadLeaders();
       dailyCheckin();
     };
     init();
@@ -118,6 +163,22 @@ export default function Index() {
     } catch { /* silent */ }
   };
 
+  const loadLeaders = async () => {
+    try {
+      const token = authService.getToken();
+      const res = await fetch(`${API.GAMIFICATION}?action=leaderboard&period=week`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const list: LeaderEntry[] = (data.leaderboard || []).slice(0, 5);
+        const me = data.current_user;
+        if (me && !list.find(l => l.is_me)) list.push({ ...me, is_me: true });
+        setLeaders(list);
+      }
+    } catch { /* silent */ }
+  };
+
 
   const firstName = user?.full_name?.split(' ')[0] || 'Студент';
   const streak = gamification?.streak?.current ?? 0;
@@ -131,6 +192,22 @@ export default function Index() {
   const isExamGoal = userGoal === 'ege' || userGoal === 'oge';
   const isUniGoal = userGoal === 'university';
   const quickAccess = isExamGoal ? QUICK_ACCESS_EGE : isUniGoal ? QUICK_ACCESS_UNI : QUICK_ACCESS_OTHER;
+
+  // Данные для таймера пробного периода
+  const daysReg = limits.data?.days_since_registration ?? 999;
+  const freeDays = limits.data?.free_days_total ?? 3;
+  const daysLeft = Math.max(0, freeDays - daysReg);
+  const trialTimer = useTrialTimer(freeDays, daysReg);
+
+  // Стрик в опасности: серия >= 3 и сегодня ещё не было активности
+  const streakInDanger = streak >= 3 && !sessionDone;
+
+  // Отставание от плана: сколько тем пропущено
+  const topicsBehind = Math.max(0, (topic.number ?? 1) - 1);
+  const isExamSoon = isExamGoal && topicsBehind === 0 && !sessionDone;
+
+  // Paywall trigger
+  const paywallTrigger = sessionsDoneToday.current >= 3 ? 'after_session_3rd' : 'after_session';
 
   return (
     <div className="min-h-[100dvh] bg-gray-50 pb-nav">
@@ -199,47 +276,81 @@ export default function Index() {
           );
         })()}
 
-        {/* ===== ПЛАШКА БЕСПЛАТНОГО ПЕРИОДА ===== */}
-        {!limits.isPremium && !limits.loading && (() => {
-          const daysReg = limits.data.days_since_registration ?? 999;
-          const freeDays = limits.data.free_days_total ?? 3;
-          const daysLeft = Math.max(0, freeDays - daysReg);
-          if (daysLeft <= 0 && !limits.data.is_soft_landing) {
-            return (
-              <button
-                onClick={() => { am.premiumClick('index_trial_expired'); navigate('/pricing'); }}
-                className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
-              >
-                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
-                  <Icon name="Zap" size={18} className="text-white" />
+        {/* ===== 🔥 СТРИК В ОПАСНОСТИ ===== */}
+        {streakInDanger && !limits.loading && (
+          <button
+            onClick={() => navigate('/achievements')}
+            className="bg-gradient-to-r from-red-500 to-orange-500 rounded-3xl px-5 py-4 w-full text-left active:scale-[0.98] transition-all shadow-lg"
+            style={{ animation: 'pulse-danger 1.5s ease-in-out infinite' }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0">🔥</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-extrabold text-base leading-tight">Серия {streak} {streakWord(streak)} сгорит сегодня!</p>
+                <p className="text-white/80 text-xs mt-0.5">Сделай занятие прямо сейчас — не теряй прогресс</p>
+              </div>
+              <div className="flex-shrink-0">
+                <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
+                  <p className="text-white font-extrabold text-lg leading-none">🔥{streak}</p>
+                  <p className="text-white/70 text-[10px]">дней</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm">Открой безлимит — подключи Premium</p>
-                  <p className="text-white/70 text-xs">Безлимит вопросов, фото, аудио и занятий каждый день</p>
-                </div>
-                <Icon name="ChevronRight" size={16} className="text-white/60" />
-              </button>
-            );
-          }
-          if (daysLeft > 0) {
-            return (
-              <button
-                onClick={() => { am.premiumClick('index_trial_active'); navigate('/pricing'); }}
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
-              >
-                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
-                  <Icon name="Gift" size={18} className="text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm">Безлимит ещё {daysLeft} {daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'} — успей попробовать всё!</p>
-                  <p className="text-white/70 text-xs">Все функции без ограничений — потом лимиты вернутся</p>
-                </div>
-                <Icon name="ChevronRight" size={16} className="text-white/60" />
-              </button>
-            );
-          }
-          return null;
-        })()}
+              </div>
+            </div>
+            <div className="mt-3 bg-white/15 rounded-2xl px-4 py-2 flex items-center justify-between">
+              <span className="text-white/80 text-xs">Начать занятие и сохранить серию</span>
+              <Icon name="ChevronRight" size={16} className="text-white" />
+            </div>
+          </button>
+        )}
+
+        {/* ===== ⏰ БОЛЬШОЙ ТАЙМЕР ПРОБНОГО ПЕРИОДА ===== */}
+        {!limits.isPremium && !limits.loading && daysLeft > 0 && (
+          <button
+            onClick={() => { am.premiumClick('index_trial_timer'); navigate('/pricing'); }}
+            className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl px-5 py-4 w-full text-left active:scale-[0.98] transition-all shadow-lg overflow-hidden relative"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="text-white/70 text-xs font-semibold uppercase tracking-wide">Бесплатный период</p>
+                <p className="text-white font-extrabold text-lg leading-tight mt-0.5">Успей попробовать всё!</p>
+              </div>
+              <div className="bg-white/20 rounded-2xl px-3 py-2 text-center flex-shrink-0">
+                <p className="text-white font-mono font-extrabold text-xl leading-none">{trialTimer || `${daysLeft}д`}</p>
+                <p className="text-white/60 text-[10px] mt-0.5">осталось</p>
+              </div>
+            </div>
+            <div className="h-2 bg-white/20 rounded-full overflow-hidden mb-3">
+              <div
+                className="h-full bg-white rounded-full transition-all duration-1000"
+                style={{ width: `${Math.round((daysLeft / freeDays) * 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-white/70 text-xs">После окончания — только 3 вопроса в день</p>
+              <div className="bg-white text-purple-700 font-bold text-xs rounded-xl px-3 py-1.5 flex-shrink-0">
+                Купить сейчас
+              </div>
+            </div>
+          </button>
+        )}
+
+        {/* ===== ПЛАШКА ПОСЛЕ ОКОНЧАНИЯ ПРОБНОГО ПЕРИОДА ===== */}
+        {!limits.isPremium && !limits.loading && daysLeft <= 0 && !limits.data?.is_soft_landing && (
+          <button
+            onClick={() => { am.premiumClick('index_trial_expired'); navigate('/pricing'); }}
+            className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
+          >
+            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Icon name="Zap" size={18} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-bold text-sm">Открой безлимит — подключи Premium</p>
+              <p className="text-white/70 text-xs">Безлимит вопросов, фото, аудио и занятий каждый день</p>
+            </div>
+            <Icon name="ChevronRight" size={16} className="text-white/60" />
+          </button>
+        )}
 
         {/* ===== ПРИВЕТСТВИЕ НОВОГО ПОЛЬЗОВАТЕЛЯ ===== */}
         {isNewUser && (
@@ -426,6 +537,43 @@ export default function Index() {
             </p>
           )}
         </button>
+
+        {/* ===== 🏆 МИНИ-ЛИДЕРБОРД ===== */}
+        {leaders.length > 0 && (
+          <button
+            onClick={() => navigate('/achievements')}
+            className="bg-white rounded-3xl shadow-sm px-5 py-4 w-full text-left active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center text-base">🏆</div>
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">Рейтинг недели</p>
+                  <p className="text-gray-400 text-xs">Топ учеников по XP</p>
+                </div>
+              </div>
+              <span className="text-indigo-500 text-xs font-semibold">Все →</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {leaders.slice(0, 5).map((l, i) => (
+                <div key={i} className={`flex items-center gap-3 rounded-2xl px-3 py-2 ${l.is_me ? 'bg-indigo-50 border border-indigo-100' : 'bg-gray-50'}`}>
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-extrabold flex-shrink-0 ${
+                    l.rank === 1 ? 'bg-amber-400 text-white' :
+                    l.rank === 2 ? 'bg-gray-400 text-white' :
+                    l.rank === 3 ? 'bg-orange-400 text-white' :
+                    'bg-gray-200 text-gray-600'
+                  }`}>
+                    {l.rank === 1 ? '🥇' : l.rank === 2 ? '🥈' : l.rank === 3 ? '🥉' : l.rank}
+                  </div>
+                  <p className={`flex-1 text-sm font-medium truncate ${l.is_me ? 'text-indigo-700 font-bold' : 'text-gray-700'}`}>
+                    {l.is_me ? 'Ты' : (l.full_name?.split(' ')[0] || 'Ученик')}
+                  </p>
+                  <p className={`text-xs font-bold ${l.is_me ? 'text-indigo-600' : 'text-gray-500'}`}>{l.xp_period} XP</p>
+                </div>
+              ))}
+            </div>
+          </button>
+        )}
 
         {/* ===== БЛОК 3: ПРОГРЕСС ===== */}
         <div className="bg-white rounded-3xl shadow-sm px-5 py-4">
@@ -640,17 +788,28 @@ export default function Index() {
         <div className="h-2" />
       </div>
 
-      {/* CSS пульсация кнопки */}
+      {/* CSS */}
       <style>{`
         @keyframes pulse-cta {
           0%, 100% { box-shadow: 0 4px 20px rgba(99,102,241,0.45); }
           50% { box-shadow: 0 4px 32px rgba(99,102,241,0.7); }
+        }
+        @keyframes pulse-danger {
+          0%, 100% { box-shadow: 0 4px 20px rgba(239,68,68,0.4); }
+          50% { box-shadow: 0 4px 32px rgba(239,68,68,0.7); }
         }
       `}</style>
 
       <WelcomeBack hide={hideWelcomeBack} />
       <AppReviewPrompt />
       {showDailyBonus && <DailyBonusPopup onClose={() => setShowDailyBonus(false)} />}
+      {showPaywall && !limits.isPremium && (
+        <PaywallSheet
+          trigger={paywallTrigger}
+          streak={streak}
+          onClose={() => setShowPaywall(false)}
+        />
+      )}
       <BottomNav />
     </div>
   );

@@ -32,16 +32,16 @@ const TRIGGER_COPY = {
   },
   after_session: {
     emoji: '🎉',
-    title: 'Занятие завершено!',
-    subtitle: 'Хочешь безлимитный доступ ко всем функциям? Учись без ограничений!',
-    urgency: null,
+    title: 'Отличная работа!',
+    subtitle: 'Ты делаешь успехи! С Premium — учись без ограничений каждый день.',
+    urgency: 'Первый месяц — 299 ₽. Цена одной поездки на метро.',
     showPack: false,
   },
   after_session_3rd: {
     emoji: '🏆',
     title: 'Ты прошёл уже 3 занятия!',
-    subtitle: 'С Premium — безлимит на всё: вопросы, фото, аудио, занятия и материалы.',
-    urgency: 'Первый месяц — 299 ₽ вместо 499 ₽. Не упусти скидку!',
+    subtitle: 'Серьёзный результат. С Premium — безлимит на всё без перерывов.',
+    urgency: 'Первый месяц — 299 ₽ вместо 499 ₽. Скидка только сейчас!',
     showPack: false,
   },
 };
@@ -51,6 +51,12 @@ const FEATURES = [
   { icon: 'Camera', text: 'Безлимитные фото и аудио' },
   { icon: 'Target', text: 'Подготовка к ЕГЭ/ОГЭ по всем предметам' },
   { icon: 'TrendingUp', text: 'Полный доступ ко всем функциям' },
+];
+
+const REVIEWS = [
+  { name: 'Аня, 11 класс', text: 'Сдала ЕГЭ на 89 баллов 🎉', avatar: '👩‍🎓' },
+  { name: 'Миша, 10 класс', text: 'Объясняет лучше репетитора', avatar: '👨‍💻' },
+  { name: 'Соня, студентка', text: 'Помогло сдать сессию на отлично', avatar: '👩‍🔬' },
 ];
 
 export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onClose }: Props) {
@@ -136,7 +142,7 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onCl
           )}
         </div>
 
-        <div className="px-5 space-y-2 mb-4">
+        <div className="px-5 space-y-2 mb-3">
           {FEATURES.map(f => (
             <div key={f.text} className="flex items-center gap-3">
               <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -145,6 +151,19 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onCl
               <span className="text-gray-700 text-sm">{f.text}</span>
             </div>
           ))}
+        </div>
+
+        {/* Отзывы */}
+        <div className="px-5 mb-4">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {REVIEWS.map(r => (
+              <div key={r.name} className="flex-shrink-0 bg-gray-50 rounded-2xl px-3 py-2 min-w-[140px]">
+                <p className="text-lg mb-1">{r.avatar}</p>
+                <p className="text-gray-700 text-xs font-medium leading-tight">"{r.text}"</p>
+                <p className="text-gray-400 text-[10px] mt-1">{r.name}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="px-5 pb-8 space-y-2.5">
@@ -169,7 +188,7 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onCl
             {buying === '1month' ? (
               <Icon name="Loader2" size={18} className="animate-spin" />
             ) : (
-              '🚀 Premium — 499 ₽/мес'
+              '🚀 Premium — 299 ₽/мес'
             )}
           </Button>
           <button
@@ -178,7 +197,7 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onCl
           >
             Все тарифы и скидки →
           </button>
-          <p className="text-gray-400 text-[11px] text-center">Отмена в любой момент · Возврат 14 дней</p>
+          <p className="text-gray-400 text-[11px] text-center">★★★★★ 12 400+ учеников · Возврат 14 дней</p>
         </div>
       </div>
 
