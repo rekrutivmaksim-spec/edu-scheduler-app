@@ -558,7 +558,7 @@ const Assistant = () => {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {isLoading ? (
             <button
               onClick={cancelRequest}
@@ -568,11 +568,28 @@ const Assistant = () => {
               Стоп
             </button>
           ) : (
-            !isPremium && remaining !== null && remaining !== undefined && remaining < 900 && (
-              <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
-                {remaining} {remaining === 1 ? 'вопрос' : remaining < 5 ? 'вопроса' : 'вопросов'}
-              </span>
-            )
+            <>
+              {isPremium ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full flex items-center gap-0.5">📸 ∞</span>
+                  <span className="text-[10px] text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full flex items-center gap-0.5">🎤 ∞</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-0.5 ${photoUsed >= photoLimit ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100'}`}>
+                    📸 {Math.max(0, photoLimit - photoUsed)}/{photoLimit}
+                  </span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-0.5 ${audioUsed >= audioLimit ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100'}`}>
+                    🎤 {Math.max(0, audioLimit - audioUsed)}/{audioLimit}
+                  </span>
+                  {remaining !== null && remaining !== undefined && remaining < 900 && (
+                    <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                      💬 {remaining}
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
           )}
           <button onClick={newChat} className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors">
             <Icon name="Plus" size={20} className="text-blue-600" />
