@@ -48,9 +48,22 @@ function loadCompleted(subject: string): number[] {
   return [];
 }
 
-function getNodeX(i: number): number {
-  return [50, 78, 50, 22][i % 4];
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'Доброе утро';
+  if (h >= 12 && h < 17) return 'Добрый день';
+  if (h >= 17 && h < 22) return 'Добрый вечер';
+  return 'Доброй ночи';
 }
+
+const MOTIVATIONS = [
+  'Каждый день — шаг к мечте!',
+  'Ты уже круче, чем вчера!',
+  'Знания — твоя суперсила!',
+  'Сегодня отличный день для учёбы!',
+  'Маленькие шаги → большие результаты',
+  'Ты на правильном пути!',
+];
 
 export default function Index() {
   const navigate = useNavigate();
@@ -79,6 +92,8 @@ export default function Index() {
   const sessLeft = limits.sessionsRemaining();
   const aiLeft = limits.aiRemaining();
   const isPrem = limits.isPremium;
+
+  const motivation = MOTIVATIONS[new Date().getDate() % MOTIVATIONS.length];
 
   useEffect(() => {
     const init = async () => {
@@ -139,238 +154,214 @@ export default function Index() {
   const streak = gam?.streak?.current ?? 0;
   const xp = gam?.xp_progress ?? 0;
   const level = gam?.level ?? 1;
-  const NODE_GAP = 116;
-  const PW = 300;
-
-  const curve = (i: number) => {
-    if (i === 0) return '';
-    const x1 = (getNodeX(i - 1) / 100) * PW, y1 = (i - 1) * NODE_GAP + 34;
-    const x2 = (getNodeX(i) / 100) * PW, y2 = i * NODE_GAP + 34;
-    const cy = (y1 + y2) / 2;
-    return `M ${x1} ${y1} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`;
-  };
+  const userName = user?.name?.split(' ')[0] || 'Ученик';
 
   return (
-    <div className="min-h-screen pb-24 bg-gradient-to-b from-[#ede9fe] via-[#f5f3ff] to-[#eef2ff] relative overflow-hidden">
-      <div className="absolute top-32 -left-20 w-72 h-72 bg-purple-200/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-[55%] -right-16 w-64 h-64 bg-indigo-200/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen pb-24 bg-[#f8f7ff] relative overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-[420px] bg-gradient-to-b from-[#6c5ce7] via-[#a29bfe] to-transparent opacity-90" />
+      <div className="absolute top-20 -left-20 w-80 h-80 bg-[#fd79a8]/15 rounded-full blur-[80px] pointer-events-none" />
+      <div className="absolute top-40 -right-20 w-72 h-72 bg-[#00cec9]/10 rounded-full blur-[80px] pointer-events-none" />
 
-      {/* ═══ HEADER ═══ */}
-      <div className="sticky top-0 z-40">
-        {showTrial && (
-          <div className="text-center py-1.5 text-[11px] font-bold tracking-wider bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white">
-            PREMIUM БЕСПЛАТНО ЕЩЁ {trialDays} {pluralDays(trialDays).toUpperCase()}
-          </div>
-        )}
-        <div className="bg-white/80 backdrop-blur-2xl border-b border-white/40">
-          <div className="flex items-center justify-between px-4 h-[52px]">
-            <button onClick={() => navigate('/league')} className="flex items-center gap-2 bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl px-3 py-1.5 border border-orange-100/60 active:scale-95 transition-transform">
-              <div className="w-7 h-7 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center shadow-sm">
-                <Icon name="Flame" size={15} className="text-white" />
-              </div>
-              <span className="text-[15px] font-black text-orange-600 tabular-nums">{streak}</span>
-            </button>
-            <div className="flex items-center gap-[3px]">
-              {Array.from({ length: hearts.maxHearts }).map((_, i) => (
-                <div key={i} className={`transition-all duration-300 ${i < hearts.hearts ? 'scale-100' : 'scale-75 opacity-25'}`}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill={i < hearts.hearts ? '#ef4444' : '#d1d5db'} className={i < hearts.hearts ? 'drop-shadow-[0_2px_4px_rgba(239,68,68,0.4)]' : ''}>
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                  </svg>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => navigate('/profile')} className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl px-3 py-1.5 border border-amber-100/60 active:scale-95 transition-transform">
-              <div className="w-7 h-7 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-lg flex items-center justify-center shadow-sm">
-                <Icon name="Star" size={15} className="text-white" />
-              </div>
-              <span className="text-[15px] font-black text-amber-600 tabular-nums">{xp}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══ SUBJECT + PROGRESS (compact) ═══ */}
-      <div className="px-4 pt-3 pb-1 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-xl shadow-md border-2 border-white/50`}>
-            {stage.emoji}
-          </div>
-          <div>
-            <p className="text-[14px] font-bold text-gray-800">{SUBJECT_NAMES[activeSubject]}</p>
-            <p className="text-[11px] text-gray-400">{doneCnt}/{topics.length} тем · Ур.{level}</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-xl font-black text-purple-600">{pct}%</p>
-        </div>
-      </div>
-      <div className="mx-4 mt-1 mb-2 h-2.5 bg-white/60 rounded-full overflow-hidden shadow-inner">
-        <div className="h-full bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 rounded-full transition-all duration-1000 relative" style={{ width: `${Math.max(pct, 3)}%` }}>
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)] animate-[shimmer_2s_infinite]" />
-        </div>
-      </div>
-
-      <div className="flex gap-2 px-4 py-2 overflow-x-auto scrollbar-hide">
-        {[examSubject, ...ALL_SUBJECT_IDS.filter(s => s !== examSubject)].map(sid => {
-          const active = sid === activeSubject;
-          const locked = !isPrem && sid !== examSubject;
-          return (
-            <button
-              key={sid}
-              onClick={() => { if (locked) { setShowPaywall(true); return; } setActiveSubject(sid); }}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[12px] font-bold transition-all whitespace-nowrap active:scale-95 ${
-                active ? 'bg-white text-purple-700 shadow-lg ring-2 ring-purple-300/40' :
-                locked ? 'bg-white/30 text-gray-300' : 'bg-white/60 text-gray-600 shadow-sm'
-              }`}
-            >
-              <span className="text-sm">{SUBJECT_EMOJI[sid] || '📚'}</span>
-              {locked && <Icon name="Lock" size={10} className="text-gray-300" />}
-              {SUBJECT_NAMES[sid]}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ═══ LIMITS BAR (free vs premium) ═══ */}
-      {!isPrem && !limits.loading && (
-        <div className="mx-4 mt-2 mb-1 flex items-center gap-2">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${sessLeft > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-            <Icon name="BookOpen" size={12} />
-            {sessLeft > 0 ? `${sessLeft} ${sessLeft === 1 ? 'урок' : 'урока'}` : 'Уроки кончились'}
-          </div>
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${aiLeft > 0 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-500'}`}>
-            <Icon name="Brain" size={12} />
-            {aiLeft > 0 ? `${aiLeft} ${aiLeft === 1 ? 'вопрос' : aiLeft < 5 ? 'вопроса' : 'вопросов'} ИИ` : 'ИИ на сегодня 0'}
-          </div>
-          <button onClick={() => setShowPaywall(true)} className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[11px] font-bold shadow-md active:scale-95 transition-transform">
-            <Icon name="Zap" size={12} />
-            Безлимит
-          </button>
+      {showTrial && (
+        <div className="relative z-50 text-center py-1.5 text-[11px] font-bold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-pink-400 text-white">
+          🎁 PREMIUM БЕСПЛАТНО ЕЩЁ {trialDays} {pluralDays(trialDays).toUpperCase()}
         </div>
       )}
 
-      {/* ═══ LEARNING PATH ═══ */}
-      <div
-        ref={scrollRef}
-        className="relative mx-auto mt-3 px-2"
-        style={{ maxWidth: PW + 40, minHeight: topics.length * NODE_GAP + 80 }}
-      >
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ height: topics.length * NODE_GAP + 80, left: 20 }} width={PW}>
-          <defs>
-            <linearGradient id="gDone" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#a78bfa"/><stop offset="100%" stopColor="#818cf8"/></linearGradient>
-            <linearGradient id="gNext" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c4b5fd"/><stop offset="100%" stopColor="#a5b4fc"/></linearGradient>
-            <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          </defs>
-          {topics.map((_, i) => {
-            if (i === 0) return null;
-            const d = curve(i);
-            const prevOk = completed.includes(i - 1);
-            const ok = completed.includes(i);
-            const next = i === currentIdx;
-            return (
-              <g key={i}>
-                {(prevOk || ok) && <path d={d} fill="none" stroke="url(#gDone)" strokeWidth={6} strokeLinecap="round" opacity={0.15} filter="url(#glow)" />}
-                <path d={d} fill="none"
-                  stroke={prevOk && ok ? 'url(#gDone)' : next ? 'url(#gNext)' : '#ddd6fe'}
-                  strokeWidth={prevOk || ok ? 5 : 3}
-                  strokeDasharray={prevOk && ok ? 'none' : next ? '10 7' : '5 7'}
-                  strokeLinecap="round" className="transition-all duration-700"
-                />
-              </g>
-            );
-          })}
-        </svg>
-
-        {topics.map((topic, i) => {
-          const ok = completed.includes(i);
-          const cur = i === currentIdx;
-          const lock = !ok && !cur;
-          const x = getNodeX(i);
-          const sz = cur ? 70 : ok ? 54 : 46;
-          return (
-            <div key={i} data-idx={i} className="absolute flex flex-col items-center"
-              style={{ left: `calc(${x}% + 20px)`, top: i * NODE_GAP, transform: 'translateX(-50%)', width: 150 }}>
-              <button onClick={() => tapTopic(i)} disabled={lock}
-                className="relative flex items-center justify-center transition-all duration-300 active:scale-90" style={{ width: sz, height: sz }}>
-                {cur && <>
-                  <span className="absolute inset-[-8px] rounded-full bg-purple-400/20 animate-[pulse_2s_ease-in-out_infinite]" />
-                  <span className="absolute inset-[-4px] rounded-full border-[2.5px] border-purple-300/50" />
-                </>}
-                <div className={`w-full h-full rounded-full flex items-center justify-center relative overflow-hidden ${
-                  cur ? 'bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 shadow-[0_8px_28px_rgba(109,40,217,0.4)]' :
-                  ok ? 'bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500 shadow-[0_5px_18px_rgba(52,211,153,0.3)]' :
-                  'bg-gradient-to-br from-gray-200 to-gray-300/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]'
-                }`}>
-                  <div className={`absolute inset-0 rounded-full ${cur || ok ? 'bg-gradient-to-t from-transparent to-white/20' : ''}`} />
-                  {ok && <Icon name="Check" size={22} className="text-white relative z-10 drop-shadow-md" />}
-                  {cur && <div className="relative z-10 w-9 h-9 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm"><Icon name="Play" size={20} className="text-white ml-0.5 drop-shadow-md" /></div>}
-                  {lock && <Icon name="Lock" size={16} className="text-gray-400/70 relative z-10" />}
-                </div>
-                {ok && <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-lg border border-amber-100"><Icon name="Star" size={12} className="text-amber-400" /></div>}
-              </button>
-              {cur && (
-                <div className="mt-3 relative">
-                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gradient-to-br from-purple-600 to-indigo-600 rotate-45 rounded-sm" />
-                  <div className="relative bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl px-4 py-2 shadow-xl shadow-purple-300/25">
-                    <p className="text-[12px] font-bold text-white text-center leading-snug max-w-[130px]">{topic}</p>
-                  </div>
-                </div>
-              )}
-              {ok && <p className="mt-2 text-[10px] text-gray-400 text-center max-w-[100px] truncate font-medium">{topic}</p>}
+      <div className="relative z-10 px-5 pt-4 pb-5">
+        <div className="flex items-start justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-2xl shadow-lg border-2 border-white/30 index-companion-float`}>
+              {stage.emoji}
             </div>
-          );
-        })}
+            <div>
+              <p className="text-white/60 text-[12px] font-medium">{getGreeting()}</p>
+              <p className="text-white text-[20px] font-bold leading-tight">{userName} 👋</p>
+              <p className="text-white/50 text-[11px] mt-0.5">{motivation}</p>
+            </div>
+          </div>
+          <button onClick={() => navigate('/profile')} className="w-10 h-10 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-center active:scale-90 transition-transform border border-white/10">
+            <Icon name="Settings" size={18} className="text-white/80" />
+          </button>
+        </div>
 
-        {topics.map((_, i) => {
-          if (i === 0 || i % 4 !== 0) return null;
-          const phrases = ['Так держать!', 'Ты молодец!', 'Не сдавайся!', 'Крутой прогресс!', 'Вперёд!', 'Огонь!'];
-          const phrase = phrases[Math.floor(i / 4) % phrases.length];
-          const side = i % 8 === 0 ? 6 : 88;
-          const isPast = completed.includes(i);
-          if (!isPast && i !== currentIdx) return null;
-          return (
-            <div key={`c${i}`} className="absolute flex items-center gap-2 pointer-events-none" style={{ left: `${side}%`, top: i * NODE_GAP + 10, transform: side < 50 ? 'translateX(-20%)' : 'translateX(-80%)' }}>
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-lg shadow-md border-2 border-white/60`}>
-                {stage.emoji}
+        <div className="flex gap-2.5">
+          <button onClick={() => navigate('/league')} className="flex-1 bg-white/15 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/10 active:scale-[0.97] transition-all">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-gradient-to-br from-orange-400 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Icon name="Flame" size={18} className="text-white" />
               </div>
-              <div className="bg-white/90 backdrop-blur-sm rounded-xl px-2.5 py-1.5 shadow-sm border border-purple-100/30">
-                <p className="text-[10px] font-bold text-purple-600">{phrase}</p>
+              <div>
+                <p className="text-white text-[18px] font-black leading-none">{streak}</p>
+                <p className="text-white/50 text-[10px] font-medium">серия</p>
               </div>
             </div>
-          );
-        })}
+          </button>
+          <div className="flex-1 bg-white/15 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/10">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Icon name="Star" size={18} className="text-white" />
+              </div>
+              <div>
+                <p className="text-white text-[18px] font-black leading-none">{xp}</p>
+                <p className="text-white/50 text-[10px] font-medium">опыт</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-[3px] bg-white/15 backdrop-blur-md rounded-2xl px-3 py-3 border border-white/10">
+            {Array.from({ length: hearts.maxHearts }).map((_, i) => (
+              <div key={i} className={`transition-all duration-300 ${i < hearts.hearts ? 'scale-100' : 'scale-75 opacity-30'}`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill={i < hearts.hearts ? '#ff6b6b' : '#ffffff40'}>
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* ═══ QUICK TOOLS ═══ */}
-      <div className="mx-4 mt-4 mb-4">
-        <div className="flex gap-2">
+      <div className="relative z-10 bg-[#f8f7ff] rounded-t-[28px] -mt-2 pt-1">
+        <div className="px-5 pt-4 pb-2">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">{SUBJECT_EMOJI[activeSubject] || '📚'}</span>
+              <div>
+                <p className="text-[15px] font-bold text-gray-900">{SUBJECT_NAMES[activeSubject]}</p>
+                <p className="text-[11px] text-gray-400 font-medium">Уровень {level} · {doneCnt} из {topics.length} тем</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <p className="text-[22px] font-black bg-gradient-to-r from-[#6c5ce7] to-[#a29bfe] bg-clip-text text-transparent leading-none">{pct}%</p>
+              </div>
+            </div>
+          </div>
+          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#6c5ce7] via-[#a29bfe] to-[#74b9ff] rounded-full transition-all duration-1000 relative" style={{ width: `${Math.max(pct, 3)}%` }}>
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)] index-shimmer" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 px-5 py-2 overflow-x-auto scrollbar-hide">
+          {[examSubject, ...ALL_SUBJECT_IDS.filter(s => s !== examSubject)].map(sid => {
+            const active = sid === activeSubject;
+            const locked = !isPrem && sid !== examSubject;
+            return (
+              <button
+                key={sid}
+                onClick={() => { if (locked) { setShowPaywall(true); return; } setActiveSubject(sid); }}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[12px] font-bold transition-all whitespace-nowrap active:scale-95 ${
+                  active ? 'bg-[#6c5ce7] text-white shadow-lg shadow-purple-300/30' :
+                  locked ? 'bg-gray-50 text-gray-300 border border-gray-100' : 'bg-white text-gray-600 shadow-sm border border-gray-100'
+                }`}
+              >
+                <span className="text-sm">{SUBJECT_EMOJI[sid] || '📚'}</span>
+                {locked && <Icon name="Lock" size={10} className={active ? 'text-white/60' : 'text-gray-300'} />}
+                {SUBJECT_NAMES[sid]}
+              </button>
+            );
+          })}
+        </div>
+
+        {!isPrem && !limits.loading && (
+          <div className="mx-5 mt-3 mb-1 bg-gradient-to-r from-[#ffeaa7]/60 to-[#fdcb6e]/40 rounded-2xl p-3.5 border border-amber-200/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${sessLeft > 0 ? 'bg-white/80 text-emerald-600' : 'bg-red-100 text-red-500'}`}>
+                  <Icon name="BookOpen" size={12} />
+                  {sessLeft > 0 ? `${sessLeft} ${sessLeft === 1 ? 'урок' : 'урока'}` : '0 уроков'}
+                </div>
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${aiLeft > 0 ? 'bg-white/80 text-blue-600' : 'bg-red-100 text-red-500'}`}>
+                  <Icon name="Brain" size={12} />
+                  {aiLeft > 0 ? `${aiLeft} ИИ` : '0 ИИ'}
+                </div>
+              </div>
+              <button onClick={() => setShowPaywall(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#6c5ce7] to-[#a29bfe] text-white text-[11px] font-bold shadow-lg shadow-purple-300/30 active:scale-95 transition-transform">
+                <Icon name="Zap" size={13} />
+                Безлимит
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="px-5 mt-4 mb-3">
+          <p className="text-[13px] font-bold text-gray-800 flex items-center gap-2">
+            <span className="w-1 h-4 bg-gradient-to-b from-[#6c5ce7] to-[#a29bfe] rounded-full" />
+            Путь обучения
+          </p>
+        </div>
+
+        <div ref={scrollRef} className="px-4 pb-4 space-y-2.5">
+          {topics.map((topic, i) => {
+            const ok = completed.includes(i);
+            const cur = i === currentIdx;
+            const lock = !ok && !cur;
+
+            if (i > 0 && i % 4 === 0 && (ok || cur)) {
+              const phrases = ['Так держать! 💪', 'Ты молодец! 🌟', 'Не сдавайся! 🔥', 'Крутой прогресс! 🚀', 'Вперёд! ⚡', 'Огонь! 🎯'];
+              const phrase = phrases[Math.floor(i / 4) % phrases.length];
+              return (
+                <div key={i}>
+                  <div className="flex items-center gap-2.5 px-3 py-2 mb-2.5">
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-lg shadow-md border-2 border-white/60 index-companion-float`}>
+                      {stage.emoji}
+                    </div>
+                    <div className="bg-white rounded-2xl rounded-bl-md px-3.5 py-2 shadow-sm border border-gray-100">
+                      <p className="text-[12px] font-bold text-gray-700">{phrase}</p>
+                    </div>
+                  </div>
+                  <TopicCard i={i} topic={topic} ok={ok} cur={cur} lock={lock} onTap={tapTopic} />
+                </div>
+              );
+            }
+
+            return <TopicCard key={i} i={i} topic={topic} ok={ok} cur={cur} lock={lock} onTap={tapTopic} />;
+          })}
+        </div>
+
+        <div className="px-5 mt-2 mb-3">
+          <p className="text-[13px] font-bold text-gray-800 flex items-center gap-2">
+            <span className="w-1 h-4 bg-gradient-to-b from-[#00cec9] to-[#55efc4] rounded-full" />
+            Инструменты
+          </p>
+        </div>
+
+        <div className="px-5 pb-6 grid grid-cols-2 gap-3">
           <button onClick={() => { if (!isPrem && aiLeft <= 0) { setShowPaywall(true); return; } navigate('/assistant'); }}
-            className="flex-1 bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-              <Icon name="Brain" size={16} className="text-blue-600" />
+            className="bg-gradient-to-br from-[#6c5ce7]/8 to-[#a29bfe]/8 rounded-2xl p-4 border border-[#6c5ce7]/10 active:scale-[0.97] transition-all text-left">
+            <div className="w-11 h-11 bg-gradient-to-br from-[#6c5ce7] to-[#a29bfe] rounded-xl flex items-center justify-center shadow-lg shadow-purple-200/50 mb-3">
+              <Icon name="Brain" size={20} className="text-white" />
             </div>
-            <p className="text-[11px] font-bold text-gray-700">ИИ</p>
+            <p className="text-[14px] font-bold text-gray-900">ИИ помощник</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Задай любой вопрос</p>
           </button>
+
           <button onClick={() => navigate('/flashcards')}
-            className="flex-1 bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
-            <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-              <Icon name="Layers" size={16} className="text-amber-600" />
+            className="bg-gradient-to-br from-[#fdcb6e]/10 to-[#ffeaa7]/10 rounded-2xl p-4 border border-amber-200/30 active:scale-[0.97] transition-all text-left">
+            <div className="w-11 h-11 bg-gradient-to-br from-[#fdcb6e] to-[#e17055] rounded-xl flex items-center justify-center shadow-lg shadow-amber-200/50 mb-3">
+              <Icon name="Layers" size={20} className="text-white" />
             </div>
-            <p className="text-[11px] font-bold text-gray-700">Карточки</p>
+            <p className="text-[14px] font-bold text-gray-900">Карточки</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Запоминай быстрее</p>
           </button>
+
           <button onClick={() => navigate('/materials')}
-            className="flex-1 bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
-            <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-              <Icon name="FileText" size={16} className="text-emerald-600" />
+            className="bg-gradient-to-br from-[#00cec9]/8 to-[#55efc4]/8 rounded-2xl p-4 border border-teal-200/30 active:scale-[0.97] transition-all text-left">
+            <div className="w-11 h-11 bg-gradient-to-br from-[#00cec9] to-[#55efc4] rounded-xl flex items-center justify-center shadow-lg shadow-teal-200/50 mb-3">
+              <Icon name="FileText" size={20} className="text-white" />
             </div>
-            <p className="text-[11px] font-bold text-gray-700">Файлы</p>
+            <p className="text-[14px] font-bold text-gray-900">Материалы</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Шпаргалки и файлы</p>
           </button>
+
           <button onClick={() => navigate('/pomodoro')}
-            className="flex-1 bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
-            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-              <Icon name="Timer" size={16} className="text-red-500" />
+            className="bg-gradient-to-br from-[#ff7675]/8 to-[#fd79a8]/8 rounded-2xl p-4 border border-pink-200/30 active:scale-[0.97] transition-all text-left">
+            <div className="w-11 h-11 bg-gradient-to-br from-[#ff7675] to-[#fd79a8] rounded-xl flex items-center justify-center shadow-lg shadow-pink-200/50 mb-3">
+              <Icon name="Timer" size={20} className="text-white" />
             </div>
-            <p className="text-[11px] font-bold text-gray-700">Таймер</p>
+            <p className="text-[14px] font-bold text-gray-900">Таймер</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Помодоро-метод</p>
           </button>
         </div>
       </div>
@@ -382,8 +373,66 @@ export default function Index() {
       <style>{`
         .scrollbar-hide::-webkit-scrollbar{display:none}
         .scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
-        @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
+        .index-shimmer{animation:index-shimmer 2.5s infinite}
+        @keyframes index-shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
+        .index-companion-float{animation:index-float 3s ease-in-out infinite}
+        @keyframes index-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+        .index-pulse-ring{animation:index-pulse-ring 2s ease-in-out infinite}
+        @keyframes index-pulse-ring{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.15);opacity:0.2}}
       `}</style>
     </div>
   );
 }
+
+function TopicCard({ i, topic, ok, cur, lock, onTap }: { i: number; topic: string; ok: boolean; cur: boolean; lock: boolean; onTap: (i: number) => void }) {
+  return (
+    <button
+      key={i}
+      data-idx={i}
+      onClick={() => onTap(i)}
+      disabled={lock}
+      className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl transition-all active:scale-[0.98] ${
+        cur ? 'bg-gradient-to-r from-[#6c5ce7] to-[#a29bfe] shadow-xl shadow-purple-300/30' :
+        ok ? 'bg-white shadow-sm border border-gray-100' :
+        'bg-gray-50/80 border border-gray-100/50 opacity-50'
+      }`}
+    >
+      <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+        cur ? 'bg-white/20' :
+        ok ? 'bg-gradient-to-br from-emerald-400 to-teal-500 shadow-md shadow-emerald-200/40' :
+        'bg-gray-200/80'
+      }`}>
+        {ok && <Icon name="Check" size={22} className="text-white" />}
+        {cur && (
+          <>
+            <div className="absolute inset-0 rounded-xl bg-white/10 index-pulse-ring" />
+            <Icon name="Play" size={22} className="text-white ml-0.5" />
+          </>
+        )}
+        {lock && <Icon name="Lock" size={16} className="text-gray-400" />}
+      </div>
+
+      <div className="flex-1 text-left min-w-0">
+        <p className={`text-[13px] font-bold leading-snug ${cur ? 'text-white' : ok ? 'text-gray-900' : 'text-gray-400'}`}>
+          {topic}
+        </p>
+        <p className={`text-[11px] mt-0.5 ${cur ? 'text-white/60' : ok ? 'text-gray-400' : 'text-gray-300'}`}>
+          {cur ? 'Нажми, чтобы начать' : ok ? 'Пройдено ✓' : `Тема ${i + 1}`}
+        </p>
+      </div>
+
+      {cur && (
+        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <Icon name="ArrowRight" size={18} className="text-white" />
+        </div>
+      )}
+      {ok && (
+        <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Icon name="Star" size={14} className="text-amber-400" />
+        </div>
+      )}
+    </button>
+  );
+}
+
+export { TopicCard };
