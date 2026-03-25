@@ -155,9 +155,21 @@ export default function Index() {
   }
 
   const firstName = user?.full_name?.split(' ')[0] || 'Ученик';
+  const userGoal = user?.goal || 'ege';
+  const isExamGoal = userGoal === 'ege' || userGoal === 'oge';
+  const examLabel = userGoal === 'oge' ? 'ОГЭ' : 'ЕГЭ';
+
+  const EGE_DATE = new Date('2026-05-25');
+  const OGE_DATE = new Date('2026-05-19');
+  const examDate = userGoal === 'oge' ? OGE_DATE : EGE_DATE;
+  const daysToExam = Math.max(0, Math.ceil((examDate.getTime() - Date.now()) / 86400000));
 
   return (
-    <div className="min-h-screen pb-20 bg-gradient-to-b from-[#ede9fe] via-[#f5f3ff] to-[#eef2ff]">
+    <div className="min-h-screen pb-24 bg-gradient-to-b from-[#ede9fe] via-[#f5f3ff] to-[#eef2ff] relative overflow-hidden">
+
+      <div className="absolute top-40 -left-20 w-72 h-72 bg-purple-200/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-[60%] -right-16 w-64 h-64 bg-indigo-200/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-40 left-10 w-48 h-48 bg-pink-200/15 rounded-full blur-3xl pointer-events-none" />
 
       <div className="sticky top-0 z-40">
         {showTrialBanner && (
@@ -252,6 +264,81 @@ export default function Index() {
             <span className="text-[10px] font-black text-purple-700/70">{progressPct}%</span>
           </div>
         </div>
+      </div>
+
+      {isExamGoal && (
+        <button
+          onClick={() => navigate('/exam')}
+          className="mx-4 mb-4 bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700 rounded-3xl p-5 text-left active:scale-[0.98] transition-all relative overflow-hidden shadow-[0_4px_24px_rgba(99,102,241,0.25)]"
+        >
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-12 translate-x-12" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 bg-white/15 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Icon name="GraduationCap" size={22} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-extrabold text-[15px]">Подготовка к {examLabel}</p>
+                  <p className="text-white/60 text-[12px] mt-0.5">Практика, разбор, пробные тесты</p>
+                </div>
+              </div>
+              <Icon name="ChevronRight" size={20} className="text-white/40" />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 backdrop-blur-sm">
+                <p className="text-white/60 text-[10px] uppercase tracking-wider">До экзамена</p>
+                <p className="text-white font-black text-lg leading-none mt-0.5">{daysToExam} <span className="text-sm font-bold text-white/60">дн.</span></p>
+              </div>
+              <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 backdrop-blur-sm">
+                <p className="text-white/60 text-[10px] uppercase tracking-wider">Освоено тем</p>
+                <p className="text-white font-black text-lg leading-none mt-0.5">{completedCount} <span className="text-sm font-bold text-white/60">/ {topics.length}</span></p>
+              </div>
+              <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 backdrop-blur-sm">
+                <p className="text-white/60 text-[10px] uppercase tracking-wider">Предмет</p>
+                <p className="text-lg leading-none mt-0.5">{SUBJECT_EMOJI[activeSubject] || '📚'}</p>
+              </div>
+            </div>
+          </div>
+        </button>
+      )}
+
+      <div className="flex gap-2 mx-4 mb-5">
+        <button
+          onClick={() => navigate('/assistant')}
+          className="flex-1 bg-white rounded-2xl p-3.5 shadow-sm border border-purple-100/30 active:scale-95 transition-all"
+        >
+          <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center mb-2">
+            <Icon name="Brain" size={18} className="text-blue-600" />
+          </div>
+          <p className="text-[12px] font-bold text-gray-700">ИИ-помощник</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">Фото и аудио</p>
+        </button>
+        <button
+          onClick={() => navigate('/flashcards')}
+          className="flex-1 bg-white rounded-2xl p-3.5 shadow-sm border border-purple-100/30 active:scale-95 transition-all"
+        >
+          <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center mb-2">
+            <Icon name="Layers" size={18} className="text-amber-600" />
+          </div>
+          <p className="text-[12px] font-bold text-gray-700">Карточки</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">Повторение</p>
+        </button>
+        <button
+          onClick={() => navigate('/materials')}
+          className="flex-1 bg-white rounded-2xl p-3.5 shadow-sm border border-purple-100/30 active:scale-95 transition-all"
+        >
+          <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center mb-2">
+            <Icon name="FileText" size={18} className="text-emerald-600" />
+          </div>
+          <p className="text-[12px] font-bold text-gray-700">Материалы</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">Файлы и ИИ</p>
+        </button>
+      </div>
+
+      <div className="mx-4 mb-3">
+        <p className="text-[13px] font-bold text-gray-500 uppercase tracking-wider">Путь обучения</p>
       </div>
 
       <div
