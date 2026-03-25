@@ -600,7 +600,7 @@ export default function AuthNew() {
           {/* Социальное доказательство */}
           <div className="flex items-center gap-2 bg-white/15 backdrop-blur rounded-full px-4 py-2">
             <span className="text-yellow-300 text-sm">★★★★★</span>
-            <span className="text-white/80 text-sm font-medium">12 400+ учеников</span>
+            <span className="text-white/80 text-sm font-medium">500+ учеников</span>
           </div>
         </div>
 
