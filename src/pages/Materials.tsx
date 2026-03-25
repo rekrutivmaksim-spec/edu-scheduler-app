@@ -544,6 +544,16 @@ const Materials = () => {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button
                   onClick={() => {
+                    navigate('/flashcards');
+                    setSelectedMaterial(null);
+                  }}
+                  className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl"
+                >
+                  <Icon name="Layers" size={20} className="mr-2" />
+                  Создать карточки
+                </Button>
+                <Button
+                  onClick={() => {
                     navigate('/assistant');
                     setSelectedMaterial(null);
                   }}

@@ -40,6 +40,8 @@ import RuStoreInfo from "./pages/RuStoreInfo";
 import ParentAuth from "./pages/ParentAuth";
 import ParentPay from "./pages/ParentPay";
 import ParentDashboard from "./pages/ParentDashboard";
+import Quests from "./pages/Quests";
+import League from "./pages/League";
 import AppMetricaTracker from "@/components/AppMetricaTracker";
 import NotificationPrompt from "@/components/NotificationPrompt";
 import { useEffect } from "react";
@@ -111,7 +113,9 @@ const App = () => (
               <Route path="/referral" element={<Referral />} />
               <Route path="/groups" element={<StudyGroups />} />
               <Route path="/widget" element={<Widget />} />
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/quests" element={<Quests />} />
+              <Route path="/league" element={<League />} />
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/exam" element={<Exam />} />
               <Route path="/university" element={<University />} />
               <Route path="/screenshots" element={<Screenshots />} />

@@ -34,14 +34,14 @@ const TRIGGER_COPY = {
     emoji: '🎉',
     title: 'Отличная работа!',
     subtitle: 'Ты делаешь успехи! С Premium — учись без ограничений каждый день.',
-    urgency: 'Первый месяц — 299 ₽. Цена одной поездки на метро.',
+    urgency: 'Безлимит на всё — 499 ₽/мес. Дешевле одного занятия с репетитором.',
     showPack: false,
   },
   after_session_3rd: {
     emoji: '🏆',
     title: 'Ты прошёл уже 3 занятия!',
     subtitle: 'Серьёзный результат. С Premium — безлимит на всё без перерывов.',
-    urgency: 'Первый месяц — 299 ₽ вместо 499 ₽. Скидка только сейчас!',
+    urgency: 'Безлимит на всё — 499 ₽/мес. Отмена в любой момент.',
     showPack: false,
   },
 };
@@ -188,7 +188,7 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onCl
             {buying === '1month' ? (
               <Icon name="Loader2" size={18} className="animate-spin" />
             ) : (
-              '🚀 Premium — 299 ₽/мес'
+              '🚀 Premium — 499 ₽/мес'
             )}
           </Button>
           <button

@@ -778,15 +778,16 @@ const Assistant = () => {
                 if (photoLocked) { setShowFeatureLimitScreen('photo'); return; }
                 fileInputRef.current?.click();
               }}
-              className={`p-2 rounded-full transition-colors flex-shrink-0 mb-0.5 relative ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl transition-colors flex-shrink-0 relative ${
                 photoLocked
-                  ? 'text-gray-300 cursor-pointer'
-                  : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100'
+                  ? 'text-gray-300 bg-gray-50 cursor-pointer'
+                  : 'text-gray-500 bg-gray-100 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100'
               }`}
               disabled={isLoading}
               title={photoLocked ? 'Лимит фото исчерпан' : 'Прикрепить фото'}
             >
-              <Icon name="Paperclip" size={20} />
+              <Icon name="Camera" size={16} />
+              <span className="text-[11px] font-medium">Фото</span>
               {photoLocked && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
                   <Icon name="Lock" size={9} className="text-white" />
@@ -845,14 +846,15 @@ const Assistant = () => {
                   if (audioLocked) { setShowFeatureLimitScreen('audio'); return; }
                   try { setIsRecording(true); } catch (e) { console.error(e); }
                 }}
-                className={`p-2 rounded-full transition-colors flex-shrink-0 mb-0.5 relative ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl transition-colors flex-shrink-0 relative ${
                   audioLocked
-                    ? 'text-gray-300 cursor-pointer'
-                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100'
+                    ? 'text-gray-300 bg-gray-50 cursor-pointer'
+                    : 'text-gray-500 bg-gray-100 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100'
                 }`}
                 disabled={isLoading}
               >
-                <Icon name="Mic" size={20} />
+                <Icon name="Mic" size={16} />
+                <span className="text-[11px] font-medium">Голос</span>
                 {audioLocked && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
                     <Icon name="Lock" size={9} className="text-white" />

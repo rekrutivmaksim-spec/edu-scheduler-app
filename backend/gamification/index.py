@@ -346,6 +346,56 @@ def record_activity(conn, user_id: int, activity_type: str, value: int = 1):
     conn.commit()
     cur.close()
 
+    feed_titles = {
+        'tasks_completed': 'завершил занятие',
+        'exam_tasks_done': 'решил задание по экзамену',
+        'ai_questions_asked': 'задал вопрос ИИ',
+        'pomodoro_minutes': 'позанимался в помодоро',
+        'materials_uploaded': 'загрузил материал',
+    }
+    feed_emojis = {
+        'tasks_completed': '🚀',
+        'exam_tasks_done': '🎯',
+        'ai_questions_asked': '🧠',
+        'pomodoro_minutes': '⏱️',
+        'materials_uploaded': '📚',
+    }
+    if activity_type in feed_titles and activity_type != 'schedule_views':
+        try:
+            cur2 = conn.cursor(cursor_factory=RealDictCursor)
+            cur2.execute("SELECT full_name FROM users WHERE id = %s", (user_id,))
+            urow = cur2.fetchone()
+            uname = (urow['full_name'] or 'Ученик').split(' ')[0] if urow else 'Ученик'
+            cur2.execute("""
+                INSERT INTO activity_feed (user_id, event_type, user_name, description, emoji)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (user_id, activity_type, uname, feed_titles[activity_type], feed_emojis.get(activity_type, '📌')))
+            conn.commit()
+            cur2.close()
+        except Exception:
+            pass
+
+    cur3 = conn.cursor(cursor_factory=RealDictCursor)
+    cur3.execute("SELECT current_streak FROM user_streaks WHERE user_id = %s", (user_id,))
+    srow = cur3.fetchone()
+    new_streak = srow['current_streak'] if srow else 0
+    cur3.close()
+    if new_streak in (3, 7, 14, 30, 60, 90, 180, 365):
+        try:
+            cur4 = conn.cursor(cursor_factory=RealDictCursor)
+            cur4.execute("SELECT full_name FROM users WHERE id = %s", (user_id,))
+            urow = cur4.fetchone()
+            uname = (urow['full_name'] or 'Ученик').split(' ')[0] if urow else 'Ученик'
+            cur4.execute("""
+                INSERT INTO activity_feed (user_id, event_type, user_name, description, emoji)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT DO NOTHING
+            """, (user_id, 'streak_milestone', uname, f'на стрике {new_streak} дней подряд!', '🔥'))
+            conn.commit()
+            cur4.close()
+        except Exception:
+            pass
+
     quest_type_map = {
         'tasks_completed': 'complete_tasks',
         'pomodoro_minutes': 'pomodoro_session',
@@ -443,6 +493,17 @@ def check_achievements(conn, user_id: int):
                 'xp_reward': ach['xp_reward'],
                 'category': ach['category']
             })
+
+            try:
+                cur.execute("SELECT full_name FROM users WHERE id = %s", (user_id,))
+                urow = cur.fetchone()
+                uname = (urow['full_name'] or 'Ученик').split(' ')[0] if urow else 'Ученик'
+                cur.execute("""
+                    INSERT INTO activity_feed (user_id, event_type, user_name, description, emoji)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (user_id, 'achievement', uname, f'получил достижение «{ach["title"]}»', ach.get('icon', '🏅')))
+            except Exception:
+                pass
 
     conn.commit()
     cur.close()
@@ -924,6 +985,28 @@ def handler(event: dict, context) -> dict:
                     'headers': headers,
                     'body': json.dumps({'is_weekend': is_weekend, 'xp_multiplier': 2 if is_weekend else 1})
                 }
+
+            elif action == 'activity_feed':
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("""
+                    SELECT af.id, af.event_type, af.user_name, af.description, af.emoji, af.created_at
+                    FROM activity_feed af
+                    ORDER BY af.created_at DESC
+                    LIMIT 50
+                """)
+                events = cur.fetchall()
+                cur.close()
+                feed = []
+                for e in events:
+                    feed.append({
+                        'id': str(e['id']),
+                        'user_name': e['user_name'] or 'Ученик',
+                        'event_type': e['event_type'] or 'info',
+                        'description': e['description'] or '',
+                        'emoji': e['emoji'] or '📌',
+                        'created_at': e['created_at'].isoformat() if e['created_at'] else '',
+                    })
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'feed': feed}, default=str)}
 
             return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': '\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435'})}
 
