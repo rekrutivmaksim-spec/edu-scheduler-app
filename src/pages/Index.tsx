@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/lib/auth';
+import Icon from '@/components/ui/icon';
 import BottomNav from '@/components/BottomNav';
 import { useHearts } from '@/hooks/useHearts';
 import { useLimits } from '@/hooks/useLimits';
@@ -12,18 +13,10 @@ import PaywallSheet from '@/components/PaywallSheet';
 import DailyBonusPopup from '@/components/DailyBonusPopup';
 
 const SUBJECT_NAMES: Record<string, string> = {
-  ru: 'Русский язык',
-  math_prof: 'Математика (профиль)',
-  math_base: 'Математика (база)',
-  physics: 'Физика',
-  chemistry: 'Химия',
-  biology: 'Биология',
-  history: 'История',
-  social: 'Обществознание',
-  informatics: 'Информатика',
-  english: 'Английский язык',
-  geography: 'География',
-  literature: 'Литература',
+  ru: 'Русский язык', math_prof: 'Математика (профиль)', math_base: 'Математика (база)',
+  physics: 'Физика', chemistry: 'Химия', biology: 'Биология', history: 'История',
+  social: 'Обществознание', informatics: 'Информатика', english: 'Английский язык',
+  geography: 'География', literature: 'Литература',
 };
 
 const ALL_SUBJECT_IDS = Object.keys(SUBJECT_NAMES);
@@ -45,16 +38,13 @@ function loadCompletedFromStorage(subject: string): number[] {
   try {
     const raw = localStorage.getItem(`completed_topics_${subject}`);
     if (raw) return JSON.parse(raw) as number[];
-  } catch { /* corrupted */ }
+  } catch { /* */ }
   return [];
 }
 
 function getNodeX(index: number): number {
-  const cycle = index % 4;
-  if (cycle === 0) return 50;
-  if (cycle === 1) return 78;
-  if (cycle === 2) return 50;
-  return 22;
+  const positions = [50, 75, 50, 25];
+  return positions[index % 4];
 }
 
 export default function Index() {
@@ -132,7 +122,7 @@ export default function Index() {
         body: JSON.stringify({ action: 'get_profile' }),
       });
       if (res.ok) setGamification(await res.json());
-    } catch { /* silent */ }
+    } catch { /* */ }
   };
 
   const handleTopicTap = (index: number) => {
@@ -144,40 +134,54 @@ export default function Index() {
 
   const streak = gamification?.streak?.current ?? 0;
   const xp = gamification?.xp_progress ?? 0;
+  const NODE_GAP = 110;
+  const PATH_WIDTH = 320;
 
-  const NODE_GAP = 96;
+  function buildCurvePath(i: number): string {
+    if (i === 0) return '';
+    const x1 = (getNodeX(i - 1) / 100) * PATH_WIDTH;
+    const y1 = (i - 1) * NODE_GAP + 30;
+    const x2 = (getNodeX(i) / 100) * PATH_WIDTH;
+    const y2 = i * NODE_GAP + 30;
+    const cy = (y1 + y2) / 2;
+    return `M ${x1} ${y1} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`;
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-purple-50 pb-20">
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-100 shadow-sm">
+    <div className="min-h-screen bg-[#f0f0ff] pb-20">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-2xl shadow-[0_1px_12px_rgba(100,80,200,0.08)]">
         {showTrialBanner && (
-          <div className="text-center py-1 text-[11px] text-purple-600 font-medium bg-purple-50/60 tracking-wide">
+          <div className="text-center py-1 text-[11px] font-semibold tracking-wide bg-gradient-to-r from-purple-500 to-indigo-500 text-white">
             Premium бесплатно ещё {daysLeft} {pluralDays(daysLeft)}
           </div>
         )}
-        <div className="flex items-center justify-between px-5 h-11">
-          <button onClick={() => navigate('/league')} className="flex items-center gap-1.5 min-w-[52px]">
-            <span className="text-lg leading-none">🔥</span>
-            <span className="text-sm font-extrabold text-orange-500">{streak}</span>
+        <div className="flex items-center justify-between px-4 h-12">
+          <button onClick={() => navigate('/league')} className="flex items-center gap-1.5 bg-orange-50 rounded-xl px-3 py-1.5">
+            <Icon name="Flame" size={18} className="text-orange-500" />
+            <span className="text-sm font-extrabold text-orange-600">{streak}</span>
           </button>
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1">
             {Array.from({ length: hearts.maxHearts }).map((_, i) => (
-              <span
+              <Icon
                 key={i}
-                className={`text-[15px] transition-opacity ${i < hearts.hearts ? 'opacity-100' : 'opacity-20'}`}
-              >
-                ❤️
-              </span>
+                name="Heart"
+                size={18}
+                className={`transition-all duration-300 ${
+                  i < hearts.hearts
+                    ? 'text-red-500 drop-shadow-[0_1px_2px_rgba(239,68,68,0.4)]'
+                    : 'text-gray-200'
+                }`}
+              />
             ))}
           </div>
-          <button onClick={() => navigate('/profile')} className="flex items-center gap-1.5 min-w-[52px] justify-end">
-            <span className="text-lg leading-none">⭐</span>
-            <span className="text-sm font-extrabold text-amber-500">{xp}</span>
+          <button onClick={() => navigate('/profile')} className="flex items-center gap-1.5 bg-amber-50 rounded-xl px-3 py-1.5">
+            <Icon name="Star" size={18} className="text-amber-500" />
+            <span className="text-sm font-extrabold text-amber-600">{xp}</span>
           </button>
         </div>
       </div>
 
-      <div className="flex gap-2 px-4 py-2.5 overflow-x-auto scrollbar-hide">
+      <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
         {[examSubject, ...ALL_SUBJECT_IDS.filter(s => s !== examSubject)].map(sid => {
           const active = sid === activeSubject;
           const locked = !limits.isPremium && sid !== examSubject;
@@ -188,33 +192,39 @@ export default function Index() {
                 if (locked) { setShowPaywall(true); return; }
                 setActiveSubject(sid);
               }}
-              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`flex-shrink-0 px-4 py-2 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
                 active
-                  ? 'bg-purple-600 text-white shadow-md shadow-purple-200'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-200/50'
                   : locked
-                  ? 'bg-gray-100 text-gray-300'
-                  : 'bg-gray-100 text-gray-600 active:bg-gray-200'
+                  ? 'bg-white/60 text-gray-300 border border-gray-200/50'
+                  : 'bg-white text-gray-600 shadow-sm border border-gray-200/50 active:bg-gray-50'
               }`}
             >
-              {locked ? '🔒 ' : ''}{SUBJECT_NAMES[sid]}
+              {locked && <Icon name="Lock" size={10} className="inline mr-1 -mt-0.5" />}
+              {SUBJECT_NAMES[sid]}
             </button>
           );
         })}
       </div>
 
-      <div className="px-5 pt-1 pb-3">
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{companionStage.emoji}</span>
-            <span className="text-[13px] font-bold text-gray-700">
-              {SUBJECT_NAMES[activeSubject]}
-            </span>
+      <div className="mx-4 bg-white rounded-2xl p-4 shadow-sm mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${companion.style} flex items-center justify-center text-lg shadow-sm`}>
+              {companionStage.emoji}
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-800">{SUBJECT_NAMES[activeSubject]}</p>
+              <p className="text-[11px] text-gray-400">Тема {currentIndex >= 0 ? currentIndex + 1 : completedCount} из {topics.length}</p>
+            </div>
           </div>
-          <span className="text-xs font-semibold text-gray-400">{completedCount}/{topics.length}</span>
+          <div className="text-right">
+            <p className="text-lg font-extrabold text-purple-600">{progressPct}%</p>
+          </div>
         </div>
-        <div className="h-2.5 bg-gray-200/70 rounded-full overflow-hidden">
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-700 ease-out"
+            className="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 rounded-full transition-all duration-700 ease-out"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -223,28 +233,27 @@ export default function Index() {
       <div
         ref={scrollRef}
         className="relative mx-auto"
-        style={{ maxWidth: 340, minHeight: topics.length * NODE_GAP + 40 }}
+        style={{ maxWidth: PATH_WIDTH, minHeight: topics.length * NODE_GAP + 60 }}
       >
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
-          style={{ height: topics.length * NODE_GAP + 40 }}
+          style={{ height: topics.length * NODE_GAP + 60 }}
         >
           {topics.map((_, i) => {
             if (i === 0) return null;
-            const x1 = (getNodeX(i - 1) / 100) * 340;
-            const y1 = (i - 1) * NODE_GAP + 28;
-            const x2 = (getNodeX(i) / 100) * 340;
-            const y2 = i * NODE_GAP + 28;
-            const done = completedTopics.includes(i);
-            const active = i === currentIndex || completedTopics.includes(i);
+            const d = buildCurvePath(i);
+            const done = completedTopics.includes(i) || completedTopics.includes(i - 1);
+            const isNext = i === currentIndex;
             return (
-              <line
+              <path
                 key={i}
-                x1={x1} y1={y1} x2={x2} y2={y2}
-                stroke={active ? '#c4b5fd' : '#e5e7eb'}
-                strokeWidth={done ? 3 : 2}
-                strokeDasharray={done ? 'none' : '6 4'}
+                d={d}
+                fill="none"
+                stroke={done ? '#a78bfa' : isNext ? '#c4b5fd' : '#e2e0ea'}
+                strokeWidth={done ? 4 : 3}
+                strokeDasharray={done ? 'none' : isNext ? '8 6' : '4 6'}
                 strokeLinecap="round"
+                className="transition-all duration-500"
               />
             );
           })}
@@ -255,7 +264,7 @@ export default function Index() {
           const isCurrent = i === currentIndex;
           const locked = !done && !isCurrent;
           const x = getNodeX(i);
-          const size = isCurrent ? 60 : 48;
+          const size = isCurrent ? 64 : done ? 52 : 44;
 
           return (
             <div
@@ -266,38 +275,52 @@ export default function Index() {
                 left: `${x}%`,
                 top: i * NODE_GAP,
                 transform: 'translateX(-50%)',
-                width: 120,
+                width: 140,
               }}
             >
               <button
                 onClick={() => handleTopicTap(i)}
                 disabled={locked}
-                className={`relative flex items-center justify-center rounded-full transition-all duration-300 ${
-                  isCurrent
-                    ? 'bg-gradient-to-br from-purple-500 to-indigo-600 shadow-xl shadow-purple-300/40'
-                    : done
-                    ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-md shadow-green-200/40'
-                    : 'bg-gray-200 shadow-sm'
-                }`}
+                className="relative flex items-center justify-center rounded-full transition-all duration-300"
                 style={{ width: size, height: size }}
               >
                 {isCurrent && (
-                  <span className="absolute inset-0 rounded-full bg-purple-400/30 animate-ping" />
+                  <span className="absolute inset-[-6px] rounded-full border-[3px] border-purple-300 animate-[ping_2s_ease-in-out_infinite] opacity-40" />
                 )}
-                {done && <span className="text-white text-lg font-bold relative z-10">✓</span>}
-                {isCurrent && <span className="text-white text-2xl relative z-10">▶</span>}
-                {locked && <span className="text-gray-400 text-sm">🔒</span>}
+                {isCurrent && (
+                  <span className="absolute inset-[-4px] rounded-full border-2 border-purple-200" />
+                )}
+
+                <div className={`w-full h-full rounded-full flex items-center justify-center transition-all duration-300 ${
+                  isCurrent
+                    ? 'bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-600 shadow-[0_6px_24px_rgba(109,40,217,0.4)]'
+                    : done
+                    ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-[0_4px_14px_rgba(52,211,153,0.35)]'
+                    : 'bg-gray-200/80 shadow-inner'
+                }`}>
+                  {done && <Icon name="Check" size={22} className="text-white drop-shadow-sm" />}
+                  {isCurrent && <Icon name="Play" size={24} className="text-white drop-shadow-sm ml-0.5" />}
+                  {locked && <Icon name="Lock" size={16} className="text-gray-400" />}
+                </div>
+
+                {done && (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md">
+                    <Icon name="Star" size={12} className="text-amber-400" />
+                  </div>
+                )}
               </button>
 
               {isCurrent && (
-                <span className="mt-2 px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 text-[11px] font-bold text-center leading-tight max-w-[120px] truncate">
-                  {topic}
-                </span>
+                <div className="mt-3 px-3 py-1.5 rounded-xl bg-purple-600 shadow-lg shadow-purple-200/50">
+                  <p className="text-[11px] font-bold text-white text-center leading-tight max-w-[120px] truncate">
+                    {topic}
+                  </p>
+                </div>
               )}
               {done && (
-                <span className="mt-1 text-[10px] text-gray-400 text-center max-w-[100px] truncate">
+                <p className="mt-1.5 text-[10px] text-gray-400 text-center max-w-[100px] truncate font-medium">
                   {topic}
-                </span>
+                </p>
               )}
             </div>
           );
@@ -313,6 +336,11 @@ export default function Index() {
       )}
 
       <BottomNav />
+
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 }
