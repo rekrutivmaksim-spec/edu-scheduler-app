@@ -7,6 +7,7 @@ import PaywallSheet from '@/components/PaywallSheet';
 import RewardModal from '@/components/RewardModal';
 import { authService } from '@/lib/auth';
 import { API } from '@/lib/api-urls';
+import AiText from '@/components/AiText';
 
 type Mode = 'home' | 'file' | 'question';
 
@@ -235,7 +236,7 @@ export default function University() {
                 </div>
                 <span className="font-bold text-gray-800 text-sm">Ответ</span>
               </div>
-              <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">{answer}</p>
+              <AiText text={answer} />
 
               {/* Плашка после ответа */}
               <div className="mt-4 pt-4 border-t border-gray-50 space-y-2">
@@ -336,7 +337,7 @@ export default function University() {
 
               {answer && (
                 <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-5">
-                  <p className="text-indigo-800 text-sm leading-relaxed whitespace-pre-line">{answer}</p>
+                  <AiText text={answer} className="[&_p]:text-indigo-800" />
                 </div>
               )}
 

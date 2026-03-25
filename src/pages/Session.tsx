@@ -8,6 +8,7 @@ import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/
 import { getTodayTopic as getTodayTopicBase, TOPICS_BY_SUBJECT, DEFAULT_TOPICS } from '@/lib/topics';
 import { trackActivity } from '@/lib/gamification';
 import { API } from '@/lib/api-urls';
+import AiText from '@/components/AiText';
 
 function getTodayTopic(examSubject?: string | null, offset = 0): { subject: string; topic: string; number: number; total: number } {
   // Используем хеш даты как базовый индекс, offset сдвигает на каждое новое занятие
@@ -888,9 +889,15 @@ export default function Session() {
 
         {/* Текст контента */}
         {!loading && !checkLoading && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm text-gray-800 text-sm leading-relaxed whitespace-pre-line">
-            {isTyping && !checkTypingText ? typingText : content}
-            {isTyping && !checkTypingText && <span className="inline-block w-0.5 h-4 bg-indigo-500 ml-0.5 animate-pulse align-middle" />}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/50">
+            {isTyping && !checkTypingText ? (
+              <p className="text-[14.5px] leading-[1.75] text-gray-700 whitespace-pre-line">
+                {typingText}
+                <span className="inline-block w-0.5 h-4 bg-indigo-500 ml-0.5 animate-pulse align-middle" />
+              </p>
+            ) : (
+              <AiText text={content} />
+            )}
           </div>
         )}
 
@@ -928,15 +935,18 @@ export default function Session() {
 
         {/* Результат проверки */}
         {showCheckResult && (
-          <div className={`rounded-2xl p-4 shadow-sm text-sm leading-relaxed whitespace-pre-line animate-in fade-in duration-300 ${
-            answerCorrect ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-amber-50 border border-amber-200 text-amber-800'
+          <div className={`rounded-2xl p-5 shadow-sm animate-in fade-in duration-300 ${
+            answerCorrect ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200' : 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200'
           }`}>
-            <div className="flex items-start gap-2">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${answerCorrect ? 'bg-green-500' : 'bg-amber-500'}`}>
-                <Icon name={answerCorrect ? 'Check' : 'X'} size={12} className="text-white" />
+            <div className="flex items-start gap-3 mb-2">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${answerCorrect ? 'bg-green-500 shadow-md shadow-green-200' : 'bg-amber-500 shadow-md shadow-amber-200'}`}>
+                <Icon name={answerCorrect ? 'Check' : 'X'} size={16} className="text-white" />
               </div>
-              <p>{checkResult}</p>
+              <p className={`text-[15px] font-bold mt-1 ${answerCorrect ? 'text-green-700' : 'text-amber-700'}`}>
+                {answerCorrect ? 'Правильно!' : 'Не совсем верно'}
+              </p>
             </div>
+            <AiText text={checkResult} className={answerCorrect ? '[&_p]:text-green-800' : '[&_p]:text-amber-800'} />
 
             {/* Попробовать ещё раз + Показать правильный — только при неверном */}
             {!answerCorrect && (
@@ -965,11 +975,11 @@ export default function Session() {
 
             {/* Правильный ответ */}
             {showCorrectAnswer && correctAnswer && (
-              <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-                <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <div className="mt-3 bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-4">
+                <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                   <Icon name="Lightbulb" size={12} /> Правильное решение
                 </p>
-                <p className="text-sm text-indigo-900 leading-relaxed whitespace-pre-line">{correctAnswer}</p>
+                <AiText text={correctAnswer} className="[&_p]:text-indigo-900" />
               </div>
             )}
           </div>
@@ -979,7 +989,7 @@ export default function Session() {
       </div>
 
       {/* Кнопка Дальше */}
-      {!loading && !checkLoading && content && !isTyping && !checkTypingText && (
+      {!loading && !checkLoading && content && !isTyping && (!checkTypingText || checkResult) && (
         <div className="px-4 pb-8 pt-2 bg-gray-50">
           {!isTaskStep ? (
             <Button

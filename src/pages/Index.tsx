@@ -237,7 +237,10 @@ function Index() {
               <Icon name="Target" size={22} className="text-white" />
             </div>
             <div className="flex-1 text-left">
-              <p className="text-white text-[14px] font-bold">Слабые места</p>
+              <div className="flex items-center gap-2">
+                <p className="text-white text-[14px] font-bold">Слабые места</p>
+                <span className="text-[9px] bg-white/25 text-white font-bold px-1.5 py-0.5 rounded-full">PRO</span>
+              </div>
               <p className="text-white/70 text-[11px] font-medium">ИИ проанализирует твои ошибки</p>
             </div>
             <Icon name="ChevronRight" size={18} className="text-white/50" />

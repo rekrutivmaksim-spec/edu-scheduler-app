@@ -7,6 +7,7 @@ import { useLimits } from '@/hooks/useLimits';
 import PaywallSheet from '@/components/PaywallSheet';
 import { API } from '@/lib/api-urls';
 import { trackActivity } from '@/lib/gamification';
+import AiText from '@/components/AiText';
 
 const EGE_DATE = new Date('2026-05-25');
 const OGE_DATE = new Date('2026-05-19');
@@ -231,12 +232,16 @@ export default function Exam() {
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {messages.map(msg => (
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+              <div className={`max-w-[85%] rounded-2xl ${
                 msg.role === 'user'
-                  ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-br-md'
-                  : 'bg-white text-gray-800 shadow-sm border border-gray-100/60 rounded-bl-md'
+                  ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-br-md px-4 py-3'
+                  : 'bg-white shadow-sm border border-gray-100/60 rounded-bl-md px-4 py-4'
               }`}>
-                <p className="text-[14px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                {msg.role === 'user' ? (
+                  <p className="text-[14px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                ) : (
+                  <AiText text={msg.text} />
+                )}
               </div>
             </div>
           ))}
