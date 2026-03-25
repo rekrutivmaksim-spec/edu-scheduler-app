@@ -366,6 +366,22 @@ const Profile = () => {
         </div>
 
         <button
+          onClick={() => navigate('/referral')}
+          className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-4 shadow-md active:scale-[0.98] transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <Icon name="Gift" size={20} className="text-white" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-white font-bold text-sm">Пригласи друга</p>
+              <p className="text-white/70 text-[11px] mt-0.5">Получи +7 дней Premium бесплатно</p>
+            </div>
+            <Icon name="ChevronRight" size={18} className="text-white/50" />
+          </div>
+        </button>
+
+        <button
           onClick={() => setShowDeleteConfirm(true)}
           className="w-full text-center text-xs text-red-400 py-3"
         >

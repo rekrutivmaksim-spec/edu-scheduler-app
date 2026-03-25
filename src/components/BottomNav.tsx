@@ -1,7 +1,32 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
+import { authService } from '@/lib/auth';
 
-const tabs = [
+interface Tab {
+  path: string;
+  icon: string;
+  label: string;
+  activeColor: string;
+  activeBg: string;
+}
+
+const TABS_EGE: Tab[] = [
+  { path: '/', icon: 'Rocket', label: 'Учёба', activeColor: 'text-purple-600', activeBg: 'bg-purple-100' },
+  { path: '/exam', icon: 'GraduationCap', label: 'Экзамен', activeColor: 'text-indigo-600', activeBg: 'bg-indigo-100' },
+  { path: '/league', icon: 'Flame', label: 'Лига', activeColor: 'text-red-500', activeBg: 'bg-red-100' },
+  { path: '/assistant', icon: 'Brain', label: 'ИИ', activeColor: 'text-blue-600', activeBg: 'bg-blue-100' },
+  { path: '/profile', icon: 'User', label: 'Профиль', activeColor: 'text-emerald-600', activeBg: 'bg-emerald-100' },
+];
+
+const TABS_UNI: Tab[] = [
+  { path: '/', icon: 'Rocket', label: 'Учёба', activeColor: 'text-purple-600', activeBg: 'bg-purple-100' },
+  { path: '/university', icon: 'Building2', label: 'ВУЗ', activeColor: 'text-indigo-600', activeBg: 'bg-indigo-100' },
+  { path: '/league', icon: 'Flame', label: 'Лига', activeColor: 'text-red-500', activeBg: 'bg-red-100' },
+  { path: '/assistant', icon: 'Brain', label: 'ИИ', activeColor: 'text-blue-600', activeBg: 'bg-blue-100' },
+  { path: '/profile', icon: 'User', label: 'Профиль', activeColor: 'text-emerald-600', activeBg: 'bg-emerald-100' },
+];
+
+const TABS_OTHER: Tab[] = [
   { path: '/', icon: 'Rocket', label: 'Учёба', activeColor: 'text-purple-600', activeBg: 'bg-purple-100' },
   { path: '/quests', icon: 'Zap', label: 'Задания', activeColor: 'text-amber-600', activeBg: 'bg-amber-100' },
   { path: '/league', icon: 'Flame', label: 'Лига', activeColor: 'text-red-500', activeBg: 'bg-red-100' },
@@ -9,9 +34,17 @@ const tabs = [
   { path: '/profile', icon: 'User', label: 'Профиль', activeColor: 'text-emerald-600', activeBg: 'bg-emerald-100' },
 ];
 
+function getTabsForGoal(goal?: string | null): Tab[] {
+  if (goal === 'ege' || goal === 'oge') return TABS_EGE;
+  if (goal === 'university') return TABS_UNI;
+  return TABS_OTHER;
+}
+
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const user = authService.getUser();
+  const tabs = getTabsForGoal(user?.goal);
 
   return (
     <nav

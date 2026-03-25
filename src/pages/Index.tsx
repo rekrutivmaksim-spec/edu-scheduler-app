@@ -76,12 +76,6 @@ export default function Index() {
   const comp = getCompanion(getCompanionFromStorage());
   const stage = getCompanionStage(comp, gam?.level ?? 1);
 
-  const userGoal = user?.goal || 'ege';
-  const isExam = userGoal === 'ege' || userGoal === 'oge';
-  const examLabel = userGoal === 'oge' ? 'ОГЭ' : 'ЕГЭ';
-  const examDate = userGoal === 'oge' ? new Date('2026-05-19') : new Date('2026-05-25');
-  const daysToExam = Math.max(0, Math.ceil((examDate.getTime() - Date.now()) / 86400000));
-
   const sessLeft = limits.sessionsRemaining();
   const aiLeft = limits.aiRemaining();
   const isPrem = limits.isPremium;
@@ -140,13 +134,6 @@ export default function Index() {
     if (!isPrem && sessLeft <= 0) { setShowPaywall(true); return; }
     if (!hearts.isAlive) { setShowPaywall(true); return; }
     navigate('/session');
-  };
-
-  const goExam = (mode: string) => {
-    localStorage.setItem('exam_last_choice', JSON.stringify({
-      examType: userGoal, subjectId: activeSubject, mode
-    }));
-    navigate('/exam');
   };
 
   const streak = gam?.streak?.current ?? 0;
@@ -333,81 +320,53 @@ export default function Index() {
             </div>
           );
         })}
+
+        {topics.map((_, i) => {
+          if (i === 0 || i % 4 !== 0) return null;
+          const phrases = ['Так держать!', 'Ты молодец!', 'Не сдавайся!', 'Крутой прогресс!', 'Вперёд!', 'Огонь!'];
+          const phrase = phrases[Math.floor(i / 4) % phrases.length];
+          const side = i % 8 === 0 ? 6 : 88;
+          const isPast = completed.includes(i);
+          if (!isPast && i !== currentIdx) return null;
+          return (
+            <div key={`c${i}`} className="absolute flex items-center gap-2 pointer-events-none" style={{ left: `${side}%`, top: i * NODE_GAP + 10, transform: side < 50 ? 'translateX(-20%)' : 'translateX(-80%)' }}>
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-lg shadow-md border-2 border-white/60`}>
+                {stage.emoji}
+              </div>
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl px-2.5 py-1.5 shadow-sm border border-purple-100/30">
+                <p className="text-[10px] font-bold text-purple-600">{phrase}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* ═══ EXAM QUICK ACCESS ═══ */}
-      {isExam && (
-        <div className="mx-4 mt-6 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-bold text-gray-500 uppercase tracking-wider">Подготовка к {examLabel}</p>
-            <div className="flex items-center gap-1.5 bg-red-50 rounded-lg px-2.5 py-1">
-              <Icon name="Clock" size={12} className="text-red-500" />
-              <span className="text-[11px] font-bold text-red-500">{daysToExam} дн.</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <button onClick={() => goExam('practice')}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-purple-100/40 active:scale-95 transition-all text-left">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center mb-2.5 shadow-md">
-                <Icon name="Target" size={20} className="text-white" />
-              </div>
-              <p className="text-[13px] font-bold text-gray-800">Практика</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Реальные задания</p>
-            </button>
-            <button onClick={() => goExam('explain')}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-purple-100/40 active:scale-95 transition-all text-left">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-2.5 shadow-md">
-                <Icon name="Lightbulb" size={20} className="text-white" />
-              </div>
-              <p className="text-[13px] font-bold text-gray-800">Разбор тем</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Теория и вопросы</p>
-            </button>
-            <button onClick={() => goExam('weak')}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-purple-100/40 active:scale-95 transition-all text-left">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center mb-2.5 shadow-md">
-                <Icon name="Flame" size={20} className="text-white" />
-              </div>
-              <p className="text-[13px] font-bold text-gray-800">Слабые темы</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Работа над ошибками</p>
-            </button>
-            <button onClick={() => goExam('mock')}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-purple-100/40 active:scale-95 transition-all text-left">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center mb-2.5 shadow-md">
-                <Icon name="FileText" size={20} className="text-white" />
-              </div>
-              <p className="text-[13px] font-bold text-gray-800">Пробный тест</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Полная симуляция</p>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ═══ QUICK TOOLS ═══ */}
-      <div className="mx-4 mb-4">
+      <div className="mx-4 mt-4 mb-4">
         <div className="flex gap-2">
           <button onClick={() => { if (!isPrem && aiLeft <= 0) { setShowPaywall(true); return; } navigate('/assistant'); }}
-            className="flex-1 bg-white rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
+            className="flex-1 bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-1.5">
               <Icon name="Brain" size={16} className="text-blue-600" />
             </div>
             <p className="text-[11px] font-bold text-gray-700">ИИ</p>
           </button>
           <button onClick={() => navigate('/flashcards')}
-            className="flex-1 bg-white rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
+            className="flex-1 bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
             <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center mx-auto mb-1.5">
               <Icon name="Layers" size={16} className="text-amber-600" />
             </div>
             <p className="text-[11px] font-bold text-gray-700">Карточки</p>
           </button>
           <button onClick={() => navigate('/materials')}
-            className="flex-1 bg-white rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
+            className="flex-1 bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
             <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center mx-auto mb-1.5">
               <Icon name="FileText" size={16} className="text-emerald-600" />
             </div>
             <p className="text-[11px] font-bold text-gray-700">Файлы</p>
           </button>
           <button onClick={() => navigate('/pomodoro')}
-            className="flex-1 bg-white rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
+            className="flex-1 bg-white/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-purple-100/30 active:scale-95 transition-all text-center">
             <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-1.5">
               <Icon name="Timer" size={16} className="text-red-500" />
             </div>
