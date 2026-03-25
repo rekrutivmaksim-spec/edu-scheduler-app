@@ -42,6 +42,7 @@ import ParentPay from "./pages/ParentPay";
 import ParentDashboard from "./pages/ParentDashboard";
 import Quests from "./pages/Quests";
 import League from "./pages/League";
+import WeakTraining from "./pages/WeakTraining";
 import AppMetricaTracker from "@/components/AppMetricaTracker";
 import NotificationPrompt from "@/components/NotificationPrompt";
 import { useEffect } from "react";
@@ -115,6 +116,7 @@ const App = () => (
               <Route path="/widget" element={<Widget />} />
               <Route path="/quests" element={<Quests />} />
               <Route path="/league" element={<League />} />
+              <Route path="/weak-training" element={<WeakTraining />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/exam" element={<Exam />} />
               <Route path="/university" element={<University />} />

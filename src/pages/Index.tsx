@@ -196,17 +196,15 @@ function Index() {
             <p className="text-[10px] font-bold text-gray-400 mt-0.5">опыт</p>
           </div>
           <div className="bg-white rounded-2xl p-3 shadow-lg shadow-indigo-200/50">
-            <div className="w-9 h-9 bg-gradient-to-br from-rose-400 to-pink-500 rounded-xl flex items-center justify-center shadow-md shadow-rose-300/40 mb-2">
-              <Icon name="Heart" size={17} className="text-white" />
+            <div className="w-9 h-9 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md shadow-blue-300/40 mb-2">
+              <Icon name="Zap" size={17} className="text-white" />
             </div>
-            <div className="flex items-center gap-[2px] mt-0.5">
+            <div className="flex items-center gap-1 mt-0.5">
               {Array.from({ length: hearts.maxHearts }).map((_, i) => (
-                <svg key={i} width="13" height="13" viewBox="0 0 24 24" fill={i < hearts.hearts ? '#f43f5e' : '#e5e7eb'}>
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                </svg>
+                <div key={i} className={`w-3 h-3 rounded-full transition-all ${i < hearts.hearts ? 'bg-gradient-to-br from-cyan-400 to-blue-500 shadow-sm shadow-blue-300/50' : 'bg-gray-200'}`} />
               ))}
             </div>
-            <p className="text-[10px] font-bold text-gray-400 mt-1">жизни</p>
+            <p className="text-[10px] font-bold text-gray-400 mt-1">энергия</p>
           </div>
         </div>
       </div>
@@ -229,6 +227,22 @@ function Index() {
             </div>
           </button>
         )}
+
+        <button
+          onClick={() => navigate('/weak-training')}
+          className="w-full mt-3 bg-gradient-to-r from-orange-500 to-rose-500 rounded-2xl p-4 shadow-lg shadow-orange-300/30 active:scale-[0.97] transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <Icon name="Target" size={22} className="text-white" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-white text-[14px] font-bold">Слабые места</p>
+              <p className="text-white/70 text-[11px] font-medium">ИИ проанализирует твои ошибки</p>
+            </div>
+            <Icon name="ChevronRight" size={18} className="text-white/50" />
+          </div>
+        </button>
       </div>
 
       <div className="relative z-10">

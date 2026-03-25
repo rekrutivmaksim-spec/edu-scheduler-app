@@ -419,6 +419,26 @@ export default function Session() {
     const correct = isCorrect(raw);
     setAnswerCorrect(correct);
 
+    try {
+      const saveToken = authService.getToken();
+      if (saveToken) {
+        fetch(API.WEAK_TRAINING, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${saveToken}` },
+          body: JSON.stringify({
+            action: 'save_answer',
+            subject: sessionTopic.subject,
+            topic: sessionTopic.topic,
+            question: content,
+            user_answer: userAnswer,
+            is_correct: correct,
+            ai_feedback: raw.slice(0, 500),
+            source: 'session',
+          }),
+        }).catch(() => {});
+      }
+    } catch { /* */ }
+
     if (correct) {
       if (navigator.vibrate) navigator.vibrate([60, 30, 100]);
       setProgressAnim(true);

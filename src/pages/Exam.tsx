@@ -162,6 +162,31 @@ export default function Exam() {
       addMessage('ai', result.answer);
       if (['practice', 'weak', 'mock'].includes(activeMode)) {
         trackActivity('exam_tasks_done', 1);
+        try {
+          const saveToken = authService.getToken();
+          if (saveToken) {
+            const ansLower = result.answer.toLowerCase();
+            const isCorrect = ansLower.includes('правильно') || ansLower.includes('верно!') || ansLower.includes('молодец') || ansLower.includes('отлично!');
+            const isWrong = ansLower.includes('неверно') || ansLower.includes('ошибк') || ansLower.includes('неправильно') || ansLower.includes('к сожалению');
+            if (isCorrect || isWrong) {
+              fetch(API.WEAK_TRAINING, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${saveToken}` },
+                body: JSON.stringify({
+                  action: 'save_answer',
+                  subject: currentSubject.name,
+                  topic: activeMode,
+                  question: messages.length > 1 ? messages[messages.length - 1]?.text?.slice(0, 300) || '' : '',
+                  user_answer: text,
+                  is_correct: isCorrect && !isWrong,
+                  ai_feedback: result.answer.slice(0, 500),
+                  source: 'exam',
+                  mode: activeMode,
+                }),
+              }).catch(() => {});
+            }
+          }
+        } catch { /* */ }
       }
       limits.reload(true);
     } catch (e: unknown) {

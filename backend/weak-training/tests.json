@@ -1,0 +1,1 @@
+{"tests": [{"name": "Unauthorized request", "method": "POST", "path": "/", "body": {"action": "get_weaknesses", "subject": "ru"}, "expectedStatus": 401}, {"name": "OPTIONS CORS", "method": "OPTIONS", "path": "/", "expectedStatus": 200}]}

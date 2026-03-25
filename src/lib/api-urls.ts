@@ -25,6 +25,7 @@ export const API = {
   SMS_AUTH: urls['sms-auth'],
   TRIAL_REMINDER: urls['trial-reminder'],
   AUTO_CHARGE: urls['auto-charge'],
+  WEAK_TRAINING: urls['weak-training'],
 } as const;
 
 export default API;
