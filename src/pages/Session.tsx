@@ -306,18 +306,9 @@ export default function Session() {
 
   const typeText = (full: string, setter: (v: string) => void, onDone?: () => void) => {
     if (typingRef.current) clearInterval(typingRef.current);
-    setIsTyping(true);
-    setter('');
-    let i = 0;
-    typingRef.current = setInterval(() => {
-      i++;
-      setter(full.slice(0, i));
-      if (i >= full.length) {
-        clearInterval(typingRef.current!);
-        setIsTyping(false);
-        onDone?.();
-      }
-    }, 16);
+    setter(full);
+    setIsTyping(false);
+    onDone?.();
   };
 
   const loadStep = async (idx: number) => {
@@ -484,10 +475,87 @@ export default function Session() {
     }
   };
 
+  const restartSession = () => {
+    // Clear timers
+    if (typingRef.current) clearInterval(typingRef.current);
+    if (loaderRef.current) clearInterval(loaderRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+    
+    // Reset state
+    setStepIdx(0);
+    setContent('');
+    setLoading(false);
+    setLoaderPhrase('');
+    setTypingText('');
+    setIsTyping(false);
+    setUserAnswer('');
+    setCheckResult('');
+    setCheckLoading(false);
+    setAnswerCorrect(null);
+    setRetryCount(0);
+    setCorrectAnswer('');
+    setCorrectAnswerLoading(false);
+    setShowCorrectAnswer(false);
+    setElapsedSec(0);
+    setProgressAnim(false);
+    setCheckTypingText('');
+    setShowPaywall(false);
+    
+    // New topic
+    const user = authService.getUser();
+    const newTopic = getTodayTopic(user?.exam_subject, getTodaySessionOffset());
+    setSessionTopic(newTopic);
+    
+    // Reload limits and go to ready screen
+    setSessionAllowed(null);
+    setScreen('ready');
+    
+    // Re-check limits
+    const token = authService.getToken();
+    if (token) {
+      fetch(`${API.SUBSCRIPTION}?action=limits`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => {
+        const sub = d.subscription_type;
+        const trial = !!d.is_trial;
+        const sessions = d.limits?.sessions;
+        if (sub === 'premium' || trial) {
+          setIsPremium(true);
+          const max = sessions?.max ?? 100;
+          const used = sessions?.used ?? 0;
+          setSessionsMax(max);
+          setSessionsLeft(Math.max(0, max - used));
+          setSessionAllowed(true);
+        } else if (sessions) {
+          const max = sessions.max ?? 1;
+          const used = sessions.used ?? 0;
+          setSessionsMax(max);
+          setSessionsLeft(Math.max(0, max - used));
+          setSessionAllowed(used < max);
+        } else {
+          setSessionsLeft(1);
+          setSessionAllowed(true);
+        }
+      }).catch(() => setSessionAllowed(true));
+    }
+  };
+
   const goNext = () => {
     if (stepIdx === STEPS.length - 1 && checkResult && (answerCorrect || showCorrectAnswer)) {
       if (timerRef.current) clearInterval(timerRef.current);
       window.dispatchEvent(new Event('session_completed'));
+      // Save progress directly to localStorage
+      const subjectKey = sessionTopic.subject;
+      const subjectTopics = TOPICS_BY_SUBJECT[subjectKey] || [];
+      if (subjectTopics.length > 0) {
+        const completedKey = `completed_topics_${subjectKey}`;
+        const existing = JSON.parse(localStorage.getItem(completedKey) || '[]');
+        const nextIdx = subjectTopics.findIndex((_, i) => !existing.includes(i));
+        if (nextIdx >= 0 && !existing.includes(nextIdx)) {
+          existing.push(nextIdx);
+          localStorage.setItem(completedKey, JSON.stringify(existing));
+        }
+      }
       if (navigator.vibrate) navigator.vibrate([80, 40, 120]);
       setScreen('correct_anim');
       setTimeout(() => {
@@ -773,7 +841,7 @@ export default function Session() {
         )}
 
         <Button
-          onClick={() => navigate(sessionsLeft !== null && sessionsLeft > 0 ? '/session' : '/')}
+          onClick={() => sessionsLeft !== null && sessionsLeft > 0 ? restartSession() : navigate('/')}
           className={`w-full h-14 font-bold text-base rounded-2xl shadow-xl mb-3 active:scale-[0.98] transition-all ${isPremium || (sessionsLeft !== null && sessionsLeft > 0) ? 'bg-white text-purple-700' : 'bg-white/20 text-white border border-white/30'}`}
         >
           {sessionsLeft !== null && sessionsLeft > 0 ? 'Ещё занятие 🚀' : 'На главную 🏠'}
@@ -797,9 +865,8 @@ export default function Session() {
 
   // ─── Экран: Само занятие ─────────────────────────────────────────────────────
   const isTaskStep = currentStep.label === 'Задание';
-  const showAnswerForm = isTaskStep && !loading && content && !isTyping && !checkResult && !checkTypingText && !checkLoading;
-  const showCheckTyping = isTaskStep && !checkResult && checkTypingText && isTyping;
-  const showCheckResult = !!checkResult && !isTyping;
+  const showAnswerForm = isTaskStep && !loading && content && !checkResult && !checkLoading;
+  const showCheckResult = !!checkResult;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -884,16 +951,9 @@ export default function Session() {
         )}
 
         {/* Текст контента */}
-        {!loading && !checkLoading && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/50">
-            {isTyping && !checkTypingText ? (
-              <p className="text-[14.5px] leading-[1.75] text-gray-700 whitespace-pre-line">
-                {typingText}
-                <span className="inline-block w-0.5 h-4 bg-indigo-500 ml-0.5 animate-pulse align-middle" />
-              </p>
-            ) : (
-              <AiText text={content} />
-            )}
+        {!loading && !checkLoading && content && (
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/50 animate-in fade-in duration-500">
+            <AiText text={content} />
           </div>
         )}
 
@@ -919,15 +979,7 @@ export default function Session() {
           </div>
         )}
 
-        {/* Типинг результата проверки */}
-        {showCheckTyping && (
-          <div className={`rounded-2xl p-5 text-[15px] leading-[1.8] whitespace-pre-line border ${
-            answerCorrect === true ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 text-green-800' : 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 text-amber-800'
-          }`}>
-            {checkTypingText}
-            <span className="inline-block w-0.5 h-4 bg-current opacity-50 ml-0.5 animate-pulse align-middle" />
-          </div>
-        )}
+        {/* Типинг результата проверки — теперь показываем сразу в AiText */}
 
         {/* Результат проверки */}
         {showCheckResult && (
@@ -985,7 +1037,7 @@ export default function Session() {
       </div>
 
       {/* Кнопка Дальше */}
-      {!loading && !checkLoading && content && !isTyping && (!checkTypingText || checkResult) && (
+      {!loading && !checkLoading && content && (
         <div className="px-4 pb-8 pt-2 bg-gray-50">
           {!isTaskStep ? (
             <Button
