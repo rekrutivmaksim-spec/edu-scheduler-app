@@ -321,22 +321,28 @@ function Index() {
         </div>
 
         {!isPrem && !limits.loading && (
-          <div className="mx-5 mt-3 mb-1 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-3.5 border border-amber-200/60 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${sessLeft > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                  <Icon name="BookOpen" size={12} />
-                  {sessLeft > 0 ? `${sessLeft} ${sessLeft === 1 ? 'урок' : 'урока'}` : '0 уроков'}
+          <div className="mx-5 mt-3 mb-1 space-y-2">
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-3.5 border border-amber-200/60 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${sessLeft > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                    <Icon name="BookOpen" size={12} />
+                    {sessLeft > 0 ? `${sessLeft} ${sessLeft === 1 ? 'урок' : 'урока'}` : '0 уроков'}
+                  </div>
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${aiLeft > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-600'}`}>
+                    <Icon name="Brain" size={12} />
+                    {aiLeft > 0 ? `${aiLeft} ИИ` : '0 ИИ'}
+                  </div>
                 </div>
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${aiLeft > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-600'}`}>
-                  <Icon name="Brain" size={12} />
-                  {aiLeft > 0 ? `${aiLeft} ИИ` : '0 ИИ'}
-                </div>
+                <button onClick={() => setShowPaywall(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[11px] font-bold shadow-lg shadow-indigo-300/30 active:scale-95 transition-transform">
+                  <Icon name="Zap" size={13} />
+                  Безлимит
+                </button>
               </div>
-              <button onClick={() => setShowPaywall(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[11px] font-bold shadow-lg shadow-indigo-300/30 active:scale-95 transition-transform">
-                <Icon name="Zap" size={13} />
-                Безлимит
-              </button>
+            </div>
+            <div className="flex items-center gap-2.5 px-1">
+              <span className="text-sm">🎁</span>
+              <p className="text-[11px] text-gray-500">Отвечай правильно на вопросы — получай до <span className="font-bold text-emerald-600">+3 бонусных вопроса</span> к ИИ каждый день</p>
             </div>
           </div>
         )}
