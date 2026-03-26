@@ -86,12 +86,12 @@ def get_db_connection():
 
 
 def generate_token(user_id: int, email: str) -> str:
-    """Генерирует JWT токен для пользователя"""
+    """Генерирует JWT токен для пользователя (90 дней)"""
     secret = os.environ['JWT_SECRET']
     payload = {
         'user_id': user_id,
         'email': email,
-        'exp': datetime.utcnow() + timedelta(days=7)
+        'exp': datetime.utcnow() + timedelta(days=90)
     }
     return jwt.encode(payload, secret, algorithm='HS256')
 
@@ -661,27 +661,36 @@ def handler(event: dict, context) -> dict:
                         'body': json.dumps({'error': 'Пользователь не найден'})
                     }
                 
+                new_token = None
+                exp_ts = payload.get('exp', 0)
+                if exp_ts and (exp_ts - datetime.utcnow().timestamp() < 30 * 86400):
+                    new_token = generate_token(user['id'], user['email'])
+
+                resp_body = {
+                    'user': {
+                        'id': user['id'],
+                        'email': user['email'],
+                        'full_name': user['full_name'],
+                        'university': user['university'],
+                        'faculty': user['faculty'],
+                        'course': user['course'],
+                        'subscription_type': user['subscription_type'],
+                        'subscription_expires_at': user['subscription_expires_at'].isoformat() if user['subscription_expires_at'] else None,
+                        'onboarding_completed': user['onboarding_completed'],
+                        'grade': user['grade'],
+                        'goal': user['goal'],
+                        'exam_type': user['exam_type'],
+                        'exam_subject': user['exam_subject'],
+                        'exam_date': user['exam_date'].isoformat() if user['exam_date'] else None
+                    }
+                }
+                if new_token:
+                    resp_body['renewed_token'] = new_token
+
                 return {
                     'statusCode': 200,
                     'headers': headers,
-                    'body': json.dumps({
-                        'user': {
-                            'id': user['id'],
-                            'email': user['email'],
-                            'full_name': user['full_name'],
-                            'university': user['university'],
-                            'faculty': user['faculty'],
-                            'course': user['course'],
-                            'subscription_type': user['subscription_type'],
-                            'subscription_expires_at': user['subscription_expires_at'].isoformat() if user['subscription_expires_at'] else None,
-                            'onboarding_completed': user['onboarding_completed'],
-                            'grade': user['grade'],
-                            'goal': user['goal'],
-                            'exam_type': user['exam_type'],
-                            'exam_subject': user['exam_subject'],
-                            'exam_date': user['exam_date'].isoformat() if user['exam_date'] else None
-                        }
-                    })
+                    'body': json.dumps(resp_body)
                 }
         finally:
             conn.close()

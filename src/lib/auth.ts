@@ -74,6 +74,9 @@ export const authService = {
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem('user', JSON.stringify(data.user));
+        if (data.renewed_token) {
+          authService.setToken(data.renewed_token);
+        }
         return data.user;
       } else {
         authService.logout();
