@@ -70,6 +70,7 @@ function Index() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [showDailyBonus, setShowDailyBonus] = useState(true);
   const [showEnergyTip, setShowEnergyTip] = useState(false);
+  const [dailyFact, setDailyFact] = useState<{ text: string; emoji: string; subject_name: string } | null>(null);
   const [activeSubject, setActiveSubject] = useState(user?.exam_subject || 'ru');
   const [completed, setCompleted] = useState<number[]>(() => loadCompleted(user?.exam_subject || 'ru'));
   const hearts = useHearts();
@@ -103,6 +104,7 @@ function Index() {
       setCompleted(loadCompleted(v.exam_subject || 'ru'));
       dailyCheckin();
       loadGam();
+      loadDailyFact();
     };
     init();
   }, [navigate]);
@@ -141,10 +143,29 @@ function Index() {
     } catch { /* */ }
   };
 
+  const loadDailyFact = async () => {
+    const cacheKey = `daily_fact_${new Date().toDateString()}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) { setDailyFact(JSON.parse(cached)); return; }
+    } catch { /* */ }
+    try {
+      const t = authService.getToken();
+      const r = await fetch(API.DAILY_FACT, { headers: { Authorization: `Bearer ${t}` } });
+      if (r.ok) {
+        const data = await r.json();
+        if (data.fact) {
+          setDailyFact(data.fact);
+          try { localStorage.setItem(cacheKey, JSON.stringify(data.fact)); } catch { /* */ }
+        }
+      }
+    } catch { /* */ }
+  };
+
   const tapTopic = (i: number) => {
     if (i !== currentIdx) return;
+    if (!isPrem && !hearts.isAlive) { setShowEnergyTip(true); return; }
     if (!isPrem && sessLeft <= 0) { setShowPaywall(true); return; }
-    if (!hearts.isAlive) { setShowPaywall(true); return; }
     navigate('/session');
   };
 
@@ -251,6 +272,21 @@ function Index() {
             <Icon name="ChevronRight" size={18} className="text-white/50" />
           </div>
         </button>
+
+        {dailyFact && (
+          <div className="mt-3 bg-gradient-to-br from-violet-50 to-indigo-50 rounded-2xl p-4 border border-violet-200/50">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl flex-shrink-0">{dailyFact.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-[10px] font-extrabold text-violet-500 uppercase tracking-wider">Факт дня</p>
+                  <span className="text-[9px] text-violet-400 font-medium">{dailyFact.subject_name}</span>
+                </div>
+                <p className="text-[13px] text-gray-800 leading-relaxed">{dailyFact.text}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="relative z-10">
@@ -300,10 +336,10 @@ function Index() {
           <div className="mx-5 mt-3 mb-1 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-3.5 border border-amber-200/60 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${sessLeft > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                  <Icon name="BookOpen" size={12} />
-                  {sessLeft > 0 ? `${sessLeft} ${sessLeft === 1 ? 'урок' : 'урока'}` : '0 уроков'}
-                </div>
+                <button onClick={() => setShowEnergyTip(true)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${hearts.isAlive ? 'bg-cyan-100 text-cyan-700' : 'bg-red-100 text-red-600'}`}>
+                  <Icon name="Zap" size={12} />
+                  {hearts.hearts > 0 ? `${hearts.hearts}/${hearts.maxHearts}` : 'Нет энергии'}
+                </button>
                 <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${aiLeft > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-600'}`}>
                   <Icon name="Brain" size={12} />
                   {aiLeft > 0 ? `${aiLeft} ИИ` : '0 ИИ'}
@@ -408,19 +444,25 @@ function Index() {
                 <p className="text-gray-500 text-sm">{hearts.isPremium ? 'Безлимит с Premium' : `${hearts.hearts} из ${hearts.maxHearts}`}</p>
               </div>
             </div>
+            {!hearts.isPremium && hearts.hearts === 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4">
+                <p className="font-bold text-red-700 text-sm">Энергия закончилась</p>
+                <p className="text-red-600 text-xs mt-1">Подожди восстановления или подключи Premium для безлимита</p>
+              </div>
+            )}
             <div className="space-y-3 mb-5">
               <div className="flex items-start gap-3 bg-blue-50 rounded-2xl p-3">
                 <span className="text-lg mt-0.5">💡</span>
-                <p className="text-sm text-gray-700">Энергия тратится при неправильных ответах в занятиях. Это помогает учиться внимательнее!</p>
+                <p className="text-sm text-gray-700">Энергия тратится при неправильных ответах. Отвечай внимательнее — экономь энергию!</p>
               </div>
               <div className="flex items-start gap-3 bg-green-50 rounded-2xl p-3">
                 <span className="text-lg mt-0.5">🔄</span>
-                <p className="text-sm text-gray-700">Восстанавливается по 1 единице каждый час. Полная зарядка — за 5 часов.</p>
+                <p className="text-sm text-gray-700">+1 единица каждый час. Полная зарядка за 5 часов.</p>
               </div>
               {!hearts.isPremium && hearts.hearts < hearts.maxHearts && hearts.nextRefillIn > 0 && (
                 <div className="flex items-start gap-3 bg-amber-50 rounded-2xl p-3">
                   <span className="text-lg mt-0.5">⏱️</span>
-                  <p className="text-sm text-gray-700">Следующая единица через {Math.ceil(hearts.nextRefillIn / 60000)} мин</p>
+                  <p className="text-sm text-gray-700">+1 энергия через {Math.ceil(hearts.nextRefillIn / 60000)} мин</p>
                 </div>
               )}
             </div>

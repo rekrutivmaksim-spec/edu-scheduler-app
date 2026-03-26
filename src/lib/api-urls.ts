@@ -26,6 +26,7 @@ export const API = {
   TRIAL_REMINDER: urls['trial-reminder'],
   AUTO_CHARGE: urls['auto-charge'],
   WEAK_TRAINING: urls['weak-training'],
+  DAILY_FACT: urls['daily-fact'],
 } as const;
 
 export default API;

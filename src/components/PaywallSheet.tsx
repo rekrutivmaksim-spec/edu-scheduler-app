@@ -47,7 +47,7 @@ const TRIGGER_COPY = {
 };
 
 const FEATURES = [
-  { icon: 'Zap', text: 'Безлимитные вопросы к ИИ' },
+  { icon: 'Zap', text: 'Безлимитная энергия и вопросы к ИИ' },
   { icon: 'Camera', text: 'Безлимитные фото и аудио' },
   { icon: 'Target', text: 'Подготовка к ЕГЭ/ОГЭ по всем предметам' },
   { icon: 'TrendingUp', text: 'Полный доступ ко всем функциям' },
