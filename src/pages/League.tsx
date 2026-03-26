@@ -256,15 +256,15 @@ export default function League() {
             </div>
           ) : (
             feed.map((item) => (
-              <div key={item.id} className="bg-white/5 rounded-2xl p-4 border border-white/5">
+              <div key={item.id} className="bg-white/8 rounded-2xl p-4 border border-white/10">
                 <div className="flex items-start gap-3">
                   <span className="text-xl flex-shrink-0 mt-0.5">{item.emoji || '📌'}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] text-white/80 leading-relaxed">{item.description}</p>
                     <div className="flex items-center gap-2 mt-1.5">
-                      <p className="text-[11px] text-white/30 font-medium">{item.user_name}</p>
-                      <span className="text-white/15">·</span>
-                      <p className="text-[11px] text-white/20">{timeAgo(item.created_at)}</p>
+                      <p className="text-[11px] text-white/50 font-medium">{item.user_name}</p>
+                      <span className="text-white/30">·</span>
+                      <p className="text-[11px] text-white/40">{timeAgo(item.created_at)}</p>
                     </div>
                   </div>
                 </div>
