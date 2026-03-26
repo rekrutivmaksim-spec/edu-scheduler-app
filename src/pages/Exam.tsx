@@ -8,6 +8,7 @@ import PaywallSheet from '@/components/PaywallSheet';
 import { API } from '@/lib/api-urls';
 import { trackActivity } from '@/lib/gamification';
 import AiText from '@/components/AiText';
+import { useHearts } from '@/hooks/useHearts';
 
 const EGE_DATE = new Date('2026-05-25');
 const OGE_DATE = new Date('2026-05-19');
@@ -85,6 +86,7 @@ async function askAI(question: string, history: Message[], subjectName: string, 
 
 export default function Exam() {
   const navigate = useNavigate();
+  const hearts = useHearts();
   const limits = useLimits();
   const user = authService.getUser();
   const examType = user?.goal === 'oge' ? 'oge' : 'ege';
@@ -186,6 +188,7 @@ export default function Exam() {
                   mode: activeMode,
                 }),
               }).catch(() => {});
+              if (isWrong && !isCorrect) hearts.loseHeart();
             }
           }
         } catch { /* */ }

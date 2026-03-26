@@ -69,6 +69,7 @@ function Index() {
   const [gam, setGam] = useState<GamificationProfile | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showDailyBonus, setShowDailyBonus] = useState(true);
+  const [showEnergyTip, setShowEnergyTip] = useState(false);
   const [activeSubject, setActiveSubject] = useState(user?.exam_subject || 'ru');
   const [completed, setCompleted] = useState<number[]>(() => loadCompleted(user?.exam_subject || 'ru'));
   const hearts = useHearts();
@@ -195,17 +196,21 @@ function Index() {
             <p className="text-[20px] font-black text-gray-900 leading-none">{xp}</p>
             <p className="text-[10px] font-bold text-gray-400 mt-0.5">опыт</p>
           </div>
-          <div className="bg-white rounded-2xl p-3 shadow-lg shadow-indigo-200/50">
+          <button onClick={() => setShowEnergyTip(true)} className="bg-white rounded-2xl p-3 shadow-lg shadow-indigo-200/50 text-left active:scale-[0.96] transition-all">
             <div className="w-9 h-9 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md shadow-blue-300/40 mb-2">
               <Icon name="Zap" size={17} className="text-white" />
             </div>
-            <div className="flex items-center gap-1 mt-0.5">
-              {Array.from({ length: hearts.maxHearts }).map((_, i) => (
-                <div key={i} className={`w-3 h-3 rounded-full transition-all ${i < hearts.hearts ? 'bg-gradient-to-br from-cyan-400 to-blue-500 shadow-sm shadow-blue-300/50' : 'bg-gray-200'}`} />
-              ))}
-            </div>
+            {hearts.isPremium ? (
+              <p className="text-[20px] font-black text-gray-900 leading-none">∞</p>
+            ) : (
+              <div className="flex items-center gap-1 mt-0.5">
+                {Array.from({ length: hearts.maxHearts }).map((_, i) => (
+                  <div key={i} className={`w-3 h-3 rounded-full transition-all ${i < hearts.hearts ? 'bg-gradient-to-br from-cyan-400 to-blue-500 shadow-sm shadow-blue-300/50' : 'bg-gray-200'}`} />
+                ))}
+              </div>
+            )}
             <p className="text-[10px] font-bold text-gray-400 mt-1">энергия</p>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -389,6 +394,44 @@ function Index() {
         </div>
       </div>
 
+      {showEnergyTip && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowEnergyTip(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10 animate-in slide-in-from-bottom" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center">
+                <Icon name="Zap" size={24} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-gray-900 text-lg">Энергия</h3>
+                <p className="text-gray-500 text-sm">{hearts.isPremium ? 'Безлимит с Premium' : `${hearts.hearts} из ${hearts.maxHearts}`}</p>
+              </div>
+            </div>
+            <div className="space-y-3 mb-5">
+              <div className="flex items-start gap-3 bg-blue-50 rounded-2xl p-3">
+                <span className="text-lg mt-0.5">💡</span>
+                <p className="text-sm text-gray-700">Энергия тратится при неправильных ответах в занятиях. Это помогает учиться внимательнее!</p>
+              </div>
+              <div className="flex items-start gap-3 bg-green-50 rounded-2xl p-3">
+                <span className="text-lg mt-0.5">🔄</span>
+                <p className="text-sm text-gray-700">Восстанавливается по 1 единице каждый час. Полная зарядка — за 5 часов.</p>
+              </div>
+              {!hearts.isPremium && hearts.hearts < hearts.maxHearts && hearts.nextRefillIn > 0 && (
+                <div className="flex items-start gap-3 bg-amber-50 rounded-2xl p-3">
+                  <span className="text-lg mt-0.5">⏱️</span>
+                  <p className="text-sm text-gray-700">Следующая единица через {Math.ceil(hearts.nextRefillIn / 60000)} мин</p>
+                </div>
+              )}
+            </div>
+            {!hearts.isPremium && (
+              <button onClick={() => { setShowEnergyTip(false); navigate('/pricing'); }} className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-3.5 rounded-2xl text-sm">
+                Безлимитная энергия с Premium
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {showDailyBonus && <DailyBonusPopup onClose={() => setShowDailyBonus(false)} />}
       {showPaywall && <PaywallSheet trigger="session_limit" onClose={() => setShowPaywall(false)} />}
       <BottomNav />

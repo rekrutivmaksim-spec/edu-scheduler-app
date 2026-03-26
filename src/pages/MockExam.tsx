@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import BottomNav from '@/components/BottomNav';
 import { authService } from '@/lib/auth';
 import { API } from '@/lib/api-urls';
+import { useHearts } from '@/hooks/useHearts';
 
 interface Question {
   id: number;
@@ -368,6 +369,7 @@ function formatTime(seconds: number): string {
 
 export default function MockExam() {
   const navigate = useNavigate();
+  const hearts = useHearts();
   const [premiumChecked, setPremiumChecked] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
 
@@ -531,7 +533,7 @@ export default function MockExam() {
       } else {
         isCorrect = ans === q.correctAnswer;
       }
-      if (isCorrect) { score += q.points; correct++; } else { wrong++; }
+      if (isCorrect) { score += q.points; correct++; } else { wrong++; hearts.loseHeart(); }
     });
 
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);

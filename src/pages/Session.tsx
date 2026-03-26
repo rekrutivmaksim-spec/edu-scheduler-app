@@ -9,6 +9,7 @@ import { getTodayTopic as getTodayTopicBase, TOPICS_BY_SUBJECT, DEFAULT_TOPICS }
 import { trackActivity } from '@/lib/gamification';
 import { API } from '@/lib/api-urls';
 import AiText from '@/components/AiText';
+import { useHearts } from '@/hooks/useHearts';
 
 function getTodayTopic(examSubject?: string | null, offset = 0): { subject: string; topic: string; number: number; total: number } {
   // Используем хеш даты как базовый индекс, offset сдвигает на каждое новое занятие
@@ -107,6 +108,7 @@ type Screen = 'ready' | 'session' | 'correct_anim' | 'done';
 
 export default function Session() {
   const navigate = useNavigate();
+  const hearts = useHearts();
   const [screen, setScreen] = useState<Screen>('ready');
   const [stepIdx, setStepIdx] = useState(0);
   const [content, setContent] = useState('');
@@ -406,6 +408,7 @@ export default function Session() {
     if (!raw) raw = 'Ответ принят! Попробуй ещё раз — сформулируй иначе.';
     const correct = isCorrect(raw);
     setAnswerCorrect(correct);
+    if (!correct) hearts.loseHeart();
 
     try {
       const saveToken = authService.getToken();
