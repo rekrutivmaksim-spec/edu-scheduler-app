@@ -251,28 +251,6 @@ function Index() {
         </div>
       </div>
 
-      {daysToExam !== null && daysToExam > 0 && (
-        <div className="relative z-10 px-5 mb-3">
-          <button
-            onClick={() => navigate('/exam')}
-            className="w-full bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 rounded-2xl p-4 shadow-lg shadow-red-300/30 active:scale-[0.97] transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <Icon name="GraduationCap" size={24} className="text-white" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-white/80 text-[10px] font-extrabold uppercase tracking-wider">До экзамена</p>
-                <p className="text-white text-[18px] font-black leading-tight">{daysToExam} {pluralDays(daysToExam)}</p>
-              </div>
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                <span className="text-white font-black text-[16px]">{daysToExam}</span>
-              </div>
-            </div>
-          </button>
-        </div>
-      )}
-
       <div className="relative z-10 px-5 mb-4">
         {currentIdx >= 0 && (
           <button
