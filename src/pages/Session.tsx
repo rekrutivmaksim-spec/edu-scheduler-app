@@ -9,7 +9,7 @@ import { getTodayTopic as getTodayTopicBase, TOPICS_BY_SUBJECT, DEFAULT_TOPICS }
 import { trackActivity } from '@/lib/gamification';
 import { API } from '@/lib/api-urls';
 import AiText from '@/components/AiText';
-import { useHearts } from '@/hooks/useHearts';
+
 
 function getTodayTopic(examSubject?: string | null, offset = 0): { subject: string; topic: string; number: number; total: number } {
   // Используем хеш даты как базовый индекс, offset сдвигает на каждое новое занятие
@@ -108,7 +108,6 @@ type Screen = 'ready' | 'session' | 'correct_anim' | 'done';
 
 export default function Session() {
   const navigate = useNavigate();
-  const hearts = useHearts();
   const [screen, setScreen] = useState<Screen>('ready');
   const [stepIdx, setStepIdx] = useState(0);
   const [content, setContent] = useState('');
@@ -129,6 +128,7 @@ export default function Session() {
   const [streak, setStreak] = useState(0);
   const [progressAnim, setProgressAnim] = useState(false);
   const [checkTypingText, setCheckTypingText] = useState('');
+  const [bonusToast, setBonusToast] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallTrigger, setPaywallTrigger] = useState<'session_limit' | 'ai_limit' | 'after_session' | 'after_session_3rd'>('after_session');
   const [sessionAllowed, setSessionAllowed] = useState<boolean | null>(null);
@@ -408,7 +408,6 @@ export default function Session() {
     if (!raw) raw = 'Ответ принят! Попробуй ещё раз — сформулируй иначе.';
     const correct = isCorrect(raw);
     setAnswerCorrect(correct);
-    if (!correct) hearts.loseHeart();
 
     try {
       const saveToken = authService.getToken();
@@ -426,6 +425,8 @@ export default function Session() {
             ai_feedback: raw.slice(0, 500),
             source: 'session',
           }),
+        }).then(r => r.ok ? r.json() : null).then(data => {
+          if (data?.bonus_granted) { setBonusToast(true); setTimeout(() => setBonusToast(false), 3000); }
         }).catch(() => {});
       }
     } catch { /* */ }
@@ -1086,6 +1087,13 @@ export default function Session() {
         @keyframes progress { 0% { width: 0%; margin-left:0 } 50% { width: 60%; margin-left:20% } 100% { width: 0%; margin-left:100% } }
         .animate-progress { animation: progress 1.8s ease-in-out infinite; }
       `}</style>
+
+      {bonusToast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-in slide-in-from-top" onAnimationEnd={() => setTimeout(() => setBonusToast(false), 2500)}>
+          <span className="text-lg">🎁</span>
+          <span className="text-sm font-bold">+1 бонусный вопрос к ИИ!</span>
+        </div>
+      )}
 
       {showPaywall && (
         <PaywallSheet

@@ -8,7 +8,7 @@ import PaywallSheet from '@/components/PaywallSheet';
 import { API } from '@/lib/api-urls';
 import { trackActivity } from '@/lib/gamification';
 import AiText from '@/components/AiText';
-import { useHearts } from '@/hooks/useHearts';
+
 
 const EGE_DATE = new Date('2026-05-25');
 const OGE_DATE = new Date('2026-05-19');
@@ -86,7 +86,6 @@ async function askAI(question: string, history: Message[], subjectName: string, 
 
 export default function Exam() {
   const navigate = useNavigate();
-  const hearts = useHearts();
   const limits = useLimits();
   const user = authService.getUser();
   const examType = user?.goal === 'oge' ? 'oge' : 'ege';
@@ -100,6 +99,7 @@ export default function Exam() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [bonusToast, setBonusToast] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -187,8 +187,10 @@ export default function Exam() {
                   source: 'exam',
                   mode: activeMode,
                 }),
+              }).then(r => r.ok ? r.json() : null).then(data => {
+                if (data?.bonus_granted) { setBonusToast(true); setTimeout(() => setBonusToast(false), 3000); }
               }).catch(() => {});
-              if (isWrong && !isCorrect) hearts.loseHeart();
+
             }
           }
         } catch { /* */ }
@@ -400,6 +402,13 @@ export default function Exam() {
           </p>
         </div>
       </div>
+
+      {bonusToast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-in slide-in-from-top">
+          <span className="text-lg">🎁</span>
+          <span className="text-sm font-bold">+1 бонусный вопрос к ИИ!</span>
+        </div>
+      )}
 
       {showPaywall && <PaywallSheet trigger="ai_limit" onClose={() => setShowPaywall(false)} />}
       <BottomNav />

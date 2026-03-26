@@ -50,8 +50,11 @@ def get_conn():
     conn.autocommit = True
     return conn
 
+DAILY_BONUS_MAX = 3
+
 def save_answer(user_id: int, subject: str, topic: str, question: str, user_answer: str, is_correct: bool, ai_feedback: str, source: str, mode: str = None):
     conn = get_conn()
+    bonus_granted = False
     try:
         cur = conn.cursor()
         cur.execute(
@@ -59,9 +62,29 @@ def save_answer(user_id: int, subject: str, topic: str, question: str, user_answ
                 (user_id, subject, topic, question, user_answer, is_correct, ai_feedback, source, mode)
                 VALUES ({user_id}, '{_esc(subject)}', '{_esc(topic)}', '{_esc(question)}', '{_esc(user_answer)}', {is_correct}, '{_esc(ai_feedback)}', '{_esc(source)}', '{_esc(mode or "")}')"""
         )
+        if is_correct:
+            from datetime import datetime, timedelta
+            now = datetime.now()
+            cur.execute(f"SELECT subscription_type, subscription_expires_at, daily_bonus_earned, daily_bonus_reset_at FROM {SCHEMA_NAME}.users WHERE id = {user_id}")
+            row = cur.fetchone()
+            if row:
+                sub_type, expires, earned, reset_at = row
+                is_premium = sub_type == 'premium' and expires and expires > now
+                if not is_premium:
+                    if reset_at and reset_at < now:
+                        earned = 0
+                    earned = earned or 0
+                    if earned < DAILY_BONUS_MAX:
+                        cur.execute(f"""UPDATE {SCHEMA_NAME}.users
+                            SET bonus_questions = COALESCE(bonus_questions, 0) + 1,
+                                daily_bonus_earned = CASE WHEN daily_bonus_reset_at IS NOT NULL AND daily_bonus_reset_at < '{now.isoformat()}' THEN 1 ELSE COALESCE(daily_bonus_earned, 0) + 1 END,
+                                daily_bonus_reset_at = COALESCE(daily_bonus_reset_at, '{(now + timedelta(days=1)).isoformat()}')
+                            WHERE id = {user_id} AND COALESCE(CASE WHEN daily_bonus_reset_at < '{now.isoformat()}' THEN 0 ELSE daily_bonus_earned END, 0) < {DAILY_BONUS_MAX}""")
+                        bonus_granted = True
         cur.close()
     finally:
         conn.close()
+    return bonus_granted
 
 def get_weaknesses(user_id: int, subject: str):
     conn = get_conn()
@@ -267,7 +290,7 @@ def handler(event: dict, context) -> dict:
     action = body.get('action', '')
 
     if action == 'save_answer':
-        save_answer(
+        bonus_granted = save_answer(
             user_id=user_id,
             subject=body.get('subject', ''),
             topic=body.get('topic', ''),
@@ -278,7 +301,7 @@ def handler(event: dict, context) -> dict:
             source=body.get('source', 'session'),
             mode=body.get('mode')
         )
-        return ok({'saved': True})
+        return ok({'saved': True, 'bonus_granted': bonus_granted})
 
     if action == 'get_weaknesses':
         subject = body.get('subject', '')
