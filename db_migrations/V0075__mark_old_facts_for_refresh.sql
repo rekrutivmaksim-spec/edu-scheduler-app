@@ -1,0 +1,1 @@
+UPDATE daily_facts SET fact_text = 'REGENERATE' WHERE fact_date < CURRENT_DATE;

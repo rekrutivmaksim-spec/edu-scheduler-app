@@ -62,6 +62,30 @@ function getGreeting(): string {
   return 'Доброй ночи';
 }
 
+const RUSTORE_URL = 'https://www.rustore.ru/catalog/app/ru.studyfay.app';
+
+function shouldShowRuStore(): boolean {
+  try {
+    const key = 'rustore_review';
+    const data = localStorage.getItem(key);
+    if (data) {
+      const { dismissed, count } = JSON.parse(data);
+      if (dismissed && Date.now() - dismissed < 7 * 24 * 60 * 60 * 1000) return false;
+      if (count >= 3) return false;
+    }
+    const sessions = parseInt(localStorage.getItem('total_sessions') || '0', 10);
+    return sessions >= 2;
+  } catch { return false; }
+}
+
+function dismissRuStore() {
+  try {
+    const key = 'rustore_review';
+    const prev = JSON.parse(localStorage.getItem(key) || '{"count":0}');
+    localStorage.setItem(key, JSON.stringify({ dismissed: Date.now(), count: (prev.count || 0) + 1 }));
+  } catch { /* */ }
+}
+
 function Index() {
   const navigate = useNavigate();
   const [user, setUser] = useState(authService.getUser());
@@ -71,10 +95,13 @@ function Index() {
   const [dailyFact, setDailyFact] = useState<{ text: string; emoji: string; subject_name: string } | null>(null);
   const [activeSubject, setActiveSubject] = useState(user?.exam_subject || 'ru');
   const [completed, setCompleted] = useState<number[]>(() => loadCompleted(user?.exam_subject || 'ru'));
+  const [showRuStore, setShowRuStore] = useState(shouldShowRuStore);
   const limits = useLimits();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const examSubject = user?.exam_subject || 'ru';
+  const examDate = user?.exam_date;
+  const daysToExam = examDate ? Math.max(0, Math.ceil((new Date(examDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
   const topics = TOPICS_BY_SUBJECT[activeSubject] || [];
   const currentIdx = topics.findIndex((_, i) => !completed.includes(i));
   const doneCnt = completed.length;
@@ -223,6 +250,28 @@ function Index() {
           </div>
         </div>
       </div>
+
+      {daysToExam !== null && daysToExam > 0 && (
+        <div className="relative z-10 px-5 mb-3">
+          <button
+            onClick={() => navigate('/exam')}
+            className="w-full bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 rounded-2xl p-4 shadow-lg shadow-red-300/30 active:scale-[0.97] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <Icon name="GraduationCap" size={24} className="text-white" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-white/80 text-[10px] font-extrabold uppercase tracking-wider">До экзамена</p>
+                <p className="text-white text-[18px] font-black leading-tight">{daysToExam} {pluralDays(daysToExam)}</p>
+              </div>
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <span className="text-white font-black text-[16px]">{daysToExam}</span>
+              </div>
+            </div>
+          </button>
+        </div>
+      )}
 
       <div className="relative z-10 px-5 mb-4">
         {currentIdx >= 0 && (
@@ -426,6 +475,27 @@ function Index() {
           </button>
         </div>
       </div>
+
+      {showRuStore && (
+        <div className="relative z-10 mx-5 mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-200/50">
+          <button onClick={() => { dismissRuStore(); setShowRuStore(false); }} className="absolute top-3 right-3 w-6 h-6 bg-gray-200/80 rounded-full flex items-center justify-center">
+            <Icon name="X" size={12} className="text-gray-500" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+              <Icon name="Star" size={20} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0 pr-4">
+              <p className="text-[13px] font-bold text-gray-900">Нравится приложение?</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Оставь отзыв в RuStore — нам важно твоё мнение</p>
+            </div>
+          </div>
+          <a href={RUSTORE_URL} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[13px] font-bold rounded-xl shadow-md shadow-blue-300/30 active:scale-[0.97] transition-all">
+            <Icon name="ExternalLink" size={14} />
+            Оценить в RuStore
+          </a>
+        </div>
+      )}
 
       {showDailyBonus && <DailyBonusPopup onClose={() => setShowDailyBonus(false)} />}
       {showPaywall && <PaywallSheet trigger="session_limit" onClose={() => setShowPaywall(false)} />}

@@ -197,7 +197,7 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onCl
           >
             Все тарифы и скидки →
           </button>
-          <p className="text-gray-400 text-[11px] text-center">★★★★★ 12 400+ учеников · Возврат 14 дней</p>
+          <p className="text-gray-400 text-[11px] text-center">★★★★★ 500+ учеников · Возврат 14 дней</p>
         </div>
       </div>
 
