@@ -301,15 +301,10 @@ export default function University() {
                   <span className="text-xl">📋</span>
                   <h3 className="font-bold text-gray-800">Краткий конспект</h3>
                 </div>
-                <p className="text-gray-700 text-sm leading-relaxed">{analysis.summary}</p>
+                <AiText text={analysis.summary} />
                 {analysis.keyPoints.length > 0 && (
-                  <div className="mt-3 space-y-1.5">
-                    {analysis.keyPoints.map((p, i) => (
-                      <div key={i} className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full mt-2 flex-shrink-0" />
-                        <p className="text-gray-600 text-sm">{p.trim()}</p>
-                      </div>
-                    ))}
+                  <div className="mt-3">
+                    <AiText text={analysis.keyPoints.map(p => `- ${p.trim()}`).join('\n')} />
                   </div>
                 )}
               </div>

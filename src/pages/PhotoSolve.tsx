@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import BottomNav from '@/components/BottomNav';
 import PaywallSheet from '@/components/PaywallSheet';
 import { API } from '@/lib/api-urls';
+import AiText from '@/components/AiText';
 
 const SUBJECT_COLORS: Record<string, string> = {
   'Математика': 'from-blue-500 to-indigo-600',
@@ -156,7 +157,7 @@ function ConditionBlock({ text, subject }: { text: string; subject: string }) {
             <Icon name={icon} size={16} className="text-white/80" />
             <span className="text-xs font-semibold text-white/80">{subject}</span>
           </div>
-          <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{text}</p>
+          <div className="text-sm font-medium leading-relaxed"><AiText text={text} className="[&_p]:text-white/95 [&_strong]:text-white" /></div>
         </div>
       </div>
     </AIBubble>
@@ -178,8 +179,8 @@ function StepsBlock({ steps }: { steps: Array<{ icon: string; title: string; tex
                 {STEP_ICONS[step.icon] || (i === steps.length - 1 ? '✅' : '➡️')}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 text-[15px] mb-0.5">{step.title}</p>
-                <p className="text-[14px] text-gray-600 leading-relaxed whitespace-pre-wrap">{step.text}</p>
+                <p className="font-semibold text-gray-900 text-[15px] mb-1">{step.title}</p>
+                <AiText text={step.text} />
               </div>
             </div>
           ))}
@@ -210,8 +211,8 @@ function CheckBlock({ text }: { text: string }) {
         <div className="flex items-start gap-2">
           <span className="text-base mt-0.5">🔍</span>
           <div>
-            <p className="text-xs font-semibold text-blue-600 mb-0.5">Проверка</p>
-            <p className="text-[14px] text-gray-700 leading-relaxed">{text}</p>
+            <p className="text-xs font-semibold text-blue-600 mb-1">Проверка</p>
+            <AiText text={text} />
           </div>
         </div>
       </div>
@@ -226,8 +227,8 @@ function TipBlock({ text }: { text: string }) {
         <div className="flex items-start gap-2">
           <span className="text-base mt-0.5">💡</span>
           <div>
-            <p className="text-xs font-semibold text-amber-700 mb-0.5">Совет эксперта</p>
-            <p className="text-[14px] text-gray-700 leading-relaxed">{text}</p>
+            <p className="text-xs font-semibold text-amber-700 mb-1">Совет эксперта</p>
+            <AiText text={text} />
           </div>
         </div>
       </div>
@@ -247,7 +248,7 @@ function PracticeBlock({ items, onSolve }: { items: Array<{ text: string }>; onS
           {items.map((item, i) => (
             <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
               <span className="text-violet-600 font-bold text-sm mt-0.5">{i + 1}.</span>
-              <p className="text-[14px] text-gray-700 flex-1 leading-relaxed">{item.text}</p>
+              <div className="flex-1"><AiText text={item.text} /></div>
               {onSolve && (
                 <Button
                   size="sm"
@@ -283,9 +284,7 @@ function FallbackSolutionBlock({ text }: { text: string }) {
   return (
     <AIBubble>
       <div className="bg-white rounded-2xl rounded-tl-sm shadow-sm border border-gray-100 p-4">
-        <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap text-[15px]">
-          {text}
-        </div>
+        <AiText text={text} />
       </div>
     </AIBubble>
   );

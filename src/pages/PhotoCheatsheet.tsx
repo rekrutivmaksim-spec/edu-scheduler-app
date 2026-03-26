@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
-import ReactMarkdown from 'react-markdown';
 import BottomNav from '@/components/BottomNav';
+import AiText from '@/components/AiText';
 
 const API_URL = 'https://functions.poehali.dev/5d453e78-6a8d-4a09-b840-9557b58f6ca0';
 
@@ -199,9 +199,7 @@ const PhotoCheatsheet = () => {
                 Копировать
               </Button>
             </div>
-            <div className="prose prose-sm max-w-none text-gray-700">
-              <ReactMarkdown>{result}</ReactMarkdown>
-            </div>
+            <AiText text={result} />
             <div className="mt-4 pt-4 border-t border-gray-100 flex gap-2">
               <Button
                 variant="outline"

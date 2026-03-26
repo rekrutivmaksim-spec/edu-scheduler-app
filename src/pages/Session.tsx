@@ -59,30 +59,26 @@ function buildSteps(topic: string, subject: string): StepDef[] {
     {
       label: 'Объяснение',
       icon: 'Lightbulb',
-      prompt: `Объясни тему "${topic}" по предмету ${subject} ясно и по делу: сначала суть в 1-2 предложениях простыми словами, потом ключевое правило или формулу текстом (без LaTeX), потом почему это важно для экзамена. Максимум 4-5 предложений. Без воды.`,
+      prompt: `Объясни тему "${topic}" по предмету ${subject}. Используй markdown: **жирный** для ключевых терминов, нумерованные списки для шагов. Структура:\n\n## Суть\n1-2 предложения простыми словами.\n\n## Ключевое правило\nФормула или правило текстом (без LaTeX).\n\n## Почему важно\nПочему это встречается на экзамене. Максимум 5-6 предложений. Без воды.`,
       loaderPhrases: ['Разбираю тему…', 'Подбираю слова…', 'Готовлю объяснение…', 'Почти готово…'],
     },
     {
       label: 'Пример',
       icon: 'BookOpen',
-      prompt: `Покажи конкретный пример применения темы "${topic}" по ${subject}. Возьми реальную задачу или ситуацию, разбери пошагово с числами или фактами. Кратко и наглядно — 3-5 шагов максимум.`,
+      prompt: `Покажи конкретный пример по теме "${topic}" (${subject}). Используй markdown для структуры:\n\n## Задача\nУсловие с конкретными числами/фактами.\n\n## Решение\n1. Первый шаг — ...\n2. Второй шаг — ...\n3. ...\n\n**Ответ:** итог.\n\nКратко, 3-5 шагов. Выделяй **ключевые числа** жирным.`,
       loaderPhrases: ['Ищу хороший пример…', 'Подбираю числа…', 'Формирую пример…'],
     },
     {
       label: 'Задание',
       icon: 'PenLine',
-      prompt: `Составь одно тренировочное задание по теме "${topic}" (${subject}) в стиле ЕГЭ/ОГЭ. Задание должно быть конкретным, с чёткими данными. Только условие — без ответа и подсказок. В конце напиши: "Жду твой ответ."`,
+      prompt: `Составь одно тренировочное задание по теме "${topic}" (${subject}) в стиле ЕГЭ/ОГЭ. Используй markdown:\n\n## Задание\nЧёткое условие с конкретными данными. Выдели **ключевые числа/данные** жирным.\n\nТолько условие — без ответа. В конце: *Жду твой ответ!*`,
       loaderPhrases: ['Составляю задание…', 'Подбираю сложность…', 'Готовлю условие…'],
     },
   ];
 }
 
-function sanitize(text: string): string {
+function cleanText(text: string): string {
   return text
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/`{1,3}([^`]+)`{1,3}/g, '$1')
-    .replace(/#{1,6}\s/g, '')
     .replace(/[\u4e00-\u9fff]/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -362,7 +358,7 @@ export default function Session() {
         }
         if (res.ok) {
           const data = await res.json();
-          raw = sanitize(data.answer || data.response || '');
+          raw = cleanText(data.answer || data.response || '');
           if (raw) break;
         }
         if (attempt < 2) await new Promise(r => setTimeout(r, 700));
@@ -391,7 +387,7 @@ export default function Session() {
     const token = authService.getToken();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const prompt = `Задание: ${content}\n\nОтвет ученика: "${answer}"\n\nПроверь ответ. Сначала реши задание сам, потом сравни с ответом ученика.\nЕсли правильно — начни СТРОГО: "Правильно! ✅" и одной фразой похвали или уточни детали.\nЕсли неправильно — начни СТРОГО: "Неверно ❌" затем в 2-3 предложениях объясни где ошибка и как правильно. Покажи верный ответ.\nНе придумывай других вступлений.`;
+    const prompt = `Задание: ${content}\n\nОтвет ученика: "${answer}"\n\nПроверь ответ. Сначала реши задание сам, потом сравни с ответом ученика. Используй markdown.\n\nЕсли правильно — начни СТРОГО: "Правильно! ✅" и кратко объясни почему верно.\nЕсли неправильно — начни СТРОГО: "Неверно ❌", затем:\n- Где **ошибка**\n- **Правильное решение** кратко\n\nНе придумывай других вступлений. Выделяй ключевые моменты **жирным**.`;
     const bodyAuth = JSON.stringify({ question: prompt, history: [{ role: 'assistant', content }] });
     const bodyDemo = JSON.stringify({ action: 'demo_ask', question: prompt, history: [{ role: 'assistant', content }] });
 
@@ -405,7 +401,7 @@ export default function Session() {
         });
         if (res.ok) {
           const data = await res.json();
-          raw = sanitize(data.answer || data.response || '');
+          raw = cleanText(data.answer || data.response || '');
           if (raw) break;
         }
         if (attempt < 2) await new Promise(r => setTimeout(r, 700));
@@ -477,7 +473,7 @@ export default function Session() {
           : JSON.stringify({ action: 'demo_ask', question: solutionPrompt }),
       });
       const data = await res.json();
-      const raw = sanitize(data.answer || data.response || '');
+      const raw = cleanText(data.answer || data.response || '');
       setCorrectAnswer(raw);
       setShowCorrectAnswer(true);
     } catch {
@@ -925,11 +921,11 @@ export default function Session() {
 
         {/* Типинг результата проверки */}
         {showCheckTyping && (
-          <div className={`rounded-2xl p-4 text-sm text-gray-800 whitespace-pre-line border ${
-            answerCorrect === true ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'
+          <div className={`rounded-2xl p-5 text-[15px] leading-[1.8] whitespace-pre-line border ${
+            answerCorrect === true ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 text-green-800' : 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 text-amber-800'
           }`}>
             {checkTypingText}
-            <span className="inline-block w-0.5 h-4 bg-gray-400 ml-0.5 animate-pulse align-middle" />
+            <span className="inline-block w-0.5 h-4 bg-current opacity-50 ml-0.5 animate-pulse align-middle" />
           </div>
         )}
 
@@ -946,7 +942,7 @@ export default function Session() {
                 {answerCorrect ? 'Правильно!' : 'Не совсем верно'}
               </p>
             </div>
-            <AiText text={checkResult} className={answerCorrect ? '[&_p]:text-green-800' : '[&_p]:text-amber-800'} />
+            <AiText text={checkResult} variant={answerCorrect ? 'success' : 'warning'} />
 
             {/* Попробовать ещё раз + Показать правильный — только при неверном */}
             {!answerCorrect && (
@@ -979,7 +975,7 @@ export default function Session() {
                 <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                   <Icon name="Lightbulb" size={12} /> Правильное решение
                 </p>
-                <AiText text={correctAnswer} className="[&_p]:text-indigo-900" />
+                <AiText text={correctAnswer} variant="info" />
               </div>
             )}
           </div>
