@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { fireConfetti, fireStars } from '@/lib/confetti';
 
 export type RewardType =
   | 'level_up'
@@ -29,6 +31,17 @@ interface RewardModalProps {
 
 export default function RewardModal({ type, onClose, onAction, data = {} }: RewardModalProps) {
   const navigate = useNavigate();
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    if (firedRef.current) return;
+    firedRef.current = true;
+    if (type === 'level_up' || type === 'streak_reward') fireConfetti();
+    if (type === 'achievement') fireStars();
+    if (['level_up', 'achievement', 'streak_reward'].includes(type)) {
+      try { navigator.vibrate?.([60, 30, 100]); } catch { /* */ }
+    }
+  }, [type]);
 
   const goToPricing = () => { onClose(); navigate('/pricing'); };
   const goToStudy = () => { onClose(); navigate('/'); };

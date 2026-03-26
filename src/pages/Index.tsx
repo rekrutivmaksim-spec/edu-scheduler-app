@@ -4,7 +4,7 @@ import { authService } from '@/lib/auth';
 import Icon from '@/components/ui/icon';
 import BottomNav from '@/components/BottomNav';
 import { useLimits } from '@/hooks/useLimits';
-import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
+import { getCompanion, getCompanionStage, getCompanionFromStorage, getStreakWarnPhrase } from '@/lib/companion';
 import { TOPICS_BY_SUBJECT } from '@/lib/topics';
 import { dailyCheckin } from '@/lib/gamification';
 import { API } from '@/lib/api-urls';
@@ -110,12 +110,22 @@ function Index() {
   const trialDays = Math.max(0, (limits.data.free_days_total || 3) - (limits.data.days_since_registration || 999));
   const showTrial = trialDays > 0 && !limits.isPremium;
 
-  const comp = getCompanion(getCompanionFromStorage());
+  const companionId = getCompanionFromStorage();
+  const comp = getCompanion(companionId);
   const stage = getCompanionStage(comp, gam?.level ?? 1);
 
   const sessLeft = limits.sessionsRemaining();
   const aiLeft = limits.aiRemaining();
   const isPrem = limits.isPremium;
+
+  const streak = gam?.streak?.current ?? 0;
+  const xp = gam?.xp_progress ?? 0;
+  const level = gam?.level ?? 1;
+  const userName = user?.name?.split(' ')[0] || 'Ученик';
+
+  const hour = new Date().getHours();
+  const sessionsToday = parseInt(localStorage.getItem(`sessions_today_${new Date().toDateString()}`) || '0', 10);
+  const showStreakWarn = streak > 0 && hour >= 18 && sessionsToday === 0;
 
   useEffect(() => {
     const init = async () => {
@@ -193,11 +203,6 @@ function Index() {
     navigate('/session');
   };
 
-  const streak = gam?.streak?.current ?? 0;
-  const xp = gam?.xp_progress ?? 0;
-  const level = gam?.level ?? 1;
-  const userName = user?.name?.split(' ')[0] || 'Ученик';
-
   return (
     <div className="min-h-screen pb-24 bg-[#f0f4ff] relative overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-[380px] bg-gradient-to-b from-[#4f46e5] via-[#7c3aed] to-[#f0f4ff]" />
@@ -250,6 +255,26 @@ function Index() {
           </div>
         </div>
       </div>
+
+      {showStreakWarn && (
+        <div className="relative z-10 px-5 mb-3">
+          <button
+            onClick={() => tapTopic(currentIdx >= 0 ? currentIdx : 0)}
+            className="w-full bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl p-3.5 shadow-lg shadow-red-300/30 active:scale-[0.97] transition-all animate-pulse"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${comp.style} flex items-center justify-center text-xl shadow-md border-2 border-white/30 flex-shrink-0`}>
+                {stage.emoji}
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-white text-[13px] font-bold leading-snug">{getStreakWarnPhrase(companionId)}</p>
+                <p className="text-white/60 text-[11px] font-medium mt-0.5">Серия: {streak} {streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней'} — не потеряй!</p>
+              </div>
+              <Icon name="AlertTriangle" size={20} className="text-white/80 flex-shrink-0" />
+            </div>
+          </button>
+        </div>
+      )}
 
       <div className="relative z-10 px-5 mb-4">
         {currentIdx >= 0 && (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { claimDailyLoginBonus, DailyLoginBonusResult } from '@/lib/gamification';
 import Icon from '@/components/ui/icon';
+import { fireBurst } from '@/lib/confetti';
 
 interface Props {
   onClose: () => void;
@@ -33,9 +34,11 @@ export default function DailyBonusPopup({ onClose }: Props) {
 
   const handleClaim = () => {
     setClaimed(true);
+    fireBurst();
+    try { navigator.vibrate?.([50, 30, 50]); } catch { /* */ }
     const key = `daily_bonus_${new Date().toDateString()}`;
     localStorage.setItem(key, '1');
-    setTimeout(onClose, 400);
+    setTimeout(onClose, 600);
   };
 
   const streakDay = result.streak_day || 1;

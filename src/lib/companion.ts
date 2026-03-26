@@ -117,3 +117,28 @@ export function saveCompanionToStorage(id: CompanionId): void {
     localStorage.setItem('user', JSON.stringify(user));
   } catch { /* silent */ }
 }
+
+const CELEBRATION_PHRASES: Record<CompanionId, string[]> = {
+  cat: ['Мурр! Ты великолепен! 🐱', 'Идеальный результат, хозяин!', 'Мяу, я знал что ты справишься!', 'Ещё одна тема покорена! Мурр~'],
+  dog: ['Гав-гав! Ты лучший! 🐶', 'Я так горжусь тобой!', 'Хвост виляет от радости!', 'Мы команда! Вместе сильнее!'],
+  owl: ['Ухх, блестяще! 🦉', 'Мудрость растёт с каждым уроком!', 'Знания — твоя суперсила!', 'Ты мыслишь как учёный!'],
+  panda: ['Шаг за шагом к успеху! 🐼', 'Спокойствие и результат!', 'Бамбуковый дзен знаний!', 'Ты в гармонии с учёбой!'],
+  fox: ['Хитро и быстро! 🦊', 'Ни одна задача не устоит!', 'Скорость + мозги = ты!', 'Лисья точность в каждом ответе!'],
+};
+
+const STREAK_WARN_PHRASES: Record<CompanionId, string> = {
+  cat: 'Мяу! Не забудь позаниматься, серия сгорит! 😿',
+  dog: 'Гав! Серия в опасности, хозяин! 🐕',
+  owl: 'Внимание! Серия на грани. Один урок — и она спасена! 🦉',
+  panda: 'Тихо-тихо... но серия может пропасть! 🐼',
+  fox: 'Быстрее! Серия вот-вот сгорит! 🦊',
+};
+
+export function getCelebrationPhrase(id?: CompanionId | string | null): string {
+  const phrases = CELEBRATION_PHRASES[(id as CompanionId)] || CELEBRATION_PHRASES.owl;
+  return phrases[Math.floor(Math.random() * phrases.length)];
+}
+
+export function getStreakWarnPhrase(id?: CompanionId | string | null): string {
+  return STREAK_WARN_PHRASES[(id as CompanionId)] || STREAK_WARN_PHRASES.owl;
+}

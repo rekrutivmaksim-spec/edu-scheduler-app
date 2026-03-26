@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { authService } from '@/lib/auth';
 import PaywallSheet from '@/components/PaywallSheet';
-import { getCompanion, getCompanionStage, getCompanionFromStorage } from '@/lib/companion';
+import { getCompanion, getCompanionStage, getCompanionFromStorage, getCelebrationPhrase } from '@/lib/companion';
+import { fireConfetti } from '@/lib/confetti';
 import { getTodayTopic as getTodayTopicBase, TOPICS_BY_SUBJECT, DEFAULT_TOPICS } from '@/lib/topics';
 import { trackActivity } from '@/lib/gamification';
 import { API } from '@/lib/api-urls';
@@ -715,13 +716,24 @@ export default function Session() {
   // ─── Экран: Завершено ───────────────────────────────────────────────────────
   if (screen === 'done') {
     const newStreak = streak + 1;
+    const companionId = getCompanionFromStorage();
+    const doneComp = getCompanion(companionId);
+    const doneStage = getCompanionStage(doneComp, newStreak);
+    const celebPhrase = getCelebrationPhrase(companionId);
     return (
       <>
+      <ConfettiTrigger />
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col px-5 pt-14 pb-10 overflow-y-auto">
         <div className="text-center mb-5">
-          <div className="text-5xl mb-2">🎉</div>
-          <h1 className="text-white font-extrabold text-3xl mb-1">Занятие завершено!</h1>
-          <p className="text-white/50 text-sm">{sessionTopic.topic} · {sessionTopic.subject}</p>
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${doneComp.style} flex items-center justify-center text-3xl shadow-xl border-2 border-white/30`}
+              style={{ animation: 'bounce-in 0.6s cubic-bezier(0.34,1.56,0.64,1)' }}>
+              {doneStage.emoji}
+            </div>
+          </div>
+          <h1 className="text-white font-extrabold text-3xl mb-1" style={{ animation: 'fade-up 0.5s ease 0.3s both' }}>Занятие завершено!</h1>
+          <p className="text-white/70 text-sm font-medium mt-2 italic" style={{ animation: 'fade-up 0.5s ease 0.5s both' }}>«{celebPhrase}»</p>
+          <p className="text-white/40 text-xs mt-1" style={{ animation: 'fade-up 0.5s ease 0.6s both' }}>{sessionTopic.topic}</p>
         </div>
 
         {/* Крючок: до экзамена */}
@@ -1103,6 +1115,23 @@ export default function Session() {
           onClose={() => setShowPaywall(false)}
         />
       )}
+
+      <style>{`
+        @keyframes bounce-in { from { transform: scale(0); opacity:0 } to { transform: scale(1); opacity:1 } }
+        @keyframes fade-up { from { opacity:0; transform: translateY(12px) } to { opacity:1; transform: translateY(0) } }
+      `}</style>
     </div>
   );
+}
+
+function ConfettiTrigger() {
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!fired.current) {
+      fired.current = true;
+      fireConfetti();
+      try { navigator.vibrate?.([80, 40, 120, 40, 80]); } catch { /* */ }
+    }
+  }, []);
+  return null;
 }
