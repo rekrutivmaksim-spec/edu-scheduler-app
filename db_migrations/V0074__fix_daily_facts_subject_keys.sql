@@ -1,0 +1,12 @@
+UPDATE daily_facts SET subject = 'biology' WHERE subject = 'Биология';
+UPDATE daily_facts SET subject = 'ru' WHERE subject = 'русский язык';
+UPDATE daily_facts SET subject = 'math_prof' WHERE subject = 'математика (профильная)';
+UPDATE daily_facts SET subject = 'math_base' WHERE subject = 'математика (базовая)';
+UPDATE daily_facts SET subject = 'physics' WHERE subject = 'физика';
+UPDATE daily_facts SET subject = 'chemistry' WHERE subject = 'химия';
+UPDATE daily_facts SET subject = 'history' WHERE subject = 'история';
+UPDATE daily_facts SET subject = 'social' WHERE subject = 'обществознание';
+UPDATE daily_facts SET subject = 'informatics' WHERE subject = 'информатика';
+UPDATE daily_facts SET subject = 'english' WHERE subject = 'английский язык';
+UPDATE daily_facts SET subject = 'geography' WHERE subject = 'география';
+UPDATE daily_facts SET subject = 'literature' WHERE subject = 'литература';

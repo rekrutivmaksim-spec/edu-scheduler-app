@@ -97,11 +97,12 @@ function Index() {
       if (!v) { navigate('/auth'); return; }
       setUser(v);
       if (!v.onboarding_completed) { navigate('/onboarding'); return; }
-      setActiveSubject(v.exam_subject || 'ru');
-      setCompleted(loadCompleted(v.exam_subject || 'ru'));
+      const subj = v.exam_subject || 'ru';
+      setActiveSubject(subj);
+      setCompleted(loadCompleted(subj));
       dailyCheckin();
       loadGam();
-      loadDailyFact();
+      loadDailyFact(subj);
     };
     init();
   }, [navigate]);
@@ -140,8 +141,8 @@ function Index() {
     } catch { /* */ }
   };
 
-  const loadDailyFact = async () => {
-    const cacheKey = `daily_fact_${new Date().toDateString()}`;
+  const loadDailyFact = async (subject: string) => {
+    const cacheKey = `daily_fact_${subject}_${new Date().toDateString()}`;
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) { setDailyFact(JSON.parse(cached)); return; }
@@ -262,13 +263,15 @@ function Index() {
         </button>
 
         {dailyFact && (
-          <div className="mt-3 bg-gradient-to-br from-violet-50 to-indigo-50 rounded-2xl p-4 border border-violet-200/50">
+          <div className="mt-3 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 rounded-2xl p-4 border border-amber-200/50 shadow-sm">
             <div className="flex items-start gap-3">
-              <span className="text-2xl flex-shrink-0">{dailyFact.emoji}</span>
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md shadow-orange-300/40 flex-shrink-0">
+                <Icon name="Lightbulb" size={20} className="text-white" />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="text-[10px] font-extrabold text-violet-500 uppercase tracking-wider">Факт дня</p>
-                  <span className="text-[9px] text-violet-400 font-medium">{dailyFact.subject_name}</span>
+                  <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider">Факт дня</p>
+                  <span className="text-[9px] text-amber-400 font-medium">• {dailyFact.subject_name}</span>
                 </div>
                 <p className="text-[13px] text-gray-800 leading-relaxed">{dailyFact.text}</p>
               </div>
