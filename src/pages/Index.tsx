@@ -107,8 +107,10 @@ function Index() {
   const doneCnt = completed.length;
   const pct = topics.length > 0 ? Math.round((doneCnt / topics.length) * 100) : 0;
 
-  const trialDays = Math.max(0, (limits.data.free_days_total || 3) - (limits.data.days_since_registration || 999));
-  const showTrial = trialDays > 0 && !limits.isPremium;
+  const trialDays = limits.data.trial_ends_at
+    ? Math.max(0, Math.ceil((new Date(limits.data.trial_ends_at).getTime() - Date.now()) / 86400000))
+    : 0;
+  const showTrial = trialDays > 0 && limits.isTrial;
 
   const companionId = getCompanionFromStorage();
   const comp = getCompanion(companionId);
