@@ -167,6 +167,10 @@ def handler(event: dict, context) -> dict:
                 return cron_referral_promo(conn)
             if cron == 'discount':
                 return cron_discount(conn)
+            if cron == 'daily_bonus':
+                return cron_daily_bonus(conn)
+            if cron == 'expire_bonus':
+                return cron_expire_bonus(conn)
             return err(400, 'Unknown cron')
 
         if not user_id:
@@ -480,6 +484,129 @@ def cron_reactivation(conn) -> dict:
         '/', 'reactivation_30d')
 
     return ok({'day3': r1, 'day7_no_trial': r2, 'day7': r3, 'day30': r4})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 6. ЕЖЕДНЕВНЫЕ БОНУСЫ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+EMAIL_URL = os.environ.get('EMAIL_FUNCTION_URL', '')
+
+
+def _send_bonus_email(email: str, name: str, hours_left: int):
+    """Send daily bonus email via email function (fire-and-forget)."""
+    if not EMAIL_URL or not email:
+        return
+    try:
+        import urllib.request
+        payload = json.dumps({
+            'action': 'daily_bonus',
+            'to': email,
+            'name': name,
+            'hours_left': hours_left,
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            EMAIL_URL,
+            data=payload,
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as e:
+        print(f'[Bonus Email Error] {e}')
+
+
+def cron_daily_bonus(conn) -> dict:
+    """Every day ~10:00: give FREE users 3 bonus AI questions, send push + email."""
+    cur = conn.cursor()
+
+    # Give bonus questions to all free users
+    cur.execute(f'''
+        UPDATE {SCHEMA}.users
+        SET bonus_questions = 3
+        WHERE subscription_type != 'premium'
+          AND (bonus_questions IS NULL OR bonus_questions < 3)
+        RETURNING id
+    ''')
+    updated_ids = [r[0] for r in cur.fetchall()]
+    conn.commit()
+
+    # Get push-subscribed free users for push notification
+    if updated_ids:
+        placeholders = ','.join(['%s'] * len(updated_ids))
+        cur.execute(f'''
+            SELECT DISTINCT ps.user_id FROM {SCHEMA}.push_subscriptions ps
+            WHERE ps.user_id IN ({placeholders})
+              AND (ps.endpoint IS NOT NULL OR ps.rustore_token IS NOT NULL)
+        ''', updated_ids)
+        push_user_ids = [r[0] for r in cur.fetchall()]
+    else:
+        push_user_ids = []
+
+    push_result = send_to_users(conn, push_user_ids,
+        '+3 бонусных вопроса!',
+        'Сгорят к полуночи — используй сейчас',
+        '/assistant', 'daily_bonus')
+
+    # Send email to users who haven't logged in today and have real email
+    today = datetime.now(timezone.utc).date()
+    cur.execute(f'''
+        SELECT u.id, u.email, u.full_name
+        FROM {SCHEMA}.users u
+        WHERE u.subscription_type != 'premium'
+          AND u.email IS NOT NULL
+          AND u.email NOT LIKE '%%@studyfay.app'
+          AND (u.last_login_at IS NULL OR u.last_login_at::date < %s)
+    ''', (today,))
+    email_users = cur.fetchall()
+    cur.close()
+
+    emails_sent = 0
+    for user in email_users:
+        _send_bonus_email(user[1], user[2] or user[1], 14)
+        emails_sent += 1
+
+    return ok({
+        'bonus_given': len(updated_ids),
+        'push': push_result,
+        'emails_sent': emails_sent,
+    })
+
+
+def cron_expire_bonus(conn) -> dict:
+    """Every day ~23:00: reset bonus_questions to 0, send push about expiry."""
+    cur = conn.cursor()
+
+    # Find users who still have unused bonus questions (for push)
+    cur.execute(f'''
+        SELECT u.id FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
+        WHERE (ps.endpoint IS NOT NULL OR ps.rustore_token IS NOT NULL)
+          AND u.bonus_questions > 0
+          AND u.subscription_type != 'premium'
+    ''')
+    push_user_ids = [r[0] for r in cur.fetchall()]
+
+    # Reset bonus questions for all users
+    cur.execute(f'''
+        UPDATE {SCHEMA}.users
+        SET bonus_questions = 0
+        WHERE bonus_questions > 0
+        RETURNING id
+    ''')
+    reset_ids = [r[0] for r in cur.fetchall()]
+    conn.commit()
+
+    push_result = send_to_users(conn, push_user_ids,
+        'Бонусные вопросы сгорели!',
+        'Завтра получишь новые — не забудь зайти',
+        '/', 'bonus_expired')
+
+    cur.close()
+    return ok({
+        'reset_count': len(reset_ids),
+        'push': push_result,
+    })
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

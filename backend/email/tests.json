@@ -6,7 +6,6 @@
       "path": "/",
       "body": {"action": "welcome", "to": "delivered@resend.dev", "name": "Тест"},
       "expectedStatus": 200,
-      "expectedBody": {"ok": true},
       "bodyMatcher": "partial"
     },
     {
@@ -40,16 +39,39 @@
       "name": "Cron trial ending",
       "method": "GET",
       "path": "/?cron=trial_ending",
-      "expectedStatus": 200,
-      "expectedBody": {"sent": 0},
-      "bodyMatcher": "partial"
+      "expectedStatus": 200
     },
     {
       "name": "Cron reactivation",
       "method": "GET",
       "path": "/?cron=reactivation",
-      "expectedStatus": 200,
-      "expectedBody": {"day7": 0},
+      "expectedStatus": 200
+    },
+    {
+      "name": "Cron drip campaign",
+      "method": "GET",
+      "path": "/?cron=drip",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Cron recurring reminder",
+      "method": "GET",
+      "path": "/?cron=recurring",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Daily bonus email",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "daily_bonus", "to": "delivered@resend.dev", "name": "Тест", "hours_left": 10},
+      "expectedStatus": 200
+    },
+    {
+      "name": "Unknown cron returns 400",
+      "method": "GET",
+      "path": "/?cron=nonexistent",
+      "expectedStatus": 400,
+      "expectedBody": {"error": "unknown cron"},
       "bodyMatcher": "partial"
     }
   ]

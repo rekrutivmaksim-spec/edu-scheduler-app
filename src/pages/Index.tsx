@@ -119,6 +119,7 @@ function Index() {
   const sessLeft = limits.sessionsRemaining();
   const aiLeft = limits.aiRemaining();
   const isPrem = limits.isPremium;
+  const bonusQuestions = limits.data.limits.ai_questions.bonus_available ?? 0;
 
   const streak = gam?.streak?.current ?? 0;
   const xp = gam?.xp_progress ?? 0;
@@ -273,6 +274,26 @@ function Index() {
                 <p className="text-white/60 text-[11px] font-medium mt-0.5">Серия: {streak} {streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней'} — не потеряй!</p>
               </div>
               <Icon name="AlertTriangle" size={20} className="text-white/80 flex-shrink-0" />
+            </div>
+          </button>
+        </div>
+      )}
+
+      {!isPrem && bonusQuestions > 0 && (
+        <div className="relative z-10 px-5 mb-3">
+          <button
+            onClick={() => navigate('/assistant')}
+            className="w-full bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-2xl p-3.5 shadow-lg shadow-orange-300/30 active:scale-[0.97] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center text-xl shadow-md border-2 border-white/30 flex-shrink-0">
+                <span className="text-xl">🎁</span>
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-white text-[13px] font-bold leading-snug">У тебя {bonusQuestions} бонусных {bonusQuestions === 1 ? 'вопрос' : bonusQuestions < 5 ? 'вопроса' : 'вопросов'} — сгорают к полуночи!</p>
+                <p className="text-white/60 text-[11px] font-medium mt-0.5">Задай вопрос ИИ-помощнику прямо сейчас</p>
+              </div>
+              <Icon name="ArrowRight" size={18} className="text-white/80 flex-shrink-0" />
             </div>
           </button>
         </div>

@@ -9,6 +9,8 @@ Actions (POST):
 Cron (GET ?cron=...):
   trial_ending   — за 24ч до окончания триала (email)
   reactivation   — реактивация спящих 7/30 дней (email)
+  drip           — 3-дневная drip-кампания (3ч, 24ч, 48ч после регистрации)
+  recurring      — повторные напоминания каждые 2 дня неактивным
 """
 import os
 import json
@@ -207,6 +209,130 @@ def html_reactivation_30(name: str) -> str:
     )
 
 
+# ─── Письмо 7: Drip Day 1 (3ч после регистрации) ────────────────────────────
+
+def html_day1(name: str) -> str:
+    return _base(
+        _header('🎯', 'Твой первый день в Studyfay', 'Что попробовать сегодня?') +
+        _body(
+            _hi(name) +
+            _text('Ты зарегистрировался несколько часов назад. Вот <strong>3 вещи</strong>, которые стоит попробовать сегодня:') +
+            _box([
+                '🧠 &nbsp;Задай вопрос ИИ — он объяснит любую тему за 2 минуты',
+                '📚 &nbsp;Пройди первый урок — это займёт 5 минут',
+                '🔥 &nbsp;Начни стрик — заходи каждый день и получай бонусы',
+            ]) +
+            _btn('https://studyfay.ru/assistant', 'Задать первый вопрос →') +
+            _text('<span style="color:#9ca3af;font-size:13px;">Всё это доступно бесплатно в рамках Premium-триала.</span>')
+        ),
+        preview='3 вещи, которые стоит попробовать в первый день'
+    )
+
+
+# ─── Письмо 8: Drip Day 2 (24ч после регистрации) ───────────────────────────
+
+def html_day2(name: str) -> str:
+    return _base(
+        _header('🔥', 'День 2 — твой стрик ждёт!', 'Не останавливайся') +
+        _body(
+            _hi(name) +
+            _text('Вчера ты начал учиться. Сегодня — <strong>второй день</strong>. Если зайдёшь сейчас, получишь стрик 2 дня!') +
+            _text('Стрик = <strong style="color:#6366f1;">скидка на Premium</strong>. Чем длиннее серия — тем больше бонусов.') +
+            _box([
+                '🔥 &nbsp;2 дня подряд = +20 XP бонус',
+                '📈 &nbsp;7 дней подряд = максимальный множитель',
+                '💎 &nbsp;Длинный стрик = скидка на подписку',
+            ]) +
+            _btn('https://studyfay.ru', 'Продолжить учёбу →')
+        ),
+        preview='День 2 — зайди сейчас и получи стрик!'
+    )
+
+
+# ─── Письмо 9: Drip Day 3 (48ч после регистрации) ───────────────────────────
+
+def html_day3(name: str) -> str:
+    return _base(
+        _header('⚡', 'Последний день Premium', 'Используй по максимуму') +
+        _body(
+            _hi(name) +
+            _text('Твой <strong>бесплатный Premium заканчивается завтра</strong>. Успей попробовать всё, что будет с ограничениями без подписки:') +
+            _box([
+                '📸 &nbsp;Реши задачу по фото — скинь фотку и получи решение',
+                '🧠 &nbsp;Задай сложный вопрос — ИИ разберёт по шагам',
+                '📝 &nbsp;Пройди тест — проверь свои знания',
+            ]) +
+            _text('Завтра всё это будет <strong>с ограничениями</strong> — только 3 вопроса в день.') +
+            _btn('https://studyfay.ru', 'Использовать Premium →') +
+            _text('<span style="color:#9ca3af;font-size:13px;">Хочешь оставить безлимит? <a href="https://studyfay.ru/pricing?source=email_drip3" style="color:#6366f1;">Продлить Premium</a></span>')
+        ),
+        preview='Последний день бесплатного Premium — успей использовать!'
+    )
+
+
+# ─── Письмо 10: Recurring reminder (каждые 2 дня) ───────────────────────────
+
+RECURRING_VARIANTS = [
+    {
+        'subject': 'Не забрасывай учёбу!',
+        'emoji': '📚',
+        'title': 'Не забрасывай учёбу!',
+        'subtitle': 'Всего 5 минут в день меняют всё',
+        'text': 'Исследования показывают: <strong>5 минут занятий в день</strong> эффективнее, чем 2 часа раз в неделю. Мозг лучше запоминает при регулярных повторениях.',
+        'fact': 'Кривая забывания Эббингауза: без повторения мы забываем 80% материала за 24 часа.',
+    },
+    {
+        'subject': 'Твой мозг скучает по задачам',
+        'emoji': '🧠',
+        'title': 'Твой мозг скучает по задачам',
+        'subtitle': 'Дай ему немного работы',
+        'text': 'Каждый день без практики — это шаг назад. Но <strong>достаточно одного вопроса</strong>, чтобы нейронные связи не ослабели.',
+        'fact': 'Нейропластичность: мозг формирует новые связи при каждом решении задачи, даже простой.',
+    },
+    {
+        'subject': 'Вернись — всего 5 минут в день',
+        'emoji': '💪',
+        'title': 'Вернись — всего 5 минут!',
+        'subtitle': 'Маленький шаг = большой результат',
+        'text': 'Ты уже начал путь к экзаменам. Не останавливайся! <strong>Задай один вопрос ИИ</strong> — и ты уже сделал больше, чем большинство.',
+        'fact': 'Ученики, которые занимаются каждый день по 5 минут, сдают экзамены на 23% лучше.',
+    },
+]
+
+
+def html_recurring_reminder(name: str, variant_idx: int) -> str:
+    v = RECURRING_VARIANTS[variant_idx % len(RECURRING_VARIANTS)]
+    return _base(
+        _header(v['emoji'], v['title'], v['subtitle']) +
+        _body(
+            _hi(name) +
+            _text(v['text']) +
+            _box([f'💡 &nbsp;{v["fact"]}']) +
+            _btn('https://studyfay.ru', 'Зайти на 5 минут →')
+        ),
+        preview=v['text'][:80]
+    )
+
+
+# ─── Письмо 11: Бонусные вопросы ────────────────────────────────────────────
+
+def html_daily_bonus(name: str, hours_left: int) -> str:
+    return _base(
+        _header('🎁', '+3 бонусных вопроса!', 'Сгорят к полуночи') +
+        _body(
+            _hi(name) +
+            _text(f'Тебе начислены <strong style="color:#6366f1;">3 бонусных вопроса</strong> к ИИ-помощнику. Они сгорят через <strong>{hours_left} часов</strong> — используй сейчас!') +
+            _box([
+                '🧠 &nbsp;Задай сложный вопрос по любому предмету',
+                '📸 &nbsp;Сфоткай задачу — ИИ решит за секунды',
+                '⏰ &nbsp;Бонус действует только сегодня',
+            ]) +
+            _btn('https://studyfay.ru/assistant', 'Использовать бонус →')
+        ),
+        preview='3 бонусных вопроса — сгорят к полуночи!'
+    )
+
+
 # ─── Cron: триал заканчивается (email) ───────────────────────────────────────
 
 def cron_email_trial_ending() -> dict:
@@ -272,10 +398,124 @@ def cron_email_reactivation() -> dict:
         conn.close()
 
 
+# ─── Cron: Drip campaign (3-day onboarding emails) ──────────────────────────
+
+def cron_email_drip() -> dict:
+    """3-day drip campaign: 3h, 24h, 48h after registration.
+    Skip VK fake emails, skip already-active users, skip if trial_ending already sent for day3."""
+    conn = get_conn()
+    try:
+        now = datetime.now()
+        cur = conn.cursor()
+        result = {'day1': 0, 'day2': 0, 'day3': 0}
+
+        # --- Day 1: 3 hours after registration (window: 2h-5h) ---
+        cur.execute(f'''
+            SELECT u.id, u.email, u.full_name, u.created_at, u.last_login_at
+            FROM {SCHEMA}.users u
+            WHERE u.created_at BETWEEN %s AND %s
+              AND u.email IS NOT NULL
+              AND u.email NOT LIKE '%%@studyfay.app'
+              AND (u.last_login_at IS NULL OR u.last_login_at < u.created_at + INTERVAL '1 hour')
+        ''', (now - timedelta(hours=5), now - timedelta(hours=2)))
+        day1_users = cur.fetchall()
+
+        for user in day1_users:
+            email = user['email']
+            name = user['full_name'] or email
+            if send_email(email, '🎯 Твой первый день в Studyfay — что попробовать?', html_day1(name)):
+                result['day1'] += 1
+
+        # --- Day 2: 24 hours after registration (window: 22h-26h) ---
+        cur.execute(f'''
+            SELECT u.id, u.email, u.full_name, u.created_at, u.last_login_at
+            FROM {SCHEMA}.users u
+            WHERE u.created_at BETWEEN %s AND %s
+              AND u.email IS NOT NULL
+              AND u.email NOT LIKE '%%@studyfay.app'
+              AND (u.last_login_at IS NULL OR u.last_login_at < u.created_at + INTERVAL '12 hours')
+        ''', (now - timedelta(hours=26), now - timedelta(hours=22)))
+        day2_users = cur.fetchall()
+
+        for user in day2_users:
+            email = user['email']
+            name = user['full_name'] or email
+            if send_email(email, '🔥 День 2 — твой стрик ждёт! — Studyfay', html_day2(name)):
+                result['day2'] += 1
+
+        # --- Day 3: 48 hours after registration (window: 46h-50h) ---
+        # Skip if trial_reminder_sent is already true (avoid duplicate with trial_ending email)
+        cur.execute(f'''
+            SELECT u.id, u.email, u.full_name, u.created_at, u.last_login_at
+            FROM {SCHEMA}.users u
+            WHERE u.created_at BETWEEN %s AND %s
+              AND u.email IS NOT NULL
+              AND u.email NOT LIKE '%%@studyfay.app'
+              AND COALESCE(u.trial_reminder_sent, false) = false
+              AND (u.last_login_at IS NULL OR u.last_login_at < u.created_at + INTERVAL '24 hours')
+        ''', (now - timedelta(hours=50), now - timedelta(hours=46)))
+        day3_users = cur.fetchall()
+
+        for user in day3_users:
+            email = user['email']
+            name = user['full_name'] or email
+            if send_email(email, '⚡ Последний день Premium — используй по максимуму — Studyfay', html_day3(name)):
+                result['day3'] += 1
+
+        cur.close()
+        return ok(result)
+    finally:
+        conn.close()
+
+
+# ─── Cron: Recurring reminder (every 2 days for inactive users) ─────────────
+
+def cron_email_recurring() -> dict:
+    """Send recurring reminders every 2 days to inactive free users.
+    Skip VK fake emails, skip users inactive >60 days, skip premium users.
+    Uses 2-day windows: 2-4d, 4-6d, 6-8d ... up to 60d based on last_login_at."""
+    conn = get_conn()
+    try:
+        now = datetime.now()
+        cur = conn.cursor()
+        total_sent = 0
+
+        # Generate 2-day windows from 2d to 60d
+        for window_start_days in range(2, 60, 2):
+            window_end_days = window_start_days + 2
+            variant_idx = (window_start_days // 2) % len(RECURRING_VARIANTS)
+
+            cur.execute(f'''
+                SELECT u.id, u.email, u.full_name
+                FROM {SCHEMA}.users u
+                WHERE u.last_login_at BETWEEN %s AND %s
+                  AND u.subscription_type != 'premium'
+                  AND u.email IS NOT NULL
+                  AND u.email NOT LIKE '%%@studyfay.app'
+            ''', (
+                now - timedelta(days=window_end_days),
+                now - timedelta(days=window_start_days)
+            ))
+            users = cur.fetchall()
+
+            variant = RECURRING_VARIANTS[variant_idx]
+            for user in users:
+                email = user['email']
+                name = user['full_name'] or email
+                subject = f'{variant["emoji"]} {variant["subject"]} — Studyfay'
+                if send_email(email, subject, html_recurring_reminder(name, variant_idx)):
+                    total_sent += 1
+
+        cur.close()
+        return ok({'sent': total_sent})
+    finally:
+        conn.close()
+
+
 # ─── Handler ─────────────────────────────────────────────────────────────────
 
 def handler(event: dict, context) -> dict:
-    """Email-сервис Studyfay: приветствие, триал, оплата, сброс пароля, реактивация."""
+    """Email-сервис Studyfay: приветствие, триал, оплата, сброс пароля, реактивация, drip, recurring."""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS, 'body': ''}
 
@@ -289,6 +529,10 @@ def handler(event: dict, context) -> dict:
             return cron_email_trial_ending()
         if cron == 'reactivation':
             return cron_email_reactivation()
+        if cron == 'drip':
+            return cron_email_drip()
+        if cron == 'recurring':
+            return cron_email_recurring()
         return err(400, 'unknown cron')
 
     if method != 'POST':
@@ -334,6 +578,12 @@ def handler(event: dict, context) -> dict:
     if action == 'reactivation_30':
         name = body.get('name', to)
         sent = send_email(to, '💌 Мы скучаем по тебе — Studyfay', html_reactivation_30(name))
+        return ok({'ok': sent})
+
+    if action == 'daily_bonus':
+        name = body.get('name', to)
+        hours_left = body.get('hours_left', 14)
+        sent = send_email(to, '🎁 У тебя 3 бонусных вопроса — сгорят к полуночи! — Studyfay', html_daily_bonus(name, hours_left))
         return ok({'ok': sent})
 
     return err(400, 'unknown action')

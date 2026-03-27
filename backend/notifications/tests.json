@@ -43,6 +43,30 @@
       "expectedStatus": 200,
       "expectedBody": {"day3": {}},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Cron daily bonus",
+      "method": "GET",
+      "path": "/?cron=daily_bonus",
+      "expectedStatus": 200,
+      "expectedBody": {"push": {}},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Cron expire bonus",
+      "method": "GET",
+      "path": "/?cron=expire_bonus",
+      "expectedStatus": 200,
+      "expectedBody": {"push": {}},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Unknown cron returns 400",
+      "method": "GET",
+      "path": "/?cron=nonexistent",
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Unknown cron"},
+      "bodyMatcher": "partial"
     }
   ]
 }
