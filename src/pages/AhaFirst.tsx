@@ -164,10 +164,10 @@ export default function AhaFirst() {
   const [result, setResult] = useState<SolveResult | null>(null);
   const [error, setError] = useState(false);
 
-  const isPreview = !authService.isAuthenticated();
-
   useEffect(() => {
-    // no redirect — allow preview without auth
+    if (!authService.isAuthenticated()) {
+      navigate('/auth');
+    }
   }, [navigate]);
 
   const handleFile = useCallback(async (file: File) => {
@@ -177,30 +177,6 @@ export default function AhaFirst() {
     const preview = URL.createObjectURL(file);
     setImagePreview(preview);
     setStage('solving');
-
-    if (isPreview) {
-      await new Promise(r => setTimeout(r, 6000));
-      setResult({
-        recognized_text: 'Найдите производную функции f(x) = 3x² + 2x - 5',
-        solution: '',
-        subject: 'Математика',
-        structured: {
-          steps: [
-            { icon: 'arrow', title: 'Применяем правило', text: 'Производная суммы = сумма производных. Для каждого слагаемого применяем формулу (xⁿ)\' = n·xⁿ⁻¹' },
-            { icon: 'arrow', title: 'Считаем', text: '(3x²)\' = 6x, (2x)\' = 2, (-5)\' = 0' },
-            { icon: 'check', title: 'Собираем', text: 'f\'(x) = 6x + 2' },
-          ],
-          answer: 'f\'(x) = 6x + 2',
-          check: 'Подставим x=1: f\'(1) = 6·1 + 2 = 8. Исходная f(1) = 3+2-5 = 0, f(1.01) ≈ 0.0803 → Δ/0.01 ≈ 8.03 ✓',
-          tip: 'Запомни: производная xⁿ = n·xⁿ⁻¹. Это самая частая формула на ЕГЭ!',
-          practice: [],
-          motivation: 'Отличная задача! Ты на верном пути 🚀',
-        },
-      });
-      localStorage.setItem('aha_first_done', '1');
-      setTimeout(() => setStage('result'), 800);
-      return;
-    }
 
     try {
       const base64 = await compressImage(file);
@@ -238,7 +214,7 @@ export default function AhaFirst() {
         navigate('/onboarding');
       }, 1500);
     }
-  }, [navigate, isPreview]);
+  }, [navigate]);
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
