@@ -32,6 +32,7 @@ import Screenshots from "./pages/Screenshots";
 import Session from "./pages/Session";
 import Flashcards from "./pages/Flashcards";
 import PhotoSolve from "./pages/PhotoSolve";
+import AhaFirst from "./pages/AhaFirst";
 import DeleteAccount from "./pages/DeleteAccount";
 import MockExam from "./pages/MockExam";
 import ScoreCalculator from "./pages/ScoreCalculator";
@@ -124,6 +125,7 @@ const App = () => (
               <Route path="/session" element={<Session />} />
               <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/photo-solve" element={<PhotoSolve />} />
+              <Route path="/aha-first" element={<AhaFirst />} />
               <Route path="/delete-account" element={<DeleteAccount />} />
               <Route path="/mock-exam" element={<MockExam />} />
               <Route path="/calculator" element={<ScoreCalculator />} />

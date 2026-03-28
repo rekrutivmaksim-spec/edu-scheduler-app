@@ -136,7 +136,11 @@ function Index() {
       const v = await authService.verifyToken();
       if (!v) { navigate('/auth'); return; }
       setUser(v);
-      if (!v.onboarding_completed) { navigate('/onboarding'); return; }
+      if (!v.onboarding_completed) {
+        const didAha = localStorage.getItem('aha_first_done');
+        navigate(didAha ? '/onboarding' : '/aha-first');
+        return;
+      }
       const subj = v.exam_subject || 'ru';
       setActiveSubject(subj);
       setCompleted(loadCompleted(subj));

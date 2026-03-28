@@ -445,7 +445,7 @@ export default function AuthNew() {
       am.login('phone');
     }
     if (isRegister || data.is_new_user) {
-      navigate('/onboarding');
+      navigate('/aha-first');
     } else {
       navigate('/');
     }
@@ -475,7 +475,7 @@ export default function AuthNew() {
           am.register('phone');
           if (goal) localStorage.setItem('onboarding_goal', goal);
           if (subject) localStorage.setItem('onboarding_subject', subject);
-          navigate('/onboarding');
+          navigate('/aha-first');
         } else {
           await afterLogin(data, true);
         }
