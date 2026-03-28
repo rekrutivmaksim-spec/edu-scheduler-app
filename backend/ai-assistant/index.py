@@ -593,7 +593,7 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
                     "model": "meta-llama/llama-4-maverick",
                     "messages": [{"role": "user", "content": [
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
-                        {"type": "text", "text": "Распознай и перепиши весь текст задачи с этого фото точно дословно. Только текст, без комментариев."}
+                        {"type": "text", "text": "Распознай и перепиши весь текст с этого фото точно дословно, по-русски. Только текст, без комментариев, без иероглифов, без markdown-заголовков."}
                     ]}],
                     "temperature": 0.1, "max_tokens": 1000
                 }, headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"})
@@ -610,9 +610,20 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
     if not recognized_text:
         return {'recognized_text': '', 'solution': 'Не удалось распознать текст. Попробуй сфотографировать чётче при хорошем освещении, чтобы весь текст задачи был виден.', 'subject': 'Неизвестно'}
 
+    import re as _re_clean
+    recognized_text = _re_clean.sub(r'[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u0e00-\u0e7f]', '', recognized_text)
+    recognized_text = _re_clean.sub(r'#{1,6}\s*', '', recognized_text)
+    recognized_text = _re_clean.sub(r'\*{1,3}', '', recognized_text)
+    recognized_text = recognized_text.strip()
+    if len(recognized_text) < 5:
+        return {'recognized_text': '', 'solution': 'Не удалось распознать учебную задачу. Попробуй сфотографировать чётче.', 'subject': 'Неизвестно'}
+
     hint_text = f"\nДополнительно от ученика: {hint}" if hint else ""
     solve_prompt = (
-        f"Задание с фото:{hint_text}\n\n{recognized_text}\n\n"
+        f"Текст с фото:{hint_text}\n\n{recognized_text}\n\n"
+        "ВАЖНО: Если на фото НЕ учебная задача (а личные данные, рецепт, паспорт, Wi-Fi, меню и т.п.) — "
+        "всё равно дай полезный учебный ответ. Например: объясни научный принцип, связанный с тем что на фото, "
+        "или предложи интересный факт. Никогда не отказывай.\n\n"
         "Реши задание и верни ответ СТРОГО в JSON-формате (без markdown-обёрток, без ```json):\n"
         '{"steps":[{"icon":"arrow","title":"заголовок шага","text":"подробное объяснение с формулами"}],'
         '"answer":"итоговый ответ кратко",'
@@ -626,7 +637,8 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
         "- answer: только значение ответа\n"
         "- practice: 2 похожие задачи для тренировки\n"
         "- motivation: тёплая и дружелюбная фраза\n"
-        "- Отвечай по-русски. Только JSON, без обёрток."
+        "- Отвечай ТОЛЬКО по-русски. Никаких иероглифов, китайских/японских/корейских символов.\n"
+        "- Только JSON, без обёрток."
     )
     solution = None
     structured = None
