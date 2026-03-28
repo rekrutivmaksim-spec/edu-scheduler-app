@@ -150,7 +150,7 @@ function Index() {
     init();
   }, [navigate]);
 
-  useEffect(() => { setCompleted(loadCompleted(activeSubject)); }, [activeSubject]);
+  useEffect(() => { setCompleted(loadCompleted(activeSubject)); loadDailyFact(activeSubject); }, [activeSubject]);
 
   useEffect(() => {
     const h = () => {

@@ -54,18 +54,40 @@ def get_user_id(token):
     except Exception:
         return None
 
-def generate_fact(subject_key):
+def get_recent_facts(conn, user_id, limit=20):
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        f'SELECT fact_text FROM {SCHEMA}.daily_facts WHERE user_id = %s ORDER BY fact_date DESC LIMIT %s',
+        (user_id, limit)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return [r['fact_text'] for r in rows]
+
+def generate_fact(subject_key, recent_facts=None):
     subject_name = SUBJECT_NAMES.get(subject_key, 'наука')
     emoji = SUBJECT_EMOJIS.get(subject_key, '🧠')
 
-    prompt = f"""Придумай один ШОКИРУЮЩИЙ и малоизвестный факт по предмету «{subject_name}», который 99% школьников НЕ знают.
+    recent_block = ''
+    if recent_facts:
+        recent_list = '\n'.join(f'- {f}' for f in recent_facts[:15])
+        recent_block = f'\n\nНЕ ПОВТОРЯЙ эти факты (уже были):\n{recent_list}\n'
+
+    prompt = f"""Придумай один простой, но неожиданный факт по предмету «{subject_name}».
+
+Стиль: как в приложении Яндекс Путешествия — короткий факт, который вроде бы простой, но большинство людей его не знает. Вызывает реакцию «О, а я не знал!».
+
+Примеры такого стиля (НЕ используй эти факты, придумай свой):
+- «На Северном полюсе нет пингвинов — они живут только в Южном полушарии»
+- «Великая Китайская стена не видна из космоса невооружённым глазом»
+- «Банан — это ягода, а клубника — нет»
 
 Требования:
-- Факт должен вызвать реакцию «Ого, серьёзно?!» — никаких банальностей вроде «медузы бессмертны» или «вода кипит при 100 градусах»
-- Конкретные цифры, даты, имена — чтобы было похоже на инсайдерское знание
-- Полезно для ЕГЭ/ОГЭ — можно использовать в сочинении или для запоминания
-- Максимум 2 предложения, до 180 символов
-- Без вступлений типа «Знаете ли вы» — сразу факт
+- Факт должен быть ПРАВДИВЫМ и проверяемым
+- Простой язык, понятный школьнику
+- Одно-два предложения, до 150 символов
+- Без вступлений («Знаете ли вы», «Интересно, что») — сразу факт
+- Связан с предметом «{subject_name}»{recent_block}
 
 Ответь ТОЛЬКО JSON: {{"text": "...", "emoji": "..."}}
 Emoji — один символ, отражающий суть факта."""
@@ -77,11 +99,11 @@ Emoji — один символ, отражающий суть факта."""
             json={
                 'model': MODEL,
                 'messages': [
-                    {'role': 'system', 'content': 'Ты эксперт по редким и малоизвестным фактам для школьников. Генерируй только то, что реально удивит. Никакой банальщины. Отвечай строго JSON.'},
+                    {'role': 'system', 'content': 'Ты генератор коротких познавательных фактов. Твои факты простые, правдивые и вызывают удивление — «вроде очевидно, а я не знал». Никакой экзотики и выдумок. Отвечай строго JSON.'},
                     {'role': 'user', 'content': prompt},
                 ],
-                'temperature': 1.0,
-                'max_tokens': 250,
+                'temperature': 0.9,
+                'max_tokens': 200,
             },
             headers={'Authorization': f'Bearer {OPENROUTER_API_KEY}', 'Content-Type': 'application/json'},
         )
@@ -97,28 +119,29 @@ Emoji — один символ, отражающий суть факта."""
 
     return None, emoji
 
-def get_or_create_fact(conn, subject_key):
+def get_or_create_fact(conn, user_id, subject_key):
     today = date.today()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     cur.execute(
-        f'SELECT fact_text, emoji FROM {SCHEMA}.daily_facts WHERE subject = %s AND fact_date = %s',
-        (subject_key, today)
+        f'SELECT fact_text, emoji FROM {SCHEMA}.daily_facts WHERE user_id = %s AND subject = %s AND fact_date = %s',
+        (user_id, subject_key, today)
     )
     row = cur.fetchone()
     if row:
         cur.close()
         return row['fact_text'], row['emoji']
 
-    text, emoji = generate_fact(subject_key)
+    recent_facts = get_recent_facts(conn, user_id)
+    text, emoji = generate_fact(subject_key, recent_facts)
     if not text:
         cur.close()
         return None, None
 
     try:
         cur.execute(
-            f'INSERT INTO {SCHEMA}.daily_facts (subject, fact_text, emoji, fact_date) VALUES (%s, %s, %s, %s) ON CONFLICT (subject, fact_date) DO NOTHING RETURNING fact_text, emoji',
-            (subject_key, text, emoji, today)
+            f'INSERT INTO {SCHEMA}.daily_facts (user_id, subject, fact_text, emoji, fact_date) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (user_id, subject, fact_date) DO NOTHING RETURNING fact_text, emoji',
+            (user_id, subject_key, text, emoji, today)
         )
         conn.commit()
         inserted = cur.fetchone()
@@ -127,8 +150,8 @@ def get_or_create_fact(conn, subject_key):
             return inserted['fact_text'], inserted['emoji']
         cur2 = conn.cursor(cursor_factory=RealDictCursor)
         cur2.execute(
-            f'SELECT fact_text, emoji FROM {SCHEMA}.daily_facts WHERE subject = %s AND fact_date = %s',
-            (subject_key, today)
+            f'SELECT fact_text, emoji FROM {SCHEMA}.daily_facts WHERE user_id = %s AND subject = %s AND fact_date = %s',
+            (user_id, subject_key, today)
         )
         row2 = cur2.fetchone()
         cur2.close()
@@ -161,7 +184,7 @@ def handler(event: dict, context) -> dict:
         cur.close()
 
         subject = (user or {}).get('exam_subject') or 'ru'
-        text, emoji = get_or_create_fact(conn, subject)
+        text, emoji = get_or_create_fact(conn, user_id, subject)
 
         if not text:
             return ok({'fact': None})
