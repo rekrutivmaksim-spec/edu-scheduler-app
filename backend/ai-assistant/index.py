@@ -531,61 +531,61 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
     """OCR через Gemini Vision / DeepSeek Vision → решение через Llama-4-Maverick."""
     recognized_text = None
 
-    # Шаг 1a: OCR через Gemini Vision (приоритет — лучше всего работает с фото)
-    if AITUNNEL_GEMINI_KEY:
+    ocr_prompt = (
+        "Распознай и перепиши ВЕСЬ текст с этого фото дословно, по-русски. "
+        "Включая цифры, формулы, условия, варианты ответов. "
+        "Отвечай только текстом, без комментариев, без иероглифов, без markdown-заголовков."
+    )
+
+    # Шаг 1a: OCR через GPT-4o-mini (приоритет — лучшее качество)
+    if OPENROUTER_API_KEY:
         try:
             with httpx.Client(timeout=httpx.Timeout(25.0, connect=5.0)) as h:
                 r_g = h.post("https://api.aitunnel.ru/v1/chat/completions", json={
+                    "model": "gpt-4o-mini",
+                    "messages": [{"role": "user", "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+                        {"type": "text", "text": ocr_prompt}
+                    ]}],
+                    "temperature": 0.1, "max_tokens": 1500
+                }, headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"})
+                if r_g.status_code == 200:
+                    ocr_text = r_g.json()["choices"][0]["message"]["content"].strip()
+                    if not _is_ocr_refusal(ocr_text):
+                        recognized_text = ocr_text
+                        print(f"[PHOTO] OCR gpt4o-mini ok: {recognized_text[:80]}", flush=True)
+                    else:
+                        print(f"[PHOTO] OCR gpt4o-mini refused: {ocr_text[:80]}", flush=True)
+                else:
+                    print(f"[PHOTO] OCR gpt4o-mini status={r_g.status_code}", flush=True)
+        except Exception as e:
+            print(f"[PHOTO] OCR gpt4o-mini error: {e}", flush=True)
+
+    # Шаг 1b: Фолбек — Gemini Vision
+    if not recognized_text and AITUNNEL_GEMINI_KEY:
+        try:
+            with httpx.Client(timeout=httpx.Timeout(25.0, connect=5.0)) as h:
+                r_gem = h.post("https://api.aitunnel.ru/v1/chat/completions", json={
                     "model": "gemini-2.5-flash",
                     "messages": [{"role": "user", "content": [
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
-                        {"type": "text", "text": (
-                            "Это фото с учебным заданием. Точно распознай и перепиши ВЕСЬ текст дословно, "
-                            "включая цифры, формулы, условия, варианты ответов. Отвечай только текстом задачи, без комментариев."
-                        )}
+                        {"type": "text", "text": ocr_prompt}
                     ]}],
                     "temperature": 0.1, "max_tokens": 1500
                 }, headers={"Authorization": f"Bearer {AITUNNEL_GEMINI_KEY}", "Content-Type": "application/json"})
-                if r_g.status_code == 200:
-                    ocr_text = r_g.json()["choices"][0]["message"]["content"].strip()
+                if r_gem.status_code == 200:
+                    ocr_text = r_gem.json()["choices"][0]["message"]["content"].strip()
                     if not _is_ocr_refusal(ocr_text):
                         recognized_text = ocr_text
                         print(f"[PHOTO] OCR gemini ok: {recognized_text[:80]}", flush=True)
                     else:
                         print(f"[PHOTO] OCR gemini refused: {ocr_text[:80]}", flush=True)
                 else:
-                    print(f"[PHOTO] OCR gemini status={r_g.status_code}", flush=True)
+                    print(f"[PHOTO] OCR gemini status={r_gem.status_code}", flush=True)
         except Exception as e:
             print(f"[PHOTO] OCR gemini error: {e}", flush=True)
 
-    # Шаг 1b: Фолбек — DeepSeek Vision
-    if not recognized_text and DEEPSEEK_API_KEY:
-        try:
-            ocr_payload = {
-                "model": "deepseek-vl2",
-                "messages": [{"role": "user", "content": [
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
-                    {"type": "text", "text": (
-                        "Это фото с учебным заданием. Точно распознай и перепиши ВЕСЬ текст дословно, "
-                        "включая цифры, формулы, условия, варианты ответов. Отвечай только текстом, без комментариев."
-                    )}
-                ]}],
-                "temperature": 0.1, "max_tokens": 1500
-            }
-            with httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0)) as h:
-                r = h.post("https://api.deepseek.com/v1/chat/completions", json=ocr_payload,
-                           headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"})
-                if r.status_code == 200:
-                    ocr_text = r.json()["choices"][0]["message"]["content"].strip()
-                    if not _is_ocr_refusal(ocr_text):
-                        recognized_text = ocr_text
-                        print(f"[PHOTO] OCR deepseek ok: {recognized_text[:80]}", flush=True)
-                    else:
-                        print(f"[PHOTO] OCR deepseek refused: {ocr_text[:80]}", flush=True)
-        except Exception as e:
-            print(f"[PHOTO] OCR deepseek error: {e}", flush=True)
-
-    # Шаг 1c: Фолбек — Llama Vision через aitunnel
+    # Шаг 1c: Фолбек — Llama Vision
     if not recognized_text and OPENROUTER_API_KEY:
         try:
             with httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0)) as h:
@@ -593,7 +593,7 @@ def _ocr_and_solve(image_base64: str, hint: str = '') -> dict:
                     "model": "meta-llama/llama-4-maverick",
                     "messages": [{"role": "user", "content": [
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
-                        {"type": "text", "text": "Распознай и перепиши весь текст с этого фото точно дословно, по-русски. Только текст, без комментариев, без иероглифов, без markdown-заголовков."}
+                        {"type": "text", "text": ocr_prompt}
                     ]}],
                     "temperature": 0.1, "max_tokens": 1000
                 }, headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"})
