@@ -1464,7 +1464,6 @@ def handler(event: dict, context) -> dict:
             t0 = _time.time()
             history = body_demo.get('history', [])
             print(f"[DEMO] ip:{ip} q:{question[:60]} history:{len(history)}", flush=True)
-            # Кэш только если нет истории (первый вопрос про тему)
             if not history:
                 cached_answer = get_demo_cache(question)
                 if cached_answer:
@@ -1472,6 +1471,62 @@ def handler(event: dict, context) -> dict:
                     return ok({'answer': cached_answer, 'cached': True})
             answer, tokens = ask_ai_demo(question[:300], history)
             print(f"[DEMO] tokens:{tokens} time:{_time.time()-t0:.1f}s", flush=True)
+            return ok({'answer': answer})
+
+        if body_demo.get('action') == 'free_photo_solve':
+            ip = (event.get('requestContext', {}) or {}).get('identity', {}).get('sourceIp', 'unknown')
+            fp = body_demo.get('fingerprint', '')
+            rate_key = f"photo_{ip}_{fp}"
+            now_ts = datetime.now()
+            hits = DEMO_RATE_LIMIT.get(rate_key, [])
+            hits = [t for t in hits if (now_ts - t).total_seconds() < 86400]
+            if len(hits) >= 2:
+                return err(429, {'error': 'Лимит бесплатных решений исчерпан. Зарегистрируйся — это бесплатно!'})
+            image_b64 = body_demo.get('image_base64', '').strip()
+            hint_fp = body_demo.get('hint', '').strip()[:300]
+            if not image_b64:
+                return err(400, {'error': 'Нет фото. Передай image_base64'})
+            if len(image_b64) > 14_000_000:
+                return err(400, {'error': 'Фото слишком большое'})
+            hits.append(now_ts)
+            DEMO_RATE_LIMIT[rate_key] = hits
+            import time as _time
+            t0 = _time.time()
+            print(f"[FREE_PHOTO] ip:{ip} fp:{fp} hint:{hint_fp[:30]}", flush=True)
+            result_fp = _ocr_and_solve(image_b64, hint_fp)
+            print(f"[FREE_PHOTO] time:{_time.time()-t0:.1f}s", flush=True)
+            resp_fp = {
+                'recognized_text': result_fp['recognized_text'],
+                'solution': result_fp['solution'],
+                'subject': result_fp['subject'],
+                'remaining': 0,
+                'used': 1,
+                'limit': 1,
+                'bonus_remaining': 0,
+            }
+            if 'structured' in result_fp:
+                resp_fp['structured'] = result_fp['structured']
+            return ok(resp_fp)
+
+        if body_demo.get('action') == 'free_ask':
+            question = body_demo.get('question', '').strip()
+            if not question:
+                return err(400, {'error': 'Введи вопрос'})
+            ip = (event.get('requestContext', {}) or {}).get('identity', {}).get('sourceIp', 'unknown')
+            fp = body_demo.get('fingerprint', '')
+            rate_key = f"ask_{ip}_{fp}"
+            now_ts = datetime.now()
+            hits = DEMO_RATE_LIMIT.get(rate_key, [])
+            hits = [t for t in hits if (now_ts - t).total_seconds() < 86400]
+            if len(hits) >= 2:
+                return err(429, {'error': 'Лимит бесплатных вопросов исчерпан. Зарегистрируйся — это бесплатно!'})
+            hits.append(now_ts)
+            DEMO_RATE_LIMIT[rate_key] = hits
+            import time as _time
+            t0 = _time.time()
+            print(f"[FREE_ASK] ip:{ip} fp:{fp} q:{question[:60]}", flush=True)
+            answer, tokens = ask_ai_demo(question[:500], [])
+            print(f"[FREE_ASK] tokens:{tokens} time:{_time.time()-t0:.1f}s", flush=True)
             return ok({'answer': answer})
 
     token = event.get('headers', {}).get('X-Authorization', '').replace('Bearer ', '')

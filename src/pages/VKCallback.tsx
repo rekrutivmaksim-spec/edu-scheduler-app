@@ -113,8 +113,7 @@ export default function VKCallback() {
 
             setTimeout(() => {
               if (!data.user.onboarding_completed) {
-                const didAha = localStorage.getItem('aha_first_done');
-                navigate(didAha ? '/onboarding' : '/aha-first');
+                navigate('/onboarding');
               } else {
                 navigate('/');
               }

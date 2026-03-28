@@ -11,6 +11,9 @@ import { am } from '@/lib/appmetrica';
 import { Device } from '@capacitor/device';
 import FoxMascot from '@/components/FoxMascot';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import AiText from '@/components/AiText';
+
+// ─── Утилиты ──────────────────────────────────────────────────────────────────
 
 async function getDeviceId(): Promise<string> {
   try {
@@ -38,7 +41,7 @@ async function getBrowserFingerprint(): Promise<string> {
       if (ctx) {
         ctx.textBaseline = 'top';
         ctx.font = '14px Arial';
-        ctx.fillText('Studyfay🎓', 2, 2);
+        ctx.fillText('Studyfay', 2, 2);
         components.push(canvas.toDataURL().slice(-32));
       }
     } catch (_e) { /* canvas not supported */ }
@@ -67,91 +70,84 @@ function sanitizeText(text: string): string {
     .trim();
 }
 
-// ─── Данные ──────────────────────────────────────────────────────────────────
+function compressImage(file: File, maxSize = 1200): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, w, h);
+      let quality = 0.7;
+      let result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+      if (result.length > 2_000_000) {
+        quality = 0.4;
+        result = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+      }
+      resolve(result);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
 
-const GOALS = [
-  { id: 'ege', emoji: '🎯', label: 'Сдать ЕГЭ', desc: '10–11 класс', percent: 68, groupLabel: 'учеников 11 класса' },
-  { id: 'oge', emoji: '📚', label: 'Сдать ОГЭ', desc: '8–9 класс', percent: 71, groupLabel: 'учеников 9 класса' },
-  { id: 'university', emoji: '🎓', label: 'Учёба в вузе', desc: 'Студент', percent: 74, groupLabel: 'студентов' },
-  { id: 'other', emoji: '✨', label: 'Саморазвитие', desc: 'Для себя', percent: 65, groupLabel: 'пользователей' },
-] as const;
+// ─── Данные ───────────────────────────────────────────────────────────────────
 
-type GoalId = typeof GOALS[number]['id'];
+interface StructuredResponse {
+  steps: Array<{ icon: string; title: string; text: string }>;
+  answer: string;
+  check: string;
+  tip: string;
+  practice: Array<{ text: string }>;
+  motivation: string;
+}
 
-const MOTIVATIONS: Record<GoalId, { emoji: string; label: string }[]> = {
-  ege: [
-    { emoji: '🏆', label: 'Поступить в топ-вуз' },
-    { emoji: '💯', label: 'Набрать 80+ баллов' },
-    { emoji: '😰', label: 'Просто не провалиться' },
-    { emoji: '📈', label: 'Улучшить результат' },
-  ],
-  oge: [
-    { emoji: '✅', label: 'Сдать на отлично' },
-    { emoji: '😌', label: 'Не краснеть на экзамене' },
-    { emoji: '🎒', label: 'Перейти в 10 класс' },
-    { emoji: '📈', label: 'Подтянуть оценки' },
-  ],
-  university: [
-    { emoji: '🏅', label: 'Закрыть сессию на отлично' },
-    { emoji: '😅', label: 'Просто не завалить' },
-    { emoji: '💼', label: 'Разобраться для работы' },
-    { emoji: '🧠', label: 'Понять, а не зазубрить' },
-  ],
-  other: [
-    { emoji: '🧠', label: 'Стать умнее' },
-    { emoji: '💬', label: 'Говорить уверенно' },
-    { emoji: '🎯', label: 'Заполнить пробелы' },
-    { emoji: '🚀', label: 'Развиваться каждый день' },
-  ],
+interface SolveResult {
+  recognized_text: string;
+  solution: string;
+  subject: string;
+  structured?: StructuredResponse;
+}
+
+const STEP_ICONS: Record<string, string> = {
+  arrow: '➡️',
+  pin: '📌',
+  check: '✅',
 };
 
-const SUBJECTS = [
-  { id: 'math', emoji: '📐', label: 'Математика' },
-  { id: 'russian', emoji: '📝', label: 'Русский язык' },
-  { id: 'physics', emoji: '⚡', label: 'Физика' },
-  { id: 'history', emoji: '🏛️', label: 'История' },
-  { id: 'english', emoji: '🇬🇧', label: 'Английский' },
-  { id: 'chemistry', emoji: '🧪', label: 'Химия' },
+const EXAMPLE_TEXTS = [
+  '2x^2 + 3x - 5 = 0',
+  'Что такое валентность?',
+  'Объясни закон Ома',
+  'Найти производную sin(2x)',
+  'Причины революции 1917',
 ];
 
-const LEVELS = [
-  { id: 'beginner', emoji: '🌱', label: 'С нуля', desc: 'Тема почти незнакома' },
-  { id: 'middle', emoji: '📖', label: 'Знаю основы', desc: 'Но есть пробелы' },
-  { id: 'advanced', emoji: '🔥', label: 'Уверенно', desc: 'Хочу закрепить' },
+const SOLVING_PHRASES_PHOTO = [
+  { text: 'Распознаю задачу...', emoji: '🔍' },
+  { text: 'Анализирую условие...', emoji: '📐' },
+  { text: 'Решаю пошагово...', emoji: '✨' },
+  { text: 'Проверяю ответ...', emoji: '✅' },
 ];
-
-const LESSON_SUBJECTS = [
-  { id: 'math', emoji: '📐', label: 'Математика', topic: 'Что такое производная и зачем она нужна', question: 'Скорость машины — это производная от...', answers: ['расстояния по времени', 'времени по расстоянию', 'ускорения по времени'], correct: 0 },
-  { id: 'russian', emoji: '📝', label: 'Русский язык', topic: 'Как не путать -н- и -нн- в прилагательных', question: 'В слове "деревянный" пишется -нн- потому что...', answers: ['суффикс -янн-', 'слово образовано от существительного с основой на -н-', 'это исключение'], correct: 1 },
-  { id: 'physics', emoji: '⚡', label: 'Физика', topic: 'Закон Ома: почему чайник греет воду', question: 'Если сопротивление увеличить в 2 раза, ток...', answers: ['увеличится в 2 раза', 'уменьшится в 2 раза', 'не изменится'], correct: 1 },
-  { id: 'history', emoji: '🏛️', label: 'История', topic: 'Почему Пётр I построил Петербург именно там', question: 'Северная война завершилась в...', answers: ['1700 году', '1709 году', '1721 году'], correct: 2 },
-  { id: 'english', emoji: '🇬🇧', label: 'Английский', topic: 'Present Perfect vs Past Simple: раз и навсегда', question: 'Какое предложение правильное?', answers: ['I have seen him yesterday', 'I saw him yesterday', 'I did see him yesterday'], correct: 1 },
-  { id: 'chemistry', emoji: '🧪', label: 'Химия', topic: 'Что такое валентность и как её определить', question: 'Валентность кислорода в большинстве соединений равна...', answers: ['I', 'II', 'III'], correct: 1 },
-];
-
-const THINKING_STEPS = [
-  'Анализирую тему…',
-  'Подбираю объяснение…',
-  'Формирую урок…',
-  'Почти готово…',
+const SOLVING_PHRASES_TEXT = [
+  { text: 'Анализирую вопрос...', emoji: '🔍' },
+  { text: 'Подбираю объяснение...', emoji: '📐' },
+  { text: 'Формулирую ответ...', emoji: '✨' },
+  { text: 'Проверяю...', emoji: '✅' },
 ];
 
 // ─── Типы экранов ─────────────────────────────────────────────────────────────
-// Флоу: splash → goal → subject → level → lesson → result → register
+// Флоу: splash -> aha (photo/text) -> solving -> result -> register
 // Отдельно: login, forgot
-type Screen = 'splash' | 'goal' | 'subject' | 'level' | 'lesson' | 'result' | 'register' | 'login' | 'forgot';
-type LessonStage = 'explain' | 'question' | 'answered';
+type Screen = 'splash' | 'aha' | 'solving' | 'result' | 'register' | 'login' | 'forgot';
 
 // ─── Вспомогательные компоненты ───────────────────────────────────────────────
-
-const ProgressBar = ({ current, total }: { current: number; total: number }) => (
-  <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
-    <div
-      className="h-full bg-white rounded-full transition-all duration-500 ease-out"
-      style={{ width: `${Math.round((current / total) * 100)}%` }}
-    />
-  </div>
-);
 
 const FieldError = ({ name, errors }: { name: string; errors: Record<string, string> }) =>
   errors[name] ? <p className="text-red-500 text-xs mt-1">{errors[name]}</p> : null;
@@ -220,31 +216,76 @@ const VKButton = ({ onClick, loading, disabled }: { onClick: () => void; loading
   </Button>
 );
 
-// ─── Обёртка для шагов онбординга ────────────────────────────────────────────
-const OnboardingShell = ({
-  step, totalSteps, onBack, children, hideBack = false,
-}: {
-  step: number; totalSteps: number; onBack?: () => void; children: React.ReactNode; hideBack?: boolean;
-}) => (
-  <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col">
-    <div className="px-5 pt-12 pb-4 flex items-center gap-3">
-      {!hideBack && onBack && (
-        <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-          <Icon name="ChevronLeft" size={20} className="text-white" />
-        </button>
-      )}
-      <div className="flex-1">
-        <ProgressBar current={step} total={totalSteps} />
+function FloatingExamples() {
+  const [active, setActive] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setActive(prev => (prev + 1) % EXAMPLE_TEXTS.length), 2500);
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <div className="flex flex-col items-center gap-2 mt-4">
+      <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Например</p>
+      <div className="h-8 relative overflow-hidden w-full">
+        {EXAMPLE_TEXTS.map((text, i) => (
+          <div key={i} className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${i === active ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <span className="text-gray-400 text-sm font-mono bg-gray-100 px-4 py-1.5 rounded-full">{text}</span>
+          </div>
+        ))}
       </div>
     </div>
-    <div className="flex-1 flex flex-col px-5 pb-8">
-      {children}
+  );
+}
+
+function SolvingAnimation({ phrases }: { phrases: typeof SOLVING_PHRASES_PHOTO }) {
+  const [visibleCount, setVisibleCount] = useState(0);
+
+  useEffect(() => {
+    if (visibleCount < phrases.length) {
+      const timer = setTimeout(() => setVisibleCount(c => c + 1), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [visibleCount, phrases.length]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {phrases.map((phrase, i) => (
+        <div
+          key={i}
+          className={`flex items-center gap-3 transition-all duration-500 ${
+            i < visibleCount ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+          }`}
+        >
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${
+            i < visibleCount - 1 ? 'bg-green-100' : 'bg-indigo-100 animate-pulse'
+          }`}>
+            {phrase.emoji}
+          </div>
+          <span className={`text-base font-medium ${
+            i < visibleCount - 1 ? 'text-gray-400' : 'text-gray-800'
+          }`}>
+            {phrase.text}
+          </span>
+          {i < visibleCount - 1 && (
+            <Icon name="Check" size={16} className="text-green-500 ml-auto" />
+          )}
+        </div>
+      ))}
+      {visibleCount < phrases.length && (
+        <div className="flex justify-center mt-2">
+          <div className="flex items-center gap-1.5">
+            {[0, 1, 2].map(i => (
+              <div
+                key={i}
+                className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce"
+                style={{ animationDelay: `${i * 150}ms`, animationDuration: '0.8s' }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
-    <div className="px-5">
-      <LegalFooter showDelete />
-    </div>
-  </div>
-);
+  );
+}
 
 // ─── Главный компонент ────────────────────────────────────────────────────────
 export default function AuthNew() {
@@ -270,30 +311,19 @@ export default function AuthNew() {
     setScreen(prev);
   };
 
-  // Данные онбординга
-  const [goal, setGoal] = useState<GoalId | ''>('');
-  const [subject, setSubject] = useState('');
-  const [level, setLevel] = useState('');
+  // Aha state
+  const [ahaImagePreview, setAhaImagePreview] = useState<string | null>(null);
+  const [ahaQuestion, setAhaQuestion] = useState('');
+  const [ahaResult, setAhaResult] = useState<SolveResult | null>(null);
+  const [ahaTextAnswer, setAhaTextAnswer] = useState<string | null>(null);
+  const [ahaResultType, setAhaResultType] = useState<'photo' | 'text'>('photo');
+  const [ahaError, setAhaError] = useState(false);
+  const [fingerprint, setFingerprint] = useState('');
 
-  // Предзагрузка ИИ — стартует фоном когда пользователь на экране level
-  const preloadedExplanation = useRef<string>('');
-  const isPreloading = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Урок
-  const [lessonStage, setLessonStage] = useState<LessonStage>('explain');
-  const [selectedSubject, setSelectedSubject] = useState<typeof LESSON_SUBJECTS[0] | null>(null);
-  const [explanation, setExplanation] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [thinkingStep, setThinkingStep] = useState(0);
-  const [typingText, setTypingText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [flashCorrect, setFlashCorrect] = useState(false);
-  const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Auth
+  // Auth state
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -308,116 +338,15 @@ export default function AuthNew() {
     if (authService.isAuthenticated()) navigate('/');
   }, [navigate]);
 
+  // Get fingerprint on mount
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [typingText, lessonStage]);
+    getBrowserFingerprint().then(fp => setFingerprint(fp));
+  }, []);
 
   const clearErrors = () => { setFieldErrors({}); setTermsError(false); };
   const validateEmail = (v: string) => v.includes('@') && v.includes('.');
 
-  const typeText = (fullText: string, onDone: () => void) => {
-    if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-    setTypingText('');
-    setIsTyping(true);
-    let i = 0;
-    const speed = Math.max(8, Math.min(20, Math.floor(2000 / fullText.length)));
-    typingTimerRef.current = setInterval(() => {
-      i++;
-      setTypingText(fullText.slice(0, i));
-      if (i >= fullText.length) {
-        clearInterval(typingTimerRef.current!);
-        setIsTyping(false);
-        onDone();
-      }
-    }, speed);
-  };
-
-  // Фоновая предзагрузка ИИ — вызывается когда пользователь видит экран level
-  const preloadLesson = async (subj: typeof LESSON_SUBJECTS[0]) => {
-    if (isPreloading.current || preloadedExplanation.current) return;
-    isPreloading.current = true;
-    try {
-      const res = await fetch(API.AI_ASSISTANT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'demo_ask',
-          question: `Объясни за 1-2 предложения, максимально просто, как другу: ${subj.topic}. Без списков, без терминов.`,
-          history: [],
-        }),
-      });
-      const data = await res.json();
-      preloadedExplanation.current = sanitizeText(data.answer || data.response || '');
-    } catch { /* silent */ } finally {
-      isPreloading.current = false;
-    }
-  };
-
-  const startLesson = async (subj: typeof LESSON_SUBJECTS[0]) => {
-    setSelectedSubject(subj);
-    setLessonStage('explain');
-    setExplanation('');
-    setTypingText('');
-    setSelectedAnswer(null);
-
-    // Если уже предзагружено — показываем мгновенно
-    if (preloadedExplanation.current) {
-      const text = preloadedExplanation.current;
-      preloadedExplanation.current = '';
-      setIsLoading(false);
-      setExplanation(text);
-      typeText(text, () => {});
-      return;
-    }
-
-    // Иначе грузим с индикатором
-    setIsLoading(true);
-    setThinkingStep(0);
-    let step = 0;
-    thinkingTimerRef.current = setInterval(() => {
-      step = (step + 1) % THINKING_STEPS.length;
-      setThinkingStep(step);
-    }, 900);
-
-    try {
-      const res = await fetch(API.AI_ASSISTANT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'demo_ask',
-          question: `Объясни за 1-2 предложения, максимально просто, как другу: ${subj.topic}. Без списков, без терминов.`,
-          history: [],
-        }),
-      });
-      const data = await res.json();
-      const text = sanitizeText(data.answer || data.response || 'Не удалось загрузить объяснение.');
-      clearInterval(thinkingTimerRef.current!);
-      setIsLoading(false);
-      setExplanation(text);
-      typeText(text, () => {});
-    } catch {
-      clearInterval(thinkingTimerRef.current!);
-      setIsLoading(false);
-      setExplanation('Не удалось загрузить объяснение.');
-      setLessonStage('question');
-    }
-  };
-
-  const handleAnswer = async (idx: number) => {
-    if (selectedAnswer !== null) return;
-    setSelectedAnswer(idx);
-    setLessonStage('answered');
-    const correct = idx === selectedSubject?.correct;
-    try {
-      if (correct) {
-        await Haptics.notification({ type: 'SUCCESS' as never });
-        setFlashCorrect(true);
-        setTimeout(() => setFlashCorrect(false), 600);
-      } else {
-        await Haptics.notification({ type: 'ERROR' as never });
-      }
-    } catch { /* silent */ }
-  };
+  // ─── Auth handlers ──────────────────────────────────────────────────────────
 
   const applyReferral = async (token: string) => {
     const pending = localStorage.getItem('pendingReferral');
@@ -438,14 +367,11 @@ export default function AuthNew() {
     await applyReferral(data.token);
     if (data.is_new_user) {
       am.register('phone');
-      // Передаём собранные данные в онбординг
-      if (goal) localStorage.setItem('onboarding_goal', goal);
-      if (subject) localStorage.setItem('onboarding_subject', subject);
     } else {
       am.login('phone');
     }
     if (isRegister || data.is_new_user) {
-      navigate('/aha-first');
+      navigate('/onboarding');
     } else {
       navigate('/');
     }
@@ -473,9 +399,7 @@ export default function AuthNew() {
           authService.setUser(data.user);
           await applyReferral(data.token);
           am.register('phone');
-          if (goal) localStorage.setItem('onboarding_goal', goal);
-          if (subject) localStorage.setItem('onboarding_subject', subject);
-          navigate('/aha-first');
+          navigate('/onboarding');
         } else {
           await afterLogin(data, true);
         }
@@ -570,10 +494,94 @@ export default function AuthNew() {
     }
   };
 
-  // Флоу: splash(0) → goal(1) → subject(2) → level(3) → lesson(4) → result(5) → register(6)
-  const TOTAL_STEPS = 6;
+  // ─── Aha handlers ───────────────────────────────────────────────────────────
 
-  // ─── SPLASH ──────────────────────────────────────────────────────────────────
+  const handlePhotoFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > 15 * 1024 * 1024) return;
+
+    const preview = URL.createObjectURL(file);
+    setAhaImagePreview(preview);
+    setAhaResultType('photo');
+    setAhaError(false);
+    setAhaResult(null);
+    setAhaTextAnswer(null);
+    setHistory(h => [...h, 'aha']);
+    setScreen('solving');
+
+    try {
+      const base64 = await compressImage(file);
+      const fp = fingerprint || await getBrowserFingerprint();
+      const resp = await fetch(API.AI_ASSISTANT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'free_photo_solve', image_base64: base64, hint: '', fingerprint: fp }),
+      });
+
+      if (!resp.ok) {
+        setAhaError(true);
+        setTimeout(() => setScreen('register'), 2000);
+        return;
+      }
+
+      const data = await resp.json() as SolveResult;
+      setAhaResult(data);
+      setTimeout(() => setScreen('result'), 800);
+    } catch {
+      setAhaError(true);
+      setTimeout(() => setScreen('register'), 2000);
+    }
+  };
+
+  const handleTextQuestion = async () => {
+    if (!ahaQuestion.trim()) return;
+
+    const question = ahaQuestion.trim();
+    setAhaResultType('text');
+    setAhaError(false);
+    setAhaResult(null);
+    setAhaTextAnswer(null);
+    setHistory(h => [...h, 'aha']);
+    setScreen('solving');
+
+    try {
+      const fp = fingerprint || await getBrowserFingerprint();
+      const resp = await fetch(API.AI_ASSISTANT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'free_ask', question, fingerprint: fp }),
+      });
+
+      if (!resp.ok) {
+        setAhaError(true);
+        setTimeout(() => setScreen('register'), 2000);
+        return;
+      }
+
+      const data = await resp.json();
+      // free_ask returns { answer: string } or { response: string }
+      const answer = data.answer || data.response || '';
+      if (data.recognized_text || data.structured) {
+        // Structured photo-like response
+        setAhaResult(data as SolveResult);
+      } else {
+        setAhaTextAnswer(sanitizeText(answer));
+      }
+      setTimeout(() => setScreen('result'), 800);
+    } catch {
+      setAhaError(true);
+      setTimeout(() => setScreen('register'), 2000);
+    }
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handlePhotoFile(file);
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
+  // ─── SPLASH ─────────────────────────────────────────────────────────────────
   if (screen === 'splash') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-between relative overflow-hidden px-6 py-12">
@@ -581,7 +589,7 @@ export default function AuthNew() {
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex-1 flex flex-col items-center justify-center gap-8 relative z-10">
-          {/* Маскот на весь экран */}
+          {/* Маскот */}
           <div className="relative flex items-center justify-center">
             <div className="absolute rounded-full bg-white/10 animate-ping" style={{ animationDuration: '2.5s', width: 180, height: 180 }} />
             <div className="absolute rounded-full bg-white/5 animate-ping" style={{ animationDuration: '3.5s', width: 220, height: 220 }} />
@@ -593,7 +601,7 @@ export default function AuthNew() {
               Учись быстрее.<br />Понимай глубже.
             </h1>
             <p className="text-white/65 text-base">
-              ИИ-репетитор объяснит любую тему<br />за 2 минуты — бесплатно
+              ИИ-репетитор решит любую задачу<br />за секунды — бесплатно
             </p>
           </div>
 
@@ -606,10 +614,13 @@ export default function AuthNew() {
 
         <div className="w-full relative z-10 flex flex-col gap-3">
           <Button
-            onClick={() => goTo('goal')}
+            onClick={async () => {
+              try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
+              goTo('aha');
+            }}
             className="w-full h-16 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-lg rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all"
           >
-            Начать бесплатно 🚀
+            Попробовать бесплатно
           </Button>
           <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
           <button
@@ -627,317 +638,280 @@ export default function AuthNew() {
     );
   }
 
-  // ─── ШАГ 1: Выбор цели ──────────────────────────────────────────────────────
-  if (screen === 'goal') {
+  // ─── AHA ─────────────────────────────────────────────────────────────────────
+  if (screen === 'aha') {
     return (
-      <OnboardingShell step={1} totalSteps={TOTAL_STEPS} onBack={goBack}>
-        <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
-          <div>
-            <p className="text-white/65 text-sm">Шаг 1 из 3 · Настройка</p>
-            <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Какая у тебя цель?</h2>
+      <div className="min-h-screen flex flex-col relative overflow-hidden">
+        {/* Purple gradient top */}
+        <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-800 px-6 pt-12 pb-10 relative">
+          <div className="absolute -top-32 -left-32 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-1/3 right-0 w-40 h-40 bg-yellow-300/10 rounded-full blur-2xl pointer-events-none" />
+
+          <button
+            onClick={goBack}
+            className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center mb-6"
+          >
+            <Icon name="ChevronLeft" size={20} className="text-white" />
+          </button>
+
+          <div className="relative z-10 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center mx-auto mb-4 shadow-xl">
+              <Icon name="Sparkles" size={28} className="text-white" />
+            </div>
+            <h1 className="text-white font-extrabold text-2xl leading-tight mb-2">
+              Сфоткай задачу или задай вопрос
+            </h1>
+            <p className="text-white/60 text-sm">
+              ИИ решит за секунды — без регистрации
+            </p>
+          </div>
+        </div>
+
+        {/* White bottom card */}
+        <div className="flex-1 bg-white -mt-4 rounded-t-3xl px-6 pt-8 pb-8 flex flex-col gap-5">
+          {/* Photo buttons */}
+          <div className="flex gap-3">
+            <Button
+              onClick={() => cameraInputRef.current?.click()}
+              className="flex-1 h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.35)] hover:opacity-95 active:scale-[0.98] transition-all"
+            >
+              <span className="text-xl mr-2">
+                <Icon name="Camera" size={20} className="inline" />
+              </span>
+              Сфоткать задачу
+            </Button>
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              variant="outline"
+              className="flex-1 h-14 font-bold text-base rounded-2xl border-2 border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all"
+            >
+              <span className="text-xl mr-2">
+                <Icon name="Image" size={20} className="inline" />
+              </span>
+              Из галереи
+            </Button>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {GOALS.map(g => (
+          {/* Text input area */}
+          <div className="relative">
+            <textarea
+              value={ahaQuestion}
+              onChange={e => setAhaQuestion(e.target.value)}
+              placeholder="Или напиши вопрос текстом..."
+              rows={3}
+              className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-purple-400 transition-colors pr-12"
+            />
+            {ahaQuestion.trim().length > 0 && (
               <button
-                key={g.id}
-                onClick={async () => {
-                  try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
-                  setGoal(g.id);
-                  goTo('subject');
-                }}
-                className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all shadow-lg shadow-black/10"
+                onClick={handleTextQuestion}
+                className="absolute right-3 bottom-3 w-9 h-9 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center shadow-md active:scale-95 transition-all"
               >
-                <span className="text-3xl">{g.emoji}</span>
-                <div className="flex-1">
-                  <p className="text-gray-800 font-bold text-base">{g.label}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">{g.desc}</p>
-                </div>
-                <Icon name="ChevronRight" size={18} className="text-gray-300" />
+                <Icon name="Send" size={16} className="text-white" />
               </button>
-            ))}
-          </div>
-        </div>
-      </OnboardingShell>
-    );
-  }
-
-  // ─── ШАГ 2: Предмет ─────────────────────────────────────────────────────────
-  if (screen === 'subject') {
-    return (
-      <OnboardingShell step={2} totalSteps={TOTAL_STEPS} onBack={goBack}>
-        <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
-          <div>
-            <p className="text-white/65 text-sm">Шаг 2 из 3 · Настройка</p>
-            <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Какой предмет прокачаем?</h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {SUBJECTS.map(s => {
-              const lessonSubj = LESSON_SUBJECTS.find(ls => ls.id === s.id) || LESSON_SUBJECTS[0];
-              return (
-                <button
-                  key={s.id}
-                  onClick={async () => {
-                    try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
-                    setSubject(s.id);
-                    // Предзагружаем ИИ фоном пока пользователь смотрит на экран уровня
-                    preloadLesson(lessonSubj);
-                    goTo('level');
-                  }}
-                  className="flex flex-col items-center gap-2 bg-white rounded-2xl py-5 px-3 active:scale-[0.95] transition-all shadow-lg shadow-black/10"
-                >
-                  <span className="text-3xl">{s.emoji}</span>
-                  <p className="text-gray-800 font-bold text-sm text-center">{s.label}</p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </OnboardingShell>
-    );
-  }
-
-  // ─── ШАГ 3: Уровень ─────────────────────────────────────────────────────────
-  if (screen === 'level') {
-    const subjectInfo = SUBJECTS.find(s => s.id === subject);
-    return (
-      <OnboardingShell step={3} totalSteps={TOTAL_STEPS} onBack={goBack}>
-        <div className="flex flex-col gap-6 mt-4 animate-in fade-in duration-300">
-          <div>
-            <p className="text-white/65 text-sm">Шаг 3 из 3 · {subjectInfo?.emoji} {subjectInfo?.label}</p>
-            <h2 className="text-white font-extrabold text-2xl leading-tight mt-1">Какой у тебя уровень?</h2>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {LEVELS.map(l => (
-              <button
-                key={l.id}
-                onClick={async () => {
-                  try { await Haptics.impact({ style: ImpactStyle.Light }); } catch { /* silent */ }
-                  setLevel(l.id);
-                  const lessonSubject = LESSON_SUBJECTS.find(ls => ls.id === subject) || LESSON_SUBJECTS[0];
-                  startLesson(lessonSubject);
-                  goTo('lesson');
-                }}
-                className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 text-left active:scale-[0.97] transition-all shadow-lg shadow-black/10"
-              >
-                <span className="text-3xl">{l.emoji}</span>
-                <div className="flex-1">
-                  <p className="text-gray-800 font-bold text-base">{l.label}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">{l.desc}</p>
-                </div>
-                <Icon name="ChevronRight" size={18} className="text-gray-300" />
-              </button>
-            ))}
-          </div>
-
-          {/* Индикатор предзагрузки — успокаивает пользователя */}
-          <div className="flex items-center gap-2 justify-center opacity-60">
-            <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            <span className="text-white/60 text-xs ml-1">Готовлю урок…</span>
-          </div>
-        </div>
-      </OnboardingShell>
-    );
-  }
-
-  // ─── ШАГ 5: Урок ────────────────────────────────────────────────────────────
-  if (screen === 'lesson' && selectedSubject) {
-    const isCorrectAnswer = selectedAnswer === selectedSubject.correct;
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
-        {/* Вспышка на правильный ответ */}
-        <div className={`absolute inset-0 z-50 bg-green-400/30 pointer-events-none transition-opacity duration-300 ${flashCorrect ? 'opacity-100' : 'opacity-0'}`} />
-
-        {/* Шапка */}
-        <div className="px-5 pt-12 pb-4 flex items-center gap-3">
-          <div className="flex-shrink-0">
-            <FoxMascot size={36} jumping={flashCorrect} />
-          </div>
-          <div className="flex-1">
-            <ProgressBar current={4} total={TOTAL_STEPS} />
-            <p className="text-white/55 text-xs mt-1.5">{selectedSubject.emoji} {selectedSubject.label}</p>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5 pb-10 flex flex-col gap-5">
-
-          {/* Тема */}
-          <div className="bg-white/10 rounded-2xl px-4 py-3">
-            <p className="text-white/60 text-xs uppercase tracking-wide font-semibold mb-0.5">Тема</p>
-            <p className="text-white font-bold text-base">{selectedSubject.topic}</p>
-          </div>
-
-          {/* Объяснение */}
-          <div className="bg-white rounded-3xl px-5 py-5 shadow-xl">
-            {isLoading ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                  <span className="text-gray-400 text-sm">{THINKING_STEPS[thinkingStep]}</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="h-3 bg-gray-100 rounded-full w-full animate-pulse" />
-                  <div className="h-3 bg-gray-100 rounded-full w-4/5 animate-pulse" />
-                  <div className="h-3 bg-gray-100 rounded-full w-3/5 animate-pulse" />
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-800 text-base leading-relaxed font-medium">
-                {typingText}
-                {isTyping && <span className="inline-block w-0.5 h-5 bg-purple-400 ml-0.5 animate-pulse" />}
-              </p>
             )}
           </div>
 
-          {/* Кнопка после объяснения */}
-          {lessonStage === 'explain' && !isLoading && !isTyping && typingText && (
-            <button
-              onClick={() => setLessonStage('question')}
-              className="w-full bg-white text-purple-700 font-extrabold rounded-2xl py-4 text-base active:scale-[0.98] transition-all shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-400"
-            >
-              Понял, дальше →
-            </button>
-          )}
+          {/* Floating examples */}
+          <FloatingExamples />
 
-          {/* Вопрос + варианты */}
-          {(lessonStage === 'question' || lessonStage === 'answered') && (
-            <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-400">
-              <div className="bg-white/10 rounded-2xl px-4 py-3">
-                <p className="text-white/60 text-xs uppercase tracking-wide font-semibold mb-1">Вопрос</p>
-                <p className="text-white font-bold text-base leading-snug">{selectedSubject.question}</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {selectedSubject.answers.map((ans, idx) => {
-                  const isSelected = selectedAnswer === idx;
-                  const isCorrectAns = idx === selectedSubject.correct;
-                  const revealed = lessonStage === 'answered';
-                  let cls = 'bg-white text-gray-800 border-transparent';
-                  if (revealed && isCorrectAns) cls = 'bg-green-500 text-white border-transparent';
-                  if (revealed && isSelected && !isCorrectAns) cls = 'bg-red-500 text-white border-transparent';
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => handleAnswer(idx)}
-                      disabled={lessonStage === 'answered'}
-                      className={`w-full text-left px-5 py-4 rounded-2xl border-2 font-semibold text-base transition-all active:scale-[0.97] shadow-md ${cls}`}
-                    >
-                      <span className="mr-3 opacity-50 text-sm">{String.fromCharCode(65 + idx)}.</span>
-                      {ans}
-                      {revealed && isCorrectAns && <span className="ml-2">✓</span>}
-                      {revealed && isSelected && !isCorrectAns && <span className="ml-2">✗</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Фидбек + кнопка продолжить */}
-          {lessonStage === 'answered' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-400 flex flex-col gap-3">
-              <div className={`rounded-2xl px-5 py-4 ${isCorrectAnswer ? 'bg-green-500/20 border border-green-400/40' : 'bg-white/10 border border-white/20'}`}>
-                <p className="text-white font-bold text-base">
-                  {isCorrectAnswer ? '🎉 Верно!' : '💡 Почти!'}
-                </p>
-                {!isCorrectAnswer && (
-                  <p className="text-white/80 text-sm mt-1">
-                    Правильный ответ: <strong>{selectedSubject.answers[selectedSubject.correct]}</strong>
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={() => goTo('result')}
-                className="w-full bg-white text-purple-700 font-extrabold rounded-2xl py-4 text-base active:scale-[0.98] transition-all shadow-lg"
-              >
-                Продолжить →
-              </button>
-            </div>
-          )}
-
-          <div ref={bottomRef} />
+          {/* Hidden file inputs */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={onFileChange}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onFileChange}
+          />
         </div>
       </div>
     );
   }
 
-  // ─── ШАГ 6: Результат — вау-момент ──────────────────────────────────────────
+  // ─── SOLVING ────────────────────────────────────────────────────────────────
+  if (screen === 'solving') {
+    const phrases = ahaResultType === 'photo' ? SOLVING_PHRASES_PHOTO : SOLVING_PHRASES_TEXT;
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="px-6 pt-14 pb-6">
+          {/* Show uploaded photo */}
+          {ahaResultType === 'photo' && ahaImagePreview && (
+            <div className="w-full max-w-[200px] mx-auto mb-8 rounded-2xl overflow-hidden shadow-lg">
+              <img src={ahaImagePreview} alt="" className="w-full h-auto" />
+            </div>
+          )}
+
+          {/* Show question text */}
+          {ahaResultType === 'text' && ahaQuestion && (
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl px-4 py-3 mb-8 text-white">
+              <p className="text-xs font-semibold text-white/70 mb-1">Твой вопрос</p>
+              <p className="text-sm font-medium leading-relaxed text-white/95">{ahaQuestion}</p>
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            {ahaError ? (
+              <div className="flex flex-col items-center gap-3 py-4">
+                <span className="text-3xl">😔</span>
+                <p className="text-gray-600 text-center">Не удалось решить. Переходим к регистрации...</p>
+              </div>
+            ) : (
+              <SolvingAnimation phrases={phrases} />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── RESULT ─────────────────────────────────────────────────────────────────
   if (screen === 'result') {
-    const isCorrect = selectedAnswer === selectedSubject?.correct;
-    const goalData = GOALS.find(g => g.id === goal) ?? GOALS[0];
+    const hasStructuredResult = ahaResult && (ahaResult.structured || ahaResult.solution);
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center px-5 relative overflow-hidden">
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="px-4 pt-10 pb-6 flex-1 overflow-y-auto">
+          {/* Photo result */}
+          {ahaResultType === 'photo' && hasStructuredResult && (
+            <>
+              {ahaImagePreview && (
+                <div className="w-full max-w-[140px] mx-auto mb-5 rounded-xl overflow-hidden shadow-md opacity-80">
+                  <img src={ahaImagePreview} alt="" className="w-full h-auto" />
+                </div>
+              )}
 
-        <div className="relative z-10 w-full max-w-sm flex flex-col gap-5">
+              {ahaResult!.recognized_text && (
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl px-4 py-3 mb-4 text-white">
+                  <p className="text-xs font-semibold text-white/70 mb-1">Условие задачи</p>
+                  <div className="text-sm font-medium leading-relaxed">
+                    <AiText text={ahaResult!.recognized_text} className="[&_p]:text-white/95 [&_strong]:text-white" />
+                  </div>
+                </div>
+              )}
 
-          {/* Карточка результата */}
-          <div className="bg-white rounded-3xl p-6 shadow-2xl text-center animate-in zoom-in-95 duration-500">
-            <div className="text-5xl mb-3">{isCorrect ? '🏆' : '💪'}</div>
-            <h2 className="text-gray-900 font-extrabold text-xl leading-tight mb-2">
-              {isCorrect
-                ? `Ты лучше ${goalData.percent}% ${goalData.groupLabel}!`
-                : `Не знают ${100 - goalData.percent}% ${goalData.groupLabel}`}
-            </h2>
-            <p className="text-gray-500 text-sm">
-              {isCorrect
-                ? 'Отличное начало. Сохрани прогресс и продолжай расти.'
-                : 'Именно для этого я здесь. Разберём всё вместе.'}
-            </p>
+              {ahaResult!.structured?.steps?.length ? (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+                  <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-50 bg-violet-50/50">
+                    <Icon name="ListOrdered" size={15} className="text-violet-600" />
+                    <span className="text-sm font-bold text-gray-800">Пошаговое решение</span>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    {ahaResult!.structured!.steps.map((step, i) => (
+                      <div key={i} className="flex gap-3">
+                        <span className="text-lg flex-shrink-0 mt-0.5">
+                          {STEP_ICONS[step.icon] || (i === ahaResult!.structured!.steps.length - 1 ? '-->>' : '-->')}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-[15px] mb-1">{step.title}</p>
+                          <AiText text={step.text} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
-            {/* Достижения */}
-            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-around">
-              <div className="text-center">
-                <div className="text-2xl">🔥</div>
-                <p className="text-gray-800 font-bold text-sm">День 1</p>
-                <p className="text-gray-400 text-xs">Стрик</p>
+              {ahaResult!.structured?.answer && (
+                <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl px-4 py-4 shadow-md mb-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">!</span>
+                    <span className="text-white/80 text-xs font-semibold uppercase tracking-wider">Ответ</span>
+                  </div>
+                  <p className="text-white font-bold text-xl leading-snug">{ahaResult!.structured!.answer}</p>
+                </div>
+              )}
+
+              {!ahaResult!.structured && ahaResult!.solution && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+                  <AiText text={ahaResult!.solution} />
+                </div>
+              )}
+
+              {ahaResult!.structured?.check && (
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 mb-4">
+                  <div className="flex items-start gap-2">
+                    <span className="text-base mt-0.5">
+                      <Icon name="Search" size={16} className="text-blue-600" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-semibold text-blue-600 mb-1">Проверка</p>
+                      <AiText text={ahaResult!.structured!.check} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {ahaResult!.structured?.tip && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4">
+                  <div className="flex items-start gap-2">
+                    <span className="text-base mt-0.5">
+                      <Icon name="Lightbulb" size={16} className="text-amber-600" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-semibold text-amber-700 mb-1">Совет</p>
+                      <AiText text={ahaResult!.structured!.tip} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Text result */}
+          {ahaResultType === 'text' && (ahaTextAnswer || hasStructuredResult) && (
+            <>
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl px-4 py-3 mb-4 text-white">
+                <p className="text-xs font-semibold text-white/70 mb-1">Твой вопрос</p>
+                <p className="text-sm font-medium leading-relaxed text-white/95">{ahaQuestion}</p>
               </div>
-              <div className="text-center">
-                <div className="text-2xl">⭐</div>
-                <p className="text-gray-800 font-bold text-sm">+10 XP</p>
-                <p className="text-gray-400 text-xs">Заработано</p>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl">🎁</div>
-                <p className="text-gray-800 font-bold text-sm">3 дня</p>
-                <p className="text-gray-400 text-xs">Premium</p>
-              </div>
+
+              {ahaTextAnswer && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+                  <AiText text={ahaTextAnswer} />
+                </div>
+              )}
+
+              {hasStructuredResult && ahaResult!.solution && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+                  <AiText text={ahaResult!.solution} />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Celebration CTA block */}
+          <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border border-indigo-100 rounded-2xl p-5 mt-6">
+            <div className="text-center">
+              <p className="text-2xl mb-2">!</p>
+              <p className="font-bold text-gray-900 text-lg mb-1">Вот так это работает!</p>
+              <p className="text-gray-600 text-sm mb-1">Хочешь решать без ограничений?</p>
+              <p className="text-gray-400 text-xs mb-5">
+                Регистрация за 15 секунд. 3 дня Premium в подарок.
+              </p>
+              <Button
+                onClick={() => goTo('register')}
+                className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.35)] hover:opacity-95 active:scale-[0.98] transition-all mb-3"
+              >
+                Продолжить бесплатно
+                <Icon name="ArrowRight" size={18} className="ml-2" />
+              </Button>
+              <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
+              <p className="text-gray-400 text-xs mt-3">3 дня Premium в подарок</p>
             </div>
           </div>
-
-          {/* CTA */}
-          <Button
-            onClick={() => goTo('register')}
-            className="w-full h-14 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-base rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] transition-all"
-          >
-            Продолжить →
-          </Button>
-
-          <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
-
-          <p className="text-white/40 text-xs text-center">
-            Уйдёшь — прогресс и стрик не сохранятся
-          </p>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0">
-          <LegalFooter showDelete />
         </div>
       </div>
     );
   }
 
-  // ─── ШАГ 6: Регистрация ─────────────────────────────────────────────────────
+  // ─── REGISTER ───────────────────────────────────────────────────────────────
   if (screen === 'register') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col relative overflow-hidden">
@@ -948,9 +922,6 @@ export default function AuthNew() {
             <button onClick={goBack} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
               <Icon name="ChevronLeft" size={20} className="text-white" />
             </button>
-            <div className="flex-1">
-              <ProgressBar current={6} total={TOTAL_STEPS} />
-            </div>
           </div>
         </div>
 
@@ -966,6 +937,16 @@ export default function AuthNew() {
             </div>
 
             <div className="space-y-3">
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Имя (необязательно)"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  autoComplete="name"
+                  className="h-12 border-2 rounded-2xl text-sm border-gray-200 focus:border-purple-400"
+                />
+              </div>
               <div>
                 <Input
                   type="email"
@@ -990,7 +971,7 @@ export default function AuthNew() {
                   onToggleShow={() => setShowPassword(p => !p)}
                 />
                 {password.length > 0 && password.length < 8 && <p className="text-xs text-amber-500 mt-1">Минимум 8 символов</p>}
-                {password.length >= 8 && <p className="text-xs text-green-500 mt-1">✓ Хороший пароль</p>}
+                {password.length >= 8 && <p className="text-xs text-green-500 mt-1">Хороший пароль</p>}
               </div>
 
               <div>
@@ -1016,7 +997,7 @@ export default function AuthNew() {
                 disabled={loading}
                 className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 active:scale-[0.98] text-white font-bold text-base rounded-2xl shadow-[0_4px_16px_rgba(99,102,241,0.35)] transition-all"
               >
-                {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Создать аккаунт →'}
+                {loading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Создать аккаунт'}
               </Button>
 
               <div className="flex items-center gap-3">
@@ -1044,13 +1025,13 @@ export default function AuthNew() {
     );
   }
 
-  // ─── ЛОГИН ──────────────────────────────────────────────────────────────────
+  // ─── LOGIN ──────────────────────────────────────────────────────────────────
   if (screen === 'login') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-5 relative overflow-hidden">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 w-full max-w-sm flex flex-col gap-4">
-          <button onClick={() => setScreen('goal')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
+          <button onClick={() => setScreen('splash')} className="flex items-center gap-1 text-white/70 hover:text-white text-sm self-start">
             <Icon name="ArrowLeft" size={16} /> Назад
           </button>
           <div className="bg-white rounded-3xl p-6 shadow-2xl">
@@ -1101,7 +1082,7 @@ export default function AuthNew() {
               <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
               <p className="text-center text-xs text-gray-400">
                 Нет аккаунта?{' '}
-                <button onClick={() => { clearErrors(); setScreen('goal'); }} className="text-purple-600 font-medium hover:underline">
+                <button onClick={() => { clearErrors(); setScreen('splash'); }} className="text-purple-600 font-medium hover:underline">
                   Создать
                 </button>
               </p>
@@ -1113,7 +1094,7 @@ export default function AuthNew() {
     );
   }
 
-  // ─── ВОССТАНОВЛЕНИЕ ПАРОЛЯ ───────────────────────────────────────────────────
+  // ─── FORGOT ─────────────────────────────────────────────────────────────────
   if (screen === 'forgot') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-5 relative overflow-hidden">

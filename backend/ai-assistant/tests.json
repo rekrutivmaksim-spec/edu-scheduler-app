@@ -13,6 +13,29 @@
       "bodyMatcher": "partial"
     },
     {
+      "name": "Free ask - no auth",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "free_ask",
+        "question": "Чему равен корень из 144?",
+        "fingerprint": "test123"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {"answer": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Free photo solve - no image",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "free_photo_solve",
+        "fingerprint": "test123"
+      },
+      "expectedStatus": 400
+    },
+    {
       "name": "Ask AI without auth",
       "method": "POST",
       "path": "/",

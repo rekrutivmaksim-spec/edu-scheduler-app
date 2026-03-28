@@ -137,8 +137,7 @@ function Index() {
       if (!v) { navigate('/auth'); return; }
       setUser(v);
       if (!v.onboarding_completed) {
-        const didAha = localStorage.getItem('aha_first_done');
-        navigate(didAha ? '/onboarding' : '/aha-first');
+        navigate('/onboarding');
         return;
       }
       const subj = v.exam_subject || 'ru';
