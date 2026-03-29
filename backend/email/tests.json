@@ -1,10 +1,18 @@
 {
   "tests": [
     {
-      "name": "Welcome email - status 200",
+      "name": "Welcome email",
       "method": "POST",
       "path": "/",
       "body": {"action": "welcome", "to": "delivered@resend.dev", "name": "Тест"},
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Streak save email",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "streak_save", "to": "delivered@resend.dev", "name": "Тест", "streak": 5},
       "expectedStatus": 200,
       "bodyMatcher": "partial"
     },
@@ -27,7 +35,7 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "Reset password - missing code returns 400",
+      "name": "Reset password - missing code",
       "method": "POST",
       "path": "/",
       "body": {"action": "reset_password", "to": "test@example.com"},
@@ -36,34 +44,27 @@
       "bodyMatcher": "partial"
     },
     {
+      "name": "Cron drip",
+      "method": "GET",
+      "path": "/?cron=drip",
+      "expectedStatus": 200
+    },
+    {
       "name": "Cron trial ending",
       "method": "GET",
       "path": "/?cron=trial_ending",
       "expectedStatus": 200
     },
     {
+      "name": "Cron streak save",
+      "method": "GET",
+      "path": "/?cron=streak_save",
+      "expectedStatus": 200
+    },
+    {
       "name": "Cron reactivation",
       "method": "GET",
       "path": "/?cron=reactivation",
-      "expectedStatus": 200
-    },
-    {
-      "name": "Cron drip campaign",
-      "method": "GET",
-      "path": "/?cron=drip",
-      "expectedStatus": 200
-    },
-    {
-      "name": "Cron recurring reminder",
-      "method": "GET",
-      "path": "/?cron=recurring",
-      "expectedStatus": 200
-    },
-    {
-      "name": "Daily bonus email",
-      "method": "POST",
-      "path": "/",
-      "body": {"action": "daily_bonus", "to": "delivered@resend.dev", "name": "Тест", "hours_left": 10},
       "expectedStatus": 200
     },
     {

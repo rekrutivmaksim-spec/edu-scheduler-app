@@ -6,117 +6,69 @@ import { authService } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { API } from '@/lib/api-urls';
 
-const DISMISS_DATE_KEY = 'push_banner_dismissed_date';
-const DISMISS_COUNT_KEY = 'push_dismiss_count';
-const FIRST_VISIT_KEY = 'push_first_visit_date';
+const PUSH_ASKED_KEY = 'push_asked_after_session';
+const PUSH_DECLINED_COUNT_KEY = 'push_declined_count';
 
-function getDismissCount(): number {
+function wasAlreadyAsked(): boolean {
   try {
-    return parseInt(localStorage.getItem(DISMISS_COUNT_KEY) || '0', 10);
+    const count = parseInt(localStorage.getItem(PUSH_DECLINED_COUNT_KEY) || '0', 10);
+    if (count >= 3) return true;
+    return false;
   } catch {
-    return 0;
+    return false;
   }
 }
 
-function getDismissDate(): number | null {
+function markDeclined() {
   try {
-    const val = localStorage.getItem(DISMISS_DATE_KEY);
-    return val ? parseInt(val, 10) : null;
-  } catch {
-    return null;
-  }
+    const count = parseInt(localStorage.getItem(PUSH_DECLINED_COUNT_KEY) || '0', 10);
+    localStorage.setItem(PUSH_DECLINED_COUNT_KEY, String(count + 1));
+    localStorage.setItem(PUSH_ASKED_KEY, String(Date.now()));
+  } catch { /* noop */ }
 }
 
-function getFirstVisitDate(): number {
+function shouldAskAgain(): boolean {
   try {
-    const val = localStorage.getItem(FIRST_VISIT_KEY);
-    if (val) return parseInt(val, 10);
-    const now = Date.now();
-    localStorage.setItem(FIRST_VISIT_KEY, String(now));
-    return now;
+    const lastAsked = localStorage.getItem(PUSH_ASKED_KEY);
+    if (!lastAsked) return true;
+    const hoursSince = (Date.now() - parseInt(lastAsked, 10)) / (1000 * 60 * 60);
+    return hoursSince >= 48;
   } catch {
-    return Date.now();
+    return true;
   }
 }
 
-function shouldShowBanner(): boolean {
-  const dismissCount = getDismissCount();
-  // After 3 dismissals, respect the user — stop showing
-  if (dismissCount >= 3) return false;
-
-  const dismissDate = getDismissDate();
-  if (!dismissDate) return true; // Never dismissed — show
-
-  // Show again after 24 hours
-  const hoursSinceDismiss = (Date.now() - dismissDate) / (1000 * 60 * 60);
-  return hoursSinceDismiss >= 24;
+interface Props {
+  visible: boolean;
+  streak: number;
+  onClose: () => void;
 }
 
-function isUrgentMode(): boolean {
-  const firstVisit = getFirstVisitDate();
-  const daysSinceFirst = (Date.now() - firstVisit) / (1000 * 60 * 60 * 24);
-  return daysSinceFirst >= 2;
-}
-
-interface BannerContent {
-  title: string;
-  subtitle: string;
-  emoji: string;
-}
-
-function getBannerContent(dismissCount: number): BannerContent {
-  if (dismissCount === 0) {
-    return {
-      title: 'Включи уведомления — не потеряй стрик',
-      subtitle: 'Напомним, если забудешь зайти',
-      emoji: '🔔',
-    };
-  }
-  if (dismissCount === 1) {
-    return {
-      title: 'Без уведомлений 90% учеников теряют стрик!',
-      subtitle: 'Включи за 2 секунды — сохрани свой прогресс',
-      emoji: '🔥',
-    };
-  }
-  // dismissCount === 2 (final)
-  return {
-    title: 'Последний шанс! Включи пуши',
-    subtitle: 'Получи +5 бонусных вопросов за подписку',
-    emoji: '🎁',
-  };
-}
-
-const NotificationPrompt = () => {
+const NotificationPrompt = ({ visible, streak, onClose }: Props) => {
   const { toast } = useToast();
-  const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [dismissCount, setDismissCount] = useState(getDismissCount);
-  const [urgent, setUrgent] = useState(false);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Record first visit
-    getFirstVisitDate();
+    if (!visible) { setShow(false); return; }
+    if (wasAlreadyAsked() || !shouldAskAgain()) { onClose(); return; }
 
-    const check = async () => {
-      if (!shouldShowBanner()) return;
+    const checkSubscription = async () => {
       const token = authService.getToken();
-      if (!token) return;
+      if (!token) { onClose(); return; }
       try {
         const res = await fetch(API.PUSH_NOTIFICATIONS, {
           headers: { 'Authorization': `Bearer ${token}`, 'X-Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
-        // Show banner only if no subscription in DB
-        if (!data.subscribed) {
-          setUrgent(isUrgentMode());
-          setDismissCount(getDismissCount());
-          setTimeout(() => setIsVisible(true), 5000);
-        }
-      } catch { /* silent */ }
+        if (data.subscribed) { onClose(); return; }
+      } catch { onClose(); return; }
+      if (!notificationService.isSupported()) { onClose(); return; }
+      if (notificationService.getPermission() === 'denied') { onClose(); return; }
+      setTimeout(() => setShow(true), 800);
     };
-    check();
-  }, []);
+    checkSubscription();
+  }, [visible]);
 
   const handleEnable = async () => {
     setIsLoading(true);
@@ -124,16 +76,16 @@ const NotificationPrompt = () => {
       const token = authService.getToken();
       if (!token) throw new Error('no token');
       await notificationService.subscribe(token);
-      // Verify subscription was saved
       const res = await fetch(API.PUSH_NOTIFICATIONS, {
         headers: { 'Authorization': `Bearer ${token}`, 'X-Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.subscribed) {
-        setIsVisible(false);
-        toast({ title: 'Уведомления включены!', description: 'Напомним о стрике, занятиях и бонусах' });
+        toast({ title: '🔔 Готово!', description: 'Напомним, если стрик будет в опасности' });
+        setShow(false);
+        onClose();
       } else {
-        toast({ variant: 'destructive', title: 'Не удалось', description: 'Разреши уведомления в настройках телефона' });
+        toast({ variant: 'destructive', title: 'Не удалось', description: 'Разреши уведомления в настройках браузера' });
       }
     } catch {
       toast({ variant: 'destructive', title: 'Ошибка', description: 'Попробуй ещё раз' });
@@ -143,65 +95,61 @@ const NotificationPrompt = () => {
   };
 
   const handleDismiss = () => {
-    setIsVisible(false);
-    const newCount = getDismissCount() + 1;
-    try {
-      localStorage.setItem(DISMISS_DATE_KEY, String(Date.now()));
-      localStorage.setItem(DISMISS_COUNT_KEY, String(newCount));
-    } catch { /* silent */ }
+    markDeclined();
+    setShow(false);
+    onClose();
   };
 
-  if (!isVisible) return null;
+  if (!show) return null;
 
-  const content = getBannerContent(dismissCount);
+  const daysWord = streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней';
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-50 max-w-sm mx-auto">
-      <div className={`rounded-3xl p-4 shadow-2xl ${
-        urgent
-          ? 'bg-gradient-to-br from-red-500 to-orange-600 shadow-red-900/40'
-          : 'bg-gradient-to-br from-indigo-600 to-purple-700 shadow-purple-900/40'
-      }`}>
-        <button
-          onClick={handleDismiss}
-          className="absolute top-3 right-3 text-white/60 hover:text-white transition-colors"
-        >
-          <Icon name="X" size={16} />
-        </button>
-        <div className="flex items-start gap-3 pr-6">
-          <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5">
-            <span className="text-xl">{content.emoji}</span>
+    <div className="fixed inset-0 z-50 flex items-end justify-center pb-6 px-4 bg-black/40 backdrop-blur-sm"
+      style={{ animation: 'fade-in 0.3s ease' }}>
+      <div className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
+        style={{ animation: 'slide-up 0.4s cubic-bezier(0.34,1.56,0.64,1)' }}>
+        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-6 text-center">
+          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🔥</span>
           </div>
-          <div className="flex-1">
-            <p className="font-bold text-white text-sm">{content.title}</p>
-            <p className="text-white/70 text-xs mt-0.5 mb-3">{content.subtitle}</p>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleEnable}
-                disabled={isLoading}
-                size="sm"
-                className="bg-white text-indigo-700 hover:bg-white/90 font-semibold rounded-xl h-9 px-4"
-              >
-                {isLoading ? (
-                  <Icon name="Loader2" size={14} className="animate-spin" />
-                ) : (
-                  'Включить'
-                )}
-              </Button>
-              {dismissCount < 2 && (
-                <Button
-                  onClick={handleDismiss}
-                  variant="ghost"
-                  size="sm"
-                  className="text-white/70 hover:text-white hover:bg-white/10 rounded-xl h-9 px-3"
-                >
-                  Позже
-                </Button>
-              )}
-            </div>
-          </div>
+          <h3 className="text-white font-extrabold text-xl mb-2">
+            {streak > 1
+              ? `Серия ${streak} ${daysWord}!`
+              : 'Первое занятие завершено!'}
+          </h3>
+          <p className="text-white/70 text-sm leading-relaxed">
+            {streak > 1
+              ? 'Хочешь, напомню завтра, чтобы не потерять серию?'
+              : 'Хочешь, напомню завтра, чтобы начать серию?'}
+          </p>
+        </div>
+
+        <div className="bg-white p-5 space-y-3">
+          <Button
+            onClick={handleEnable}
+            disabled={isLoading}
+            className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-base rounded-2xl"
+          >
+            {isLoading ? (
+              <Icon name="Loader2" size={18} className="animate-spin" />
+            ) : (
+              'Да, напомни завтра'
+            )}
+          </Button>
+          <button
+            onClick={handleDismiss}
+            className="w-full h-10 text-gray-400 text-sm font-medium hover:text-gray-600 transition-colors"
+          >
+            Не сейчас
+          </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slide-up { from { transform: translateY(100px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+      `}</style>
     </div>
   );
 };

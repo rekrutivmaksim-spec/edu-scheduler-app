@@ -1,9 +1,15 @@
-"""
-Планировщик задач Studyfay.
-GET /?action=run        — запустить все ежедневные задачи
-GET /?action=run_push   — запустить только push-уведомления (streak, реактивация, рефералка)
-GET /?action=run_hourly — запустить почасовые задачи (триал, онбординг)
-GET /?action=status     — статус
+"""Планировщик задач Studyfay — модель Duolingo.
+
+Расписание:
+  run_morning (09:00)  — auto-charge, email:drip, email:trial, email:reactivation, push:daily_bonus
+  run_evening (20:00)  — push:streak (главный!), email:streak_save, push:reactivation
+  run_hourly           — push:trial_ending, push:trial_expired
+  status               — информация
+
+GET /?action=run_morning
+GET /?action=run_evening
+GET /?action=run_hourly
+GET /?action=status
 """
 import json
 import os
@@ -11,7 +17,8 @@ from datetime import datetime
 import requests
 
 NOTIFICATIONS_URL = 'https://functions.poehali.dev/710399d8-fbc7-4df6-8c6c-200b2828678f'
-AUTO_CHARGE_URL   = 'https://functions.poehali.dev/3648aa29-eff1-418c-ae47-50de549cb47d'
+EMAIL_URL = 'https://functions.poehali.dev/c94cbc92-0ba0-4f34-968f-fb874f465499'
+AUTO_CHARGE_URL = 'https://functions.poehali.dev/3648aa29-eff1-418c-ae47-50de549cb47d'
 TRIAL_REMINDER_URL = 'https://functions.poehali.dev/2c1becc4-590e-48a4-a712-3efc4e707169'
 
 CORS = {
@@ -41,7 +48,7 @@ def run_task(name: str, url: str, action: str = 'run') -> dict:
 
 
 def handler(event: dict, context) -> dict:
-    """Планировщик: ежедневные + почасовые задачи и push-уведомления"""
+    """Планировщик Studyfay: утро, вечер, почасовые задачи."""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS, 'body': ''}
 
@@ -50,33 +57,38 @@ def handler(event: dict, context) -> dict:
     started_at = datetime.now().isoformat()
     results = []
 
-    # ── Ежедневные задачи (запускать раз в день, например в 09:00) ────────────
-    if action == 'run':
+    if action == 'run_morning':
         results.append(run_task('auto-charge', AUTO_CHARGE_URL, 'run'))
         results.append(run_task('trial-reminder', TRIAL_REMINDER_URL, 'run'))
-        # Push: streak (только вечером, ~20:00), реактивация, рефералка
+        results.append(run_cron('email:drip', EMAIL_URL, 'drip'))
+        results.append(run_cron('email:trial_ending', EMAIL_URL, 'trial_ending'))
+        results.append(run_cron('email:reactivation', EMAIL_URL, 'reactivation'))
+        results.append(run_cron('push:daily_bonus', NOTIFICATIONS_URL, 'daily_bonus'))
+
+    elif action == 'run_evening':
+        results.append(run_cron('push:streak', NOTIFICATIONS_URL, 'streak'))
+        results.append(run_cron('email:streak_save', EMAIL_URL, 'streak_save'))
+        results.append(run_cron('push:reactivation', NOTIFICATIONS_URL, 'reactivation'))
+        results.append(run_cron('push:expire_bonus', NOTIFICATIONS_URL, 'expire_bonus'))
+
+    elif action == 'run_hourly':
+        results.append(run_cron('push:trial_ending', NOTIFICATIONS_URL, 'trial_ending'))
+        results.append(run_cron('push:trial_expired', NOTIFICATIONS_URL, 'trial_expired'))
+
+    elif action == 'run':
         hour = datetime.now().hour
+        if hour < 14:
+            results.append(run_task('auto-charge', AUTO_CHARGE_URL, 'run'))
+            results.append(run_task('trial-reminder', TRIAL_REMINDER_URL, 'run'))
+            results.append(run_cron('email:drip', EMAIL_URL, 'drip'))
+            results.append(run_cron('email:trial_ending', EMAIL_URL, 'trial_ending'))
+            results.append(run_cron('email:reactivation', EMAIL_URL, 'reactivation'))
+            results.append(run_cron('push:daily_bonus', NOTIFICATIONS_URL, 'daily_bonus'))
         if hour >= 18:
             results.append(run_cron('push:streak', NOTIFICATIONS_URL, 'streak'))
-        results.append(run_cron('push:reactivation', NOTIFICATIONS_URL, 'reactivation'))
-        results.append(run_cron('push:referral_promo', NOTIFICATIONS_URL, 'referral_promo'))
-
-    # ── Почасовые задачи (запускать каждый час) ───────────────────────────────
-    elif action == 'run_hourly':
-        results.append(run_cron('push:onboarding', NOTIFICATIONS_URL, 'onboarding'))
-        results.append(run_cron('push:trial_ending', NOTIFICATIONS_URL, 'trial_ending'))
-        results.append(run_cron('push:trial_expired', NOTIFICATIONS_URL, 'trial_expired'))
-        results.append(run_cron('push:discount', NOTIFICATIONS_URL, 'discount'))
-
-    # ── Только push (для отладки) ─────────────────────────────────────────────
-    elif action == 'run_push':
-        results.append(run_cron('push:onboarding', NOTIFICATIONS_URL, 'onboarding'))
-        results.append(run_cron('push:streak', NOTIFICATIONS_URL, 'streak'))
-        results.append(run_cron('push:trial_ending', NOTIFICATIONS_URL, 'trial_ending'))
-        results.append(run_cron('push:trial_expired', NOTIFICATIONS_URL, 'trial_expired'))
-        results.append(run_cron('push:reactivation', NOTIFICATIONS_URL, 'reactivation'))
-        results.append(run_cron('push:referral_promo', NOTIFICATIONS_URL, 'referral_promo'))
-        results.append(run_cron('push:discount', NOTIFICATIONS_URL, 'discount'))
+            results.append(run_cron('email:streak_save', EMAIL_URL, 'streak_save'))
+            results.append(run_cron('push:reactivation', NOTIFICATIONS_URL, 'reactivation'))
+            results.append(run_cron('push:expire_bonus', NOTIFICATIONS_URL, 'expire_bonus'))
 
     else:
         return {
@@ -84,11 +96,11 @@ def handler(event: dict, context) -> dict:
             'headers': CORS,
             'body': json.dumps({
                 'status': 'ready',
-                'tasks': ['auto-charge', 'trial-reminder', 'push:*'],
-                'usage': {
-                    'daily (09:00)': '?action=run',
-                    'hourly': '?action=run_hourly',
-                    'push only': '?action=run_push',
+                'schedule': {
+                    'morning_09': '?action=run_morning — drip, trial email, reactivation email, daily bonus push',
+                    'evening_20': '?action=run_evening — streak push+email, reactivation push, expire bonus',
+                    'hourly': '?action=run_hourly — trial ending/expired push',
+                    'auto': '?action=run — утро/вечер по часу автоматически',
                 }
             })
         }

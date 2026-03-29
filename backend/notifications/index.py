@@ -1,21 +1,19 @@
-"""
-Push-уведомления Studyfay — 5 категорий по плану:
-1. Онбординг (приветствие, первый вопрос, активация триала)
-2. Удержание (streak, ежедневное задание)
-3. Монетизация (окончание триала, лимиты, скидки)
-4. Виральность (рефералка)
-5. Реактивация (3, 7, 30 дней без активности)
+"""Push-уведомления Studyfay — модель Duolingo: 1 пуш в день, максимум ценности.
 
-Cron-эндпоинты (вызываются планировщиком):
-GET ?cron=onboarding         — приветствие + напоминание задать вопрос
-GET ?cron=streak             — напоминание о сгорающей серии (каждый день 20:00)
-GET ?cron=trial_ending       — триал заканчивается через 24ч
-GET ?cron=trial_expired      — триал только что закончился
-GET ?cron=reactivation       — реактивация спящих (3/7/30 дней)
-GET ?cron=referral_promo     — предложение рефералки (7 день)
-GET ?cron=discount           — скидка на 3й день после окончания триала
-POST action=send_test        — тестовый пуш текущему пользователю
-GET  action=status           — статус подписки
+Принцип: не больше 1 push в день на пользователя. Приоритеты:
+1. Streak-saver (вечер 20:00) — главный крючок возврата
+2. Trial ending — монетизация
+3. Реактивация (день 3, 7, 30) — возврат ушедших
+
+Cron (GET ?cron=...):
+  streak         — стрик сгорит (20:00, самый важный)
+  trial_ending   — триал заканчивается через 24ч
+  trial_expired  — триал закончился
+  reactivation   — 3, 7, 30 дней без активности
+  daily_bonus    — начисление бонусных вопросов
+
+POST action=send_test — тестовый пуш
+GET (auth) — статус подписки
 """
 import json
 import os
@@ -36,12 +34,21 @@ RUSTORE_PROJECT_ID = os.environ.get('RUSTORE_PUSH_PROJECT_ID', '')
 RUSTORE_SERVICE_TOKEN = os.environ.get('RUSTORE_PUSH_SERVICE_TOKEN', '')
 RUSTORE_PUSH_URL = 'https://vkpns.rustore.ru/v1/projects/{project_id}/messages:send'
 
+EMAIL_URL = os.environ.get('EMAIL_FUNCTION_URL', '')
+
 CORS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Authorization',
     'Content-Type': 'application/json',
 }
+
+STREAK_MESSAGES = [
+    {'title': '🔥 Серия {streak} {word} сгорит!', 'body': 'Зайди на 2 минуты — один вопрос сохранит всё'},
+    {'title': '⚠️ {streak} {word} подряд — не потеряй!', 'body': 'Ты столько старался. 5 минут — и серия в безопасности'},
+    {'title': '🔥 Осталось несколько часов!', 'body': 'Серия {streak} {word} обнулится к полуночи. Зайди сейчас'},
+    {'title': '😱 Серия горит!', 'body': 'Ещё чуть-чуть — и {streak} {word} подряд обнулятся навсегда'},
+]
 
 def ok(body): return {'statusCode': 200, 'headers': CORS, 'body': json.dumps(body, ensure_ascii=False)}
 def err(code, msg): return {'statusCode': code, 'headers': CORS, 'body': json.dumps({'error': msg}, ensure_ascii=False)}
@@ -57,6 +64,14 @@ def get_user_id(token: str):
 
 def get_conn():
     return psycopg2.connect(DATABASE_URL)
+
+
+def days_word(n):
+    if n == 1:
+        return 'день'
+    if 2 <= n <= 4:
+        return 'дня'
+    return 'дней'
 
 
 def send_rustore_push(rustore_token: str, title: str, body: str, url: str = '/') -> bool:
@@ -98,7 +113,7 @@ def send_push(endpoint: str, p256dh: str, auth: str, title: str, body: str, url:
         return True
     except WebPushException as e:
         if e.response and e.response.status_code in (404, 410):
-            return None  # expired subscription
+            return None
         return False
 
 
@@ -137,8 +152,43 @@ def send_to_users(conn, user_ids: list, title: str, body: str, url: str = '/', t
     return {'sent': sent, 'failed': failed}
 
 
+def _send_streak_email(conn, user_ids: list):
+    if not EMAIL_URL or not user_ids:
+        return
+    cur = conn.cursor()
+    placeholders = ','.join(['%s'] * len(user_ids))
+    cur.execute(f'''
+        SELECT u.id, u.email, u.full_name, us.current_streak
+        FROM {SCHEMA}.users u
+        JOIN {SCHEMA}.user_streaks us ON u.id = us.user_id
+        WHERE u.id IN ({placeholders})
+          AND u.email IS NOT NULL
+          AND u.email NOT LIKE '%%@studyfay.app'
+    ''', user_ids)
+    users = cur.fetchall()
+    cur.close()
+    import urllib.request
+    for uid, email, name, streak in users:
+        try:
+            payload = json.dumps({
+                'action': 'streak_save',
+                'to': email,
+                'name': name or email,
+                'streak': streak,
+            }).encode('utf-8')
+            req = urllib.request.Request(
+                EMAIL_URL,
+                data=payload,
+                headers={'Content-Type': 'application/json'},
+                method='POST',
+            )
+            urllib.request.urlopen(req, timeout=5)
+        except Exception as e:
+            print(f'[Streak Email Error] {e}')
+
+
 def handler(event: dict, context) -> dict:
-    """Обработчик push-уведомлений Studyfay"""
+    """Push-уведомления Studyfay: модель Duolingo — 1 пуш/день, streak-saver."""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS, 'body': ''}
 
@@ -150,11 +200,8 @@ def handler(event: dict, context) -> dict:
 
     conn = get_conn()
     try:
-        # ── Cron-задачи ───────────────────────────────────────────────────────
         cron = qs.get('cron')
         if method == 'GET' and cron:
-            if cron == 'onboarding':
-                return cron_onboarding(conn)
             if cron == 'streak':
                 return cron_streak(conn)
             if cron == 'trial_ending':
@@ -163,10 +210,6 @@ def handler(event: dict, context) -> dict:
                 return cron_trial_expired(conn)
             if cron == 'reactivation':
                 return cron_reactivation(conn)
-            if cron == 'referral_promo':
-                return cron_referral_promo(conn)
-            if cron == 'discount':
-                return cron_discount(conn)
             if cron == 'daily_bonus':
                 return cron_daily_bonus(conn)
             if cron == 'expire_bonus':
@@ -176,7 +219,6 @@ def handler(event: dict, context) -> dict:
         if not user_id:
             return err(401, 'Unauthorized')
 
-        # ── POST-действия ─────────────────────────────────────────────────────
         if method == 'POST':
             body = json.loads(event.get('body') or '{}')
             action = body.get('action')
@@ -200,11 +242,10 @@ def handler(event: dict, context) -> dict:
                 cur.close()
                 return ok({'success': True})
 
-        # ── GET статус / настройки ────────────────────────────────────────────
         if method == 'GET':
             action = qs.get('action', '')
             cur = conn.cursor()
-            cur.execute(f'SELECT COUNT(*) FROM {SCHEMA}.push_subscriptions WHERE user_id=%s AND endpoint IS NOT NULL', (user_id,))
+            cur.execute(f'SELECT COUNT(*) FROM {SCHEMA}.push_subscriptions WHERE user_id=%s AND (endpoint IS NOT NULL OR rustore_token IS NOT NULL)', (user_id,))
             count = cur.fetchone()[0]
             cur.close()
             if action in ('status', ''):
@@ -228,66 +269,17 @@ def handler(event: dict, context) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 1. ОНБОРДИНГ
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def cron_onboarding(conn) -> dict:
-    """
-    Приветствие — сразу после регистрации (первые 5 минут).
-    Напоминание — через 2 часа если не задал вопрос.
-    """
-    now = datetime.now()
-    cur = conn.cursor()
-
-    # Приветствие: зарегистрировались 2-5 минут назад, ещё не задали вопрос
-    cur.execute(f'''
-        SELECT u.id FROM {SCHEMA}.users u
-        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
-          AND u.created_at BETWEEN %s AND %s
-          AND u.ai_questions_used = 0
-    ''', (now - timedelta(minutes=5), now - timedelta(minutes=2)))
-    welcome_users = [r[0] for r in cur.fetchall()]
-
-    # Напоминание: зарегистрировались 2-2.5 часа назад, всё ещё не задали вопрос
-    cur.execute(f'''
-        SELECT u.id FROM {SCHEMA}.users u
-        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
-          AND u.created_at BETWEEN %s AND %s
-          AND u.ai_questions_used = 0
-    ''', (now - timedelta(hours=2, minutes=30), now - timedelta(hours=2)))
-    reminder_users = [r[0] for r in cur.fetchall()]
-    cur.close()
-
-    r1 = send_to_users(conn, welcome_users,
-        '👋 Привет! Добро пожаловать в Studyfay',
-        'У тебя 3 дня Premium бесплатно. Задай первый вопрос — я помогу разобраться!',
-        '/assistant', 'onboarding_welcome')
-
-    r2 = send_to_users(conn, reminder_users,
-        '🤔 Не знаешь, с чего начать?',
-        'Попробуй спросить: «как решить уравнение x² – 5x + 6 = 0» — я объясню по шагам',
-        '/assistant', 'onboarding_hint')
-
-    return ok({'welcome': r1, 'reminder': r2})
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 2. УДЕРЖАНИЕ
+# STREAK-SAVER — главный push, как у Duolingo (20:00)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def cron_streak(conn) -> dict:
-    """
-    Каждый день в 20:00 — напоминание тем, кто ещё не зашёл сегодня и имеет streak > 0.
-    """
     today = datetime.now().date()
     cur = conn.cursor()
     cur.execute(f'''
         SELECT u.id, us.current_streak FROM {SCHEMA}.users u
         JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
         JOIN {SCHEMA}.user_streaks us ON u.id = us.user_id
-        WHERE ps.endpoint IS NOT NULL
+        WHERE (ps.endpoint IS NOT NULL OR ps.rustore_token IS NOT NULL)
           AND us.current_streak > 0
           AND us.last_activity_date < %s
     ''', (today,))
@@ -295,232 +287,122 @@ def cron_streak(conn) -> dict:
     cur.close()
 
     sent = failed = 0
+    email_user_ids = []
     for uid, streak in rows:
-        days_word = 'день' if streak == 1 else ('дня' if streak < 5 else 'дней')
-        if streak >= 30:
-            title = f'🔥 {streak} {days_word} — это огромный результат!'
-            body = 'Не дай серии сгореть сегодня ночью. Зайди на 2 минуты — один вопрос сохранит всё!'
-        elif streak >= 7:
-            title = f'⚠️ Серия {streak} {days_word} сгорит через несколько часов!'
-            body = 'Ты столько старался. Сделай одно занятие прямо сейчас — это займёт 5 минут.'
-        else:
-            title = f'🔥 Твоя серия {streak} {days_word} в опасности!'
-            body = 'Зайди и реши хотя бы один вопрос — серия сохранится и ты получишь +10 XP'
+        word = days_word(streak)
+        import hashlib
+        variant_idx = int(hashlib.md5(f'{uid}{today}'.encode()).hexdigest(), 16) % len(STREAK_MESSAGES)
+        msg = STREAK_MESSAGES[variant_idx]
+        title = msg['title'].format(streak=streak, word=word)
+        body = msg['body'].format(streak=streak, word=word)
         result = send_to_users(conn, [uid], title, body, '/', 'streak_reminder')
         sent += result['sent']
         failed += result['failed']
+        if streak >= 2:
+            email_user_ids.append(uid)
 
-    return ok({'sent': sent, 'failed': failed})
+    _send_streak_email(conn, email_user_ids)
+
+    return ok({'sent': sent, 'failed': failed, 'total': len(rows)})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 3. МОНЕТИЗАЦИЯ
+# МОНЕТИЗАЦИЯ
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def cron_trial_ending(conn) -> dict:
-    """
-    За 24 часа до окончания триала.
-    """
     now = datetime.now()
-    window_start = now + timedelta(hours=23)
-    window_end = now + timedelta(hours=25)
     cur = conn.cursor()
     cur.execute(f'''
         SELECT u.id FROM {SCHEMA}.users u
         JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
+        WHERE (ps.endpoint IS NOT NULL OR ps.rustore_token IS NOT NULL)
           AND u.trial_ends_at BETWEEN %s AND %s
           AND u.subscription_type != 'premium'
-    ''', (window_start, window_end))
+    ''', (now + timedelta(hours=23), now + timedelta(hours=25)))
     user_ids = [r[0] for r in cur.fetchall()]
     cur.close()
-
     return ok(send_to_users(conn, user_ids,
-        '⏰ Завтра останется только 3 вопроса в день',
-        'Твой безлимит заканчивается через 24 часа. Продли сейчас — первый месяц всего 299 ₽ 🔥',
-        '/pricing?source=push_trial_ending', 'trial_ending'))
+        '⏰ Завтра останется только 3 вопроса',
+        'Безлимит заканчивается через 24 часа. Продли — первый месяц 499 ₽',
+        '/pricing?source=push_trial', 'trial_ending'))
 
 
 def cron_trial_expired(conn) -> dict:
-    """
-    В день окончания триала (trial_ends_at < now, subscription != premium).
-    """
     now = datetime.now()
     cur = conn.cursor()
     cur.execute(f'''
         SELECT u.id FROM {SCHEMA}.users u
         JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
+        WHERE (ps.endpoint IS NOT NULL OR ps.rustore_token IS NOT NULL)
           AND u.trial_ends_at BETWEEN %s AND %s
           AND u.subscription_type != 'premium'
     ''', (now - timedelta(hours=2), now))
     user_ids = [r[0] for r in cur.fetchall()]
     cur.close()
-
     return ok(send_to_users(conn, user_ids,
-        '😔 Безлимит закончился — осталось 3 вопроса',
-        'Вернуть безлимит легко: первый месяц всего 299 ₽. Не останавливайся! 🚀',
+        '😔 Безлимит закончился',
+        'Осталось 3 вопроса в день. Вернуть безлимит — 499 ₽/мес',
         '/pricing?source=push_trial_expired', 'trial_expired'))
 
 
-def cron_discount(conn) -> dict:
-    """
-    Через 3 дня после окончания триала — скидка 40%.
-    """
-    now = datetime.now()
-    cur = conn.cursor()
-    cur.execute(f'''
-        SELECT u.id FROM {SCHEMA}.users u
-        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
-          AND u.trial_ends_at BETWEEN %s AND %s
-          AND u.subscription_type != 'premium'
-    ''', (now - timedelta(days=3, hours=2), now - timedelta(days=3)))
-    user_ids = [r[0] for r in cur.fetchall()]
-    cur.close()
-
-    return ok(send_to_users(conn, user_ids,
-        '🔥 Только сегодня: первый месяц за 299₽',
-        'Специально для тебя — скидка 40% на Premium. Предложение сгорает через 24 часа!',
-        '/pricing?source=push_discount', 'discount'))
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
-# 4. ВИРАЛЬНОСТЬ
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def cron_referral_promo(conn) -> dict:
-    """
-    На 7й день после регистрации — предложение рефералки (если ещё не приглашал).
-    """
-    now = datetime.now()
-    cur = conn.cursor()
-    cur.execute(f'''
-        SELECT u.id FROM {SCHEMA}.users u
-        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
-          AND u.created_at BETWEEN %s AND %s
-          AND COALESCE(u.referral_count, 0) = 0
-    ''', (now - timedelta(days=7, hours=2), now - timedelta(days=7)))
-    user_ids = [r[0] for r in cur.fetchall()]
-    cur.close()
-
-    return ok(send_to_users(conn, user_ids,
-        '👫 Пригласи друга — получи 7 дней Premium',
-        'Друг тоже получит бонус при регистрации. Поделись своей ссылкой!',
-        '/referral?source=push', 'referral_promo'))
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 5. РЕАКТИВАЦИЯ
+# РЕАКТИВАЦИЯ (3, 7, 30 дней) — точечно, не спамим
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def cron_reactivation(conn) -> dict:
-    """
-    3 дня без активности — мягкое напоминание.
-    7 дней — предложение триала (если не использован).
-    30 дней — щедрый бонус.
-    """
     now = datetime.now()
     cur = conn.cursor()
 
-    # 3 дня
     cur.execute(f'''
         SELECT u.id FROM {SCHEMA}.users u
         JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
+        WHERE (ps.endpoint IS NOT NULL OR ps.rustore_token IS NOT NULL)
           AND u.last_login_at BETWEEN %s AND %s
     ''', (now - timedelta(days=3, hours=2), now - timedelta(days=3)))
     day3 = [r[0] for r in cur.fetchall()]
 
-    # 7 дней (и триал не использован)
     cur.execute(f'''
         SELECT u.id FROM {SCHEMA}.users u
         JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
+        WHERE (ps.endpoint IS NOT NULL OR ps.rustore_token IS NOT NULL)
           AND u.last_login_at BETWEEN %s AND %s
-          AND (u.is_trial_used = FALSE OR u.is_trial_used IS NULL)
     ''', (now - timedelta(days=7, hours=2), now - timedelta(days=7)))
-    day7_no_trial = [r[0] for r in cur.fetchall()]
+    day7 = [r[0] for r in cur.fetchall()]
 
-    # 7 дней (триал уже был)
     cur.execute(f'''
         SELECT u.id FROM {SCHEMA}.users u
         JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
-          AND u.last_login_at BETWEEN %s AND %s
-          AND u.is_trial_used = TRUE
-    ''', (now - timedelta(days=7, hours=2), now - timedelta(days=7)))
-    day7_with_trial = [r[0] for r in cur.fetchall()]
-
-    # 30 дней
-    cur.execute(f'''
-        SELECT u.id FROM {SCHEMA}.users u
-        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE ps.endpoint IS NOT NULL
+        WHERE (ps.endpoint IS NOT NULL OR ps.rustore_token IS NOT NULL)
           AND u.last_login_at BETWEEN %s AND %s
     ''', (now - timedelta(days=30, hours=2), now - timedelta(days=30)))
     day30 = [r[0] for r in cur.fetchall()]
     cur.close()
 
     r1 = send_to_users(conn, day3,
-        '🦊 Привет! Я скучаю по тебе...',
-        'Твой помощник ждёт тебя 3 дня. Зайди на 2 минуты — порешаем задачу вместе!',
+        '🦊 Привет! Не забыл про учёбу?',
+        '3 дня без занятий — вернись на 5 минут, чтобы не терять прогресс',
         '/', 'reactivation_3d')
 
-    r2 = send_to_users(conn, day7_no_trial,
-        '📸 Ты ещё не пробовал Premium!',
-        'Решай задачи по фото и голосу — попробуй 3 дня бесплатно 🎁',
-        '/pricing?source=push_reactivation', 'reactivation_7d_trial')
-
-    r3 = send_to_users(conn, day7_with_trial,
-        '📚 Знаешь, что нового в Studyfay?',
-        'Мы добавили пробные экзамены и флэшкарты. Зайди и проверь!',
+    r2 = send_to_users(conn, day7,
+        '📚 Неделя без практики',
+        'Знания забываются быстро. Один вопрос — и ты снова в форме!',
         '/', 'reactivation_7d')
 
-    r4 = send_to_users(conn, day30,
-        '🐱 Твой друг очень скучает...',
-        'Ты не заходил целый месяц. Возвращайся — дарим 100 вопросов к ИИ в подарок 🎁',
+    r3 = send_to_users(conn, day30,
+        '💌 Давно не виделись',
+        'Мы добавили много нового! Зайди — дарим 3 бонусных вопроса',
         '/', 'reactivation_30d')
 
-    return ok({'day3': r1, 'day7_no_trial': r2, 'day7': r3, 'day30': r4})
+    return ok({'day3': r1, 'day7': r2, 'day30': r3})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 6. ЕЖЕДНЕВНЫЕ БОНУСЫ
+# БОНУСЫ
 # ═══════════════════════════════════════════════════════════════════════════════
-
-EMAIL_URL = os.environ.get('EMAIL_FUNCTION_URL', '')
-
-
-def _send_bonus_email(email: str, name: str, hours_left: int):
-    """Send daily bonus email via email function (fire-and-forget)."""
-    if not EMAIL_URL or not email:
-        return
-    try:
-        import urllib.request
-        payload = json.dumps({
-            'action': 'daily_bonus',
-            'to': email,
-            'name': name,
-            'hours_left': hours_left,
-        }).encode('utf-8')
-        req = urllib.request.Request(
-            EMAIL_URL,
-            data=payload,
-            headers={'Content-Type': 'application/json'},
-            method='POST',
-        )
-        urllib.request.urlopen(req, timeout=5)
-    except Exception as e:
-        print(f'[Bonus Email Error] {e}')
-
 
 def cron_daily_bonus(conn) -> dict:
-    """Every day ~10:00: give FREE users 3 bonus AI questions, send push + email."""
     cur = conn.cursor()
-
-    # Give bonus questions to all free users
     cur.execute(f'''
         UPDATE {SCHEMA}.users
         SET bonus_questions = 3
@@ -531,7 +413,6 @@ def cron_daily_bonus(conn) -> dict:
     updated_ids = [r[0] for r in cur.fetchall()]
     conn.commit()
 
-    # Get push-subscribed free users for push notification
     if updated_ids:
         placeholders = ','.join(['%s'] * len(updated_ids))
         cur.execute(f'''
@@ -544,50 +425,16 @@ def cron_daily_bonus(conn) -> dict:
         push_user_ids = []
 
     push_result = send_to_users(conn, push_user_ids,
-        '+3 бонусных вопроса!',
+        '🎁 +3 бонусных вопроса!',
         'Сгорят к полуночи — используй сейчас',
         '/assistant', 'daily_bonus')
 
-    # Send email to users who haven't logged in today and have real email
-    today = datetime.now(timezone.utc).date()
-    cur.execute(f'''
-        SELECT u.id, u.email, u.full_name
-        FROM {SCHEMA}.users u
-        WHERE u.subscription_type != 'premium'
-          AND u.email IS NOT NULL
-          AND u.email NOT LIKE '%%@studyfay.app'
-          AND (u.last_login_at IS NULL OR u.last_login_at::date < %s)
-    ''', (today,))
-    email_users = cur.fetchall()
     cur.close()
-
-    emails_sent = 0
-    for user in email_users:
-        _send_bonus_email(user[1], user[2] or user[1], 14)
-        emails_sent += 1
-
-    return ok({
-        'bonus_given': len(updated_ids),
-        'push': push_result,
-        'emails_sent': emails_sent,
-    })
+    return ok({'bonus_given': len(updated_ids), 'push': push_result})
 
 
 def cron_expire_bonus(conn) -> dict:
-    """Every day ~23:00: reset bonus_questions to 0, send push about expiry."""
     cur = conn.cursor()
-
-    # Find users who still have unused bonus questions (for push)
-    cur.execute(f'''
-        SELECT u.id FROM {SCHEMA}.users u
-        JOIN {SCHEMA}.push_subscriptions ps ON u.id = ps.user_id
-        WHERE (ps.endpoint IS NOT NULL OR ps.rustore_token IS NOT NULL)
-          AND u.bonus_questions > 0
-          AND u.subscription_type != 'premium'
-    ''')
-    push_user_ids = [r[0] for r in cur.fetchall()]
-
-    # Reset bonus questions for all users
     cur.execute(f'''
         UPDATE {SCHEMA}.users
         SET bonus_questions = 0
@@ -596,17 +443,8 @@ def cron_expire_bonus(conn) -> dict:
     ''')
     reset_ids = [r[0] for r in cur.fetchall()]
     conn.commit()
-
-    push_result = send_to_users(conn, push_user_ids,
-        'Бонусные вопросы сгорели!',
-        'Завтра получишь новые — не забудь зайти',
-        '/', 'bonus_expired')
-
     cur.close()
-    return ok({
-        'reset_count': len(reset_ids),
-        'push': push_result,
-    })
+    return ok({'reset_count': len(reset_ids)})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

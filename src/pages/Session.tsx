@@ -10,6 +10,7 @@ import { getTodayTopic as getTodayTopicBase, TOPICS_BY_SUBJECT, DEFAULT_TOPICS }
 import { trackActivity } from '@/lib/gamification';
 import { API } from '@/lib/api-urls';
 import AiText from '@/components/AiText';
+import NotificationPrompt from '@/components/NotificationPrompt';
 
 
 function getTodayTopic(examSubject?: string | null, offset = 0): { subject: string; topic: string; number: number; total: number } {
@@ -139,6 +140,7 @@ export default function Session() {
   const [currentDateStr, setCurrentDateStr] = useState(() => new Date().toDateString());
   const [sessionTopic, setSessionTopic] = useState(() => getTodayTopic(authService.getUser()?.exam_subject, getTodaySessionOffset()));
   const [daysToExam, setDaysToExam] = useState(() => getDaysToExam(authService.getUser()?.exam_date));
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
 
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loaderRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -565,6 +567,7 @@ export default function Session() {
       setScreen('correct_anim');
       setTimeout(() => {
         setScreen('done');
+        setTimeout(() => setShowPushPrompt(true), 2500);
         if (isPremium) return;
         if (showCorrectAnswer) return;
         const token = authService.getToken();
@@ -875,6 +878,12 @@ export default function Session() {
           onClose={() => setShowPaywall(false)}
         />
       )}
+
+      <NotificationPrompt
+        visible={showPushPrompt && !showPaywall}
+        streak={newStreak}
+        onClose={() => setShowPushPrompt(false)}
+      />
       </>
     );
   }

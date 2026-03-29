@@ -13,15 +13,7 @@
       "expectedStatus": 401
     },
     {
-      "name": "Cron onboarding",
-      "method": "GET",
-      "path": "/?cron=onboarding",
-      "expectedStatus": 200,
-      "expectedBody": {"welcome": {}, "reminder": {}},
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Cron streak reminder",
+      "name": "Cron streak",
       "method": "GET",
       "path": "/?cron=streak",
       "expectedStatus": 200,
@@ -57,7 +49,6 @@
       "method": "GET",
       "path": "/?cron=expire_bonus",
       "expectedStatus": 200,
-      "expectedBody": {"push": {}},
       "bodyMatcher": "partial"
     },
     {

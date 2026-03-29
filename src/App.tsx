@@ -45,7 +45,6 @@ import Quests from "./pages/Quests";
 import League from "./pages/League";
 import WeakTraining from "./pages/WeakTraining";
 import AppMetricaTracker from "@/components/AppMetricaTracker";
-import NotificationPrompt from "@/components/NotificationPrompt";
 import { useEffect } from "react";
 import { authService } from "@/lib/auth";
 import { API } from "@/lib/api-urls";
@@ -93,7 +92,6 @@ const App = () => (
           <BrowserRouter>
             <AppMetricaTracker />
             <RuStorePushRegistrar />
-            <NotificationPrompt />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthNew />} />
