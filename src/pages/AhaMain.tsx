@@ -303,6 +303,8 @@ export default function AhaMain() {
   const [limits, setLimitsState] = useState<Limits>(getLimits);
   const [showPaywall, setShowPaywall] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ base64: string; preview: string } | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => authService.isAuthenticated());
+  const [isPremium, setIsPremium] = useState(false);
 
   /* Handle payment return from YooKassa */
   useEffect(() => {
@@ -312,7 +314,25 @@ export default function AhaMain() {
     }
   }, [searchParams, navigate]);
 
-
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (authService.isAuthenticated()) {
+        setIsAuthenticated(true);
+        try {
+          const res = await fetch(`${API.SUBSCRIPTION}?action=limits`, {
+            headers: { Authorization: `Bearer ${authService.getToken()}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.is_premium || data.is_trial) {
+              setIsPremium(true);
+            }
+          }
+        } catch { /* silent */ }
+      }
+    };
+    checkAuth();
+  }, []);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -371,9 +391,7 @@ export default function AhaMain() {
   const submitText = useCallback(
     async (q: string) => {
       const currentLimits = getLimits();
-      if (currentLimits.questionsLeft <= 0) {
-        // If daily mode and all limits gone, do nothing (banner is visible)
-        // If somehow called, just return
+      if (!isPremium && currentLimits.questionsLeft <= 0) {
         return;
       }
 
@@ -388,10 +406,20 @@ export default function AhaMain() {
       setLoading(true);
 
       try {
+        const token = authService.getToken();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch(API.AI_ASSISTANT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          headers,
+          body: JSON.stringify(token ? {
+            action: 'gemini_chat',
+            message: q,
+            history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          } : {
             action: 'free_ask',
             question: q,
             fingerprint: getFingerprint(),
@@ -404,17 +432,22 @@ export default function AhaMain() {
             localStorage.setItem('aha_photos_left', '0');
             markInitialUsed();
           }
+          addMessage({
+            id: genId(),
+            role: 'assistant',
+            content: 'Лимит вопросов исчерпан. Оформи подписку для безлимитного доступа или возвращайся завтра.',
+            timestamp: Date.now(),
+          });
           refreshLimits();
           setLoading(false);
           return;
         }
 
         if (!res.ok) {
-          const errText = await res.text().catch(() => '');
           addMessage({
             id: genId(),
             role: 'assistant',
-            content: errText || 'Что-то пошло не так. Попробуй ещё раз.',
+            content: 'Что-то пошло не так. Попробуй ещё раз.',
             timestamp: Date.now(),
           });
           setLoading(false);
@@ -423,17 +456,30 @@ export default function AhaMain() {
 
         const data = await res.json();
 
-        if (!isInitialUsed()) {
-          decrementInitialQuestions();
-        } else {
-          incrementDailyQuestions();
+        if (data.error) {
+          addMessage({
+            id: genId(),
+            role: 'assistant',
+            content: data.answer || 'Не удалось получить ответ. Попробуй ещё раз.',
+            timestamp: Date.now(),
+          });
+          setLoading(false);
+          return;
         }
-        refreshLimits();
+
+        if (!isPremium) {
+          if (!isInitialUsed()) {
+            decrementInitialQuestions();
+          } else {
+            incrementDailyQuestions();
+          }
+          refreshLimits();
+        }
 
         addMessage({
           id: genId(),
           role: 'assistant',
-          content: data.answer,
+          content: data.answer || data.response || 'Ответ получен.',
           timestamp: Date.now(),
         });
 
@@ -448,13 +494,13 @@ export default function AhaMain() {
       }
       setLoading(false);
     },
-    [genId, addMessage, refreshLimits, checkInitialExhausted]
+    [genId, addMessage, refreshLimits, checkInitialExhausted, isPremium, messages]
   );
 
   const submitPhoto = useCallback(
     async (base64: string, preview: string) => {
       const currentLimits = getLimits();
-      if (currentLimits.photosLeft <= 0) {
+      if (!isPremium && currentLimits.photosLeft <= 0) {
         return;
       }
 
@@ -470,10 +516,20 @@ export default function AhaMain() {
       setLoading(true);
 
       try {
+        const token = authService.getToken();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch(API.AI_ASSISTANT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          headers,
+          body: JSON.stringify(token ? {
+            action: 'photo_solve',
+            image_base64: base64,
+            hint: '',
+          } : {
             action: 'free_photo_solve',
             image_base64: base64,
             hint: '',
@@ -481,12 +537,18 @@ export default function AhaMain() {
           }),
         });
 
-        if (res.status === 429) {
+        if (res.status === 429 || res.status === 403) {
           if (!isInitialUsed()) {
             localStorage.setItem('aha_questions_left', '0');
             localStorage.setItem('aha_photos_left', '0');
             markInitialUsed();
           }
+          addMessage({
+            id: genId(),
+            role: 'assistant',
+            content: 'Лимит фото-решений исчерпан. Оформи подписку для безлимитного доступа или возвращайся завтра.',
+            timestamp: Date.now(),
+          });
           refreshLimits();
           setLoading(false);
           return;
@@ -506,17 +568,19 @@ export default function AhaMain() {
 
         const data = await res.json();
 
-        if (!isInitialUsed()) {
-          decrementInitialPhotos();
-        } else {
-          incrementDailyPhotos();
+        if (!isPremium) {
+          if (!isInitialUsed()) {
+            decrementInitialPhotos();
+          } else {
+            incrementDailyPhotos();
+          }
+          refreshLimits();
         }
-        refreshLimits();
 
         addMessage({
           id: genId(),
           role: 'assistant',
-          content: data.solution || '',
+          content: data.solution || data.answer || '',
           structured: data.structured,
           recognizedText: data.recognized_text,
           subject: data.subject,
@@ -534,7 +598,7 @@ export default function AhaMain() {
       }
       setLoading(false);
     },
-    [genId, addMessage, refreshLimits, checkInitialExhausted]
+    [genId, addMessage, refreshLimits, checkInitialExhausted, isPremium]
   );
 
   const handleFileChange = useCallback(
@@ -623,8 +687,8 @@ export default function AhaMain() {
 
   const allDailyExhausted = limits.mode === 'daily' && limits.photosLeft <= 0 && limits.questionsLeft <= 0;
 
-  const photoDisabled = limits.photosLeft <= 0;
-  const questionDisabled = limits.questionsLeft <= 0;
+  const photoDisabled = !isPremium && limits.photosLeft <= 0;
+  const questionDisabled = !isPremium && limits.questionsLeft <= 0;
 
   // Build the counter label for photos
   const photoCountLabel = (() => {
@@ -664,10 +728,15 @@ export default function AhaMain() {
       <div className="sticky top-0 z-30 bg-indigo-600 px-4 py-3 flex items-center gap-2">
         <Icon name="Sparkles" size={20} className="text-indigo-200" />
         <span className="font-heading font-bold text-base text-white">Studyfay</span>
+        {isPremium && (
+          <span className="ml-auto text-[11px] font-semibold text-indigo-200 bg-indigo-500/30 px-2 py-0.5 rounded-full">
+            Premium
+          </span>
+        )}
       </div>
 
       {/* Counter display: separate photo + question counters */}
-      {!allDailyExhausted && (
+      {!isPremium && !allDailyExhausted && (
         <div className="px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center justify-center">
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-indigo-200 text-[13px] font-medium">
             <span className={limits.photosLeft > 0 ? 'text-indigo-700' : 'text-gray-400'}>
@@ -682,7 +751,7 @@ export default function AhaMain() {
       )}
 
       {/* Daily limits exhausted banner */}
-      {allDailyExhausted && (
+      {!isPremium && allDailyExhausted && (
         <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 flex flex-col items-center gap-2">
           <span className="text-[13px] font-medium text-amber-800 text-center">
             Лимит на сегодня исчерпан. Возвращайся завтра или оформи подписку

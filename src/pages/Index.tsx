@@ -149,11 +149,18 @@ function Index() {
   }, [navigate]);
 
   useEffect(() => {
-    if (!limits.loading && authService.isAuthenticated() && !limits.isPremium && !limits.isTrial) {
+    if (
+      !limits.loading &&
+      authService.isAuthenticated() &&
+      !limits.isPremium &&
+      !limits.isTrial &&
+      !limits.data.is_soft_landing &&
+      limits.data.days_since_registration !== 999
+    ) {
       authService.logout();
       navigate('/aha-first');
     }
-  }, [limits.loading, limits.isPremium, limits.isTrial, navigate]);
+  }, [limits.loading, limits.isPremium, limits.isTrial, limits.data.is_soft_landing, limits.data.days_since_registration, navigate]);
 
   useEffect(() => { setCompleted(loadCompleted(activeSubject)); loadDailyFact(activeSubject); }, [activeSubject]);
 

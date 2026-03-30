@@ -420,6 +420,7 @@ export default function AuthNew() {
           authService.setToken(data.token);
           authService.setUser(data.user);
           await applyReferral(data.token);
+          await claimGuestPayment(data.token);
           am.register('phone');
           navigate('/onboarding');
         } else {
