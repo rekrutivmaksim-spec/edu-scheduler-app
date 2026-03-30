@@ -580,10 +580,10 @@ export default function AhaExperience() {
             Зарегистрироваться
           </Button>
           <button
-            onClick={resetToAction}
+            onClick={() => navigate('/aha-main')}
             className="mt-3 text-indigo-600 text-sm font-medium"
           >
-            Назад
+            Продолжить без регистрации
           </button>
         </div>
       </div>
@@ -807,7 +807,7 @@ export default function AhaExperience() {
         {showContinue && (
           <AnimatedBlock delay={0} className="pt-4 pb-4">
             <button
-              onClick={() => navigate('/auth')}
+              onClick={() => navigate('/aha-main')}
               className="no-mobile-padding w-full h-14 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-[16px] shadow-lg shadow-indigo-200 active:scale-[0.97] transition-transform"
             >
               Продолжить

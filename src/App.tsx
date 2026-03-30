@@ -45,6 +45,7 @@ import Quests from "./pages/Quests";
 import League from "./pages/League";
 import WeakTraining from "./pages/WeakTraining";
 import AhaExperience from "./pages/AhaExperience";
+import AhaMain from "./pages/AhaMain";
 import AppMetricaTracker from "@/components/AppMetricaTracker";
 import { useEffect } from "react";
 import { authService } from "@/lib/auth";
@@ -126,6 +127,7 @@ const App = () => (
               <Route path="/photo-solve" element={<PhotoSolve />} />
               <Route path="/aha-first" element={<AhaExperience />} />
               <Route path="/aha" element={<AhaExperience />} />
+              <Route path="/aha-main" element={<AhaMain />} />
               <Route path="/delete-account" element={<DeleteAccount />} />
               <Route path="/mock-exam" element={<MockExam />} />
               <Route path="/calculator" element={<ScoreCalculator />} />
