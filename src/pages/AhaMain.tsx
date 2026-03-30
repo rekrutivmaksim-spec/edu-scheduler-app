@@ -124,12 +124,15 @@ interface Limits {
 }
 
 function getLimits(): Limits {
-  if (!isInitialUsed()) {
+  if (!isInitialUsed() && localStorage.getItem('aha_completed') !== 'true') {
     return {
       photosLeft: getInitialPhotosLeft(),
       questionsLeft: getInitialQuestionsLeft(),
       mode: 'initial',
     };
+  }
+  if (!isInitialUsed()) {
+    markInitialUsed();
   }
   ensureDailyReset();
   return {
@@ -152,7 +155,7 @@ function loadChatHistory(): ChatMessage[] {
 }
 
 function saveChatHistory(messages: ChatMessage[]) {
-  const trimmed = messages.slice(-20);
+  const trimmed = messages.slice(-40);
   localStorage.setItem('aha_chat_history', JSON.stringify(trimmed));
 }
 
@@ -401,6 +404,15 @@ export default function AhaMain() {
       setInput('');
       setLoading(true);
 
+      if (!isPremium) {
+        if (!isInitialUsed()) {
+          decrementInitialQuestions();
+        } else {
+          incrementDailyQuestions();
+        }
+        refreshLimits();
+      }
+
       try {
         const token = authService.getToken();
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -463,15 +475,6 @@ export default function AhaMain() {
           return;
         }
 
-        if (!isPremium) {
-          if (!isInitialUsed()) {
-            decrementInitialQuestions();
-          } else {
-            incrementDailyQuestions();
-          }
-          refreshLimits();
-        }
-
         addMessage({
           id: genId(),
           role: 'assistant',
@@ -510,6 +513,15 @@ export default function AhaMain() {
       addMessage(userMsg);
       setSelectedImage(null);
       setLoading(true);
+
+      if (!isPremium) {
+        if (!isInitialUsed()) {
+          decrementInitialPhotos();
+        } else {
+          incrementDailyPhotos();
+        }
+        refreshLimits();
+      }
 
       try {
         const token = authService.getToken();
@@ -563,15 +575,6 @@ export default function AhaMain() {
         }
 
         const data = await res.json();
-
-        if (!isPremium) {
-          if (!isInitialUsed()) {
-            decrementInitialPhotos();
-          } else {
-            incrementDailyPhotos();
-          }
-          refreshLimits();
-        }
 
         addMessage({
           id: genId(),

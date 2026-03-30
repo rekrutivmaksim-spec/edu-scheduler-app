@@ -267,6 +267,9 @@ export default function AhaExperience() {
           const next = c + 1;
           if (next >= 2) {
             localStorage.setItem('aha_completed', 'true');
+            localStorage.setItem('aha_initial_used', 'true');
+            localStorage.setItem('aha_questions_left', '0');
+            localStorage.setItem('aha_photos_left', '0');
             setAhaCompleted(true);
           }
           return next;
@@ -319,6 +322,9 @@ export default function AhaExperience() {
           const next = c + 1;
           if (next >= 2) {
             localStorage.setItem('aha_completed', 'true');
+            localStorage.setItem('aha_initial_used', 'true');
+            localStorage.setItem('aha_questions_left', '0');
+            localStorage.setItem('aha_photos_left', '0');
             setAhaCompleted(true);
           }
           return next;
@@ -390,6 +396,9 @@ export default function AhaExperience() {
           const next = c + 1;
           if (next >= 2 && !ahaCompleted) {
             localStorage.setItem('aha_completed', 'true');
+            localStorage.setItem('aha_initial_used', 'true');
+            localStorage.setItem('aha_questions_left', '0');
+            localStorage.setItem('aha_photos_left', '0');
             setAhaCompleted(true);
             setTimeout(() => setShowContinue(true), 600);
           }
