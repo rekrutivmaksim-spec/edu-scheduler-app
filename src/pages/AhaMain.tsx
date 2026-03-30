@@ -290,11 +290,17 @@ export default function AhaMain() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  /* Handle payment return from YooKassa — must run before auth redirect */
   useEffect(() => {
+    if (searchParams.get('payment') === 'success') {
+      localStorage.setItem('aha_payment_completed', 'true');
+      navigate('/auth?after_payment=true', { replace: true });
+      return;
+    }
     if (authService.isAuthenticated()) {
       navigate('/', { replace: true });
     }
-  }, [navigate]);
+  }, [searchParams, navigate]);
 
   const [messages, setMessages] = useState<ChatMessage[]>(loadChatHistory);
   const [input, setInput] = useState('');
@@ -303,21 +309,11 @@ export default function AhaMain() {
   const [limits, setLimitsState] = useState<Limits>(getLimits);
   const [showPaywall, setShowPaywall] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ base64: string; preview: string } | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => authService.isAuthenticated());
   const [isPremium, setIsPremium] = useState(false);
-
-  /* Handle payment return from YooKassa */
-  useEffect(() => {
-    if (searchParams.get('payment') === 'success') {
-      localStorage.setItem('aha_payment_completed', 'true');
-      navigate('/auth?after_payment=true');
-    }
-  }, [searchParams, navigate]);
 
   useEffect(() => {
     const checkAuth = async () => {
       if (authService.isAuthenticated()) {
-        setIsAuthenticated(true);
         try {
           const res = await fetch(`${API.SUBSCRIPTION}?action=limits`, {
             headers: { Authorization: `Bearer ${authService.getToken()}` },
