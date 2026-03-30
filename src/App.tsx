@@ -44,6 +44,7 @@ import ParentDashboard from "./pages/ParentDashboard";
 import Quests from "./pages/Quests";
 import League from "./pages/League";
 import WeakTraining from "./pages/WeakTraining";
+import AhaExperience from "./pages/AhaExperience";
 import AppMetricaTracker from "@/components/AppMetricaTracker";
 import { useEffect } from "react";
 import { authService } from "@/lib/auth";
@@ -123,7 +124,8 @@ const App = () => (
               <Route path="/session" element={<Session />} />
               <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/photo-solve" element={<PhotoSolve />} />
-              <Route path="/aha-first" element={<Navigate to="/auth" replace />} />
+              <Route path="/aha-first" element={<AhaExperience />} />
+              <Route path="/aha" element={<AhaExperience />} />
               <Route path="/delete-account" element={<DeleteAccount />} />
               <Route path="/mock-exam" element={<MockExam />} />
               <Route path="/calculator" element={<ScoreCalculator />} />

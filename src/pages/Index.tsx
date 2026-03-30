@@ -132,9 +132,9 @@ function Index() {
 
   useEffect(() => {
     const init = async () => {
-      if (!authService.isAuthenticated()) { navigate('/auth'); return; }
+      if (!authService.isAuthenticated()) { navigate('/aha-first'); return; }
       const v = await authService.verifyToken();
-      if (!v) { navigate('/auth'); return; }
+      if (!v) { navigate('/aha-first'); return; }
       setUser(v);
       if (!v.onboarding_completed) {
         navigate('/onboarding');
