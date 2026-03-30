@@ -145,6 +145,10 @@ export default function AhaExperience() {
   useEffect(() => {
     if (authService.isAuthenticated()) {
       navigate('/', { replace: true });
+      return;
+    }
+    if (localStorage.getItem('aha_completed') === 'true') {
+      navigate('/aha-main', { replace: true });
     }
   }, [navigate]);
 

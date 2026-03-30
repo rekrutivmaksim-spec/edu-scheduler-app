@@ -399,12 +399,10 @@ export default function AhaMain() {
         });
 
         if (res.status === 429) {
-          // Server-side rate limit — treat as exhausted
           if (!isInitialUsed()) {
             localStorage.setItem('aha_questions_left', '0');
             localStorage.setItem('aha_photos_left', '0');
             markInitialUsed();
-            setShowPaywall(true);
           }
           refreshLimits();
           setLoading(false);
@@ -425,7 +423,6 @@ export default function AhaMain() {
 
         const data = await res.json();
 
-        // Decrement the appropriate counter
         if (!isInitialUsed()) {
           decrementInitialQuestions();
         } else {
@@ -440,7 +437,6 @@ export default function AhaMain() {
           timestamp: Date.now(),
         });
 
-        // Check if initial limits fully exhausted after this question
         checkInitialExhausted();
       } catch {
         addMessage({
@@ -490,7 +486,6 @@ export default function AhaMain() {
             localStorage.setItem('aha_questions_left', '0');
             localStorage.setItem('aha_photos_left', '0');
             markInitialUsed();
-            setShowPaywall(true);
           }
           refreshLimits();
           setLoading(false);
@@ -511,7 +506,6 @@ export default function AhaMain() {
 
         const data = await res.json();
 
-        // Decrement the appropriate counter
         if (!isInitialUsed()) {
           decrementInitialPhotos();
         } else {
@@ -529,7 +523,6 @@ export default function AhaMain() {
           timestamp: Date.now(),
         });
 
-        // Check if initial limits fully exhausted after this photo
         checkInitialExhausted();
       } catch {
         addMessage({
@@ -803,10 +796,10 @@ export default function AhaMain() {
                           Похожее задание
                         </button>
                         <button
-                          onClick={() => navigate('/auth')}
+                          onClick={() => setShowPaywall(true)}
                           className="no-mobile-padding px-3 py-1.5 rounded-full bg-violet-50 border border-violet-200 text-[12px] text-violet-700 font-medium active:bg-violet-100 transition-colors"
                         >
-                          Прокачать тему
+                          Безлимит
                         </button>
                       </div>
                     </div>
@@ -836,7 +829,7 @@ export default function AhaMain() {
         {!hasMessages && <div ref={chatEndRef} />}
       </div>
 
-      {/* Paywall modal — shown when initial limits are exhausted and on every visit */}
+      {/* Paywall modal — shown when user clicks subscribe button */}
       {showPaywall && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-5 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-7 max-w-sm w-full text-center shadow-2xl">
