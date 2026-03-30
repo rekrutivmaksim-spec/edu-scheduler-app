@@ -447,11 +447,30 @@ def handle_webhook(conn, body: dict) -> dict:
         print(f"[YOKASSA] Webhook: unknown order_id={order_id}")
         return {'success': True}
 
+    is_guest = order_id.startswith('studyfay_guest_')
+
+    if is_guest:
+        guest_id = int(order_id.replace('studyfay_guest_', ''))
+        print(f"[YOKASSA] Webhook: GUEST event={event_type}, yokassa_id={yokassa_payment_id}, guest_id={guest_id}")
+        if event_type == 'payment.succeeded':
+            verified = yokassa_get_payment(yokassa_payment_id)
+            if verified and verified.get('status') == 'succeeded':
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        UPDATE {SCHEMA_NAME}.guest_payments
+                        SET payment_status = 'completed', completed_at = NOW()
+                        WHERE id = %s AND payment_status = 'pending'
+                    """, (guest_id,))
+                    conn.commit()
+                print(f"[YOKASSA] Webhook: guest payment {guest_id} completed")
+            else:
+                print(f"[YOKASSA] Webhook: guest payment {yokassa_payment_id} verification failed")
+        return {'success': True}
+
     local_payment_id = int(order_id.replace('studyfay_', ''))
     print(f"[YOKASSA] Webhook: event={event_type}, yokassa_id={yokassa_payment_id}, local_id={local_payment_id}")
 
     if event_type == 'payment.succeeded':
-        # Проверяем статус платежа через API для безопасности
         verified = yokassa_get_payment(yokassa_payment_id)
         if verified and verified.get('status') == 'succeeded':
             complete_payment(conn, local_payment_id, 'yokassa', yokassa_payment_id)
@@ -511,6 +530,145 @@ def handler(event: dict, context) -> dict:
                     'statusCode': 200,
                     'headers': headers,
                     'body': json.dumps(result)
+                }
+            finally:
+                conn.close()
+
+        if action == 'create_guest_payment':
+            fingerprint = body.get('fingerprint', '')
+            plan_type = body.get('plan_type', '1month')
+            return_url = body.get('return_url', 'https://studyfay.ru/aha-main?payment=success')
+
+            plan = PLANS.get(plan_type)
+            if not plan:
+                return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'Неизвестный план'})}
+
+            price = plan['price']
+            description = f'Подписка StudyFay: {plan["name"]}'
+            duration_days = plan['duration_days']
+            expires_at = datetime.now() + timedelta(days=duration_days)
+
+            conn = psycopg2.connect(DATABASE_URL)
+            try:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(f"""
+                        INSERT INTO {SCHEMA_NAME}.guest_payments
+                        (fingerprint, amount, plan_type, payment_status, expires_at)
+                        VALUES (%s, %s, %s, 'pending', %s)
+                        RETURNING id
+                    """, (fingerprint, price, plan_type, expires_at))
+                    guest_payment_id = cur.fetchone()['id']
+                    conn.commit()
+
+                order_id = f'studyfay_guest_{guest_payment_id}'
+
+                yokassa_result = yokassa_create_payment(price, description, order_id, return_url, None)
+                if not yokassa_result:
+                    return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Не удалось создать платеж'})}
+
+                confirmation_url = yokassa_result.get('confirmation', {}).get('confirmation_url', '')
+                yokassa_payment_id = yokassa_result.get('id', '')
+
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        UPDATE {SCHEMA_NAME}.guest_payments
+                        SET yokassa_payment_id = %s
+                        WHERE id = %s
+                    """, (yokassa_payment_id, guest_payment_id))
+                    conn.commit()
+
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'success': True,
+                        'confirmation_url': confirmation_url,
+                        'payment_id': f'guest_{guest_payment_id}'
+                    })
+                }
+            finally:
+                conn.close()
+
+        if action == 'claim_guest_payment':
+            fingerprint = body.get('fingerprint', '')
+            guest_payment_id = body.get('guest_payment_id', '')
+            if not fingerprint and not guest_payment_id:
+                return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'fingerprint or guest_payment_id required'})}
+
+            auth_header_claim = event.get('headers', {}).get('X-Authorization', '')
+            token_claim = auth_header_claim.replace('Bearer ', '')
+            if not token_claim:
+                return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': 'Auth required'})}
+            payload_claim = verify_token(token_claim)
+            if not payload_claim:
+                return {'statusCode': 401, 'headers': headers, 'body': json.dumps({'error': 'Invalid token'})}
+            claim_user_id = payload_claim['user_id']
+
+            conn = psycopg2.connect(DATABASE_URL)
+            try:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    if guest_payment_id:
+                        gid = int(str(guest_payment_id).replace('guest_', ''))
+                        cur.execute(f"""
+                            SELECT id, plan_type, expires_at, payment_status
+                            FROM {SCHEMA_NAME}.guest_payments
+                            WHERE id = %s AND claimed_by_user_id IS NULL
+                        """, (gid,))
+                    else:
+                        cur.execute(f"""
+                            SELECT id, plan_type, expires_at, payment_status
+                            FROM {SCHEMA_NAME}.guest_payments
+                            WHERE fingerprint = %s AND payment_status = 'completed' AND claimed_by_user_id IS NULL
+                            ORDER BY id DESC LIMIT 1
+                        """, (fingerprint,))
+                    gp = cur.fetchone()
+
+                if not gp:
+                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'claimed': False, 'reason': 'no_payment'})}
+
+                if gp['payment_status'] != 'completed':
+                    yokassa_pid = None
+                    with conn.cursor() as cur2:
+                        cur2.execute(f"SELECT yokassa_payment_id FROM {SCHEMA_NAME}.guest_payments WHERE id = %s", (gp['id'],))
+                        row = cur2.fetchone()
+                        if row:
+                            yokassa_pid = row[0]
+                    if yokassa_pid:
+                        verified = yokassa_get_payment(yokassa_pid)
+                        if verified and verified.get('status') == 'succeeded':
+                            with conn.cursor() as cur3:
+                                cur3.execute(f"""
+                                    UPDATE {SCHEMA_NAME}.guest_payments
+                                    SET payment_status = 'completed', completed_at = NOW()
+                                    WHERE id = %s
+                                """, (gp['id'],))
+                                conn.commit()
+                        else:
+                            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'claimed': False, 'reason': 'not_paid'})}
+
+                plan = PLANS.get(gp['plan_type'], {})
+                duration_days = plan.get('duration_days', 30)
+                new_expires = datetime.now() + timedelta(days=duration_days)
+
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        UPDATE {SCHEMA_NAME}.users
+                        SET subscription_type = 'premium',
+                            subscription_expires_at = %s,
+                            daily_premium_questions_used = 0
+                        WHERE id = %s
+                    """, (new_expires, claim_user_id))
+                    cur.execute(f"""
+                        UPDATE {SCHEMA_NAME}.guest_payments
+                        SET claimed_by_user_id = %s, claimed_at = NOW()
+                        WHERE id = %s
+                    """, (claim_user_id, gp['id']))
+                    conn.commit()
+
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({'claimed': True, 'expires_at': new_expires.isoformat()})
                 }
             finally:
                 conn.close()

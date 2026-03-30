@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import AiText from '@/components/AiText';
@@ -278,16 +278,17 @@ function StructuredAnswer({ structured }: { structured: StructuredResponse }) {
 }
 
 const PAYWALL_BENEFITS = [
-  'Безлимитные вопросы к ИИ',
-  'Безлимитные фото-решения',
-  'Аудио-объяснения',
-  'Персональный план подготовки',
-  'Занятия с ИИ-репетитором',
-  'Разборы экзаменов ЕГЭ/ОГЭ',
+  { icon: 'MessageCircle', text: 'Безлимитные вопросы к ИИ', sub: 'Спрашивай сколько хочешь, без ограничений' },
+  { icon: 'Camera', text: 'Безлимитные фото-решения', sub: 'Фоткай и получай мгновенный разбор' },
+  { icon: 'Headphones', text: 'Аудио-объяснения', sub: 'Слушай и понимай на ходу' },
+  { icon: 'Target', text: 'Персональный план подготовки', sub: 'ИИ составит план под твой экзамен' },
+  { icon: 'GraduationCap', text: 'Занятия с ИИ-репетитором', sub: 'Интерактивные уроки по всем предметам' },
+  { icon: 'FileCheck', text: 'Разборы экзаменов ЕГЭ/ОГЭ', sub: 'Реальные задания с пошаговыми решениями' },
 ];
 
 export default function AhaMain() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     if (authService.isAuthenticated()) {
@@ -298,9 +299,25 @@ export default function AhaMain() {
   const [messages, setMessages] = useState<ChatMessage[]>(loadChatHistory);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [limits, setLimitsState] = useState<Limits>(getLimits);
   const [showPaywall, setShowPaywall] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ base64: string; preview: string } | null>(null);
+
+  /* Handle payment return from YooKassa */
+  useEffect(() => {
+    if (searchParams.get('payment') === 'success') {
+      localStorage.setItem('aha_payment_completed', 'true');
+      navigate('/auth?after_payment=true');
+    }
+  }, [searchParams, navigate]);
+
+  /* Show paywall on every visit after initial limits used (unless already paid) */
+  useEffect(() => {
+    if (isInitialUsed() && !localStorage.getItem('aha_payment_completed')) {
+      setShowPaywall(true);
+    }
+  }, []);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -592,6 +609,30 @@ export default function AhaMain() {
     cameraInputRef.current?.click();
   }, []);
 
+  const createPayment = async () => {
+    setPaymentLoading(true);
+    try {
+      const res = await fetch(API.PAYMENTS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_guest_payment',
+          plan_type: '1month',
+          fingerprint: getFingerprint(),
+          return_url: window.location.origin + '/aha-main?payment=success',
+        }),
+      });
+      const data = await res.json();
+      if (data.confirmation_url) {
+        localStorage.setItem('aha_pending_payment', data.payment_id || '');
+        window.location.href = data.confirmation_url;
+      }
+    } catch {
+      // payment error — silently fail, button will re-enable
+    }
+    setPaymentLoading(false);
+  };
+
   const hasMessages = messages.length > 0;
 
   const allDailyExhausted = limits.mode === 'daily' && limits.photosLeft <= 0 && limits.questionsLeft <= 0;
@@ -810,7 +851,7 @@ export default function AhaMain() {
         {!hasMessages && <div ref={chatEndRef} />}
       </div>
 
-      {/* Paywall modal — shown once when initial limits are exhausted */}
+      {/* Paywall modal — shown when initial limits are exhausted and on every visit */}
       {showPaywall && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-5 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-7 max-w-sm w-full text-center shadow-2xl">
@@ -821,7 +862,7 @@ export default function AhaMain() {
               Тебе понравилось?
             </h2>
             <p className="text-gray-500 text-[15px] mb-5 leading-relaxed">
-              Оформи подписку — и учись без ограничений
+              Оформи подписку — учись без ограничений
             </p>
 
             {/* Price block */}
@@ -835,30 +876,38 @@ export default function AhaMain() {
             </div>
 
             {/* Benefits list */}
-            <div className="text-left space-y-2.5 mb-6">
+            <div className="text-left space-y-3 mb-6">
               {PAYWALL_BENEFITS.map((benefit) => (
-                <div key={benefit} className="flex items-center gap-2.5">
-                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <Icon name="Check" size={12} className="text-emerald-600" />
+                <div key={benefit.text} className="flex items-start gap-2.5">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center mt-0.5">
+                    <Icon name={benefit.icon} size={16} className="text-indigo-500" />
                   </div>
-                  <span className="text-[14px] text-gray-700">{benefit}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-semibold text-gray-800 leading-tight">{benefit.text}</p>
+                    <p className="text-[12px] text-gray-500 leading-snug mt-0.5">{benefit.sub}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
             <Button
-              onClick={() => navigate('/auth')}
-              className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-[14px] hover:opacity-90"
+              onClick={createPayment}
+              disabled={paymentLoading}
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-[14px] hover:opacity-90 disabled:opacity-60"
             >
-              Оформить подписку — 499 ₽/мес
+              {paymentLoading ? 'Загрузка...' : 'Оформить подписку — 499 ₽/мес'}
             </Button>
 
             <button
               onClick={() => setShowPaywall(false)}
-              className="mt-3 text-gray-500 text-[13px] font-medium block mx-auto hover:text-gray-700 transition-colors"
+              className="mt-3 text-gray-400 text-[12px] font-medium block mx-auto hover:text-gray-500 transition-colors"
             >
-              Продолжить бесплатно
+              Не сейчас
             </button>
+
+            <p className="text-gray-400 text-[11px] mt-4">
+              Гарантия возврата 14 дней
+            </p>
           </div>
         </div>
       )}

@@ -107,10 +107,8 @@ function Index() {
   const doneCnt = completed.length;
   const pct = topics.length > 0 ? Math.round((doneCnt / topics.length) * 100) : 0;
 
-  const trialDays = limits.data.trial_ends_at
-    ? Math.max(0, Math.ceil((new Date(limits.data.trial_ends_at).getTime() - Date.now()) / 86400000))
-    : 0;
-  const showTrial = trialDays > 0 && limits.isTrial;
+  const trialDays = 0;
+  const showTrial = false;
 
   const companionId = getCompanionFromStorage();
   const comp = getCompanion(companionId);
@@ -149,6 +147,13 @@ function Index() {
     };
     init();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!limits.loading && authService.isAuthenticated() && !limits.isPremium && !limits.isTrial) {
+      authService.logout();
+      navigate('/aha-main');
+    }
+  }, [limits.loading, limits.isPremium, limits.isTrial, navigate]);
 
   useEffect(() => { setCompleted(loadCompleted(activeSubject)); loadDailyFact(activeSubject); }, [activeSubject]);
 

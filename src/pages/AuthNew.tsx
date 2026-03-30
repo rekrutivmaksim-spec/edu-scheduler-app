@@ -294,9 +294,10 @@ export default function AuthNew() {
   const [searchParams] = useSearchParams();
   const refCode = searchParams.get('ref') || '';
   if (refCode) localStorage.setItem('pendingReferral', refCode);
+  const afterPayment = searchParams.get('after_payment') === 'true';
 
   // Навигация
-  const [screen, setScreen] = useState<Screen>('splash');
+  const [screen, setScreen] = useState<Screen>(afterPayment ? 'register' : 'splash');
   const [history, setHistory] = useState<Screen[]>([]);
 
   const goTo = (s: Screen) => {
@@ -361,10 +362,31 @@ export default function AuthNew() {
     } catch { /* silent */ }
   };
 
+  const claimGuestPayment = async (token: string) => {
+    const paymentCompleted = localStorage.getItem('aha_payment_completed');
+    const pendingPayment = localStorage.getItem('aha_pending_payment');
+    if (!paymentCompleted && !pendingPayment) return;
+    try {
+      const fp = localStorage.getItem('aha_fp') || '';
+      await fetch(API.PAYMENTS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          action: 'claim_guest_payment',
+          fingerprint: fp,
+          guest_payment_id: pendingPayment || '',
+        }),
+      });
+      localStorage.removeItem('aha_payment_completed');
+      localStorage.removeItem('aha_pending_payment');
+    } catch { /* silent */ }
+  };
+
   const afterLogin = async (data: { token: string; user: { full_name: string }; is_new_user?: boolean }, isRegister = false) => {
     authService.setToken(data.token);
     authService.setUser(data.user);
     await applyReferral(data.token);
+    await claimGuestPayment(data.token);
     if (data.is_new_user) {
       am.register('phone');
     } else {
@@ -601,7 +623,7 @@ export default function AuthNew() {
               Учись быстрее.<br />Понимай глубже.
             </h1>
             <p className="text-white/65 text-base">
-              ИИ-репетитор решит любую задачу<br />за секунды — бесплатно
+              ИИ-репетитор решит любую задачу<br />за секунды
             </p>
           </div>
 
@@ -620,7 +642,7 @@ export default function AuthNew() {
             }}
             className="w-full h-16 bg-white text-purple-700 hover:bg-white/95 active:scale-[0.98] font-extrabold text-lg rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all"
           >
-            Попробовать бесплатно
+            Попробовать
           </Button>
           <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
           <button
@@ -893,17 +915,16 @@ export default function AuthNew() {
               <p className="font-bold text-gray-900 text-lg mb-1">Вот так это работает!</p>
               <p className="text-gray-600 text-sm mb-1">Хочешь решать без ограничений?</p>
               <p className="text-gray-400 text-xs mb-5">
-                Регистрация за 15 секунд. 3 дня Premium в подарок.
+                Регистрация за 15 секунд.
               </p>
               <Button
                 onClick={() => goTo('register')}
                 className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.35)] hover:opacity-95 active:scale-[0.98] transition-all mb-3"
               >
-                Продолжить бесплатно
+                Создать аккаунт
                 <Icon name="ArrowRight" size={18} className="ml-2" />
               </Button>
               <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
-              <p className="text-gray-400 text-xs mt-3">3 дня Premium в подарок</p>
             </div>
           </div>
         </div>
@@ -919,9 +940,11 @@ export default function AuthNew() {
 
         <div className="px-5 pt-12 pb-4">
           <div className="flex items-center gap-3">
-            <button onClick={goBack} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-              <Icon name="ChevronLeft" size={20} className="text-white" />
-            </button>
+            {!afterPayment && (
+              <button onClick={goBack} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Icon name="ChevronLeft" size={20} className="text-white" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -931,10 +954,26 @@ export default function AuthNew() {
             <div className="flex items-center gap-3 mb-5">
               <FoxMascot size={48} />
               <div>
-                <h2 className="text-gray-900 font-extrabold text-xl leading-tight">Последний шаг!</h2>
-                <p className="text-gray-400 text-xs mt-0.5">Сохрани прогресс — займёт 15 секунд</p>
+                <h2 className="text-gray-900 font-extrabold text-xl leading-tight">
+                  {afterPayment ? 'Оплата прошла!' : 'Последний шаг!'}
+                </h2>
+                <p className="text-gray-400 text-xs mt-0.5">
+                  {afterPayment ? 'Создай аккаунт, чтобы активировать подписку' : 'Сохрани прогресс — займёт 15 секунд'}
+                </p>
               </div>
             </div>
+
+            {afterPayment && (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Icon name="Check" size={20} className="text-green-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-green-800 text-sm">Оплата 499 ₽ прошла успешно</p>
+                  <p className="text-green-600 text-xs">Подписка активируется после регистрации</p>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               <div>

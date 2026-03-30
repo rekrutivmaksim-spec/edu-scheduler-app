@@ -24,6 +24,13 @@
       "bodyMatcher": "partial"
     },
     {
+      "name": "Create guest payment - no plan",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "create_guest_payment", "plan_type": "nonexistent", "fingerprint": "test123"},
+      "expectedStatus": 400
+    },
+    {
       "name": "Create payment - unauthorized",
       "method": "POST",
       "path": "/",
@@ -36,6 +43,13 @@
       "method": "POST",
       "path": "/",
       "body": {"action": "check_payment", "payment_id": 999},
+      "expectedStatus": 401
+    },
+    {
+      "name": "Claim guest payment - no auth",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "claim_guest_payment", "fingerprint": "test123"},
       "expectedStatus": 401
     },
     {
