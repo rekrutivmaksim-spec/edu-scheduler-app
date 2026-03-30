@@ -40,19 +40,106 @@ function getFingerprint(): string {
   return fp;
 }
 
-function getQuestionsLeft(): number {
+/* ─── Limit management system ─── */
+
+function getTodayStr(): string {
+  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
+
+function isInitialUsed(): boolean {
+  return localStorage.getItem('aha_initial_used') === 'true';
+}
+
+function markInitialUsed(): void {
+  localStorage.setItem('aha_initial_used', 'true');
+}
+
+function getInitialPhotosLeft(): number {
+  const stored = localStorage.getItem('aha_photos_left');
+  if (stored !== null) return parseInt(stored, 10);
+  localStorage.setItem('aha_photos_left', '2');
+  return 2;
+}
+
+function getInitialQuestionsLeft(): number {
   const stored = localStorage.getItem('aha_questions_left');
   if (stored !== null) return parseInt(stored, 10);
   localStorage.setItem('aha_questions_left', '2');
   return 2;
 }
 
-function decrementQuestions(): number {
-  const current = getQuestionsLeft();
+function decrementInitialPhotos(): number {
+  const current = getInitialPhotosLeft();
+  const next = Math.max(0, current - 1);
+  localStorage.setItem('aha_photos_left', String(next));
+  return next;
+}
+
+function decrementInitialQuestions(): number {
+  const current = getInitialQuestionsLeft();
   const next = Math.max(0, current - 1);
   localStorage.setItem('aha_questions_left', String(next));
   return next;
 }
+
+function ensureDailyReset(): void {
+  const today = getTodayStr();
+  const lastReset = localStorage.getItem('aha_daily_reset');
+  if (lastReset !== today) {
+    localStorage.setItem('aha_daily_reset', today);
+    localStorage.setItem('aha_daily_photos', '0');
+    localStorage.setItem('aha_daily_questions', '0');
+  }
+}
+
+function getDailyPhotosUsed(): number {
+  ensureDailyReset();
+  return parseInt(localStorage.getItem('aha_daily_photos') || '0', 10);
+}
+
+function getDailyQuestionsUsed(): number {
+  ensureDailyReset();
+  return parseInt(localStorage.getItem('aha_daily_questions') || '0', 10);
+}
+
+function incrementDailyPhotos(): void {
+  ensureDailyReset();
+  const used = getDailyPhotosUsed() + 1;
+  localStorage.setItem('aha_daily_photos', String(used));
+}
+
+function incrementDailyQuestions(): void {
+  ensureDailyReset();
+  const used = getDailyQuestionsUsed() + 1;
+  localStorage.setItem('aha_daily_questions', String(used));
+}
+
+const DAILY_PHOTO_LIMIT = 1;
+const DAILY_QUESTION_LIMIT = 3;
+
+interface Limits {
+  photosLeft: number;
+  questionsLeft: number;
+  mode: 'initial' | 'daily';
+}
+
+function getLimits(): Limits {
+  if (!isInitialUsed()) {
+    return {
+      photosLeft: getInitialPhotosLeft(),
+      questionsLeft: getInitialQuestionsLeft(),
+      mode: 'initial',
+    };
+  }
+  ensureDailyReset();
+  return {
+    photosLeft: Math.max(0, DAILY_PHOTO_LIMIT - getDailyPhotosUsed()),
+    questionsLeft: Math.max(0, DAILY_QUESTION_LIMIT - getDailyQuestionsUsed()),
+    mode: 'daily',
+  };
+}
+
+/* ─── End limit management ─── */
 
 function loadChatHistory(): ChatMessage[] {
   try {
@@ -190,6 +277,15 @@ function StructuredAnswer({ structured }: { structured: StructuredResponse }) {
   );
 }
 
+const PAYWALL_BENEFITS = [
+  'Безлимитные вопросы к ИИ',
+  'Безлимитные фото-решения',
+  'Аудио-объяснения',
+  'Персональный план подготовки',
+  'Занятия с ИИ-репетитором',
+  'Разборы экзаменов ЕГЭ/ОГЭ',
+];
+
 export default function AhaMain() {
   const navigate = useNavigate();
 
@@ -202,14 +298,18 @@ export default function AhaMain() {
   const [messages, setMessages] = useState<ChatMessage[]>(loadChatHistory);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [questionsLeft, setQuestionsLeft] = useState(getQuestionsLeft);
-  const [rateLimited, setRateLimited] = useState(false);
+  const [limits, setLimitsState] = useState<Limits>(getLimits);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ base64: string; preview: string } | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const refreshLimits = useCallback(() => {
+    setLimitsState(getLimits());
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -245,10 +345,25 @@ export default function AhaMain() {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
+  /** Check if initial limits are fully exhausted and trigger paywall transition */
+  const checkInitialExhausted = useCallback(() => {
+    if (!isInitialUsed()) {
+      const p = getInitialPhotosLeft();
+      const q = getInitialQuestionsLeft();
+      if (p <= 0 && q <= 0) {
+        markInitialUsed();
+        setShowPaywall(true);
+        refreshLimits();
+      }
+    }
+  }, [refreshLimits]);
+
   const submitText = useCallback(
     async (q: string) => {
-      if (questionsLeft <= 0) {
-        setRateLimited(true);
+      const currentLimits = getLimits();
+      if (currentLimits.questionsLeft <= 0) {
+        // If daily mode and all limits gone, do nothing (banner is visible)
+        // If somehow called, just return
         return;
       }
 
@@ -274,9 +389,14 @@ export default function AhaMain() {
         });
 
         if (res.status === 429) {
-          setRateLimited(true);
-          setQuestionsLeft(0);
-          localStorage.setItem('aha_questions_left', '0');
+          // Server-side rate limit — treat as exhausted
+          if (!isInitialUsed()) {
+            localStorage.setItem('aha_questions_left', '0');
+            localStorage.setItem('aha_photos_left', '0');
+            markInitialUsed();
+            setShowPaywall(true);
+          }
+          refreshLimits();
           setLoading(false);
           return;
         }
@@ -294,8 +414,14 @@ export default function AhaMain() {
         }
 
         const data = await res.json();
-        const remaining = decrementQuestions();
-        setQuestionsLeft(remaining);
+
+        // Decrement the appropriate counter
+        if (!isInitialUsed()) {
+          decrementInitialQuestions();
+        } else {
+          incrementDailyQuestions();
+        }
+        refreshLimits();
 
         addMessage({
           id: genId(),
@@ -303,6 +429,9 @@ export default function AhaMain() {
           content: data.answer,
           timestamp: Date.now(),
         });
+
+        // Check if initial limits fully exhausted after this question
+        checkInitialExhausted();
       } catch {
         addMessage({
           id: genId(),
@@ -313,13 +442,13 @@ export default function AhaMain() {
       }
       setLoading(false);
     },
-    [questionsLeft, genId, addMessage]
+    [genId, addMessage, refreshLimits, checkInitialExhausted]
   );
 
   const submitPhoto = useCallback(
     async (base64: string, preview: string) => {
-      if (questionsLeft <= 0) {
-        setRateLimited(true);
+      const currentLimits = getLimits();
+      if (currentLimits.photosLeft <= 0) {
         return;
       }
 
@@ -347,9 +476,13 @@ export default function AhaMain() {
         });
 
         if (res.status === 429) {
-          setRateLimited(true);
-          setQuestionsLeft(0);
-          localStorage.setItem('aha_questions_left', '0');
+          if (!isInitialUsed()) {
+            localStorage.setItem('aha_questions_left', '0');
+            localStorage.setItem('aha_photos_left', '0');
+            markInitialUsed();
+            setShowPaywall(true);
+          }
+          refreshLimits();
           setLoading(false);
           return;
         }
@@ -367,8 +500,14 @@ export default function AhaMain() {
         }
 
         const data = await res.json();
-        const remaining = decrementQuestions();
-        setQuestionsLeft(remaining);
+
+        // Decrement the appropriate counter
+        if (!isInitialUsed()) {
+          decrementInitialPhotos();
+        } else {
+          incrementDailyPhotos();
+        }
+        refreshLimits();
 
         addMessage({
           id: genId(),
@@ -379,6 +518,9 @@ export default function AhaMain() {
           subject: data.subject,
           timestamp: Date.now(),
         });
+
+        // Check if initial limits fully exhausted after this photo
+        checkInitialExhausted();
       } catch {
         addMessage({
           id: genId(),
@@ -389,7 +531,7 @@ export default function AhaMain() {
       }
       setLoading(false);
     },
-    [questionsLeft, genId, addMessage]
+    [genId, addMessage, refreshLimits, checkInitialExhausted]
   );
 
   const handleFileChange = useCallback(
@@ -452,6 +594,28 @@ export default function AhaMain() {
 
   const hasMessages = messages.length > 0;
 
+  const allDailyExhausted = limits.mode === 'daily' && limits.photosLeft <= 0 && limits.questionsLeft <= 0;
+
+  const photoDisabled = limits.photosLeft <= 0;
+  const questionDisabled = limits.questionsLeft <= 0;
+
+  // Build the counter label for photos
+  const photoCountLabel = (() => {
+    const n = limits.photosLeft;
+    if (n === 0) return '0 фото';
+    if (n === 1) return '1 фото';
+    return `${n} фото`;
+  })();
+
+  // Build the counter label for questions
+  const questionCountLabel = (() => {
+    const n = limits.questionsLeft;
+    if (n === 0) return '0 вопросов';
+    if (n === 1) return '1 вопрос';
+    if (n >= 2 && n <= 4) return `${n} вопроса`;
+    return `${n} вопросов`;
+  })();
+
   return (
     <div className="h-[100dvh] flex flex-col bg-gray-50">
       <input
@@ -483,21 +647,33 @@ export default function AhaMain() {
         </button>
       </div>
 
-      {questionsLeft > 0 && (
+      {/* Counter display: separate photo + question counters */}
+      {!allDailyExhausted && (
         <div className="px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center justify-center">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-indigo-200 text-[13px] font-medium text-indigo-700">
-            <Icon name="Zap" size={13} className="text-indigo-500" />
-            Осталось {questionsLeft} бесплатных {questionsLeft === 1 ? 'вопрос' : 'вопроса'}
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-indigo-200 text-[13px] font-medium">
+            <span className={limits.photosLeft > 0 ? 'text-indigo-700' : 'text-gray-400'}>
+              <span className="mr-0.5">📷</span> {photoCountLabel}
+            </span>
+            <span className="text-gray-300">·</span>
+            <span className={limits.questionsLeft > 0 ? 'text-indigo-700' : 'text-gray-400'}>
+              <span className="mr-0.5">💬</span> {questionCountLabel}
+            </span>
           </span>
         </div>
       )}
 
-      {questionsLeft <= 0 && !rateLimited && (
-        <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center justify-center">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-amber-200 text-[13px] font-medium text-amber-700">
-            <Icon name="Lock" size={13} className="text-amber-500" />
-            Бесплатные вопросы закончились
+      {/* Daily limits exhausted banner */}
+      {allDailyExhausted && (
+        <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 flex flex-col items-center gap-2">
+          <span className="text-[13px] font-medium text-amber-800 text-center">
+            Лимит на сегодня исчерпан. Возвращайся завтра или оформи подписку
           </span>
+          <button
+            onClick={() => navigate('/auth')}
+            className="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-[12px] font-semibold shadow-sm active:scale-95 transition-transform"
+          >
+            Подписка 499 ₽/мес
+          </button>
         </div>
       )}
 
@@ -519,7 +695,8 @@ export default function AhaMain() {
                 <button
                   key={chip}
                   onClick={() => handleChipClick(chip)}
-                  className="no-mobile-padding px-4 py-2.5 rounded-full bg-white border border-gray-200 text-[13px] text-gray-600 font-medium active:bg-indigo-50 active:border-indigo-300 transition-colors shadow-sm"
+                  disabled={questionDisabled}
+                  className="no-mobile-padding px-4 py-2.5 rounded-full bg-white border border-gray-200 text-[13px] text-gray-600 font-medium active:bg-indigo-50 active:border-indigo-300 transition-colors shadow-sm disabled:opacity-40"
                 >
                   {chip}
                 </button>
@@ -528,7 +705,8 @@ export default function AhaMain() {
 
             <button
               onClick={handleCameraOnEmpty}
-              className="no-mobile-padding flex items-center justify-center gap-2.5 w-full max-w-xs h-14 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-[15px] shadow-lg shadow-indigo-200 active:scale-[0.97] transition-transform"
+              disabled={photoDisabled}
+              className="no-mobile-padding flex items-center justify-center gap-2.5 w-full max-w-xs h-14 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-[15px] shadow-lg shadow-indigo-200 active:scale-[0.97] transition-transform disabled:opacity-40"
             >
               <Icon name="Camera" size={20} className="text-white" />
               Сфоткать задачу
@@ -582,7 +760,7 @@ export default function AhaMain() {
                               `Объясни проще: ${msg.content.slice(0, 200)}`
                             )
                           }
-                          disabled={loading || questionsLeft <= 0}
+                          disabled={loading || questionDisabled}
                           className="no-mobile-padding px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-[12px] text-indigo-700 font-medium active:bg-indigo-100 transition-colors disabled:opacity-40"
                         >
                           Объясни проще
@@ -593,7 +771,7 @@ export default function AhaMain() {
                               `Дай похожее задание по теме: ${msg.content.slice(0, 200)}`
                             )
                           }
-                          disabled={loading || questionsLeft <= 0}
+                          disabled={loading || questionDisabled}
                           className="no-mobile-padding px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-[12px] text-indigo-700 font-medium active:bg-indigo-100 transition-colors disabled:opacity-40"
                         >
                           Похожее задание
@@ -632,35 +810,54 @@ export default function AhaMain() {
         {!hasMessages && <div ref={chatEndRef} />}
       </div>
 
-      {rateLimited && (
+      {/* Paywall modal — shown once when initial limits are exhausted */}
+      {showPaywall && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-5 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-5">
-              <Icon name="Lock" size={28} className="text-amber-600" />
+          <div className="bg-white rounded-3xl p-7 max-w-sm w-full text-center shadow-2xl">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mx-auto mb-4">
+              <Icon name="Sparkles" size={26} className="text-indigo-500" />
             </div>
-            <h2 className="font-heading font-bold text-xl text-gray-900 mb-2">
-              Бесплатные вопросы закончились
+            <h2 className="font-heading font-bold text-xl text-gray-900 mb-1.5">
+              Тебе понравилось?
             </h2>
-            <p className="text-gray-500 text-[15px] mb-6 leading-relaxed">
-              Зарегистрируйся — это бесплатно. Получишь 10 вопросов в день
+            <p className="text-gray-500 text-[15px] mb-5 leading-relaxed">
+              Оформи подписку — и учись без ограничений
             </p>
+
+            {/* Price block */}
+            <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl p-4 mb-5">
+              <p className="font-heading font-extrabold text-3xl text-gray-900">
+                499 <span className="text-lg font-bold">₽/мес</span>
+              </p>
+              <p className="text-gray-500 text-[12px] mt-1">
+                Отменить можно в любой момент
+              </p>
+            </div>
+
+            {/* Benefits list */}
+            <div className="text-left space-y-2.5 mb-6">
+              {PAYWALL_BENEFITS.map((benefit) => (
+                <div key={benefit} className="flex items-center gap-2.5">
+                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <Icon name="Check" size={12} className="text-emerald-600" />
+                  </div>
+                  <span className="text-[14px] text-gray-700">{benefit}</span>
+                </div>
+              ))}
+            </div>
+
             <Button
               onClick={() => navigate('/auth')}
-              className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-[15px] hover:opacity-90"
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-[14px] hover:opacity-90"
             >
-              Зарегистрироваться
+              Оформить подписку — 499 ₽/мес
             </Button>
+
             <button
-              onClick={() => navigate('/auth')}
-              className="mt-3 text-indigo-600 text-sm font-medium block mx-auto"
+              onClick={() => setShowPaywall(false)}
+              className="mt-3 text-gray-500 text-[13px] font-medium block mx-auto hover:text-gray-700 transition-colors"
             >
-              Войти
-            </button>
-            <button
-              onClick={() => setRateLimited(false)}
-              className="mt-2 text-gray-400 text-xs block mx-auto"
-            >
-              Закрыть
+              Продолжить бесплатно
             </button>
           </div>
         </div>
@@ -688,14 +885,14 @@ export default function AhaMain() {
         <div className="px-3 py-2.5 flex items-end gap-2">
           <button
             onClick={() => cameraInputRef.current?.click()}
-            disabled={loading}
+            disabled={loading || photoDisabled}
             className="no-mobile-padding flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 active:bg-gray-100 transition-colors disabled:opacity-40"
           >
             <Icon name="Camera" size={20} />
           </button>
           <button
             onClick={() => galleryInputRef.current?.click()}
-            disabled={loading}
+            disabled={loading || photoDisabled}
             className="no-mobile-padding flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 active:bg-gray-100 transition-colors disabled:opacity-40"
           >
             <Icon name="Image" size={20} />
@@ -706,9 +903,9 @@ export default function AhaMain() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Задай вопрос..."
+            placeholder={questionDisabled ? 'Лимит вопросов исчерпан' : 'Задай вопрос...'}
             rows={1}
-            disabled={loading}
+            disabled={loading || questionDisabled}
             className="no-mobile-padding flex-1 resize-none rounded-2xl border border-gray-200 focus:border-indigo-400 bg-gray-50 px-4 py-2.5 text-[15px] text-gray-800 placeholder:text-gray-400 outline-none transition-colors disabled:opacity-50 min-h-[40px]"
           />
 

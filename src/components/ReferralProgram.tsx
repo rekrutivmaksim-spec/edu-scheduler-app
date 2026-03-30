@@ -124,7 +124,7 @@ const ReferralProgram = () => {
           </div>
           <div>
             <h3 className="text-xl font-bold text-gray-800">Реферальная программа</h3>
-            <p className="text-sm text-gray-600">Приглашай друзей — получай +1 день Premium</p>
+            <p className="text-sm text-gray-600">Приглашай друзей — получай бонусные вопросы</p>
           </div>
         </div>
 
@@ -148,12 +148,12 @@ const ReferralProgram = () => {
             <span className="text-sm font-medium text-gray-700">Друзей приглашено</span>
             <Badge className="bg-violet-500">{referralData.referral_count}</Badge>
           </div>
-          <p className="text-xs text-gray-500">+1 день Premium за каждого друга</p>
+          <p className="text-xs text-gray-500">+5 бонусных вопросов за каждого друга</p>
         </div>
 
         <div className="bg-violet-100 border-l-4 border-violet-500 rounded-lg p-4 mt-4">
           <p className="text-xs text-violet-900 font-medium">
-            Делись кодом с одногруппниками. Когда они зарегистрируются — ты получаешь +1 день Premium, друг получает 3 дня Premium.
+            Делись кодом с одногруппниками. Когда они зарегистрируются — ты получаешь +5 бонусных вопросов, друг тоже получает бонус.
           </p>
         </div>
       </Card>
@@ -165,7 +165,7 @@ const ReferralProgram = () => {
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-800">Есть код от друга?</h3>
-            <p className="text-xs text-gray-600">Введи его и получи 3 дня Premium</p>
+            <p className="text-xs text-gray-600">Введи его и получи бонусные вопросы</p>
           </div>
         </div>
 

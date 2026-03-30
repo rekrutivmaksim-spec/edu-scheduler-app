@@ -564,27 +564,21 @@ export default function AhaExperience() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white flex flex-col items-center justify-center px-5">
         <div className="max-w-sm w-full text-center">
-          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-5">
-            <Icon name="ShieldAlert" size={28} className="text-amber-600" />
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mx-auto mb-5">
+            <Icon name="Sparkles" size={26} className="text-indigo-500" />
           </div>
           <h2 className="font-heading font-bold text-xl text-gray-900 mb-2">
-            Лимит исчерпан
+            Впечатляет, правда?
           </h2>
-          <p className="text-gray-500 text-[15px] mb-6">
-            Зарегистрируйся для продолжения — это бесплатно и занимает 10 секунд
+          <p className="text-gray-500 text-[15px] mb-6 leading-relaxed">
+            Переходи в полный чат — там ещё больше возможностей
           </p>
           <Button
-            onClick={() => navigate('/auth')}
+            onClick={() => navigate('/aha-main')}
             className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-[15px]"
           >
-            Зарегистрироваться
+            Продолжить
           </Button>
-          <button
-            onClick={() => navigate('/aha-main')}
-            className="mt-3 text-indigo-600 text-sm font-medium"
-          >
-            Продолжить без регистрации
-          </button>
         </div>
       </div>
     );

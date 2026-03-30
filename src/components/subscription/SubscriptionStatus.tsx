@@ -35,15 +35,15 @@ const SubscriptionStatus = ({
         <Card className="p-4 sm:p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0">
-              <Icon name="Gift" size={24} className="text-white" />
+              <Icon name="Sparkles" size={24} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm sm:text-base font-bold text-gray-800">Пробный период активен</h3>
+              <h3 className="text-sm sm:text-base font-bold text-gray-800">Бесплатный доступ</h3>
               <p className="text-xs text-gray-600 mt-0.5">
-                До {new Date(trialEndsAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                3 вопроса и 1 фото в день
               </p>
             </div>
-            <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5 flex-shrink-0">3 дня</Badge>
+            <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5 flex-shrink-0">Free</Badge>
           </div>
         </Card>
       )}
