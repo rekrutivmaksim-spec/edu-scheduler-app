@@ -292,9 +292,7 @@ export default function AhaMain() {
 
   useEffect(() => {
     if (authService.isAuthenticated()) {
-      navigate('/assistant', { replace: true });
-    } else {
-      navigate('/aha-first', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [navigate]);
 
@@ -314,12 +312,7 @@ export default function AhaMain() {
     }
   }, [searchParams, navigate]);
 
-  /* Show paywall on every visit after initial limits used (unless already paid) */
-  useEffect(() => {
-    if (isInitialUsed() && !localStorage.getItem('aha_payment_completed')) {
-      setShowPaywall(true);
-    }
-  }, []);
+
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -364,14 +357,12 @@ export default function AhaMain() {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
-  /** Check if initial limits are fully exhausted and trigger paywall transition */
   const checkInitialExhausted = useCallback(() => {
     if (!isInitialUsed()) {
       const p = getInitialPhotosLeft();
       const q = getInitialQuestionsLeft();
       if (p <= 0 && q <= 0) {
         markInitialUsed();
-        setShowPaywall(true);
         refreshLimits();
       }
     }
