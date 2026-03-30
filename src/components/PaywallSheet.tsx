@@ -68,7 +68,25 @@ export default function PaywallSheet({ trigger, streak = 0, daysToExam = 0, onCl
     setBuying(planType);
     try {
       const token = authService.getToken();
-      if (!token) { onClose(); navigate('/pricing'); return; }
+
+      if (!token) {
+        // Guest payment flow
+        const fp = localStorage.getItem('aha_fp') || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+        if (!localStorage.getItem('aha_fp')) localStorage.setItem('aha_fp', fp);
+        const returnUrl = `${window.location.origin}/auth?after_payment=true`;
+        const response = await fetch(PAYMENTS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create_guest_payment', plan_type: planType, fingerprint: fp, return_url: returnUrl }),
+        });
+        const data = await response.json();
+        if (data.success && data.confirmation_url) {
+          if (data.payment_id) localStorage.setItem('aha_pending_payment', String(data.payment_id));
+          openPaymentUrl(data.confirmation_url);
+        }
+        setBuying(null);
+        return;
+      }
 
       const returnUrl = `${window.location.origin}/pricing?payment=success`;
       const response = await fetch(PAYMENTS_URL, {

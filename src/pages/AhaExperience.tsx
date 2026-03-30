@@ -5,6 +5,7 @@ import Icon from '@/components/ui/icon';
 import AiText from '@/components/AiText';
 import { API } from '@/lib/api-urls';
 import { authService } from '@/lib/auth';
+import { openPaymentUrl } from '@/lib/payment-utils';
 
 type PageState = 'action' | 'loading' | 'answer';
 
@@ -166,6 +167,7 @@ export default function AhaExperience() {
     () => localStorage.getItem('aha_completed') === 'true'
   );
   const [showContinue, setShowContinue] = useState(false);
+  const [guestPayLoading, setGuestPayLoading] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -398,6 +400,31 @@ export default function AhaExperience() {
     [originalContext, ahaCompleted]
   );
 
+  const handleGuestPayment = useCallback(async () => {
+    setGuestPayLoading(true);
+    try {
+      const returnUrl = `${window.location.origin}/auth?after_payment=true`;
+      const res = await fetch(API.PAYMENTS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_guest_payment',
+          plan_type: '1month',
+          fingerprint: getFingerprint(),
+          return_url: returnUrl,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.confirmation_url) {
+        if (data.payment_id) {
+          localStorage.setItem('aha_pending_payment', String(data.payment_id));
+        }
+        openPaymentUrl(data.confirmation_url);
+      }
+    } catch { /* silent */ }
+    setGuestPayLoading(false);
+  }, []);
+
   const resetToAction = useCallback(() => {
     setPageState('action');
     setQuestion('');
@@ -568,17 +595,39 @@ export default function AhaExperience() {
             <Icon name="Sparkles" size={26} className="text-indigo-500" />
           </div>
           <h2 className="font-heading font-bold text-xl text-gray-900 mb-2">
-            Впечатляет, правда?
+            Лимит исчерпан
           </h2>
           <p className="text-gray-500 text-[15px] mb-6 leading-relaxed">
-            Переходи в полный чат — там ещё больше возможностей
+            Оформи подписку — безлимит на вопросы, фото и все функции
           </p>
+          <div className="space-y-2 mb-6 text-left">
+            {[
+              { icon: 'Brain', text: 'Безлимитные вопросы к ИИ' },
+              { icon: 'Camera', text: 'Безлимитные фото и аудио' },
+              { icon: 'Target', text: 'Подготовка к ЕГЭ/ОГЭ по всем предметам' },
+              { icon: 'TrendingUp', text: 'Полный доступ ко всем функциям' },
+            ].map(f => (
+              <div key={f.text} className="flex items-center gap-3">
+                <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Icon name={f.icon} size={14} className="text-indigo-600" />
+                </div>
+                <span className="text-gray-700 text-sm">{f.text}</span>
+              </div>
+            ))}
+          </div>
           <Button
-            onClick={() => navigate('/aha-main')}
-            className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-[15px]"
+            onClick={handleGuestPayment}
+            disabled={guestPayLoading}
+            className="w-full h-14 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-extrabold text-lg shadow-[0_4px_20px_rgba(99,102,241,0.4)] active:scale-[0.98] transition-all"
           >
-            Продолжить
+            {guestPayLoading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Подписка — 499 \u20BD/мес'}
           </Button>
+          <button
+            onClick={resetToAction}
+            className="mt-4 text-gray-400 text-sm font-medium"
+          >
+            Не сейчас
+          </button>
         </div>
       </div>
     );
@@ -800,12 +849,20 @@ export default function AhaExperience() {
 
         {showContinue && (
           <AnimatedBlock delay={0} className="pt-4 pb-4">
-            <button
-              onClick={() => navigate('/aha-main')}
-              className="no-mobile-padding w-full h-14 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-[16px] shadow-lg shadow-indigo-200 active:scale-[0.97] transition-transform"
-            >
-              Продолжить
-            </button>
+            <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-5 text-center">
+              <h3 className="text-white font-bold text-lg mb-1">Понравилось?</h3>
+              <p className="text-white/70 text-sm mb-4">Оформи подписку — безлимит на все</p>
+              <Button
+                onClick={handleGuestPayment}
+                disabled={guestPayLoading}
+                className="w-full h-12 rounded-2xl bg-white text-indigo-700 font-bold text-[15px] hover:bg-gray-50 active:scale-[0.98] transition-all"
+              >
+                {guestPayLoading ? <Icon name="Loader2" size={18} className="animate-spin" /> : 'Подписка — 499 \u20BD/мес'}
+              </Button>
+              <button onClick={resetToAction} className="mt-3 text-white/50 text-sm font-medium">
+                Не сейчас
+              </button>
+            </div>
           </AnimatedBlock>
         )}
       </div>

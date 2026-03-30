@@ -293,6 +293,8 @@ export default function AhaMain() {
   useEffect(() => {
     if (authService.isAuthenticated()) {
       navigate('/assistant', { replace: true });
+    } else {
+      navigate('/aha-first', { replace: true });
     }
   }, [navigate]);
 
@@ -619,7 +621,7 @@ export default function AhaMain() {
           action: 'create_guest_payment',
           plan_type: '1month',
           fingerprint: getFingerprint(),
-          return_url: window.location.origin + '/aha-main?payment=success',
+          return_url: window.location.origin + '/auth?after_payment=true',
         }),
       });
       const data = await res.json();
@@ -675,17 +677,9 @@ export default function AhaMain() {
         onChange={handleFileChange}
       />
 
-      <div className="sticky top-0 z-30 bg-indigo-600 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon name="Sparkles" size={20} className="text-indigo-200" />
-          <span className="font-heading font-bold text-base text-white">Studyfay</span>
-        </div>
-        <button
-          onClick={() => navigate('/auth')}
-          className="text-indigo-200 text-sm font-medium hover:text-white transition-colors"
-        >
-          Войти
-        </button>
+      <div className="sticky top-0 z-30 bg-indigo-600 px-4 py-3 flex items-center gap-2">
+        <Icon name="Sparkles" size={20} className="text-indigo-200" />
+        <span className="font-heading font-bold text-base text-white">Studyfay</span>
       </div>
 
       {/* Counter display: separate photo + question counters */}
@@ -710,7 +704,7 @@ export default function AhaMain() {
             Лимит на сегодня исчерпан. Возвращайся завтра или оформи подписку
           </span>
           <button
-            onClick={() => navigate('/auth')}
+            onClick={() => setShowPaywall(true)}
             className="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-[12px] font-semibold shadow-sm active:scale-95 transition-transform"
           >
             Подписка 499 ₽/мес

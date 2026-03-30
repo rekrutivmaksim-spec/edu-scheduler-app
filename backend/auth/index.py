@@ -32,8 +32,8 @@ def _send_welcome_email(email: str, name: str):
 <tr><td style="padding:36px 40px;">
   <p style="color:#374151;font-size:16px;margin:0 0 20px;">Привет, <strong>{display_name}</strong> 👋</p>
   <p style="color:#6b7280;font-size:15px;line-height:1.6;margin:0 0 28px;">
-    Ты зарегистрировался в Studyfay — и у тебя уже есть <strong style="color:#6366f1;">3 дня Premium бесплатно</strong>.
-    Используй их по максимуму!
+    <strong style="color:#6366f1;">Подписка оформлена</strong> — используй все возможности!
+    Начни прямо сейчас.
   </p>
   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
     <tr><td style="background:#f5f3ff;border-radius:16px;padding:20px 24px;">

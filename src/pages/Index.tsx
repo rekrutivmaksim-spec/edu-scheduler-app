@@ -151,7 +151,7 @@ function Index() {
   useEffect(() => {
     if (!limits.loading && authService.isAuthenticated() && !limits.isPremium && !limits.isTrial) {
       authService.logout();
-      navigate('/aha-main');
+      navigate('/aha-first');
     }
   }, [limits.loading, limits.isPremium, limits.isTrial, navigate]);
 

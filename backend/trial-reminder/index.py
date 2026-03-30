@@ -95,8 +95,8 @@ def handler(event: dict, context) -> dict:
                 user_id = user['id']
                 days_used = (now - user['created_at'].replace(tzinfo=None)).days
 
-                title = '3 дня Premium заканчиваются'
-                message = 'Завтра лимит снизится до 3 вопросов/день + 1 фото + 1 аудио. Подключи Premium — безлимит ко всему!'
+                title = 'Подписка заканчивается завтра'
+                message = 'Завтра доступ будет ограничен. Продли подписку — безлимит ко всему!'
 
                 create_in_app_notification(conn, user_id, title, message, '/pricing')
                 send_push(user_id, title, message, '/pricing', f'limit-drop-{user_id}')
