@@ -1048,12 +1048,22 @@ export default function AuthNew() {
 
               <VKButton onClick={handleVKLogin} loading={vkLoading} disabled={loading} />
 
-              <p className="text-center text-xs text-gray-400">
-                Уже есть аккаунт?{' '}
-                <button onClick={() => { clearErrors(); setScreen('login'); }} className="text-purple-600 font-medium hover:underline">
-                  Войти
-                </button>
-              </p>
+              {afterPayment ? (
+                <Button
+                  onClick={() => { clearErrors(); setScreen('login'); }}
+                  variant="outline"
+                  className="w-full h-12 rounded-2xl border-2 border-purple-200 text-purple-700 font-semibold hover:bg-purple-50 active:scale-[0.98] transition-all"
+                >
+                  Уже есть аккаунт? Войти
+                </Button>
+              ) : (
+                <p className="text-center text-xs text-gray-400">
+                  Уже есть аккаунт?{' '}
+                  <button onClick={() => { clearErrors(); setScreen('login'); }} className="text-purple-600 font-medium hover:underline">
+                    Войти
+                  </button>
+                </p>
+              )}
             </div>
           </div>
         </div>

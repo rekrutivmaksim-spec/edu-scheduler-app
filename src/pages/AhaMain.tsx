@@ -389,8 +389,10 @@ export default function AhaMain() {
 
   const submitText = useCallback(
     async (q: string) => {
+      if (loading) return;
       const currentLimits = getLimits();
       if (!isPremium && currentLimits.questionsLeft <= 0) {
+        setShowPaywall(true);
         return;
       }
 
@@ -403,15 +405,6 @@ export default function AhaMain() {
       addMessage(userMsg);
       setInput('');
       setLoading(true);
-
-      if (!isPremium) {
-        if (!isInitialUsed()) {
-          decrementInitialQuestions();
-        } else {
-          incrementDailyQuestions();
-        }
-        refreshLimits();
-      }
 
       try {
         const token = authService.getToken();
@@ -434,12 +427,7 @@ export default function AhaMain() {
           }),
         });
 
-        if (res.status === 429) {
-          if (!isInitialUsed()) {
-            localStorage.setItem('aha_questions_left', '0');
-            localStorage.setItem('aha_photos_left', '0');
-            markInitialUsed();
-          }
+        if (res.status === 429 || res.status === 403) {
           addMessage({
             id: genId(),
             role: 'assistant',
@@ -448,6 +436,7 @@ export default function AhaMain() {
           });
           refreshLimits();
           setLoading(false);
+          setShowPaywall(true);
           return;
         }
 
@@ -475,6 +464,22 @@ export default function AhaMain() {
           return;
         }
 
+        if (!isPremium) {
+          if (!isInitialUsed()) {
+            decrementInitialQuestions();
+          } else {
+            incrementDailyQuestions();
+          }
+          refreshLimits();
+          checkInitialExhausted();
+          setTimeout(() => {
+            const fresh = getLimits();
+            if (fresh.photosLeft <= 0 && fresh.questionsLeft <= 0) {
+              setShowPaywall(true);
+            }
+          }, 1500);
+        }
+
         addMessage({
           id: genId(),
           role: 'assistant',
@@ -493,13 +498,15 @@ export default function AhaMain() {
       }
       setLoading(false);
     },
-    [genId, addMessage, refreshLimits, checkInitialExhausted, isPremium, messages]
+    [genId, addMessage, refreshLimits, checkInitialExhausted, isPremium, messages, loading]
   );
 
   const submitPhoto = useCallback(
     async (base64: string, preview: string) => {
+      if (loading) return;
       const currentLimits = getLimits();
       if (!isPremium && currentLimits.photosLeft <= 0) {
+        setShowPaywall(true);
         return;
       }
 
@@ -513,15 +520,6 @@ export default function AhaMain() {
       addMessage(userMsg);
       setSelectedImage(null);
       setLoading(true);
-
-      if (!isPremium) {
-        if (!isInitialUsed()) {
-          decrementInitialPhotos();
-        } else {
-          incrementDailyPhotos();
-        }
-        refreshLimits();
-      }
 
       try {
         const token = authService.getToken();
@@ -546,11 +544,6 @@ export default function AhaMain() {
         });
 
         if (res.status === 429 || res.status === 403) {
-          if (!isInitialUsed()) {
-            localStorage.setItem('aha_questions_left', '0');
-            localStorage.setItem('aha_photos_left', '0');
-            markInitialUsed();
-          }
           addMessage({
             id: genId(),
             role: 'assistant',
@@ -559,6 +552,7 @@ export default function AhaMain() {
           });
           refreshLimits();
           setLoading(false);
+          setShowPaywall(true);
           return;
         }
 
@@ -575,6 +569,22 @@ export default function AhaMain() {
         }
 
         const data = await res.json();
+
+        if (!isPremium) {
+          if (!isInitialUsed()) {
+            decrementInitialPhotos();
+          } else {
+            incrementDailyPhotos();
+          }
+          refreshLimits();
+          checkInitialExhausted();
+          setTimeout(() => {
+            const fresh = getLimits();
+            if (fresh.photosLeft <= 0 && fresh.questionsLeft <= 0) {
+              setShowPaywall(true);
+            }
+          }, 1500);
+        }
 
         addMessage({
           id: genId(),
@@ -597,7 +607,7 @@ export default function AhaMain() {
       }
       setLoading(false);
     },
-    [genId, addMessage, refreshLimits, checkInitialExhausted, isPremium]
+    [genId, addMessage, refreshLimits, checkInitialExhausted, isPremium, loading]
   );
 
   const handleFileChange = useCallback(

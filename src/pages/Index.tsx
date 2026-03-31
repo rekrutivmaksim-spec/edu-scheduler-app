@@ -130,7 +130,11 @@ function Index() {
 
   useEffect(() => {
     const init = async () => {
-      if (!authService.isAuthenticated()) { navigate('/aha-first'); return; }
+      if (!authService.isAuthenticated()) {
+        const ahaCompleted = localStorage.getItem('aha_completed') === 'true';
+        navigate(ahaCompleted ? '/aha-main' : '/aha-first');
+        return;
+      }
       const v = await authService.verifyToken();
       if (!v) { navigate('/aha-first'); return; }
       setUser(v);
@@ -158,7 +162,8 @@ function Index() {
       limits.data.days_since_registration !== 999
     ) {
       authService.logout();
-      navigate('/aha-first');
+      const ahaCompleted = localStorage.getItem('aha_completed') === 'true';
+      navigate(ahaCompleted ? '/aha-main' : '/aha-first');
     }
   }, [limits.loading, limits.isPremium, limits.isTrial, limits.data.is_soft_landing, limits.data.days_since_registration, navigate]);
 
